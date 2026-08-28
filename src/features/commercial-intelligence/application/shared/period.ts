@@ -7,9 +7,9 @@
 import { brazilMonthKey, brazilMonthRange } from '../../../../shared/time/brazilCalendar.js';
 
 export function monthRange(period: string): { start: Date; end: Date; daysInMonth: number } {
-    return brazilMonthRange(period);
+  return brazilMonthRange(period);
 }
 
 export function currentPeriod(now = new Date()): string {
-    return brazilMonthKey(now);
+  return brazilMonthKey(now);
 }

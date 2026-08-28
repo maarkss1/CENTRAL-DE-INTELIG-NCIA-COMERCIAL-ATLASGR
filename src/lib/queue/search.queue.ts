@@ -15,76 +15,85 @@ export const SEARCH_QUEUE_NAME = 'search-indexing';
  * permanentemente fora do índice de busca até a próxima escrita naquele registro.
  */
 export const searchQueue = queuesEnabled
-    ? new Queue(SEARCH_QUEUE_NAME, {
-        connection,
-        defaultJobOptions: {
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 3_000 },
-            removeOnComplete: { age: 6 * 60 * 60 },
-            removeOnFail: { age: 7 * 24 * 60 * 60 },
-        },
+  ? new Queue(SEARCH_QUEUE_NAME, {
+      connection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 3_000 },
+        removeOnComplete: { age: 6 * 60 * 60 },
+        removeOnFail: { age: 7 * 24 * 60 * 60 },
+      },
     })
-    : null;
+  : null;
 registerQueueForMetrics(SEARCH_QUEUE_NAME, searchQueue);
 export const searchQueueEvents = queuesEnabled
-    ? new QueueEvents(SEARCH_QUEUE_NAME, { connection })
-    : null;
+  ? new QueueEvents(SEARCH_QUEUE_NAME, { connection })
+  : null;
 
 searchQueue?.on('error', (err) => logger.warn({ message: err.message }, 'searchQueue offline'));
-searchQueueEvents?.on('error', (err) => logger.warn({ message: err.message }, 'searchQueueEvents offline'));
+searchQueueEvents?.on('error', (err) =>
+  logger.warn({ message: err.message }, 'searchQueueEvents offline'),
+);
 
 searchQueueEvents?.on('completed', ({ jobId }) => {
-    logger.debug({ jobId }, 'Job completed in search queue');
+  logger.debug({ jobId }, 'Job completed in search queue');
 });
 
 searchQueueEvents?.on('failed', ({ jobId, failedReason }) => {
-    logger.error({ jobId, failedReason }, 'Job failed in search queue');
+  logger.error({ jobId, failedReason }, 'Job failed in search queue');
 });
 
 export const createSearchWorker = () => {
-    const worker = new Worker(SEARCH_QUEUE_NAME, async (job: Job) => {
-        logger.debug({ jobId: job.id, action: job.name, index: job.data.index }, 'Processing search indexing job');
-        
-        try {
-            const { index, action, data } = job.data;
-            if (!index || !action || !data) {
-                throw new Error("Missing required job data for search indexing");
-            }
+  const worker = new Worker(
+    SEARCH_QUEUE_NAME,
+    async (job: Job) => {
+      logger.debug(
+        { jobId: job.id, action: job.name, index: job.data.index },
+        'Processing search indexing job',
+      );
 
-            if (action === 'add' || action === 'update') {
-                if (action === 'add') {
-                    await meili.index(index).addDocuments(data);
-                } else {
-                    await meili.index(index).updateDocuments(data);
-                }
-            } else if (action === 'delete') {
-                await meili.index(index).deleteDocuments(data);
-            }
-
-            return { success: true, processedAt: new Date().toISOString() };
-        } catch (error: unknown) {
-            logger.error({ err: error }, 'Error during search indexing');
-            throw error;
+      try {
+        const { index, action, data } = job.data;
+        if (!index || !action || !data) {
+          throw new Error('Missing required job data for search indexing');
         }
-    }, { connection });
 
-    worker.on('error', (err) => {
-        logger.error({ err }, 'Search Worker error');
+        if (action === 'add' || action === 'update') {
+          if (action === 'add') {
+            await meili.index(index).addDocuments(data);
+          } else {
+            await meili.index(index).updateDocuments(data);
+          }
+        } else if (action === 'delete') {
+          await meili.index(index).deleteDocuments(data);
+        }
+
+        return { success: true, processedAt: new Date().toISOString() };
+      } catch (error: unknown) {
+        logger.error({ err: error }, 'Error during search indexing');
+        throw error;
+      }
+    },
+    { connection },
+  );
+
+  worker.on('error', (err) => {
+    logger.error({ err }, 'Search Worker error');
+  });
+
+  worker.on('completed', () => recordQueueJobCompleted(SEARCH_QUEUE_NAME));
+
+  worker.on('failed', (job, err) => {
+    if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+    void recordDeadLetter({
+      queue: SEARCH_QUEUE_NAME,
+      jobId: job.id,
+      jobName: job.name,
+      attemptsMade: job.attemptsMade,
+      error: err,
+      data: job.data,
     });
+  });
 
-    worker.on('completed', () => recordQueueJobCompleted(SEARCH_QUEUE_NAME));
-
-    worker.on('failed', (job, err) => {
-        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
-        void recordDeadLetter({
-            queue: SEARCH_QUEUE_NAME,
-            jobId: job.id,
-            jobName: job.name,
-            attemptsMade: job.attemptsMade,
-            error: err,
-            data: job.data,
-        });
-    });
-
-    return worker;
+  return worker;
 };

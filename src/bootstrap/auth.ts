@@ -14,10 +14,10 @@ import { requestContext } from '../lib/async-context.js';
  * real: essas rotas passam por authenticateToken, que só concede tenantId real da sessão.
  */
 export function mountAuthHandler(app: Express): void {
-    const authHandler = toNodeHandler(auth);
-    // CORREÇÃO: app.all captura todos os métodos HTTP, incluindo CONNECT e TRACE.
-    // app.use é mais correto aqui: deixa o Better Auth decidir quais métodos aceita.
-    app.use('/api/auth', (req, res) => {
-        requestContext.run({ bypassRls: true }, () => authHandler(req, res));
-    });
+  const authHandler = toNodeHandler(auth);
+  // CORREÇÃO: app.all captura todos os métodos HTTP, incluindo CONNECT e TRACE.
+  // app.use é mais correto aqui: deixa o Better Auth decidir quais métodos aceita.
+  app.use('/api/auth', (req, res) => {
+    requestContext.run({ bypassRls: true }, () => authHandler(req, res));
+  });
 }

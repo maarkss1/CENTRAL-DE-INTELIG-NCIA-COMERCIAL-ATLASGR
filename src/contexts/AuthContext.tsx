@@ -2,7 +2,12 @@
 import { createContext, useContext, ReactNode } from 'react';
 import { authClient } from '../lib/auth-client';
 import { getBrandFromEmail } from '../config/access-policy';
-import { hasRequiredRole, isKnownRole, canAccessCommercialIntelligence, type Role } from '../lib/auth/authorization';
+import {
+  hasRequiredRole,
+  isKnownRole,
+  canAccessCommercialIntelligence,
+  type Role,
+} from '../lib/auth/authorization';
 
 export interface UserSession {
   id: string;
@@ -49,7 +54,14 @@ const ROLE_TITLES: Record<Role, string> = {
 // parte: se o backend mudar quem pode o quê, este mapa precisa mudar junto (ver AGENTS.md sobre
 // não reintroduzir um terceiro sistema de RBAC).
 const ROLE_PERMISSIONS: Record<Role, string[]> = {
-  ADMIN: ['crm.read', 'crm.write', 'crm.delete', 'settings.manage', 'users.manage', 'billing.manage'],
+  ADMIN: [
+    'crm.read',
+    'crm.write',
+    'crm.delete',
+    'settings.manage',
+    'users.manage',
+    'billing.manage',
+  ],
   GESTOR: ['crm.read', 'crm.write', 'crm.delete'],
   CLOSER: ['crm.read', 'crm.write'],
   SDR: ['crm.read', 'crm.write'],
@@ -112,7 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = currentUser ? hasRequiredRole(currentUser.role, ['ADMIN']) : false;
-  const canAccessCommercialIntelligenceValue = currentUser ? canAccessCommercialIntelligence(currentUser.role) : false;
+  const canAccessCommercialIntelligenceValue = currentUser
+    ? canAccessCommercialIntelligence(currentUser.role)
+    : false;
 
   const canAccessAdminPanel = () => isAdmin;
 
@@ -134,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         canAccessAdminPanel,
         canAccessBrand,
         canAccessCommercialIntelligence: canAccessCommercialIntelligenceValue,
-        isPending
+        isPending,
       }}
     >
       {children}

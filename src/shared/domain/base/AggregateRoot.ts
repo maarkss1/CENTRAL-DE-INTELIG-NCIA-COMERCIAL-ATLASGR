@@ -17,10 +17,10 @@ import type { IDomainEvent } from './IDomainEvent.js';
  * @typeParam TProps - Shape of the aggregate's encapsulated properties.
  * @typeParam TId - Type of the aggregate's identity.
  */
-export abstract class AggregateRoot<TProps, TId extends UniqueEntityID = UniqueEntityID> extends Entity<
+export abstract class AggregateRoot<
   TProps,
-  TId
-> {
+  TId extends UniqueEntityID = UniqueEntityID,
+> extends Entity<TProps, TId> {
   private domainEvents: IDomainEvent[] = [];
 
   protected constructor(props: TProps, id: TId) {
@@ -45,7 +45,9 @@ export abstract class AggregateRoot<TProps, TId extends UniqueEntityID = UniqueE
    * Removes a specific Domain Event previously registered.
    */
   protected removeDomainEvent(event: IDomainEvent): void {
-    this.domainEvents = this.domainEvents.filter((registered) => registered.eventId !== event.eventId);
+    this.domainEvents = this.domainEvents.filter(
+      (registered) => registered.eventId !== event.eventId,
+    );
   }
 
   /**

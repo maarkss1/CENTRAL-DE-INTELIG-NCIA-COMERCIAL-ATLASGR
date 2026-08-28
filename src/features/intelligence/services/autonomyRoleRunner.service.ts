@@ -10,23 +10,23 @@ export type AutonomyRole = 'BDR' | 'CLOSER' | 'CRM';
  * decidir o que pode ser autoexecutado. Ações externas seguem pelo ledger AIPendingAction.
  */
 export async function runAutonomyRole(
-    role: AutonomyRole,
-    context: string,
-    sessionId: string,
+  role: AutonomyRole,
+  context: string,
+  sessionId: string,
 ): Promise<string> {
-    if (role === 'BDR') {
-        const result = await new BDRAgent().run(context, sessionId);
-        if (result.error) throw new Error(result.error);
-        return result.qualification || 'BDR concluiu a análise sem detalhamento textual.';
-    }
-
-    if (role === 'CLOSER') {
-        const result = await new CloserAgent().run(context, sessionId);
-        if (result.error) throw new Error(result.error);
-        return result.closePlan || 'Closer concluiu a análise sem detalhamento textual.';
-    }
-
-    const result = await new CRMAgent().run(context, sessionId);
+  if (role === 'BDR') {
+    const result = await new BDRAgent().run(context, sessionId);
     if (result.error) throw new Error(result.error);
-    return result.action || 'CRM concluiu a análise sem detalhamento textual.';
+    return result.qualification || 'BDR concluiu a análise sem detalhamento textual.';
+  }
+
+  if (role === 'CLOSER') {
+    const result = await new CloserAgent().run(context, sessionId);
+    if (result.error) throw new Error(result.error);
+    return result.closePlan || 'Closer concluiu a análise sem detalhamento textual.';
+  }
+
+  const result = await new CRMAgent().run(context, sessionId);
+  if (result.error) throw new Error(result.error);
+  return result.action || 'CRM concluiu a análise sem detalhamento textual.';
 }

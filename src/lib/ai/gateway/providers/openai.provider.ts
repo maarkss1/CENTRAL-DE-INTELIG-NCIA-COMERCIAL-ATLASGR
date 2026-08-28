@@ -16,22 +16,24 @@ const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 const OPENAI_FALLBACK_MODEL = 'gpt-4o-mini';
 
 export const openaiProvider: ProviderAdapter = {
-    name: 'openai',
-    isConfigured(): boolean {
-        return Boolean(process.env.OPENAI_API_KEY);
-    },
-    async chatCompletion(params: ProviderChatParams): Promise<ChatCompletionResponse> {
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) throw new Error('OpenAI não está configurado (OPENAI_API_KEY ausente).');
-        return callProvider('openai', () => requestChatCompletion(
-            OPENAI_CHAT_URL,
-            apiKey,
-            OPENAI_FALLBACK_MODEL,
-            params.messages,
-            params.temperature,
-            params.agentContext,
-            params.timeoutMs,
-            false,
-        ));
-    },
+  name: 'openai',
+  isConfigured(): boolean {
+    return Boolean(process.env.OPENAI_API_KEY);
+  },
+  async chatCompletion(params: ProviderChatParams): Promise<ChatCompletionResponse> {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OpenAI não está configurado (OPENAI_API_KEY ausente).');
+    return callProvider('openai', () =>
+      requestChatCompletion(
+        OPENAI_CHAT_URL,
+        apiKey,
+        OPENAI_FALLBACK_MODEL,
+        params.messages,
+        params.temperature,
+        params.agentContext,
+        params.timeoutMs,
+        false,
+      ),
+    );
+  },
 };

@@ -11,28 +11,24 @@
 // total só deve mudar por (a) uma violação real ter sido corrigida (some da baseline) ou (b) uma
 // exceção nova, documentada com dono em docs/architecture/KNOWN_VIOLATIONS.md, ter sido aceita.
 
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const OUTPUT_PATH = path.join(ROOT, '.dependency-cruiser-known-violations.json');
 
+// Comando fixo, sem nenhum valor vindo de fora deste arquivo (nem argv, nem env) — seguro para
+// montar como string única em vez de array de args, o padrão que `execSync` (sempre via shell)
+// espera. No Windows, `npx` só existe como `npx.cmd`; `execFileSync('npx', [...])` sem shell falha
+// com ENOENT, e `execFileSync(..., { shell: true })` dispara o aviso de depreciação DEP0190 do
+// Node por misturar `args` com `shell: true`. `execSync` com uma string já monta o comando dessa
+// forma sem gerar o aviso.
+const DEPCRUISE_CMD = 'npx depcruise --config .dependency-cruiser.cjs --output-type json src server.ts worker.ts';
+
 function runDepcruise() {
-    const stdout = execFileSync(
-        'npx',
-        [
-            'depcruise',
-            '--config',
-            '.dependency-cruiser.cjs',
-            '--output-type',
-            'json',
-            'src',
-            'server.ts',
-            'worker.ts',
-        ],
-        { cwd: ROOT, encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024 },
-    );
+    const stdout = execSync(DEPCRUISE_CMD, { cwd: ROOT, encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024 });
     return JSON.parse(stdout);
 }
 
@@ -70,6 +66,11 @@ function main() {
     );
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// `file://${process.argv[1]}` quebra no Windows: `import.meta.url` normaliza pra
+// `file:///C:/...` (barra invertida virada, host vazio triplo-slash), enquanto `process.argv[1]`
+// continua com o separador nativo (`C:\...`) — a comparação nunca batia, e o script saía
+// silenciosamente (exit 0, main() nunca chamado) sem regenerar nada nem avisar. pathToFileURL
+// normaliza os dois lados da mesma forma em qualquer plataforma.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     main();
 }

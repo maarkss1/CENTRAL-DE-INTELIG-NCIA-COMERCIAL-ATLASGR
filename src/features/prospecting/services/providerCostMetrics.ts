@@ -57,31 +57,31 @@ export type { ProspectingCostProvider };
  */
 
 export const DEFAULT_PROVIDER_COST_PER_CALL_USD: Record<ProspectingCostProvider, number> = {
-    apollo: 0.01,
-    hunter: 0.02,
+  apollo: 0.01,
+  hunter: 0.02,
 };
 
 function envVarNameFor(provider: ProspectingCostProvider): string {
-    return provider === 'apollo'
-        ? 'PROSPECTING_APOLLO_COST_PER_CALL_USD'
-        : 'PROSPECTING_HUNTER_COST_PER_CALL_USD';
+  return provider === 'apollo'
+    ? 'PROSPECTING_APOLLO_COST_PER_CALL_USD'
+    : 'PROSPECTING_HUNTER_COST_PER_CALL_USD';
 }
 
 /** Lê o custo estimado por chamada (env), com fallback à estimativa conservadora documentada acima. */
 export function getCostPerCallUsd(
-    provider: ProspectingCostProvider,
-    environment: NodeJS.ProcessEnv = process.env
+  provider: ProspectingCostProvider,
+  environment: NodeJS.ProcessEnv = process.env,
 ): number {
-    const raw = environment[envVarNameFor(provider)];
-    const parsed = raw != null ? Number(raw) : NaN;
-    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-    return DEFAULT_PROVIDER_COST_PER_CALL_USD[provider];
+  const raw = environment[envVarNameFor(provider)];
+  const parsed = raw != null ? Number(raw) : NaN;
+  if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  return DEFAULT_PROVIDER_COST_PER_CALL_USD[provider];
 }
 
 export const prospectingProviderCostUsdTotal = new client.Counter({
-    name: 'prospecting_provider_cost_usd_total',
-    help: 'Custo estimado acumulado (USD) de chamadas bem-sucedidas a providers de prospecção (Apollo/Hunter), por provider. Estimativa fixa por chamada (ver providerCostMetrics.ts) — NÃO é um teto/orçamento, só um contador honesto do que já foi gasto.',
-    labelNames: ['provider'] as const,
+  name: 'prospecting_provider_cost_usd_total',
+  help: 'Custo estimado acumulado (USD) de chamadas bem-sucedidas a providers de prospecção (Apollo/Hunter), por provider. Estimativa fixa por chamada (ver providerCostMetrics.ts) — NÃO é um teto/orçamento, só um contador honesto do que já foi gasto.',
+  labelNames: ['provider'] as const,
 });
 
 /**
@@ -102,11 +102,11 @@ export const prospectingProviderCostUsdTotal = new client.Counter({
  * — nunca propagam para cá.
  */
 export function recordProviderCallCost(
-    provider: ProspectingCostProvider,
-    environment: NodeJS.ProcessEnv = process.env
+  provider: ProspectingCostProvider,
+  environment: NodeJS.ProcessEnv = process.env,
 ): void {
-    const costUsd = getCostPerCallUsd(provider, environment);
-    if (!Number.isFinite(costUsd) || costUsd <= 0) return;
-    prospectingProviderCostUsdTotal.inc({ provider }, costUsd);
-    void recordProspectingProviderSpend(provider, costUsd);
+  const costUsd = getCostPerCallUsd(provider, environment);
+  if (!Number.isFinite(costUsd) || costUsd <= 0) return;
+  prospectingProviderCostUsdTotal.inc({ provider }, costUsd);
+  void recordProspectingProviderSpend(provider, costUsd);
 }

@@ -5,35 +5,35 @@ import { isOptedOut } from '../../cadence/application/optOutService.js';
 import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutRepository.js';
 
 export interface ColdEmailCampaign {
-    id: string;
-    targetEmail: string;
-    subject: string;
-    body: string;
-    status: 'draft' | 'sent' | 'failed';
-    legalBasis: 'legitimate_interest' | 'consent';
-    dataSource: string;
-    /**
-     * Tenant do disparo. Obrigatório para checar opt-out unificado antes do envio (ver
-     * `.agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md`) — sem isso não é possível
-     * consultar `OptOutRecord` de forma isolada por organização.
-     */
-    organizationId: string;
-    /** Quando o alvo já é um lead do CRM — casamento mais forte no opt-out unificado (ver contrato). */
-    leadId?: string | null;
-    /**
-     * Telefone bruto do mesmo contato, quando já carregado pelo chamador. Necessário para que um
-     * opt-out registrado por voz/WhatsApp (mesmo lead, canal diferente) também bloqueie este
-     * e-mail — é o "ponto crítico" do contrato do Agente 17: passar `email` E `phoneE164` sempre
-     * que ambos já estiverem disponíveis, mesmo que o envio em si só use o e-mail.
-     */
-    contactPhone?: string | null;
+  id: string;
+  targetEmail: string;
+  subject: string;
+  body: string;
+  status: 'draft' | 'sent' | 'failed';
+  legalBasis: 'legitimate_interest' | 'consent';
+  dataSource: string;
+  /**
+   * Tenant do disparo. Obrigatório para checar opt-out unificado antes do envio (ver
+   * `.agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md`) — sem isso não é possível
+   * consultar `OptOutRecord` de forma isolada por organização.
+   */
+  organizationId: string;
+  /** Quando o alvo já é um lead do CRM — casamento mais forte no opt-out unificado (ver contrato). */
+  leadId?: string | null;
+  /**
+   * Telefone bruto do mesmo contato, quando já carregado pelo chamador. Necessário para que um
+   * opt-out registrado por voz/WhatsApp (mesmo lead, canal diferente) também bloqueie este
+   * e-mail — é o "ponto crítico" do contrato do Agente 17: passar `email` E `phoneE164` sempre
+   * que ambos já estiverem disponíveis, mesmo que o envio em si só use o e-mail.
+   */
+  contactPhone?: string | null;
 }
 
 /** Domínio do e-mail, para log — nunca o endereço completo (PII em texto puro). */
 function emailDomain(email: string | undefined): string | undefined {
-    if (!email) return undefined;
-    const at = email.lastIndexOf('@');
-    return at === -1 ? undefined : email.slice(at + 1);
+  if (!email) return undefined;
+  const at = email.lastIndexOf('@');
+  return at === -1 ? undefined : email.slice(at + 1);
 }
 
 /**
@@ -63,53 +63,59 @@ function emailDomain(email: string | undefined): string | undefined {
  * arquivo está fora do escopo de arquivos deste agente.
  */
 export async function sendColdEmail(campaign: ColdEmailCampaign): Promise<boolean> {
-    const toDomain = emailDomain(campaign.targetEmail);
-    try {
-        if (!campaign.targetEmail || !campaign.subject || !campaign.body) {
-            throw new Error('Missing required fields for cold email.');
-        }
-
-        if (!campaign.legalBasis || !campaign.dataSource) {
-            throw new Error('LGPD compliance requires legal basis and data source for cold outreach.');
-        }
-
-        if (!campaign.organizationId) {
-            throw new Error('organizationId é obrigatório para checar opt-out antes do envio.');
-        }
-
-        // Ponto crítico do contrato: passar leadId + email + phoneE164 sempre que disponíveis —
-        // é assim que um opt-out registrado por voz/WhatsApp do mesmo lead bloqueia este e-mail,
-        // sem exigir uma tabela de resolução de identidade separada (ver domain/optOut.ts).
-        const blocked = await isOptedOut(
-            prismaOptOutRepository,
-            campaign.organizationId,
-            {
-                leadId: campaign.leadId ?? null,
-                email: campaign.targetEmail,
-                phoneE164: toE164BR(campaign.contactPhone ?? undefined),
-            },
-            'email',
-        );
-
-        if (blocked) {
-            // Nunca registrar/tratar como enviado — a tentativa foi pulada (skipped) por opt-out.
-            logger.info(
-                { campaignId: campaign.id, toDomain, reason: 'opt-out' },
-                'Cold email não enviado: titular optou por não receber contato neste canal (opt-out).',
-            );
-            return false;
-        }
-
-        await sendEmail({ to: campaign.targetEmail, subject: campaign.subject, text: campaign.body });
-
-        logger.info({ campaignId: campaign.id, toDomain, basis: campaign.legalBasis }, 'Cold email enviado');
-        return true;
-    } catch (error) {
-        if (error instanceof MailerNotConfiguredError) {
-            logger.warn({ campaignId: campaign.id, toDomain }, 'Cold email não enviado: SMTP não configurado neste ambiente.');
-            return false;
-        }
-        logger.error({ err: error, campaignId: campaign.id, toDomain }, 'Failed to send cold email');
-        return false;
+  const toDomain = emailDomain(campaign.targetEmail);
+  try {
+    if (!campaign.targetEmail || !campaign.subject || !campaign.body) {
+      throw new Error('Missing required fields for cold email.');
     }
+
+    if (!campaign.legalBasis || !campaign.dataSource) {
+      throw new Error('LGPD compliance requires legal basis and data source for cold outreach.');
+    }
+
+    if (!campaign.organizationId) {
+      throw new Error('organizationId é obrigatório para checar opt-out antes do envio.');
+    }
+
+    // Ponto crítico do contrato: passar leadId + email + phoneE164 sempre que disponíveis —
+    // é assim que um opt-out registrado por voz/WhatsApp do mesmo lead bloqueia este e-mail,
+    // sem exigir uma tabela de resolução de identidade separada (ver domain/optOut.ts).
+    const blocked = await isOptedOut(
+      prismaOptOutRepository,
+      campaign.organizationId,
+      {
+        leadId: campaign.leadId ?? null,
+        email: campaign.targetEmail,
+        phoneE164: toE164BR(campaign.contactPhone ?? undefined),
+      },
+      'email',
+    );
+
+    if (blocked) {
+      // Nunca registrar/tratar como enviado — a tentativa foi pulada (skipped) por opt-out.
+      logger.info(
+        { campaignId: campaign.id, toDomain, reason: 'opt-out' },
+        'Cold email não enviado: titular optou por não receber contato neste canal (opt-out).',
+      );
+      return false;
+    }
+
+    await sendEmail({ to: campaign.targetEmail, subject: campaign.subject, text: campaign.body });
+
+    logger.info(
+      { campaignId: campaign.id, toDomain, basis: campaign.legalBasis },
+      'Cold email enviado',
+    );
+    return true;
+  } catch (error) {
+    if (error instanceof MailerNotConfiguredError) {
+      logger.warn(
+        { campaignId: campaign.id, toDomain },
+        'Cold email não enviado: SMTP não configurado neste ambiente.',
+      );
+      return false;
+    }
+    logger.error({ err: error, campaignId: campaign.id, toDomain }, 'Failed to send cold email');
+    return false;
+  }
 }

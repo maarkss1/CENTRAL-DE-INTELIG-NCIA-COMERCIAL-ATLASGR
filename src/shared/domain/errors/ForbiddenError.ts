@@ -9,7 +9,10 @@ import { DomainException, type DomainExceptionDetails } from './DomainException.
  * Raised when an authenticated actor lacks permission to access a resource.
  */
 export class ForbiddenError extends DomainException {
-  public constructor(message = 'You do not have permission to perform this action.', details?: DomainExceptionDetails) {
+  public constructor(
+    message = 'You do not have permission to perform this action.',
+    details?: DomainExceptionDetails,
+  ) {
     super(message, 'FORBIDDEN', details);
   }
 }

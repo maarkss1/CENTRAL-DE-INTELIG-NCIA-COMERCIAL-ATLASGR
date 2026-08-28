@@ -1,4 +1,3 @@
-
 import { prisma } from '../../../lib/prisma.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { acquireDistributedLock } from '../../../lib/queue/distributedLock.js';
@@ -41,32 +40,37 @@ const LOCK_KEY = 'stagnation-scanner:lock';
 const LOCK_TTL_SECONDS = 60 * 30;
 
 interface StagnationCondition {
-    /** Rótulo humano do `LeadStatus` (ex.: "Proposta Enviada") — ausente = qualquer etapa aberta. */
-    status?: string;
-    /** Limiar mínimo de dias sem interação, no formato de operador do motor (`{ gte: N }`). */
-    daysSinceLastInteraction: { gte: number };
+  /** Rótulo humano do `LeadStatus` (ex.: "Proposta Enviada") — ausente = qualquer etapa aberta. */
+  status?: string;
+  /** Limiar mínimo de dias sem interação, no formato de operador do motor (`{ gte: N }`). */
+  daysSinceLastInteraction: { gte: number };
 }
 
-const CLOSED_STATUSES: LeadStatus[] = ['Negócios Ganhos', 'Negócios Perdidos', 'Lead Desqualificado'];
+const CLOSED_STATUSES: LeadStatus[] = [
+  'Negócios Ganhos',
+  'Negócios Perdidos',
+  'Lead Desqualificado',
+];
 
 /** Extrai `{ status?, daysSinceLastInteraction: { gte } }` de `automation.conditions`, ou `null` se
  *  esta automação não é uma regra de estagnação (não tem o operador numérico esperado). */
 function parseStagnationCondition(conditions: unknown): StagnationCondition | null {
-    if (conditions == null || typeof conditions !== 'object' || Array.isArray(conditions)) return null;
-    const c = conditions as Record<string, unknown>;
+  if (conditions == null || typeof conditions !== 'object' || Array.isArray(conditions))
+    return null;
+  const c = conditions as Record<string, unknown>;
 
-    const threshold = c.daysSinceLastInteraction;
-    if (threshold == null || typeof threshold !== 'object' || Array.isArray(threshold)) return null;
+  const threshold = c.daysSinceLastInteraction;
+  if (threshold == null || typeof threshold !== 'object' || Array.isArray(threshold)) return null;
 
-    const gte = (threshold as Record<string, unknown>).gte;
-    if (typeof gte !== 'number' || gte <= 0) return null;
+  const gte = (threshold as Record<string, unknown>).gte;
+  if (typeof gte !== 'number' || gte <= 0) return null;
 
-    const status = typeof c.status === 'string' && c.status.trim() ? c.status.trim() : undefined;
-    return { status, daysSinceLastInteraction: { gte } };
+  const status = typeof c.status === 'string' && c.status.trim() ? c.status.trim() : undefined;
+  return { status, daysSinceLastInteraction: { gte } };
 }
 
 function daysSince(date: Date, now: Date): number {
-    return Math.floor((now.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.floor((now.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
 }
 
 /**
@@ -80,140 +84,168 @@ function daysSince(date: Date, now: Date): number {
  * de execução da missão original — nenhum modelo novo).
  */
 async function alreadyNotifiedForStreak(
-    organizationId: string,
-    automationId: string,
-    leadId: string,
-    streakKey: string,
+  organizationId: string,
+  automationId: string,
+  leadId: string,
+  streakKey: string,
 ): Promise<boolean> {
-    const existing = await prisma.auditLog.findFirst({
-        where: {
-            tenantId: organizationId,
-            entity: 'Automation',
-            entityId: automationId,
-            action: 'AUTOMATION_EXECUTION',
-            AND: [
-                { details: { contains: `"entityId":"${leadId}"` } },
-                { details: { contains: `"streakKey":"${streakKey}"` } },
-                { details: { contains: '"status":"success"' } },
-            ],
-        },
-        select: { id: true },
-    });
-    return existing != null;
+  const existing = await prisma.auditLog.findFirst({
+    where: {
+      tenantId: organizationId,
+      entity: 'Automation',
+      entityId: automationId,
+      action: 'AUTOMATION_EXECUTION',
+      AND: [
+        { details: { contains: `"entityId":"${leadId}"` } },
+        { details: { contains: `"streakKey":"${streakKey}"` } },
+        { details: { contains: '"status":"success"' } },
+      ],
+    },
+    select: { id: true },
+  });
+  return existing != null;
 }
 
 interface StagnationScanResult {
-    runId: string;
-    automationsEvaluated: number;
-    leadsScanned: number;
-    fired: number;
-    failures: number;
+  runId: string;
+  automationsEvaluated: number;
+  leadsScanned: number;
+  fired: number;
+  failures: number;
 }
 
 /** Uma execução da varredura. Exportado para permitir teste direto sem esperar o cron. */
 export async function runStagnationScan(): Promise<StagnationScanResult> {
-    const startedAt = Date.now();
-    const lock = await acquireDistributedLock(LOCK_KEY, LOCK_TTL_SECONDS);
-    const { runId } = lock;
+  const startedAt = Date.now();
+  const lock = await acquireDistributedLock(LOCK_KEY, LOCK_TTL_SECONDS);
+  const { runId } = lock;
 
-    if (!lock.acquired) {
-        logger.info({ runId }, 'Stagnation scan pulada: outra instância já está executando.');
-        return { runId, automationsEvaluated: 0, leadsScanned: 0, fired: 0, failures: 0 };
-    }
+  if (!lock.acquired) {
+    logger.info({ runId }, 'Stagnation scan pulada: outra instância já está executando.');
+    return { runId, automationsEvaluated: 0, leadsScanned: 0, fired: 0, failures: 0 };
+  }
 
-    logger.info({ runId }, 'Stagnation scan iniciada.');
-    let automationsEvaluated = 0;
-    let leadsScanned = 0;
-    let fired = 0;
-    let failures = 0;
+  logger.info({ runId }, 'Stagnation scan iniciada.');
+  let automationsEvaluated = 0;
+  let leadsScanned = 0;
+  let fired = 0;
+  let failures = 0;
 
-    try {
-        // Automation está sob RLS (tenant-scoped) — listar candidatas de TODAS as organizações
-        // exige ir organização por organização com o contexto de tenant setado (Organization em si
-        // não é tenant-scoped, então dá para listar os ids sem RLS, mesmo padrão de
-        // `enabledOrganizations()`/cold-leads-scanner).
-        const organizations = await prisma.organization.findMany({ select: { id: true } });
+  try {
+    // Automation está sob RLS (tenant-scoped) — listar candidatas de TODAS as organizações
+    // exige ir organização por organização com o contexto de tenant setado (Organization em si
+    // não é tenant-scoped, então dá para listar os ids sem RLS, mesmo padrão de
+    // `enabledOrganizations()`/cold-leads-scanner).
+    const organizations = await prisma.organization.findMany({ select: { id: true } });
 
-        for (const { id: organizationId } of organizations) {
-            const now = new Date();
-            const scanFailures = await requestContext.run({ tenantId: organizationId }, async () => {
-                const candidates = await prisma.automation.findMany({
-                    where: { organizationId, enabled: true, trigger: 'Lead_Mudou_Status' },
-                });
+    for (const { id: organizationId } of organizations) {
+      const now = new Date();
+      const scanFailures = await requestContext.run({ tenantId: organizationId }, async () => {
+        const candidates = await prisma.automation.findMany({
+          where: { organizationId, enabled: true, trigger: 'Lead_Mudou_Status' },
+        });
 
-                let orgFailures = 0;
-                for (const automation of candidates) {
-                    const stagnation = parseStagnationCondition(automation.conditions);
-                    if (!stagnation) continue;
-                    automationsEvaluated++;
+        let orgFailures = 0;
+        for (const automation of candidates) {
+          const stagnation = parseStagnationCondition(automation.conditions);
+          if (!stagnation) continue;
+          automationsEvaluated++;
 
-                    try {
-                        const cutoff = new Date(now.getTime() - stagnation.daysSinceLastInteraction.gte * 24 * 60 * 60 * 1000);
-                        const statusFilter = stagnation.status
-                            ? toPrismaLeadStatus(stagnation.status as LeadStatus)
-                            : undefined;
+          try {
+            const cutoff = new Date(
+              now.getTime() - stagnation.daysSinceLastInteraction.gte * 24 * 60 * 60 * 1000,
+            );
+            const statusFilter = stagnation.status
+              ? toPrismaLeadStatus(stagnation.status as LeadStatus)
+              : undefined;
 
-                        const leads = await prisma.lead.findMany({
-                            where: {
-                                organizationId,
-                                deletedAt: null,
-                                ...(statusFilter ? { status: statusFilter as never } : { status: { notIn: CLOSED_STATUSES.map((s) => toPrismaLeadStatus(s)) as never[] } }),
-                                OR: [
-                                    { lastInteraction: { lte: cutoff } },
-                                    { lastInteraction: null, createdAt: { lte: cutoff } },
-                                ],
-                            },
-                            select: { id: true, status: true, owner: true, temperature: true, score: true, lastInteraction: true, createdAt: true },
-                            orderBy: { lastInteraction: 'asc' },
-                            take: SCAN_LIMIT_PER_AUTOMATION,
-                        });
-                        leadsScanned += leads.length;
-
-                        for (const lead of leads) {
-                            const referenceDate = lead.lastInteraction ?? lead.createdAt;
-                            const streakKey = lead.lastInteraction ? lead.lastInteraction.toISOString() : 'never';
-
-                            if (await alreadyNotifiedForStreak(organizationId, automation.id, lead.id, streakKey)) {
-                                continue;
-                            }
-
-                            const executed = await automationEngine.handle({
-                                organizationId,
-                                trigger: 'Lead mudou de status',
-                                entity: 'Lead',
-                                entityId: lead.id,
-                                data: {
-                                    status: fromPrismaLeadStatus(lead.status),
-                                    owner: lead.owner,
-                                    temperature: lead.temperature,
-                                    score: lead.score,
-                                    daysSinceLastInteraction: daysSince(referenceDate, now),
-                                    streakKey,
-                                },
-                            });
-                            fired += executed;
-                        }
-                    } catch (err) {
-                        orgFailures++;
-                        logger.error({ err, runId, organizationId, automationId: automation.id }, 'Falha ao reavaliar automação de estagnação');
-                    }
-                }
-                return orgFailures;
+            const leads = await prisma.lead.findMany({
+              where: {
+                organizationId,
+                deletedAt: null,
+                ...(statusFilter
+                  ? { status: statusFilter as never }
+                  : {
+                      status: {
+                        notIn: CLOSED_STATUSES.map((s) => toPrismaLeadStatus(s)) as never[],
+                      },
+                    }),
+                OR: [
+                  { lastInteraction: { lte: cutoff } },
+                  { lastInteraction: null, createdAt: { lte: cutoff } },
+                ],
+              },
+              select: {
+                id: true,
+                status: true,
+                owner: true,
+                temperature: true,
+                score: true,
+                lastInteraction: true,
+                createdAt: true,
+              },
+              orderBy: { lastInteraction: 'asc' },
+              take: SCAN_LIMIT_PER_AUTOMATION,
             });
-            failures += scanFailures;
-        }
+            leadsScanned += leads.length;
 
-        logger.info(
-            { runId, automationsEvaluated, leadsScanned, fired, failures, durationMs: Date.now() - startedAt },
-            'Stagnation scan concluída.',
-        );
-        return { runId, automationsEvaluated, leadsScanned, fired, failures };
-    } catch (error) {
-        logger.error({ err: error, runId }, 'Stagnation scan falhou.');
-        return { runId, automationsEvaluated, leadsScanned, fired, failures: failures + 1 };
-    } finally {
-        await lock.release();
+            for (const lead of leads) {
+              const referenceDate = lead.lastInteraction ?? lead.createdAt;
+              const streakKey = lead.lastInteraction ? lead.lastInteraction.toISOString() : 'never';
+
+              if (
+                await alreadyNotifiedForStreak(organizationId, automation.id, lead.id, streakKey)
+              ) {
+                continue;
+              }
+
+              const executed = await automationEngine.handle({
+                organizationId,
+                trigger: 'Lead mudou de status',
+                entity: 'Lead',
+                entityId: lead.id,
+                data: {
+                  status: fromPrismaLeadStatus(lead.status),
+                  owner: lead.owner,
+                  temperature: lead.temperature,
+                  score: lead.score,
+                  daysSinceLastInteraction: daysSince(referenceDate, now),
+                  streakKey,
+                },
+              });
+              fired += executed;
+            }
+          } catch (err) {
+            orgFailures++;
+            logger.error(
+              { err, runId, organizationId, automationId: automation.id },
+              'Falha ao reavaliar automação de estagnação',
+            );
+          }
+        }
+        return orgFailures;
+      });
+      failures += scanFailures;
     }
+
+    logger.info(
+      {
+        runId,
+        automationsEvaluated,
+        leadsScanned,
+        fired,
+        failures,
+        durationMs: Date.now() - startedAt,
+      },
+      'Stagnation scan concluída.',
+    );
+    return { runId, automationsEvaluated, leadsScanned, fired, failures };
+  } catch (error) {
+    logger.error({ err: error, runId }, 'Stagnation scan falhou.');
+    return { runId, automationsEvaluated, leadsScanned, fired, failures: failures + 1 };
+  } finally {
+    await lock.release();
+  }
 }
 
 import { Worker, Queue } from 'bullmq';
@@ -223,43 +255,51 @@ import { recordDeadLetter, isFinalAttempt } from '../../../lib/queue/deadLetter.
 export const STAGNATION_SCANNER_QUEUE_NAME = 'stagnation-scanner-queue';
 
 export function createStagnationScannerWorker() {
-    const worker = new Worker(STAGNATION_SCANNER_QUEUE_NAME, async (job) => {
-        logger.info('Iniciando job de stagnation-scanner');
-        await runStagnationScan();
-    }, {
-        connection: connection as any,
-        concurrency: 1
-    });
+  const worker = new Worker(
+    STAGNATION_SCANNER_QUEUE_NAME,
+    async (job) => {
+      logger.info('Iniciando job de stagnation-scanner');
+      await runStagnationScan();
+    },
+    {
+      connection: connection as any,
+      concurrency: 1,
+    },
+  );
 
-    worker.on('failed', (job, err) => {
-        logger.error({ err, jobId: job?.id }, 'StagnationScanner worker job falhou');
-        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
-        void recordDeadLetter({
-            queue: STAGNATION_SCANNER_QUEUE_NAME,
-            jobId: job.id,
-            jobName: job.name,
-            attemptsMade: job.attemptsMade,
-            error: err,
-        });
+  worker.on('failed', (job, err) => {
+    logger.error({ err, jobId: job?.id }, 'StagnationScanner worker job falhou');
+    if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+    void recordDeadLetter({
+      queue: STAGNATION_SCANNER_QUEUE_NAME,
+      jobId: job.id,
+      jobName: job.name,
+      attemptsMade: job.attemptsMade,
+      error: err,
     });
+  });
 
-    worker.on('error', (err) => {
-        logger.warn({ err }, 'StagnationScanner worker error suppressed (Redis offline)');
-    });
+  worker.on('error', (err) => {
+    logger.warn({ err }, 'StagnationScanner worker error suppressed (Redis offline)');
+  });
 
-    return worker;
+  return worker;
 }
 
 export async function scheduleStagnationScannerJob() {
-    const queue = new Queue(STAGNATION_SCANNER_QUEUE_NAME, {
-        connection: connection as any
-    });
-    
-    // Roda todo dia as 03:17
-    await queue.upsertJobScheduler('daily-stagnation-scan', { pattern: '17 3 * * *' }, {
-        name: 'daily-stagnation-scan',
-        data: {},
-    });
-    
-    logger.info('StagnationScanner job scheduled (cron: 17 3 * * *)');
+  const queue = new Queue(STAGNATION_SCANNER_QUEUE_NAME, {
+    connection: connection as any,
+  });
+
+  // Roda todo dia as 03:17
+  await queue.upsertJobScheduler(
+    'daily-stagnation-scan',
+    { pattern: '17 3 * * *' },
+    {
+      name: 'daily-stagnation-scan',
+      data: {},
+    },
+  );
+
+  logger.info('StagnationScanner job scheduled (cron: 17 3 * * *)');
 }

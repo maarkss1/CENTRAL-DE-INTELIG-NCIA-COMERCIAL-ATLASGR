@@ -14,7 +14,10 @@ interface TimelineProps {
   emptyMessage?: string;
 }
 
-export function Timeline({ items, emptyMessage = 'Nenhuma atividade registrada ainda.' }: TimelineProps) {
+export function Timeline({
+  items,
+  emptyMessage = 'Nenhuma atividade registrada ainda.',
+}: TimelineProps) {
   if (!items || items.length === 0) {
     return (
       <div className="text-center py-6 text-xs text-ink-2 italic bg-surface-2 rounded-xl border border-line">
@@ -48,9 +51,7 @@ export function Timeline({ items, emptyMessage = 'Nenhuma atividade registrada a
               <span className="font-bold text-ink">{item.title}</span>
               <span className="text-[10px] text-ink-2">{item.timestamp}</span>
             </div>
-            {item.description && (
-              <p className="text-ink-2 leading-relaxed">{item.description}</p>
-            )}
+            {item.description && <p className="text-ink-2 leading-relaxed">{item.description}</p>}
             {item.author && (
               <div className="flex items-center gap-1 text-[10px] text-ink-2 pt-1 border-t border-line">
                 <User className="w-3 h-3 text-brand" />

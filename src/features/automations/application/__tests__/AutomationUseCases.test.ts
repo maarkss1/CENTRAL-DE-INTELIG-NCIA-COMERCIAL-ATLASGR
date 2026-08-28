@@ -12,195 +12,227 @@ import type { Automation, AutomationRepository } from '../../domain/Automation';
 const recordPriorStateMock = vi.fn();
 const buildTimelineMock = vi.fn();
 vi.mock('../../automation-versioning.service.js', () => ({
-    automationVersioningService: {
-        recordPriorState: (...args: unknown[]) => recordPriorStateMock(...args),
-        buildTimeline: (...args: unknown[]) => buildTimelineMock(...args),
-    },
+  automationVersioningService: {
+    recordPriorState: (...args: unknown[]) => recordPriorStateMock(...args),
+    buildTimeline: (...args: unknown[]) => buildTimelineMock(...args),
+  },
 }));
 
 const dryRunAutomationMock = vi.fn();
 vi.mock('../../automation-dry-run.service.js', () => ({
-    dryRunAutomation: (...args: unknown[]) => dryRunAutomationMock(...args),
+  dryRunAutomation: (...args: unknown[]) => dryRunAutomationMock(...args),
 }));
 
 import { AutomationUseCases } from '../AutomationUseCases.js';
 
 function buildAutomation(overrides: Partial<Automation> = {}): Automation {
-    return {
-        id: 'auto-1',
-        name: 'Notificar time de vendas',
-        enabled: true,
-        trigger: 'Lead criado',
-        conditions: null,
-        action: 'Notificar equipe',
-        actionConfig: {},
-        lastRunAt: null,
-        runCount: 0,
-        organizationId: 'org-1',
-        createdAt: new Date('2026-08-01T00:00:00.000Z'),
-        updatedAt: new Date('2026-08-01T00:00:00.000Z'),
-        ...overrides,
-    };
+  return {
+    id: 'auto-1',
+    name: 'Notificar time de vendas',
+    enabled: true,
+    trigger: 'Lead criado',
+    conditions: null,
+    action: 'Notificar equipe',
+    actionConfig: {},
+    lastRunAt: null,
+    runCount: 0,
+    organizationId: 'org-1',
+    createdAt: new Date('2026-08-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-08-01T00:00:00.000Z'),
+    ...overrides,
+  };
 }
 
 describe('AutomationUseCases', () => {
-    let repository: {
-        findById: ReturnType<typeof vi.fn>;
-        findAllWithFilters: ReturnType<typeof vi.fn>;
-        create: ReturnType<typeof vi.fn>;
-        update: ReturnType<typeof vi.fn>;
-        delete: ReturnType<typeof vi.fn>;
+  let repository: {
+    findById: ReturnType<typeof vi.fn>;
+    findAllWithFilters: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+  };
+  let useCases: AutomationUseCases;
+
+  beforeEach(() => {
+    recordPriorStateMock.mockReset();
+    buildTimelineMock.mockReset();
+    dryRunAutomationMock.mockReset();
+    repository = {
+      findById: vi.fn(),
+      findAllWithFilters: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
     };
-    let useCases: AutomationUseCases;
+    useCases = new AutomationUseCases(repository as unknown as AutomationRepository);
+  });
 
-    beforeEach(() => {
-        recordPriorStateMock.mockReset();
-        buildTimelineMock.mockReset();
-        dryRunAutomationMock.mockReset();
-        repository = {
-            findById: vi.fn(),
-            findAllWithFilters: vi.fn(),
-            create: vi.fn(),
-            update: vi.fn(),
-            delete: vi.fn(),
-        };
-        useCases = new AutomationUseCases(repository as unknown as AutomationRepository);
+  it('listAutomations delega para findAllWithFilters e devolve só data', async () => {
+    repository.findAllWithFilters.mockResolvedValue({
+      data: [buildAutomation()],
+      meta: { total: 1 },
     });
 
-    it('listAutomations delega para findAllWithFilters e devolve só data', async () => {
-        repository.findAllWithFilters.mockResolvedValue({ data: [buildAutomation()], meta: { total: 1 } });
+    const result = await useCases.listAutomations('org-1');
 
-        const result = await useCases.listAutomations('org-1');
+    expect(result).toEqual([buildAutomation()]);
+    expect(repository.findAllWithFilters).toHaveBeenCalledWith('org-1', undefined, 1, 50);
+  });
 
-        expect(result).toEqual([buildAutomation()]);
-        expect(repository.findAllWithFilters).toHaveBeenCalledWith('org-1', undefined, 1, 50);
+  it('createAutomation valida o input com o schema antes de criar', async () => {
+    repository.create.mockResolvedValue(buildAutomation());
+
+    await useCases.createAutomation('org-1', {
+      name: 'Nova regra',
+      trigger: 'Lead criado',
+      action: 'Notificar equipe',
+      actionConfig: {},
     });
 
-    it('createAutomation valida o input com o schema antes de criar', async () => {
-        repository.create.mockResolvedValue(buildAutomation());
+    expect(repository.create).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({ name: 'Nova regra' }),
+    );
+  });
 
-        await useCases.createAutomation('org-1', {
-            name: 'Nova regra',
-            trigger: 'Lead criado',
-            action: 'Notificar equipe',
-            actionConfig: {},
-        });
+  it('createAutomation rejeita nome vazio', async () => {
+    await expect(
+      useCases.createAutomation('org-1', {
+        name: '',
+        trigger: 'Lead criado',
+        action: 'Notificar equipe',
+        actionConfig: {},
+      }),
+    ).rejects.toThrow();
+    expect(repository.create).not.toHaveBeenCalled();
+  });
 
-        expect(repository.create).toHaveBeenCalledWith('org-1', expect.objectContaining({ name: 'Nova regra' }));
+  describe('updateAutomation', () => {
+    it('devolve null quando o id não pertence à organização', async () => {
+      repository.findById.mockResolvedValue(null);
+
+      const result = await useCases.updateAutomation('org-1', 'auto-x', { enabled: false });
+
+      expect(result).toBeNull();
+      expect(recordPriorStateMock).not.toHaveBeenCalled();
+      expect(repository.update).not.toHaveBeenCalled();
     });
 
-    it('createAutomation rejeita nome vazio', async () => {
-        await expect(
-            useCases.createAutomation('org-1', {
-                name: '',
-                trigger: 'Lead criado',
-                action: 'Notificar equipe',
-                actionConfig: {},
-            }),
-        ).rejects.toThrow();
-        expect(repository.create).not.toHaveBeenCalled();
+    it('registra o estado anterior como versão histórica antes de atualizar', async () => {
+      const existing = buildAutomation();
+      repository.findById.mockResolvedValue(existing);
+      repository.update.mockResolvedValue({ ...existing, enabled: false });
+
+      await useCases.updateAutomation(
+        'org-1',
+        'auto-1',
+        { enabled: false },
+        { userId: 'user-1', email: 'user@atlasgr.com.br' },
+      );
+
+      expect(recordPriorStateMock).toHaveBeenCalledWith(
+        'org-1',
+        'auto-1',
+        existing,
+        { userId: 'user-1', email: 'user@atlasgr.com.br' },
+        'update',
+      );
+      expect(repository.update).toHaveBeenCalledWith('org-1', 'auto-1', { enabled: false });
     });
 
-    describe('updateAutomation', () => {
-        it('devolve null quando o id não pertence à organização', async () => {
-            repository.findById.mockResolvedValue(null);
+    it('usa um actor anônimo quando nenhum ator é informado', async () => {
+      const existing = buildAutomation();
+      repository.findById.mockResolvedValue(existing);
+      repository.update.mockResolvedValue(existing);
 
-            const result = await useCases.updateAutomation('org-1', 'auto-x', { enabled: false });
+      await useCases.updateAutomation('org-1', 'auto-1', { enabled: false });
 
-            expect(result).toBeNull();
-            expect(recordPriorStateMock).not.toHaveBeenCalled();
-            expect(repository.update).not.toHaveBeenCalled();
-        });
+      expect(recordPriorStateMock).toHaveBeenCalledWith(
+        'org-1',
+        'auto-1',
+        existing,
+        { userId: null, email: null },
+        'update',
+      );
+    });
+  });
 
-        it('registra o estado anterior como versão histórica antes de atualizar', async () => {
-            const existing = buildAutomation();
-            repository.findById.mockResolvedValue(existing);
-            repository.update.mockResolvedValue({ ...existing, enabled: false });
+  describe('removeAutomation', () => {
+    it('devolve false quando o id não pertence à organização', async () => {
+      repository.findById.mockResolvedValue(null);
 
-            await useCases.updateAutomation('org-1', 'auto-1', { enabled: false }, { userId: 'user-1', email: 'user@atlasgr.com.br' });
+      const result = await useCases.removeAutomation('org-1', 'auto-x');
 
-            expect(recordPriorStateMock).toHaveBeenCalledWith(
-                'org-1', 'auto-1', existing, { userId: 'user-1', email: 'user@atlasgr.com.br' }, 'update',
-            );
-            expect(repository.update).toHaveBeenCalledWith('org-1', 'auto-1', { enabled: false });
-        });
-
-        it('usa um actor anônimo quando nenhum ator é informado', async () => {
-            const existing = buildAutomation();
-            repository.findById.mockResolvedValue(existing);
-            repository.update.mockResolvedValue(existing);
-
-            await useCases.updateAutomation('org-1', 'auto-1', { enabled: false });
-
-            expect(recordPriorStateMock).toHaveBeenCalledWith('org-1', 'auto-1', existing, { userId: null, email: null }, 'update');
-        });
+      expect(result).toBe(false);
+      expect(recordPriorStateMock).not.toHaveBeenCalled();
+      expect(repository.delete).not.toHaveBeenCalled();
     });
 
-    describe('removeAutomation', () => {
-        it('devolve false quando o id não pertence à organização', async () => {
-            repository.findById.mockResolvedValue(null);
+    it('registra o estado final como versão histórica (delete) antes de remover', async () => {
+      const existing = buildAutomation();
+      repository.findById.mockResolvedValue(existing);
 
-            const result = await useCases.removeAutomation('org-1', 'auto-x');
+      const result = await useCases.removeAutomation('org-1', 'auto-1');
 
-            expect(result).toBe(false);
-            expect(recordPriorStateMock).not.toHaveBeenCalled();
-            expect(repository.delete).not.toHaveBeenCalled();
-        });
+      expect(result).toBe(true);
+      expect(recordPriorStateMock).toHaveBeenCalledWith(
+        'org-1',
+        'auto-1',
+        existing,
+        { userId: null, email: null },
+        'delete',
+      );
+      expect(repository.delete).toHaveBeenCalledWith('org-1', 'auto-1');
+    });
+  });
 
-        it('registra o estado final como versão histórica (delete) antes de remover', async () => {
-            const existing = buildAutomation();
-            repository.findById.mockResolvedValue(existing);
+  describe('listVersions', () => {
+    it('devolve null quando o id não pertence à organização', async () => {
+      repository.findById.mockResolvedValue(null);
 
-            const result = await useCases.removeAutomation('org-1', 'auto-1');
+      const result = await useCases.listVersions('org-1', 'auto-x');
 
-            expect(result).toBe(true);
-            expect(recordPriorStateMock).toHaveBeenCalledWith('org-1', 'auto-1', existing, { userId: null, email: null }, 'delete');
-            expect(repository.delete).toHaveBeenCalledWith('org-1', 'auto-1');
-        });
+      expect(result).toBeNull();
+      expect(buildTimelineMock).not.toHaveBeenCalled();
     });
 
-    describe('listVersions', () => {
-        it('devolve null quando o id não pertence à organização', async () => {
-            repository.findById.mockResolvedValue(null);
+    it('delega para automationVersioningService.buildTimeline', async () => {
+      const existing = buildAutomation();
+      repository.findById.mockResolvedValue(existing);
+      const timeline = {
+        automationId: 'auto-1',
+        current: existing,
+        currentUpdatedAt: existing.updatedAt.toISOString(),
+        history: [],
+      };
+      buildTimelineMock.mockResolvedValue(timeline);
 
-            const result = await useCases.listVersions('org-1', 'auto-x');
+      const result = await useCases.listVersions('org-1', 'auto-1');
 
-            expect(result).toBeNull();
-            expect(buildTimelineMock).not.toHaveBeenCalled();
-        });
+      expect(result).toBe(timeline);
+      expect(buildTimelineMock).toHaveBeenCalledWith('org-1', existing);
+    });
+  });
 
-        it('delega para automationVersioningService.buildTimeline', async () => {
-            const existing = buildAutomation();
-            repository.findById.mockResolvedValue(existing);
-            const timeline = { automationId: 'auto-1', current: existing, currentUpdatedAt: existing.updatedAt.toISOString(), history: [] };
-            buildTimelineMock.mockResolvedValue(timeline);
+  describe('dryRun', () => {
+    it('devolve null quando o id não pertence à organização', async () => {
+      repository.findById.mockResolvedValue(null);
 
-            const result = await useCases.listVersions('org-1', 'auto-1');
+      const result = await useCases.dryRun('org-1', 'auto-x');
 
-            expect(result).toBe(timeline);
-            expect(buildTimelineMock).toHaveBeenCalledWith('org-1', existing);
-        });
+      expect(result).toBeNull();
+      expect(dryRunAutomationMock).not.toHaveBeenCalled();
     });
 
-    describe('dryRun', () => {
-        it('devolve null quando o id não pertence à organização', async () => {
-            repository.findById.mockResolvedValue(null);
+    it('delega para dryRunAutomation com as options recebidas', async () => {
+      const existing = buildAutomation();
+      repository.findById.mockResolvedValue(existing);
+      dryRunAutomationMock.mockResolvedValue({ automationId: 'auto-1', sampleSize: 0 });
 
-            const result = await useCases.dryRun('org-1', 'auto-x');
+      const result = await useCases.dryRun('org-1', 'auto-1', { limit: 10 });
 
-            expect(result).toBeNull();
-            expect(dryRunAutomationMock).not.toHaveBeenCalled();
-        });
-
-        it('delega para dryRunAutomation com as options recebidas', async () => {
-            const existing = buildAutomation();
-            repository.findById.mockResolvedValue(existing);
-            dryRunAutomationMock.mockResolvedValue({ automationId: 'auto-1', sampleSize: 0 });
-
-            const result = await useCases.dryRun('org-1', 'auto-1', { limit: 10 });
-
-            expect(result).toEqual({ automationId: 'auto-1', sampleSize: 0 });
-            expect(dryRunAutomationMock).toHaveBeenCalledWith('org-1', existing, { limit: 10 });
-        });
+      expect(result).toEqual({ automationId: 'auto-1', sampleSize: 0 });
+      expect(dryRunAutomationMock).toHaveBeenCalledWith('org-1', existing, { limit: 10 });
     });
+  });
 });

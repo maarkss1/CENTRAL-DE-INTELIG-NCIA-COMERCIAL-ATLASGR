@@ -3,7 +3,11 @@
  * @description Public API surface of the Domain errors layer.
  */
 
-export { DomainException, type DomainExceptionDetails, type SerializedDomainException } from './DomainException.js';
+export {
+  DomainException,
+  type DomainExceptionDetails,
+  type SerializedDomainException,
+} from './DomainException.js';
 export { BusinessRuleValidationError } from './BusinessRuleValidationError.js';
 export { ValidationError, type ValidationFailure } from './ValidationError.js';
 export { NotFoundError } from './NotFoundError.js';

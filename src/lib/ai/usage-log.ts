@@ -16,31 +16,31 @@ import type { AiUsageLogInput } from './gateway/types.js';
  * evita depender da afinidade de conexão de transações interativas do Prisma/adapter-pg.
  */
 export const logAiUsage = async (input: AiUsageLogInput): Promise<void> => {
-    const organizationId = requestContext.getStore()?.tenantId ?? null;
-    const data = {
-        model: input.model,
-        tokens: input.usage.totalTokens,
-        cost: estimateCostUsd(input.model, input.usage),
-        latencyMs: input.latencyMs,
-        promptId: input.promptId,
-        organizationId,
-    };
+  const organizationId = requestContext.getStore()?.tenantId ?? null;
+  const data = {
+    model: input.model,
+    tokens: input.usage.totalTokens,
+    cost: estimateCostUsd(input.model, input.usage),
+    latencyMs: input.latencyMs,
+    promptId: input.promptId,
+    organizationId,
+  };
 
-    try {
-        if (organizationId) {
-            await prisma.aILog.create({ data });
-            return;
-        }
+  try {
+    if (organizationId) {
+      await prisma.aILog.create({ data });
+      return;
+    }
 
-        const id = randomUUID();
-        await prisma.$executeRaw`
+    const id = randomUUID();
+    await prisma.$executeRaw`
             INSERT INTO "AILog"
                 ("id", "tokens", "cost", "latencyMs", "model", "promptId", "organizationId", "createdAt")
             VALUES
                 (${id}, ${data.tokens}, ${data.cost}, ${data.latencyMs}, ${data.model}, ${data.promptId ?? null}, NULL, CURRENT_TIMESTAMP)
         `;
-    } catch (error) {
-        // Telemetria nunca deve derrubar a resposta útil ao usuário.
-        logger.warn({ err: error, model: input.model }, 'Unable to persist AI usage log');
-    }
+  } catch (error) {
+    // Telemetria nunca deve derrubar a resposta útil ao usuário.
+    logger.warn({ err: error, model: input.model }, 'Unable to persist AI usage log');
+  }
 };

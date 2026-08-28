@@ -14,45 +14,45 @@ import { getSwarmSloSnapshot, emptyRate, type SloRate } from './swarmScheduler.s
  */
 
 const AI005_BLOCKED_REASON =
-    'Requer AI-005 (Golden Dataset) — nenhuma resposta de referência existe hoje para comparar contra o que a IA gerou.';
+  'Requer AI-005 (Golden Dataset) — nenhuma resposta de referência existe hoje para comparar contra o que a IA gerou.';
 
 export interface AvailableMetric<T> {
-    available: true;
-    value: T;
-    /** Ressalva sobre cobertura/precisão do dado — ex.: "proxy", "só cobre um fluxo". */
-    note?: string;
+  available: true;
+  value: T;
+  /** Ressalva sobre cobertura/precisão do dado — ex.: "proxy", "só cobre um fluxo". */
+  note?: string;
 }
 
 export interface UnavailableMetric {
-    available: false;
-    reason: string;
+  available: false;
+  reason: string;
 }
 
 export type Metric<T> = AvailableMetric<T> | UnavailableMetric;
 
 function available<T>(value: T, note?: string): AvailableMetric<T> {
-    return note ? { available: true, value, note } : { available: true, value };
+  return note ? { available: true, value, note } : { available: true, value };
 }
 
 function unavailable(reason: string): UnavailableMetric {
-    return { available: false, reason };
+  return { available: false, reason };
 }
 
 export interface EvaluationMetricsSnapshot {
-    organizationId: string;
-    windowDays: number;
-    generatedAt: string;
-    dimensions: {
-        cost: Metric<{ totalCostUsd: number; totalTokens: number; requestCount: number }>;
-        latency: Metric<{ avgLatencyMs: number | null }>;
-        humanOverride: Metric<SloRate>;
-        fallbackRate: Metric<SloRate>;
-        toolCorrectness: Metric<SloRate>;
-        piiLeakageRate: Metric<SloRate>;
-        factuality: UnavailableMetric;
-        playbookAdherence: UnavailableMetric;
-        hallucination: UnavailableMetric;
-    };
+  organizationId: string;
+  windowDays: number;
+  generatedAt: string;
+  dimensions: {
+    cost: Metric<{ totalCostUsd: number; totalTokens: number; requestCount: number }>;
+    latency: Metric<{ avgLatencyMs: number | null }>;
+    humanOverride: Metric<SloRate>;
+    fallbackRate: Metric<SloRate>;
+    toolCorrectness: Metric<SloRate>;
+    piiLeakageRate: Metric<SloRate>;
+    factuality: UnavailableMetric;
+    playbookAdherence: UnavailableMetric;
+    hallucination: UnavailableMetric;
+  };
 }
 
 /**
@@ -61,86 +61,96 @@ export interface EvaluationMetricsSnapshot {
  * não reimplementa a mesma agregação de `AIPendingAction`/`AILog` que ela já faz corretamente.
  */
 export async function getEvaluationMetricsSnapshot(
-    organizationId: string,
-    windowDays = 30,
-    now: Date = new Date(),
+  organizationId: string,
+  windowDays = 30,
+  now: Date = new Date(),
 ): Promise<EvaluationMetricsSnapshot> {
-    const since = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
+  const since = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
 
-    const [sloSnapshot, aiLogRequestCount, piiRedactionCount, sdrOutboundActions] = await Promise.all([
-        getSwarmSloSnapshot(organizationId, windowDays, now),
-        prisma.aILog.count({ where: { organizationId, createdAt: { gte: since } } }),
-        prisma.aIGuardrailEvent.count({ where: { organizationId, type: 'pii_redacted', createdAt: { gte: since } } }),
-        // AI-004 (onda-20): hoje só SDROutboundDraftAgent grava `structuredOutputValid` no payload
-        // de AIPendingAction — nenhum outro agente do enxame emite structured output com esse
-        // contrato. fallbackRate abaixo é honesto sobre essa cobertura parcial, não a esconde.
-        prisma.aIPendingAction.findMany({
-            where: { organizationId, action: 'send_email', createdAt: { gte: since } },
-            select: { payload: true },
-        }),
-    ]);
+  const [sloSnapshot, aiLogRequestCount, piiRedactionCount, sdrOutboundActions] = await Promise.all(
+    [
+      getSwarmSloSnapshot(organizationId, windowDays, now),
+      prisma.aILog.count({ where: { organizationId, createdAt: { gte: since } } }),
+      prisma.aIGuardrailEvent.count({
+        where: { organizationId, type: 'pii_redacted', createdAt: { gte: since } },
+      }),
+      // AI-004 (onda-20): hoje só SDROutboundDraftAgent grava `structuredOutputValid` no payload
+      // de AIPendingAction — nenhum outro agente do enxame emite structured output com esse
+      // contrato. fallbackRate abaixo é honesto sobre essa cobertura parcial, não a esconde.
+      prisma.aIPendingAction.findMany({
+        where: { organizationId, action: 'send_email', createdAt: { gte: since } },
+        select: { payload: true },
+      }),
+    ],
+  );
 
-    // Agrega humanOverride/toolCorrectness (proxy de errorRate) através de todos os papéis do
-    // enxame. Desde GOV-13 (onda 39), OPS também propõe via AIPendingAction em vez de executar
-    // direto (ver opsPendingActions.tool.ts), então já tem ledger real como os demais papéis —
-    // excluí-lo aqui voltaria a subestimar esse agregado sem motivo real. Ver
-    // .agents/handoffs/onda-39/13-para-07-evaluationmetrics-exclui-ops.md.
-    const ledgerAgents = sloSnapshot.agents;
-    const humanOverride = emptyRate(
-        ledgerAgents.reduce((sum, agent) => sum + agent.humanOverride.numerator, 0),
-        ledgerAgents.reduce((sum, agent) => sum + agent.humanOverride.denominator, 0),
-        'Nenhuma decisão do enxame foi aprovada ou descartada por um humano ainda nesta janela.',
-    );
-    const errorDenominator = ledgerAgents.reduce((sum, agent) => sum + agent.errorRate.denominator, 0);
-    const errorNumerator = ledgerAgents.reduce((sum, agent) => sum + agent.errorRate.numerator, 0);
-    const toolCorrectness = emptyRate(
-        errorDenominator - errorNumerator,
-        errorDenominator,
-        'Nenhuma execução foi tentada pelo enxame ainda nesta janela.',
-    );
+  // Agrega humanOverride/toolCorrectness (proxy de errorRate) através de todos os papéis do
+  // enxame. Desde GOV-13 (onda 39), OPS também propõe via AIPendingAction em vez de executar
+  // direto (ver opsPendingActions.tool.ts), então já tem ledger real como os demais papéis —
+  // excluí-lo aqui voltaria a subestimar esse agregado sem motivo real. Ver
+  // .agents/handoffs/onda-39/13-para-07-evaluationmetrics-exclui-ops.md.
+  const ledgerAgents = sloSnapshot.agents;
+  const humanOverride = emptyRate(
+    ledgerAgents.reduce((sum, agent) => sum + agent.humanOverride.numerator, 0),
+    ledgerAgents.reduce((sum, agent) => sum + agent.humanOverride.denominator, 0),
+    'Nenhuma decisão do enxame foi aprovada ou descartada por um humano ainda nesta janela.',
+  );
+  const errorDenominator = ledgerAgents.reduce(
+    (sum, agent) => sum + agent.errorRate.denominator,
+    0,
+  );
+  const errorNumerator = ledgerAgents.reduce((sum, agent) => sum + agent.errorRate.numerator, 0);
+  const toolCorrectness = emptyRate(
+    errorDenominator - errorNumerator,
+    errorDenominator,
+    'Nenhuma execução foi tentada pelo enxame ainda nesta janela.',
+  );
 
-    const structuredOutputFlags = sdrOutboundActions
-        .map((action) => (action.payload as { structuredOutputValid?: unknown } | null)?.structuredOutputValid)
-        .filter((flag): flag is boolean => typeof flag === 'boolean');
-    const fallbackRate = emptyRate(
-        structuredOutputFlags.filter((valid) => !valid).length,
-        structuredOutputFlags.length,
-        'Nenhum rascunho de e-mail do SDR Outbound foi gerado ainda nesta janela.',
-    );
+  const structuredOutputFlags = sdrOutboundActions
+    .map(
+      (action) =>
+        (action.payload as { structuredOutputValid?: unknown } | null)?.structuredOutputValid,
+    )
+    .filter((flag): flag is boolean => typeof flag === 'boolean');
+  const fallbackRate = emptyRate(
+    structuredOutputFlags.filter((valid) => !valid).length,
+    structuredOutputFlags.length,
+    'Nenhum rascunho de e-mail do SDR Outbound foi gerado ainda nesta janela.',
+  );
 
-    const piiLeakageRate = emptyRate(
-        piiRedactionCount,
-        aiLogRequestCount,
-        'Nenhuma chamada de IA registrada ainda nesta janela.',
-    );
+  const piiLeakageRate = emptyRate(
+    piiRedactionCount,
+    aiLogRequestCount,
+    'Nenhuma chamada de IA registrada ainda nesta janela.',
+  );
 
-    return {
-        organizationId,
-        windowDays,
-        generatedAt: now.toISOString(),
-        dimensions: {
-            cost: available({
-                totalCostUsd: sloSnapshot.cost.totalCostUsd,
-                totalTokens: sloSnapshot.cost.totalTokens,
-                requestCount: sloSnapshot.cost.requestCount,
-            }),
-            latency: available({ avgLatencyMs: sloSnapshot.cost.avgLatencyMs }),
-            humanOverride: available(humanOverride),
-            fallbackRate: available(
-                fallbackRate,
-                'Cobertura parcial: hoje só o SDR Outbound (AI-004) registra se a saída estruturada foi validada; os demais agentes do enxame ainda não emitem esse dado.',
-            ),
-            toolCorrectness: available(
-                toolCorrectness,
-                'Proxy: taxa de execução sem erro operacional (AIPendingAction.executionError), não corretude semântica real da ação escolhida — isso exige comparar contra a ação esperada (AI-005).',
-            ),
-            piiLeakageRate: available(
-                piiLeakageRate,
-                'Proxy: taxa de respostas de IA em que o guardrail de saída (redactSensitiveData) precisou mascarar um CPF — mede o que o guardrail já pegou, não vazamentos que ele não detecta.',
-            ),
-            factuality: unavailable(AI005_BLOCKED_REASON),
-            playbookAdherence: unavailable(AI005_BLOCKED_REASON),
-            hallucination: unavailable(AI005_BLOCKED_REASON),
-        },
-    };
+  return {
+    organizationId,
+    windowDays,
+    generatedAt: now.toISOString(),
+    dimensions: {
+      cost: available({
+        totalCostUsd: sloSnapshot.cost.totalCostUsd,
+        totalTokens: sloSnapshot.cost.totalTokens,
+        requestCount: sloSnapshot.cost.requestCount,
+      }),
+      latency: available({ avgLatencyMs: sloSnapshot.cost.avgLatencyMs }),
+      humanOverride: available(humanOverride),
+      fallbackRate: available(
+        fallbackRate,
+        'Cobertura parcial: hoje só o SDR Outbound (AI-004) registra se a saída estruturada foi validada; os demais agentes do enxame ainda não emitem esse dado.',
+      ),
+      toolCorrectness: available(
+        toolCorrectness,
+        'Proxy: taxa de execução sem erro operacional (AIPendingAction.executionError), não corretude semântica real da ação escolhida — isso exige comparar contra a ação esperada (AI-005).',
+      ),
+      piiLeakageRate: available(
+        piiLeakageRate,
+        'Proxy: taxa de respostas de IA em que o guardrail de saída (redactSensitiveData) precisou mascarar um CPF — mede o que o guardrail já pegou, não vazamentos que ele não detecta.',
+      ),
+      factuality: unavailable(AI005_BLOCKED_REASON),
+      playbookAdherence: unavailable(AI005_BLOCKED_REASON),
+      hallucination: unavailable(AI005_BLOCKED_REASON),
+    },
+  };
 }

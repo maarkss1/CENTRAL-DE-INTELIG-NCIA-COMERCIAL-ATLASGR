@@ -1,6 +1,22 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Zap, Flame, Sparkles, Copy, Check, RefreshCw, BookOpen, HelpCircle, Lightbulb, ShieldAlert, ShieldCheck, Award, FileText, Compass } from 'lucide-react';
+import {
+  Target,
+  Zap,
+  Flame,
+  Sparkles,
+  Copy,
+  Check,
+  RefreshCw,
+  BookOpen,
+  HelpCircle,
+  Lightbulb,
+  ShieldAlert,
+  ShieldCheck,
+  Award,
+  FileText,
+  Compass,
+} from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { useBrand } from '../../../contexts/BrandContext';
 import { api } from '../../../lib/api';
@@ -72,15 +88,23 @@ export function SalesMethodologyStudio() {
   const { activeBrand, brandInfo } = useBrand();
   const [activeTab, setActiveTab] = useState<FrameworkType>('spin');
   const [form, setForm] = useState<MethodologyFormState>({
-    targetPersona: activeBrand === 'totaltrac' ? 'Diretor de Operações / Gestor de Frota' : 'Diretor de Logística / Head de GR',
-    companySegment: activeBrand === 'totaltrac' ? 'Transportadoras / Frotas corporativas' : 'Logística / Transporte de cargas',
+    targetPersona:
+      activeBrand === 'totaltrac'
+        ? 'Diretor de Operações / Gestor de Frota'
+        : 'Diretor de Logística / Head de GR',
+    companySegment:
+      activeBrand === 'totaltrac'
+        ? 'Transportadoras / Frotas corporativas'
+        : 'Logística / Transporte de cargas',
     icpSize: 'Mid-Market (50 a 500 colaboradores)',
     techStack: 'A confirmar durante a descoberta',
     solutionName: brandInfo.name,
-    mainPainPoint: activeBrand === 'totaltrac'
-      ? 'Baixa visibilidade sobre consumo, jornada e eventos da frota'
-      : 'Dificuldade de comprovar e auditar o cumprimento das regras de gerenciamento de risco',
-    mainBenefit: 'Hipótese: reduzir trabalho manual e aumentar a previsibilidade operacional, sujeito a diagnóstico',
+    mainPainPoint:
+      activeBrand === 'totaltrac'
+        ? 'Baixa visibilidade sobre consumo, jornada e eventos da frota'
+        : 'Dificuldade de comprovar e auditar o cumprimento das regras de gerenciamento de risco',
+    mainBenefit:
+      'Hipótese: reduzir trabalho manual e aumentar a previsibilidade operacional, sujeito a diagnóstico',
   });
 
   const [generating, setGenerating] = useState(false);
@@ -100,20 +124,26 @@ export function SalesMethodologyStudio() {
     setGenerationError('');
 
     try {
-      const response = await api.post<{ result: MethodologyResult }>('/api/intelligence/studio', {
-        kind: 'methodology',
-        brand: {
-          name: brandInfo.name,
-          description: brandInfo.description,
+      const response = await api.post<{ result: MethodologyResult }>(
+        '/api/intelligence/studio',
+        {
+          kind: 'methodology',
+          brand: {
+            name: brandInfo.name,
+            description: brandInfo.description,
+          },
+          inputs: {
+            framework: activeTab,
+            ...form,
+          },
         },
-        inputs: {
-          framework: activeTab,
-          ...form,
-        },
-      }, { timeoutMs: 90_000 });
+        { timeoutMs: 90_000 },
+      );
       setResult(response.result);
     } catch (error) {
-      setGenerationError(error instanceof Error ? error.message : 'Falha ao consultar o motor de IA');
+      setGenerationError(
+        error instanceof Error ? error.message : 'Falha ao consultar o motor de IA',
+      );
     } finally {
       setGenerating(false);
     }
@@ -121,11 +151,10 @@ export function SalesMethodologyStudio() {
 
   return (
     <div className="space-y-8 font-sans">
-      
       {/* Header Studio */}
       <div className="glass-panel p-6 sm:p-8 rounded-[2.5rem] border border-line relative overflow-hidden bg-surface backdrop-blur-xl shadow-2xl">
         <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-indigo-500/10 via-brand/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-        
+
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
           <div className="flex items-center gap-5">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand via-amber-500 to-red-600 flex items-center justify-center text-white shadow-xl shadow-brand/20">
@@ -133,13 +162,16 @@ export function SalesMethodologyStudio() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-black text-ink tracking-tight">Estúdio de Metodologias de Vendas B2B</h2>
+                <h2 className="text-2xl font-black text-ink tracking-tight">
+                  Estúdio de Metodologias de Vendas B2B
+                </h2>
                 {/* bg-emerald-500/20 text-emerald-300 cru (contra bg-surface, tema claro) dava
                     contraste bem abaixo do mínimo — mesmo achado do axe-core (tests/e2e/accessibility.spec.ts)
                     no badge irmão "Groq IA" de ChatbookHub.tsx. Mesmo padrão de badge "soft" já usado
                     em Badge.tsx (variant="success"). */}
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-success/15 text-success-active dark:text-success border border-success/30 font-bold flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-success-active dark:text-success" /> 5 frameworks · Groq IA
+                  <ShieldCheck className="w-3 h-3 text-success-active dark:text-success" /> 5
+                  frameworks · Groq IA
                 </span>
               </div>
               <p className="text-xs text-ink-2 mt-1">
@@ -151,41 +183,66 @@ export function SalesMethodologyStudio() {
           {/* Selector Tabs (5 Frameworks) */}
           <div className="flex flex-wrap items-center bg-surface-2 p-1.5 rounded-2xl border border-line w-full md:w-auto gap-1">
             <button
-              onClick={() => { setActiveTab('spin'); setResult(null); }}
+              onClick={() => {
+                setActiveTab('spin');
+                setResult(null);
+              }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'spin' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'spin'
+                  ? 'bg-brand-active text-white shadow-lg shadow-brand/20'
+                  : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Target className="w-3.5 h-3.5" /> SPIN
             </button>
             <button
-              onClick={() => { setActiveTab('snap'); setResult(null); }}
+              onClick={() => {
+                setActiveTab('snap');
+                setResult(null);
+              }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'snap' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'snap'
+                  ? 'bg-brand-active text-white shadow-lg shadow-brand/20'
+                  : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Zap className="w-3.5 h-3.5" /> SNAP
             </button>
             <button
-              onClick={() => { setActiveTab('aida'); setResult(null); }}
+              onClick={() => {
+                setActiveTab('aida');
+                setResult(null);
+              }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'aida' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'aida'
+                  ? 'bg-brand-active text-white shadow-lg shadow-brand/20'
+                  : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Flame className="w-3.5 h-3.5" /> AIDA
             </button>
             <button
-              onClick={() => { setActiveTab('meddpicc'); setResult(null); }}
+              onClick={() => {
+                setActiveTab('meddpicc');
+                setResult(null);
+              }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'meddpicc' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'meddpicc'
+                  ? 'bg-brand-active text-white shadow-lg shadow-brand/20'
+                  : 'text-ink-2 hover:text-ink'
               }`}
             >
               <FileText className="w-3.5 h-3.5" /> MEDDPICC
             </button>
             <button
-              onClick={() => { setActiveTab('challenger'); setResult(null); }}
+              onClick={() => {
+                setActiveTab('challenger');
+                setResult(null);
+              }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'challenger' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'challenger'
+                  ? 'bg-brand-active text-white shadow-lg shadow-brand/20'
+                  : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Compass className="w-3.5 h-3.5" /> Challenger
@@ -196,7 +253,6 @@ export function SalesMethodologyStudio() {
 
       {/* Grid: Form & Output */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
         {/* Formulário de Parâmetros ICP & Persona */}
         <div className="lg:col-span-5 glass-panel p-6 rounded-3xl border border-line bg-surface space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-line">
@@ -211,7 +267,9 @@ export function SalesMethodologyStudio() {
 
           <div className="space-y-3.5 text-xs">
             <div>
-              <label htmlFor="sales-target-persona" className="font-bold text-ink-2 block mb-1">Cargo da Persona Target (Decisor C-Level/VP)</label>
+              <label htmlFor="sales-target-persona" className="font-bold text-ink-2 block mb-1">
+                Cargo da Persona Target (Decisor C-Level/VP)
+              </label>
               <input
                 id="sales-target-persona"
                 type="text"
@@ -223,7 +281,9 @@ export function SalesMethodologyStudio() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="sales-icp-size" className="font-bold text-ink-2 block mb-1">Porte do ICP (Tamanho)</label>
+                <label htmlFor="sales-icp-size" className="font-bold text-ink-2 block mb-1">
+                  Porte do ICP (Tamanho)
+                </label>
                 <select
                   id="sales-icp-size"
                   value={form.icpSize}
@@ -231,13 +291,17 @@ export function SalesMethodologyStudio() {
                   className="w-full px-3 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                 >
                   <option value="Enterprise (+500 colaboradores)">Enterprise (+500 colab.)</option>
-                  <option value="Mid-Market (50 a 500 colaboradores)">Mid-Market (50-500 colab.)</option>
+                  <option value="Mid-Market (50 a 500 colaboradores)">
+                    Mid-Market (50-500 colab.)
+                  </option>
                   <option value="SMB (até 50 colaboradores)">SMB (até 50 colab.)</option>
                 </select>
               </div>
 
               <div>
-                <label htmlFor="sales-company-segment" className="font-bold text-ink-2 block mb-1">Segmento da Empresa</label>
+                <label htmlFor="sales-company-segment" className="font-bold text-ink-2 block mb-1">
+                  Segmento da Empresa
+                </label>
                 <input
                   id="sales-company-segment"
                   type="text"
@@ -249,7 +313,9 @@ export function SalesMethodologyStudio() {
             </div>
 
             <div>
-              <label htmlFor="sales-tech-stack" className="font-bold text-ink-2 block mb-1">Stack Tecnológica Mapeada (Firmographics)</label>
+              <label htmlFor="sales-tech-stack" className="font-bold text-ink-2 block mb-1">
+                Stack Tecnológica Mapeada (Firmographics)
+              </label>
               <input
                 id="sales-tech-stack"
                 type="text"
@@ -260,7 +326,9 @@ export function SalesMethodologyStudio() {
             </div>
 
             <div>
-              <label htmlFor="sales-solution-name" className="font-bold text-ink-2 block mb-1">Nome da Sua Solução / Produto</label>
+              <label htmlFor="sales-solution-name" className="font-bold text-ink-2 block mb-1">
+                Nome da Sua Solução / Produto
+              </label>
               <input
                 id="sales-solution-name"
                 type="text"
@@ -271,7 +339,9 @@ export function SalesMethodologyStudio() {
             </div>
 
             <div>
-              <label htmlFor="sales-main-pain-point" className="font-bold text-ink-2 block mb-1">Dor Principal do Cliente (Problem Statement)</label>
+              <label htmlFor="sales-main-pain-point" className="font-bold text-ink-2 block mb-1">
+                Dor Principal do Cliente (Problem Statement)
+              </label>
               <textarea
                 id="sales-main-pain-point"
                 rows={2}
@@ -282,7 +352,9 @@ export function SalesMethodologyStudio() {
             </div>
 
             <div>
-              <label htmlFor="sales-main-benefit" className="font-bold text-ink-2 block mb-1">Hipótese de benefício / ROI a validar</label>
+              <label htmlFor="sales-main-benefit" className="font-bold text-ink-2 block mb-1">
+                Hipótese de benefício / ROI a validar
+              </label>
               <textarea
                 id="sales-main-benefit"
                 rows={2}
@@ -297,8 +369,14 @@ export function SalesMethodologyStudio() {
               disabled={generating}
               className="w-full py-3 text-sm font-bold shadow-lg shadow-brand/20 cursor-pointer"
             >
-              {generating ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-              {generating ? 'Sintetizando Roteiro ICP...' : `Gerar Estratégia ${activeTab.toUpperCase()} com Precisão`}
+              {generating ? (
+                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              {generating
+                ? 'Sintetizando Roteiro ICP...'
+                : `Gerar Estratégia ${activeTab.toUpperCase()} com Precisão`}
             </Button>
           </div>
         </div>
@@ -310,9 +388,12 @@ export function SalesMethodologyStudio() {
               <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center text-brand mb-4">
                 <Lightbulb className="w-8 h-8 animate-bounce" />
               </div>
-              <h3 className="text-xl font-bold text-ink mb-2">Motor de Engenharia Comercial Pronto</h3>
+              <h3 className="text-xl font-bold text-ink mb-2">
+                Motor de Engenharia Comercial Pronto
+              </h3>
               <p className="text-ink-2 text-xs max-w-md leading-relaxed">
-                Escolha entre **SPIN**, **SNAP**, **AIDA**, **MEDDPICC** ou **Challenger** no topo para gerar estratégias sob medida.
+                Escolha entre **SPIN**, **SNAP**, **AIDA**, **MEDDPICC** ou **Challenger** no topo
+                para gerar estratégias sob medida.
               </p>
             </div>
           )}
@@ -320,8 +401,13 @@ export function SalesMethodologyStudio() {
           {generating && (
             <div className="glass-panel p-12 rounded-3xl border border-line text-center bg-surface flex flex-col items-center justify-center min-h-[440px]">
               <RefreshCw className="w-10 h-10 text-brand animate-spin mb-4" />
-              <h3 className="text-lg font-bold text-ink mb-1">Processando Metodologia {activeTab.toUpperCase()}</h3>
-              <p className="text-xs text-ink-2">Modelando dados para a persona <strong className="text-ink">{form.targetPersona}</strong> ({form.icpSize})...</p>
+              <h3 className="text-lg font-bold text-ink mb-1">
+                Processando Metodologia {activeTab.toUpperCase()}
+              </h3>
+              <p className="text-xs text-ink-2">
+                Modelando dados para a persona{' '}
+                <strong className="text-ink">{form.targetPersona}</strong> ({form.icpSize})...
+              </p>
             </div>
           )}
 
@@ -344,7 +430,9 @@ export function SalesMethodologyStudio() {
                     <Award className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-ink">Roteiro Otimizado para {result.meta.persona}</h4>
+                    <h4 className="font-bold text-ink">
+                      Roteiro Otimizado para {result.meta.persona}
+                    </h4>
                     <p className="text-[11px] text-ink-2">Porte ICP: {result.meta.icpSize}</p>
                   </div>
                 </div>
@@ -356,20 +444,76 @@ export function SalesMethodologyStudio() {
               {/* SPIN Selling Display */}
               {result.type === 'spin' && (
                 <div className="space-y-4">
-                  <SpinBlock title="S — Situation (Perguntas de Contexto)" items={result.situation} onCopy={(txt) => handleCopy(txt, 's')} copied={copiedKey === 's'} color="border-blue-500/30 bg-blue-500/5 dark:bg-blue-950/20" icon={<HelpCircle className="w-4 h-4 text-blue-500" />} />
-                  <SpinBlock title="P — Problem (Perguntas de Dor & Gargalo)" items={result.problem} onCopy={(txt) => handleCopy(txt, 'p')} copied={copiedKey === 'p'} color="border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20" icon={<ShieldAlert className="w-4 h-4 text-amber-500" />} />
-                  <SpinBlock title="I — Implication (Perguntas de Custo Financeiro)" items={result.implication} onCopy={(txt) => handleCopy(txt, 'i')} copied={copiedKey === 'i'} color="border-red-500/30 bg-red-500/5 dark:bg-red-950/20" icon={<Flame className="w-4 h-4 text-red-500" />} />
-                  <SpinBlock title="N — Need-Payoff (Perguntas de Valor & ROI)" items={result.needPayoff} onCopy={(txt) => handleCopy(txt, 'n')} copied={copiedKey === 'n'} color="border-green-500/30 bg-green-500/5 dark:bg-green-950/20" icon={<Sparkles className="w-4 h-4 text-green-500" />} />
+                  <SpinBlock
+                    title="S — Situation (Perguntas de Contexto)"
+                    items={result.situation}
+                    onCopy={(txt) => handleCopy(txt, 's')}
+                    copied={copiedKey === 's'}
+                    color="border-blue-500/30 bg-blue-500/5 dark:bg-blue-950/20"
+                    icon={<HelpCircle className="w-4 h-4 text-blue-500" />}
+                  />
+                  <SpinBlock
+                    title="P — Problem (Perguntas de Dor & Gargalo)"
+                    items={result.problem}
+                    onCopy={(txt) => handleCopy(txt, 'p')}
+                    copied={copiedKey === 'p'}
+                    color="border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20"
+                    icon={<ShieldAlert className="w-4 h-4 text-amber-500" />}
+                  />
+                  <SpinBlock
+                    title="I — Implication (Perguntas de Custo Financeiro)"
+                    items={result.implication}
+                    onCopy={(txt) => handleCopy(txt, 'i')}
+                    copied={copiedKey === 'i'}
+                    color="border-red-500/30 bg-red-500/5 dark:bg-red-950/20"
+                    icon={<Flame className="w-4 h-4 text-red-500" />}
+                  />
+                  <SpinBlock
+                    title="N — Need-Payoff (Perguntas de Valor & ROI)"
+                    items={result.needPayoff}
+                    onCopy={(txt) => handleCopy(txt, 'n')}
+                    copied={copiedKey === 'n'}
+                    color="border-green-500/30 bg-green-500/5 dark:bg-green-950/20"
+                    icon={<Sparkles className="w-4 h-4 text-green-500" />}
+                  />
                 </div>
               )}
 
               {/* SNAP Selling Display */}
               {result.type === 'snap' && (
                 <div className="space-y-4">
-                  <SnapCard title="S — Keep it Simple" subtitle="Simplicidade C-Level" content={result.simple.description} checklist={result.simple.checklist} onCopy={() => handleCopy(result.simple.description, 'snap1')} copied={copiedKey === 'snap1'} />
-                  <SnapCard title="N — Be iNvaluable" subtitle="Valor & Insights Exclusivos" content={result.invaluable.description} extra={result.invaluable.differentiator} onCopy={() => handleCopy(result.invaluable.description, 'snap2')} copied={copiedKey === 'snap2'} />
-                  <SnapCard title="A — Always Align" subtitle="Alinhamento com Metas da Persona" content={result.align.description} extra={result.align.strategicFit} onCopy={() => handleCopy(result.align.description, 'snap3')} copied={copiedKey === 'snap3'} />
-                  <SnapCard title="P — Raise Priorities" subtitle="Urgência & Custo de Inação" content={result.priorities.description} extra={result.priorities.urgencyTrigger} onCopy={() => handleCopy(result.priorities.urgencyTrigger, 'snap4')} copied={copiedKey === 'snap4'} />
+                  <SnapCard
+                    title="S — Keep it Simple"
+                    subtitle="Simplicidade C-Level"
+                    content={result.simple.description}
+                    checklist={result.simple.checklist}
+                    onCopy={() => handleCopy(result.simple.description, 'snap1')}
+                    copied={copiedKey === 'snap1'}
+                  />
+                  <SnapCard
+                    title="N — Be iNvaluable"
+                    subtitle="Valor & Insights Exclusivos"
+                    content={result.invaluable.description}
+                    extra={result.invaluable.differentiator}
+                    onCopy={() => handleCopy(result.invaluable.description, 'snap2')}
+                    copied={copiedKey === 'snap2'}
+                  />
+                  <SnapCard
+                    title="A — Always Align"
+                    subtitle="Alinhamento com Metas da Persona"
+                    content={result.align.description}
+                    extra={result.align.strategicFit}
+                    onCopy={() => handleCopy(result.align.description, 'snap3')}
+                    copied={copiedKey === 'snap3'}
+                  />
+                  <SnapCard
+                    title="P — Raise Priorities"
+                    subtitle="Urgência & Custo de Inação"
+                    content={result.priorities.description}
+                    extra={result.priorities.urgencyTrigger}
+                    onCopy={() => handleCopy(result.priorities.urgencyTrigger, 'snap4')}
+                    copied={copiedKey === 'snap4'}
+                  />
                 </div>
               )}
 
@@ -380,28 +524,50 @@ export function SalesMethodologyStudio() {
                     <h3 className="font-bold text-ink text-base flex items-center gap-2">
                       <Flame className="w-5 h-5 text-brand" /> Copywriter AIDA Hiper-personalizado
                     </h3>
-                    <Button variant="outline" size="sm" onClick={() => handleCopy(`${result.attention.hook}\n\n${result.attention.opening}\n\n${result.interest.body}\n\n${result.desire.proof}\n\n${result.action.cta}`, 'aida_all')} className="text-xs">
-                      {copiedKey === 'aida_all' ? <Check className="w-3.5 h-3.5 text-green-400 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        handleCopy(
+                          `${result.attention.hook}\n\n${result.attention.opening}\n\n${result.interest.body}\n\n${result.desire.proof}\n\n${result.action.cta}`,
+                          'aida_all',
+                        )
+                      }
+                      className="text-xs"
+                    >
+                      {copiedKey === 'aida_all' ? (
+                        <Check className="w-3.5 h-3.5 text-green-400 mr-1" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 mr-1" />
+                      )}
                       {copiedKey === 'aida_all' ? 'Copiado!' : 'Copiar Copy Completa'}
                     </Button>
                   </div>
 
                   <div className="space-y-4 text-xs">
                     <div className="p-3.5 rounded-2xl bg-surface-2 border border-indigo-500/30">
-                      <span className="font-extrabold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider block mb-1">A — Attention (Hook C-Level)</span>
+                      <span className="font-extrabold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider block mb-1">
+                        A — Attention (Hook C-Level)
+                      </span>
                       <p className="font-bold text-ink mb-1">{result.attention.hook}</p>
                       <p className="text-ink-2">{result.attention.opening}</p>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-surface-2 border border-blue-500/30">
-                      <span className="font-extrabold text-blue-500 dark:text-blue-400 uppercase tracking-wider block mb-1">I — Interest (Problema & Stack Technographics)</span>
+                      <span className="font-extrabold text-blue-500 dark:text-blue-400 uppercase tracking-wider block mb-1">
+                        I — Interest (Problema & Stack Technographics)
+                      </span>
                       <p className="text-ink-2 leading-relaxed">{result.interest.body}</p>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-surface-2 border border-amber-500/30">
-                      <span className="font-extrabold text-amber-500 dark:text-amber-400 uppercase tracking-wider block mb-1">D — Desire (Diferencial & ROI Prometido)</span>
+                      <span className="font-extrabold text-amber-500 dark:text-amber-400 uppercase tracking-wider block mb-1">
+                        D — Desire (Diferencial & ROI Prometido)
+                      </span>
                       <p className="text-ink-2 leading-relaxed">{result.desire.proof}</p>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-surface-2 border border-green-500/30">
-                      <span className="font-extrabold text-green-500 dark:text-green-400 uppercase tracking-wider block mb-1">A — Action (Chamada com Baixa Fricção)</span>
+                      <span className="font-extrabold text-green-500 dark:text-green-400 uppercase tracking-wider block mb-1">
+                        A — Action (Chamada com Baixa Fricção)
+                      </span>
                       <p className="text-ink font-bold">{result.action.cta}</p>
                     </div>
                   </div>
@@ -413,23 +579,73 @@ export function SalesMethodologyStudio() {
                 <div className="glass-panel p-6 rounded-3xl border border-line bg-surface space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-line">
                     <h3 className="font-bold text-ink text-base flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-indigo-500" /> Qualificação Enterprise MEDDPICC
+                      <FileText className="w-5 h-5 text-indigo-500" /> Qualificação Enterprise
+                      MEDDPICC
                     </h3>
-                    <Button variant="outline" size="sm" onClick={() => handleCopy(JSON.stringify(result, null, 2), 'medd_all')} className="text-xs">
-                      {copiedKey === 'medd_all' ? <Check className="w-3.5 h-3.5 text-green-400 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopy(JSON.stringify(result, null, 2), 'medd_all')}
+                      className="text-xs"
+                    >
+                      {copiedKey === 'medd_all' ? (
+                        <Check className="w-3.5 h-3.5 text-green-400 mr-1" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 mr-1" />
+                      )}
                       {copiedKey === 'medd_all' ? 'Copiado!' : 'Copiar Matriz MEDDPICC'}
                     </Button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    <MeddCard letter="M" title="Metrics (Métricas)" content={result.metrics} color="text-blue-500 border-blue-500/30" />
-                    <MeddCard letter="E" title="Economic Buyer (Comprador Econômico)" content={result.economicBuyer} color="text-purple-500 border-purple-500/30" />
-                    <MeddCard letter="D" title="Decision Criteria (Critérios)" content={result.decisionCriteria} color="text-indigo-500 border-indigo-500/30" />
-                    <MeddCard letter="D" title="Decision Process (Processo)" content={result.decisionProcess} color="text-teal-500 border-teal-500/30" />
-                    <MeddCard letter="P" title="Paper Process (Fluxo Jurídico)" content={result.paperProcess} color="text-amber-500 border-amber-500/30" />
-                    <MeddCard letter="I" title="Identified Pain (Dor Mapeada)" content={result.identifiedPain} color="text-red-500 border-red-500/30" />
-                    <MeddCard letter="C" title="Champion (Sponsor Interno)" content={result.champion} color="text-emerald-500 border-emerald-500/30" />
-                    <MeddCard letter="C" title="Competitors (Status Quo)" content={result.competitors} color="text-pink-500 border-pink-500/30" />
+                    <MeddCard
+                      letter="M"
+                      title="Metrics (Métricas)"
+                      content={result.metrics}
+                      color="text-blue-500 border-blue-500/30"
+                    />
+                    <MeddCard
+                      letter="E"
+                      title="Economic Buyer (Comprador Econômico)"
+                      content={result.economicBuyer}
+                      color="text-purple-500 border-purple-500/30"
+                    />
+                    <MeddCard
+                      letter="D"
+                      title="Decision Criteria (Critérios)"
+                      content={result.decisionCriteria}
+                      color="text-indigo-500 border-indigo-500/30"
+                    />
+                    <MeddCard
+                      letter="D"
+                      title="Decision Process (Processo)"
+                      content={result.decisionProcess}
+                      color="text-teal-500 border-teal-500/30"
+                    />
+                    <MeddCard
+                      letter="P"
+                      title="Paper Process (Fluxo Jurídico)"
+                      content={result.paperProcess}
+                      color="text-amber-500 border-amber-500/30"
+                    />
+                    <MeddCard
+                      letter="I"
+                      title="Identified Pain (Dor Mapeada)"
+                      content={result.identifiedPain}
+                      color="text-red-500 border-red-500/30"
+                    />
+                    <MeddCard
+                      letter="C"
+                      title="Champion (Sponsor Interno)"
+                      content={result.champion}
+                      color="text-emerald-500 border-emerald-500/30"
+                    />
+                    <MeddCard
+                      letter="C"
+                      title="Competitors (Status Quo)"
+                      content={result.competitors}
+                      color="text-pink-500 border-pink-500/30"
+                    />
                   </div>
                 </div>
               )}
@@ -439,24 +655,33 @@ export function SalesMethodologyStudio() {
                 <div className="glass-panel p-6 rounded-3xl border border-line bg-surface space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-line">
                     <h3 className="font-bold text-ink text-base flex items-center gap-2">
-                      <Compass className="w-5 h-5 text-amber-500" /> Estratégia Challenger Sale (Teach, Tailor, Take Control)
+                      <Compass className="w-5 h-5 text-amber-500" /> Estratégia Challenger Sale
+                      (Teach, Tailor, Take Control)
                     </h3>
                   </div>
 
                   <div className="space-y-4 text-xs">
                     <div className="p-4 rounded-2xl bg-amber-500/5 dark:bg-amber-950/30 border border-amber-500/30 space-y-1">
-                      <h4 className="font-bold text-amber-600 dark:text-amber-400 text-sm">{result.teach.title}</h4>
+                      <h4 className="font-bold text-amber-600 dark:text-amber-400 text-sm">
+                        {result.teach.title}
+                      </h4>
                       <p className="text-ink leading-relaxed font-medium">{result.teach.script}</p>
                     </div>
 
                     <div className="p-4 rounded-2xl bg-indigo-500/5 dark:bg-indigo-950/30 border border-indigo-500/30 space-y-1">
-                      <h4 className="font-bold text-indigo-600 dark:text-indigo-400 text-sm">{result.tailor.title}</h4>
+                      <h4 className="font-bold text-indigo-600 dark:text-indigo-400 text-sm">
+                        {result.tailor.title}
+                      </h4>
                       <p className="text-ink leading-relaxed font-medium">{result.tailor.script}</p>
                     </div>
 
                     <div className="p-4 rounded-2xl bg-emerald-500/5 dark:bg-emerald-950/30 border border-emerald-500/30 space-y-1">
-                      <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">{result.takeControl.title}</h4>
-                      <p className="text-ink leading-relaxed font-medium">{result.takeControl.script}</p>
+                      <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                        {result.takeControl.title}
+                      </h4>
+                      <p className="text-ink leading-relaxed font-medium">
+                        {result.takeControl.script}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -469,7 +694,17 @@ export function SalesMethodologyStudio() {
   );
 }
 
-function MeddCard({ letter, title, content, color }: { letter: string; title: string; content: string; color: string }) {
+function MeddCard({
+  letter,
+  title,
+  content,
+  color,
+}: {
+  letter: string;
+  title: string;
+  content: string;
+  color: string;
+}) {
   return (
     <div className={`p-3.5 rounded-2xl bg-surface-2 border ${color} space-y-1`}>
       <div className="flex items-center gap-2">
@@ -483,7 +718,21 @@ function MeddCard({ letter, title, content, color }: { letter: string; title: st
   );
 }
 
-function SpinBlock({ title, items, onCopy, copied, color, icon }: { title: string; items: string[]; onCopy: (txt: string) => void; copied: boolean; color: string; icon: React.ReactNode }) {
+function SpinBlock({
+  title,
+  items,
+  onCopy,
+  copied,
+  color,
+  icon,
+}: {
+  title: string;
+  items: string[];
+  onCopy: (txt: string) => void;
+  copied: boolean;
+  color: string;
+  icon: React.ReactNode;
+}) {
   const fullText = items.map((it, idx) => `${idx + 1}. ${it}`).join('\n');
   return (
     <div className={`p-5 rounded-2xl border ${color} space-y-3`}>
@@ -491,14 +740,24 @@ function SpinBlock({ title, items, onCopy, copied, color, icon }: { title: strin
         <h4 className="font-bold text-ink text-sm flex items-center gap-2">
           {icon} {title}
         </h4>
-        <button onClick={() => onCopy(fullText)} className="text-xs text-ink-2 hover:text-ink flex items-center gap-1 cursor-pointer">
-          {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+        <button
+          onClick={() => onCopy(fullText)}
+          className="text-xs text-ink-2 hover:text-ink flex items-center gap-1 cursor-pointer"
+        >
+          {copied ? (
+            <Check className="w-3.5 h-3.5 text-green-500" />
+          ) : (
+            <Copy className="w-3.5 h-3.5" />
+          )}
           {copied ? 'Copiado' : 'Copiar Bloco'}
         </button>
       </div>
       <ul className="space-y-2 text-xs text-ink">
         {items.map((item, i) => (
-          <li key={i} className="flex items-start gap-2 bg-surface p-2.5 rounded-xl border border-line shadow-sm">
+          <li
+            key={i}
+            className="flex items-start gap-2 bg-surface p-2.5 rounded-xl border border-line shadow-sm"
+          >
             <span className="font-bold text-brand">{i + 1}.</span>
             <span className="leading-relaxed">{item}</span>
           </li>
@@ -508,22 +767,49 @@ function SpinBlock({ title, items, onCopy, copied, color, icon }: { title: strin
   );
 }
 
-function SnapCard({ title, subtitle, content, checklist, extra, onCopy, copied }: { title: string; subtitle: string; content: string; checklist?: string[]; extra?: string; onCopy: () => void; copied: boolean }) {
+function SnapCard({
+  title,
+  subtitle,
+  content,
+  checklist,
+  extra,
+  onCopy,
+  copied,
+}: {
+  title: string;
+  subtitle: string;
+  content: string;
+  checklist?: string[];
+  extra?: string;
+  onCopy: () => void;
+  copied: boolean;
+}) {
   return (
     <div className="glass-card p-5 rounded-2xl border border-line space-y-3 bg-surface">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-amber-400" />
           <h4 className="font-bold text-ink text-sm">{title}</h4>
-          <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-400/10 text-amber-300 font-bold border border-amber-400/20">{subtitle}</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-400/10 text-amber-300 font-bold border border-amber-400/20">
+            {subtitle}
+          </span>
         </div>
-        <button onClick={onCopy} className="text-xs text-ink-2 hover:text-ink flex items-center gap-1 cursor-pointer">
-          {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+        <button
+          onClick={onCopy}
+          className="text-xs text-ink-2 hover:text-ink flex items-center gap-1 cursor-pointer"
+        >
+          {copied ? (
+            <Check className="w-3.5 h-3.5 text-green-400" />
+          ) : (
+            <Copy className="w-3.5 h-3.5" />
+          )}
           {copied ? 'Copiado' : 'Copiar'}
         </button>
       </div>
       <p className="text-xs text-ink-2 leading-relaxed font-medium">{content}</p>
-      {extra && <p className="text-xs text-brand font-bold pt-1 border-t border-line">💡 {extra}</p>}
+      {extra && (
+        <p className="text-xs text-brand font-bold pt-1 border-t border-line">💡 {extra}</p>
+      )}
       {checklist && (
         <ul className="space-y-1 text-xs text-ink-2 pt-2 border-t border-line">
           {checklist.map((item, idx) => (

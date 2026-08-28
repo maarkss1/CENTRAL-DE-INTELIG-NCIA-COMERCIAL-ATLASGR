@@ -38,13 +38,13 @@ import { env } from '../../config/env.js';
 const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || '';
 
 const pool = new Pool({
-    connectionString,
-    max: 5,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 2_000,
+  connectionString,
+  max: 5,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 2_000,
 });
 pool.on('error', (err) => {
-    logger.error({ err }, 'Unexpected error on idle LangGraph checkpointer pool client');
+  logger.error({ err }, 'Unexpected error on idle LangGraph checkpointer pool client');
 });
 
 export const checkpointer = new PostgresSaver(pool);
@@ -63,31 +63,31 @@ let setupPromise: Promise<void> | null = null;
  * inicialização preguiçosa evita depender de lembrar de conectar isso às duas sequências de boot.
  */
 export async function ensureCheckpointerReady(): Promise<void> {
-    if (!setupPromise) {
-        setupPromise = checkpointer.setup().catch((err) => {
-            setupPromise = null;
-            throw err;
-        });
-    }
-    return setupPromise;
+  if (!setupPromise) {
+    setupPromise = checkpointer.setup().catch((err) => {
+      setupPromise = null;
+      throw err;
+    });
+  }
+  return setupPromise;
 }
 
 /** Só para testes: força uma nova chamada a `setup()` na próxima `ensureCheckpointerReady()`. */
 export function __resetCheckpointerSetupForTests(): void {
-    setupPromise = null;
+  setupPromise = null;
 }
 
 export async function closeCheckpointerPool(): Promise<void> {
-    await pool.end();
+  await pool.end();
 }
 
 // Mesmo cuidado documentado em prisma.ts: `beforeExit` pode disparar mais de uma vez, e chamar
 // `pool.end()` duas vezes lança "Called end on pool more than once".
 let closed = false;
 process.once('beforeExit', async () => {
-    if (closed) return;
-    closed = true;
-    await closeCheckpointerPool().catch((err) => {
-        logger.warn({ err }, 'Falha ao fechar o pool do checkpointer no shutdown');
-    });
+  if (closed) return;
+  closed = true;
+  await closeCheckpointerPool().catch((err) => {
+    logger.warn({ err }, 'Falha ao fechar o pool do checkpointer no shutdown');
+  });
 });

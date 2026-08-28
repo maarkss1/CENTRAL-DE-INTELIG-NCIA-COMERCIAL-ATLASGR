@@ -13,40 +13,40 @@ import { logger } from '../../lib/logger.js';
  */
 
 export type RntrcTerritorialRow = {
-    ibgeCode: string;
-    name: string;
-    uf: string;
-    region: string;
-    transporters: number;
-    etc: number;
-    tac: number;
-    ctc: number;
-    etcEquiparada: number;
+  ibgeCode: string;
+  name: string;
+  uf: string;
+  region: string;
+  transporters: number;
+  etc: number;
+  tac: number;
+  ctc: number;
+  etcEquiparada: number;
 };
 
 type RntrcMetadata = {
-    dataset: string;
-    resource?: {
-        id?: string;
-        url?: string;
-        competence?: string;
-        last_modified?: string;
-    };
-    outputSha256?: string;
-    sourcePage?: string;
+  dataset: string;
+  resource?: {
+    id?: string;
+    url?: string;
+    competence?: string;
+    last_modified?: string;
+  };
+  outputSha256?: string;
+  sourcePage?: string;
 };
 
 export type RntrcTerritorialSnapshot = {
-    rows: RntrcTerritorialRow[];
-    byIbge: Map<string, RntrcTerritorialRow>;
-    metadata: {
-        dataset: string;
-        competencia: string | null;
-        sourceUrl: string | null;
-        hash: string | null;
-        granularity: 'MUNICIPAL';
-        dataOrigin: 'OBSERVED';
-    };
+  rows: RntrcTerritorialRow[];
+  byIbge: Map<string, RntrcTerritorialRow>;
+  metadata: {
+    dataset: string;
+    competencia: string | null;
+    sourceUrl: string | null;
+    hash: string | null;
+    granularity: 'MUNICIPAL';
+    dataOrigin: 'OBSERVED';
+  };
 };
 
 let cached: RntrcTerritorialSnapshot | null = null;
@@ -70,38 +70,52 @@ let cached: RntrcTerritorialSnapshot | null = null;
 export type RntrcRiskTier = 'ALTA' | 'MEDIA' | 'BAIXA';
 
 export type RntrcUfRisk = {
-    available: boolean;
-    reason: string | null;
-    uf: string | null;
-    transporters: number | null;
-    etc: number | null;
-    tac: number | null;
-    ctc: number | null;
-    etcEquiparada: number | null;
-    municipalitiesCount: number | null;
-    /** Posição percentual (0-100) da UF entre todas as UFs com dado, pelo total de transportadores. */
-    percentile: number | null;
-    tier: RntrcRiskTier | null;
-    metadata: RntrcTerritorialSnapshot['metadata'] | null;
+  available: boolean;
+  reason: string | null;
+  uf: string | null;
+  transporters: number | null;
+  etc: number | null;
+  tac: number | null;
+  ctc: number | null;
+  etcEquiparada: number | null;
+  municipalitiesCount: number | null;
+  /** Posição percentual (0-100) da UF entre todas as UFs com dado, pelo total de transportadores. */
+  percentile: number | null;
+  tier: RntrcRiskTier | null;
+  metadata: RntrcTerritorialSnapshot['metadata'] | null;
 };
 
 function normalizeUf(value: string | null | undefined): string | null {
-    if (!value) return null;
-    const trimmed = value.trim().toUpperCase();
-    return /^[A-Z]{2}$/.test(trimmed) ? trimmed : null;
+  if (!value) return null;
+  const trimmed = value.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(trimmed) ? trimmed : null;
 }
 
 function tierFromPercentile(percentile: number): RntrcRiskTier {
-    if (percentile >= 66) return 'ALTA';
-    if (percentile >= 33) return 'MEDIA';
-    return 'BAIXA';
+  if (percentile >= 66) return 'ALTA';
+  if (percentile >= 33) return 'MEDIA';
+  return 'BAIXA';
 }
 
-function unavailable(reason: string, uf: string | null, metadata: RntrcTerritorialSnapshot['metadata'] | null): RntrcUfRisk {
-    return {
-        available: false, reason, uf, transporters: null, etc: null, tac: null, ctc: null,
-        etcEquiparada: null, municipalitiesCount: null, percentile: null, tier: null, metadata,
-    };
+function unavailable(
+  reason: string,
+  uf: string | null,
+  metadata: RntrcTerritorialSnapshot['metadata'] | null,
+): RntrcUfRisk {
+  return {
+    available: false,
+    reason,
+    uf,
+    transporters: null,
+    etc: null,
+    tac: null,
+    ctc: null,
+    etcEquiparada: null,
+    municipalitiesCount: null,
+    percentile: null,
+    tier: null,
+    metadata,
+  };
 }
 
 /**
@@ -111,77 +125,116 @@ function unavailable(reason: string, uf: string | null, metadata: RntrcTerritori
  * disco (com cache), esta função só soma e ordena o que já foi carregado.
  */
 export function rntrcRiskByUf(ufRaw: string | null | undefined): RntrcUfRisk {
-    const uf = normalizeUf(ufRaw);
-    const snapshot = rntrcTerritorialSnapshot();
+  const uf = normalizeUf(ufRaw);
+  const snapshot = rntrcTerritorialSnapshot();
 
-    if (!uf) return unavailable('UF não informada para esta empresa — não é possível localizar o indicador territorial.', null, snapshot.rows.length ? snapshot.metadata : null);
-    if (!snapshot.rows.length) return unavailable('Indicador territorial RNTRC (ANTT) indisponível no momento.', uf, null);
+  if (!uf)
+    return unavailable(
+      'UF não informada para esta empresa — não é possível localizar o indicador territorial.',
+      null,
+      snapshot.rows.length ? snapshot.metadata : null,
+    );
+  if (!snapshot.rows.length)
+    return unavailable('Indicador territorial RNTRC (ANTT) indisponível no momento.', uf, null);
 
-    const totals = new Map<string, { transporters: number; etc: number; tac: number; ctc: number; etcEquiparada: number; municipalities: number }>();
-    for (const row of snapshot.rows) {
-        const current = totals.get(row.uf) ?? { transporters: 0, etc: 0, tac: 0, ctc: 0, etcEquiparada: 0, municipalities: 0 };
-        current.transporters += row.transporters;
-        current.etc += row.etc;
-        current.tac += row.tac;
-        current.ctc += row.ctc;
-        current.etcEquiparada += row.etcEquiparada;
-        current.municipalities += 1;
-        totals.set(row.uf, current);
+  const totals = new Map<
+    string,
+    {
+      transporters: number;
+      etc: number;
+      tac: number;
+      ctc: number;
+      etcEquiparada: number;
+      municipalities: number;
     }
-
-    const target = totals.get(uf);
-    if (!target) return unavailable(`Nenhum dado RNTRC (ANTT) publicado para ${uf} no snapshot atual.`, uf, snapshot.metadata);
-
-    const ranked = [...totals.entries()].sort((a, b) => a[1].transporters - b[1].transporters);
-    const n = ranked.length;
-    const index = ranked.findIndex(([key]) => key === uf);
-    const percentile = n <= 1 ? 100 : Math.round((index / (n - 1)) * 100);
-
-    return {
-        available: true,
-        reason: null,
-        uf,
-        transporters: target.transporters,
-        etc: target.etc,
-        tac: target.tac,
-        ctc: target.ctc,
-        etcEquiparada: target.etcEquiparada,
-        municipalitiesCount: target.municipalities,
-        percentile,
-        tier: tierFromPercentile(percentile),
-        metadata: snapshot.metadata,
+  >();
+  for (const row of snapshot.rows) {
+    const current = totals.get(row.uf) ?? {
+      transporters: 0,
+      etc: 0,
+      tac: 0,
+      ctc: 0,
+      etcEquiparada: 0,
+      municipalities: 0,
     };
+    current.transporters += row.transporters;
+    current.etc += row.etc;
+    current.tac += row.tac;
+    current.ctc += row.ctc;
+    current.etcEquiparada += row.etcEquiparada;
+    current.municipalities += 1;
+    totals.set(row.uf, current);
+  }
+
+  const target = totals.get(uf);
+  if (!target)
+    return unavailable(
+      `Nenhum dado RNTRC (ANTT) publicado para ${uf} no snapshot atual.`,
+      uf,
+      snapshot.metadata,
+    );
+
+  const ranked = [...totals.entries()].sort((a, b) => a[1].transporters - b[1].transporters);
+  const n = ranked.length;
+  const index = ranked.findIndex(([key]) => key === uf);
+  const percentile = n <= 1 ? 100 : Math.round((index / (n - 1)) * 100);
+
+  return {
+    available: true,
+    reason: null,
+    uf,
+    transporters: target.transporters,
+    etc: target.etc,
+    tac: target.tac,
+    ctc: target.ctc,
+    etcEquiparada: target.etcEquiparada,
+    municipalitiesCount: target.municipalities,
+    percentile,
+    tier: tierFromPercentile(percentile),
+    metadata: snapshot.metadata,
+  };
 }
 
 export function rntrcTerritorialSnapshot(): RntrcTerritorialSnapshot {
-    if (cached) return cached;
-    const base = resolve(process.cwd(), 'public', 'tools', 'atlas-market-intelligence', 'data');
-    try {
-        const rows = JSON.parse(readFileSync(resolve(base, 'rntrc_municipios.json'), 'utf8')) as RntrcTerritorialRow[];
-        const metadata = JSON.parse(readFileSync(resolve(base, 'rntrc_municipios.metadata.json'), 'utf8')) as RntrcMetadata;
-        cached = {
-            rows,
-            byIbge: new Map(rows.map((row) => [row.ibgeCode, row])),
-            metadata: {
-                dataset: metadata.dataset,
-                competencia: metadata.resource?.competence ?? null,
-                sourceUrl: metadata.sourcePage ?? metadata.resource?.url ?? null,
-                hash: metadata.outputSha256 ?? null,
-                granularity: 'MUNICIPAL',
-                dataOrigin: 'OBSERVED',
-            },
-        };
-        return cached;
-    } catch (error) {
-        logger.warn({ event: 'rntrc_territorial_unavailable', error }, 'RNTRC territorial snapshot unavailable');
-        cached = {
-            rows: [],
-            byIbge: new Map(),
-            metadata: {
-                dataset: 'ANTT RNTRC', competencia: null, sourceUrl: null, hash: null,
-                granularity: 'MUNICIPAL', dataOrigin: 'OBSERVED',
-            },
-        };
-        return cached;
-    }
+  if (cached) return cached;
+  const base = resolve(process.cwd(), 'public', 'tools', 'atlas-market-intelligence', 'data');
+  try {
+    const rows = JSON.parse(
+      readFileSync(resolve(base, 'rntrc_municipios.json'), 'utf8'),
+    ) as RntrcTerritorialRow[];
+    const metadata = JSON.parse(
+      readFileSync(resolve(base, 'rntrc_municipios.metadata.json'), 'utf8'),
+    ) as RntrcMetadata;
+    cached = {
+      rows,
+      byIbge: new Map(rows.map((row) => [row.ibgeCode, row])),
+      metadata: {
+        dataset: metadata.dataset,
+        competencia: metadata.resource?.competence ?? null,
+        sourceUrl: metadata.sourcePage ?? metadata.resource?.url ?? null,
+        hash: metadata.outputSha256 ?? null,
+        granularity: 'MUNICIPAL',
+        dataOrigin: 'OBSERVED',
+      },
+    };
+    return cached;
+  } catch (error) {
+    logger.warn(
+      { event: 'rntrc_territorial_unavailable', error },
+      'RNTRC territorial snapshot unavailable',
+    );
+    cached = {
+      rows: [],
+      byIbge: new Map(),
+      metadata: {
+        dataset: 'ANTT RNTRC',
+        competencia: null,
+        sourceUrl: null,
+        hash: null,
+        granularity: 'MUNICIPAL',
+        dataOrigin: 'OBSERVED',
+      },
+    };
+    return cached;
+  }
 }

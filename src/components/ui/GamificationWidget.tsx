@@ -20,7 +20,7 @@ export function GamificationWidget({
   initialXp = 0,
   nextLevelXp = 2000,
   level = 1,
-  streakDays = 0
+  streakDays = 0,
 }: GamificationWidgetProps) {
   const [showMissions, setShowMissions] = useState(false);
   const [xp, setXp] = useState(initialXp);
@@ -28,7 +28,7 @@ export function GamificationWidget({
     { id: 1, title: 'Completar perfil do SDR', xp: 200, done: false },
     { id: 2, title: 'Qualificar 5 novos leads hoje', xp: 500, done: false },
     { id: 3, title: 'Agendar 2 reuniões de demo', xp: 800, done: false },
-    { id: 4, title: 'Enviar 10 cold emails inteligentes', xp: 450, done: false }
+    { id: 4, title: 'Enviar 10 cold emails inteligentes', xp: 450, done: false },
   ]);
 
   const toggleMission = (id: number) => {
@@ -44,7 +44,7 @@ export function GamificationWidget({
           return { ...m, done: newDone };
         }
         return m;
-      })
+      }),
     );
   };
 
@@ -56,7 +56,6 @@ export function GamificationWidget({
       <div className="absolute top-0 right-0 w-32 h-32 bg-brand/10 rounded-full blur-2xl pointer-events-none" />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        
         {/* Level Badge */}
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -73,12 +72,14 @@ export function GamificationWidget({
               <h4 className="font-bold text-ink text-base">Missões Diárias</h4>
               {streakDays > 0 && (
                 <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-atlas-yellow/20 text-atlas-yellow border border-atlas-yellow/30 font-semibold">
-                  <Flame className="w-3.5 h-3.5 text-atlas-yellow animate-pulse" /> {streakDays} Dias Seguidos
+                  <Flame className="w-3.5 h-3.5 text-atlas-yellow animate-pulse" /> {streakDays}{' '}
+                  Dias Seguidos
                 </span>
               )}
             </div>
             <p className="text-xs text-ink-2 mt-0.5">
-              {xp.toLocaleString('pt-BR')} / {nextLevelXp.toLocaleString('pt-BR')} XP para o Nível {level + 1}
+              {xp.toLocaleString('pt-BR')} / {nextLevelXp.toLocaleString('pt-BR')} XP para o Nível{' '}
+              {level + 1}
             </p>
           </div>
         </div>
@@ -92,7 +93,9 @@ export function GamificationWidget({
         >
           <Zap className="w-4 h-4 text-atlas-yellow" />
           <span>Missões Diárias</span>
-          <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${showMissions ? 'rotate-90' : ''}`} />
+          <ChevronRight
+            className={`w-4 h-4 transition-transform duration-300 ${showMissions ? 'rotate-90' : ''}`}
+          />
         </button>
       </div>
 
@@ -139,12 +142,18 @@ export function GamificationWidget({
                 <span className="flex items-center gap-2.5">
                   <span
                     className={`w-4 h-4 rounded flex items-center justify-center border ${
-                      mission.done ? 'bg-success border-success text-slate-950 font-bold' : 'border-gray-500'
+                      mission.done
+                        ? 'bg-success border-success text-slate-950 font-bold'
+                        : 'border-gray-500'
                     }`}
                   >
                     {mission.done && <Check className="w-3 h-3 stroke-[3]" />}
                   </span>
-                  <span className={mission.done ? 'line-through text-ink-2 font-medium' : 'font-semibold'}>
+                  <span
+                    className={
+                      mission.done ? 'line-through text-ink-2 font-medium' : 'font-semibold'
+                    }
+                  >
                     {mission.title}
                   </span>
                 </span>

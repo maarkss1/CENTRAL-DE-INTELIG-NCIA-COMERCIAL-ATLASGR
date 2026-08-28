@@ -13,7 +13,13 @@ interface PaginationProps {
 /** Paginação compartilhada entre ContactList e CompanyList — mesma lógica que as duas já tinham
     duplicada, com uma aparência única (antes ContactList usava ícones sozinhos e CompanyList
     usava texto "Anterior"/"Próxima"; aqui os dois convergem pro mesmo componente). */
-export function Pagination({ page, totalPages, onPageChange, totalItems, itemLabel }: PaginationProps) {
+export function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+  totalItems,
+  itemLabel,
+}: PaginationProps) {
   if (totalPages <= 1) return null;
 
   return (

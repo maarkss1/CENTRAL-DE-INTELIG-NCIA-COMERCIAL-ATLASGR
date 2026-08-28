@@ -21,23 +21,23 @@
  * analytics.contract.js'` (ou caminho relativo equivalente).
  */
 export interface OverviewMetrics {
-    totalCompanies: number;
-    totalContacts: number;
-    /** Leads em aberto (fora dos status de fechamento: ganho, perdido, desqualificado, piloto cancelado). */
-    totalLeads: number;
-    totalActivities: number;
-    pendingActivities: number;
-    overdueActivities: number;
-    closedThisMonth: number;
-    lostThisMonth: number;
-    conversionRate: number;
-    /** Média do score dos leads em aberto, ou `null` se nenhum lead tem score preenchido. */
-    averageScore: number | null;
-    /**
-     * Soma de `Lead.amount` dos leads em aberto (fora de ganho/perdido/desqualificado/piloto
-     * cancelado) que têm valor preenchido. `null` quando nenhum lead em aberto tem `amount`
-     * preenchido — o frontend exibe "—" em vez de inventar um número (nunca fabrica 0 ou uma média
-     * para preencher a interface, ver `/AGENTS.md` → "Dados reais x demonstração").
-     */
-    pipelineValue: number | null;
+  totalCompanies: number;
+  totalContacts: number;
+  /** Leads em aberto (fora dos status de fechamento: ganho, perdido, desqualificado, piloto cancelado). */
+  totalLeads: number;
+  totalActivities: number;
+  pendingActivities: number;
+  overdueActivities: number;
+  closedThisMonth: number;
+  lostThisMonth: number;
+  conversionRate: number;
+  /** Média do score dos leads em aberto, ou `null` se nenhum lead tem score preenchido. */
+  averageScore: number | null;
+  /**
+   * Soma de `Lead.amount` dos leads em aberto (fora de ganho/perdido/desqualificado/piloto
+   * cancelado) que têm valor preenchido. `null` quando nenhum lead em aberto tem `amount`
+   * preenchido — o frontend exibe "—" em vez de inventar um número (nunca fabrica 0 ou uma média
+   * para preencher a interface, ver `/AGENTS.md` → "Dados reais x demonstração").
+   */
+  pipelineValue: number | null;
 }

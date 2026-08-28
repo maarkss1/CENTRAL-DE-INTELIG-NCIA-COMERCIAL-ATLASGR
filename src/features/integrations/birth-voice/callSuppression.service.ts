@@ -1,7 +1,10 @@
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { toE164BR } from '../../../lib/phone.js';
-import { isOptedOut, recordOptOut as recordUnifiedOptOut } from '../../cadence/application/optOutService.js';
+import {
+  isOptedOut,
+  recordOptOut as recordUnifiedOptOut,
+} from '../../cadence/application/optOutService.js';
 import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutRepository.js';
 
 /**
@@ -30,14 +33,14 @@ import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutReposito
 export type SuppressionSource = 'call-opt-out' | 'manual' | 'import';
 
 export interface RecordOptOutInput {
-    organizationId: string;
-    /** Aceita nulo para o chamador não precisar decidir sozinho: `recordOptOut` já recusa e loga. */
-    phone: string | null | undefined;
-    source: SuppressionSource;
-    reason?: string | null;
-    leadId?: string | null;
-    /** Trecho real do pedido (transcrição/mensagem), quando disponível — nunca inferência, mesma disciplina do registro unificado. */
-    evidence?: string | null;
+  organizationId: string;
+  /** Aceita nulo para o chamador não precisar decidir sozinho: `recordOptOut` já recusa e loga. */
+  phone: string | null | undefined;
+  source: SuppressionSource;
+  reason?: string | null;
+  leadId?: string | null;
+  /** Trecho real do pedido (transcrição/mensagem), quando disponível — nunca inferência, mesma disciplina do registro unificado. */
+  evidence?: string | null;
 }
 
 /**
@@ -46,7 +49,7 @@ export interface RecordOptOutInput {
  * `callLead` já recusa, antes disso, qualquer lead sem número discável.
  */
 export function normalizeSuppressionKey(phone: string | null | undefined): string | null {
-    return toE164BR(phone);
+  return toE164BR(phone);
 }
 
 /**
@@ -55,8 +58,8 @@ export function normalizeSuppressionKey(phone: string | null | undefined): strin
  * só por e-mail (sem o mesmo telefone em comum) não seria encontrado por aqui.
  */
 export interface SuppressionCheckContext {
-    leadId?: string | null;
-    email?: string | null;
+  leadId?: string | null;
+  email?: string | null;
 }
 
 /**
@@ -68,27 +71,27 @@ export interface SuppressionCheckContext {
  * das duas — devolve `false` sem bater no banco.
  */
 export async function isSuppressed(
-    organizationId: string,
-    phone: string | null | undefined,
-    context: SuppressionCheckContext = {},
+  organizationId: string,
+  phone: string | null | undefined,
+  context: SuppressionCheckContext = {},
 ): Promise<boolean> {
-    const phoneE164 = normalizeSuppressionKey(phone);
-    const leadId = context.leadId ?? null;
-    const email = context.email ?? null;
+  const phoneE164 = normalizeSuppressionKey(phone);
+  const leadId = context.leadId ?? null;
+  const email = context.email ?? null;
 
-    if (!phoneE164 && !leadId && !email) return false;
+  if (!phoneE164 && !leadId && !email) return false;
 
-    const [suppressionHit, optedOut] = await Promise.all([
-        phoneE164
-            ? prisma.callSuppression.findUnique({
-                  where: { organizationId_phoneE164: { organizationId, phoneE164 } },
-                  select: { id: true },
-              })
-            : Promise.resolve(null),
-        isOptedOut(prismaOptOutRepository, organizationId, { leadId, email, phoneE164 }, 'voice'),
-    ]);
+  const [suppressionHit, optedOut] = await Promise.all([
+    phoneE164
+      ? prisma.callSuppression.findUnique({
+          where: { organizationId_phoneE164: { organizationId, phoneE164 } },
+          select: { id: true },
+        })
+      : Promise.resolve(null),
+    isOptedOut(prismaOptOutRepository, organizationId, { leadId, email, phoneE164 }, 'voice'),
+  ]);
 
-    return suppressionHit !== null || optedOut;
+  return suppressionHit !== null || optedOut;
 }
 
 /**
@@ -100,72 +103,82 @@ export async function isSuppressed(
  * pedido de opt-out não pôde ser materializado e registrar isso no log em vez de assumir sucesso.
  */
 export async function recordOptOut(input: RecordOptOutInput): Promise<boolean> {
-    const phoneE164 = normalizeSuppressionKey(input.phone);
-    if (!phoneE164) {
-        logger.warn(
-            { organizationId: input.organizationId, leadId: input.leadId },
-            'Pedido de opt-out recebido para um telefone não normalizável — nada foi bloqueado.',
-        );
-        return false;
-    }
-
-    await prisma.callSuppression.upsert({
-        where: { organizationId_phoneE164: { organizationId: input.organizationId, phoneE164 } },
-        // Reentrega do mesmo evento não sobrescreve o motivo original: o primeiro registro é o que
-        // tem a evidência mais próxima do pedido real.
-        update: {},
-        create: {
-            organizationId: input.organizationId,
-            phoneE164,
-            source: input.source,
-            reason: input.reason ?? null,
-            leadId: input.leadId ?? null,
-        },
-    });
-
-    // Grava também no registro unificado (`OptOutRecord`, `scope: 'voice'`) para que WhatsApp/e-mail
-    // (06/05) também enxerguem este bloqueio — ver `17-para-05-06-12-contrato-optout.md`. Melhor
-    // esforço de propósito: `CallSuppression` acima já é a fonte de verdade de voz e não pode deixar
-    // de valer porque a escrita unificada falhou (ex.: banco momentaneamente indisponível).
-    try {
-        await recordUnifiedOptOut(prismaOptOutRepository, {
-            organizationId: input.organizationId,
-            scope: 'voice',
-            subject: { leadId: input.leadId ?? null, phoneE164 },
-            originChannel: 'voice',
-            reason: input.reason ?? null,
-            evidence: input.evidence ?? null,
-            requestedBy: null,
-        });
-    } catch (error) {
-        logger.error(
-            { err: error, organizationId: input.organizationId },
-            'Falha ao gravar opt-out unificado (OptOutRecord) — a lista de bloqueio de voz (CallSuppression) já foi gravada e continua valendo.',
-        );
-    }
-
-    logger.info(
-        { organizationId: input.organizationId, leadId: input.leadId, source: input.source },
-        'Número adicionado à lista de bloqueio de discagem (opt-out).',
+  const phoneE164 = normalizeSuppressionKey(input.phone);
+  if (!phoneE164) {
+    logger.warn(
+      { organizationId: input.organizationId, leadId: input.leadId },
+      'Pedido de opt-out recebido para um telefone não normalizável — nada foi bloqueado.',
     );
-    return true;
+    return false;
+  }
+
+  await prisma.callSuppression.upsert({
+    where: { organizationId_phoneE164: { organizationId: input.organizationId, phoneE164 } },
+    // Reentrega do mesmo evento não sobrescreve o motivo original: o primeiro registro é o que
+    // tem a evidência mais próxima do pedido real.
+    update: {},
+    create: {
+      organizationId: input.organizationId,
+      phoneE164,
+      source: input.source,
+      reason: input.reason ?? null,
+      leadId: input.leadId ?? null,
+    },
+  });
+
+  // Grava também no registro unificado (`OptOutRecord`, `scope: 'voice'`) para que WhatsApp/e-mail
+  // (06/05) também enxerguem este bloqueio — ver `17-para-05-06-12-contrato-optout.md`. Melhor
+  // esforço de propósito: `CallSuppression` acima já é a fonte de verdade de voz e não pode deixar
+  // de valer porque a escrita unificada falhou (ex.: banco momentaneamente indisponível).
+  try {
+    await recordUnifiedOptOut(prismaOptOutRepository, {
+      organizationId: input.organizationId,
+      scope: 'voice',
+      subject: { leadId: input.leadId ?? null, phoneE164 },
+      originChannel: 'voice',
+      reason: input.reason ?? null,
+      evidence: input.evidence ?? null,
+      requestedBy: null,
+    });
+  } catch (error) {
+    logger.error(
+      { err: error, organizationId: input.organizationId },
+      'Falha ao gravar opt-out unificado (OptOutRecord) — a lista de bloqueio de voz (CallSuppression) já foi gravada e continua valendo.',
+    );
+  }
+
+  logger.info(
+    { organizationId: input.organizationId, leadId: input.leadId, source: input.source },
+    'Número adicionado à lista de bloqueio de discagem (opt-out).',
+  );
+  return true;
 }
 
 export interface SuppressionEntry {
-    id: string;
-    phoneE164: string;
-    source: string;
-    reason: string | null;
-    leadId: string | null;
-    createdAt: Date;
+  id: string;
+  phoneE164: string;
+  source: string;
+  reason: string | null;
+  leadId: string | null;
+  createdAt: Date;
 }
 
 /** Lista os bloqueios da organização, do mais recente para o mais antigo. */
-export async function listSuppressions(organizationId: string, limit = 200): Promise<SuppressionEntry[]> {
-    return prisma.callSuppression.findMany({
-        where: { organizationId },
-        orderBy: { createdAt: 'desc' },
-        take: Math.min(Math.max(limit, 1), 500),
-        select: { id: true, phoneE164: true, source: true, reason: true, leadId: true, createdAt: true },
-    });
+export async function listSuppressions(
+  organizationId: string,
+  limit = 200,
+): Promise<SuppressionEntry[]> {
+  return prisma.callSuppression.findMany({
+    where: { organizationId },
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(Math.max(limit, 1), 500),
+    select: {
+      id: true,
+      phoneE164: true,
+      source: true,
+      reason: true,
+      leadId: true,
+      createdAt: true,
+    },
+  });
 }

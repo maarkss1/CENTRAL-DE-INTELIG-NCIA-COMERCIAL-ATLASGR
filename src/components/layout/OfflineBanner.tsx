@@ -17,27 +17,27 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
  * quanto o desaparecimento da mensagem.
  */
 export function OfflineBanner() {
-    const isOnline = useOnlineStatus();
+  const isOnline = useOnlineStatus();
 
-    return (
-        <div role="status" aria-live="polite" className="shrink-0">
-            <AnimatePresence initial={false}>
-                {!isOnline && (
-                    <motion.div
-                        key="offline-banner"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: 'easeOut' }}
-                        className="overflow-hidden bg-warn/15 border-b border-warn/40"
-                    >
-                        <div className="flex items-center justify-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold text-ink">
-                            <WifiOff className="w-4 h-4 shrink-0 text-ink" aria-hidden="true" />
-                            <span>Sem conexão — os dados exibidos podem estar desatualizados.</span>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
+  return (
+    <div role="status" aria-live="polite" className="shrink-0">
+      <AnimatePresence initial={false}>
+        {!isOnline && (
+          <motion.div
+            key="offline-banner"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="overflow-hidden bg-warn/15 border-b border-warn/40"
+          >
+            <div className="flex items-center justify-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold text-ink">
+              <WifiOff className="w-4 h-4 shrink-0 text-ink" aria-hidden="true" />
+              <span>Sem conexão — os dados exibidos podem estar desatualizados.</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }

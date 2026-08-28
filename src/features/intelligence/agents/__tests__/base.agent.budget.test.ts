@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: '*' };
 vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
 vi.mock('../../../../lib/ai/budget.js', () => ({
-    assertAiBudgetNotExceeded: vi.fn()
+  assertAiBudgetNotExceeded: vi.fn(),
 }));
 
 /**
@@ -19,26 +19,27 @@ vi.mock('../../../../lib/ai/budget.js', () => ({
  * circuit breaker de orçamento que ele existe para provar.
  */
 describe('BaseAgent.runWithTools — AI-011 (orçamento mensal de IA)', () => {
-    afterEach(() => {
-        vi.restoreAllMocks();
-    });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-    it('bloqueia antes de montar qualquer modelo de IA quando o orçamento mensal foi excedido', async () => {
-        const { assertAiBudgetNotExceeded } = await import('../../../../lib/ai/budget.js');
-        const fallbackUtil = await import('../fallback.util.js');
-        vi.mocked(assertAiBudgetNotExceeded).mockRejectedValueOnce(new Error('Orçamento mensal de IA excedido (teste)'));
-        const buildSpy = vi.spyOn(fallbackUtil, 'buildModelWithFallback');
+  it('bloqueia antes de montar qualquer modelo de IA quando o orçamento mensal foi excedido', async () => {
+    const { assertAiBudgetNotExceeded } = await import('../../../../lib/ai/budget.js');
+    const fallbackUtil = await import('../fallback.util.js');
+    vi.mocked(assertAiBudgetNotExceeded).mockRejectedValueOnce(
+      new Error('Orçamento mensal de IA excedido (teste)'),
+    );
+    const buildSpy = vi.spyOn(fallbackUtil, 'buildModelWithFallback');
 
-        const { requestContext } = await import('../../../../lib/async-context.js');
-        const { BDRAgent } = await import('../bdr.agent.js');
-        const agent = new BDRAgent();
+    const { requestContext } = await import('../../../../lib/async-context.js');
+    const { BDRAgent } = await import('../bdr.agent.js');
+    const agent = new BDRAgent();
 
-        const result = await requestContext.run(
-            { tenantId: 'org-budget-test' },
-            () => agent.run('Dados do lead de teste', 'session-budget-test'),
-        );
+    const result = await requestContext.run({ tenantId: 'org-budget-test' }, () =>
+      agent.run('Dados do lead de teste', 'session-budget-test'),
+    );
 
-        expect(result.error).toContain('Orçamento mensal de IA excedido (teste)');
-        expect(buildSpy).not.toHaveBeenCalled();
-    }, 15_000);
+    expect(result.error).toContain('Orçamento mensal de IA excedido (teste)');
+    expect(buildSpy).not.toHaveBeenCalled();
+  }, 15_000);
 });

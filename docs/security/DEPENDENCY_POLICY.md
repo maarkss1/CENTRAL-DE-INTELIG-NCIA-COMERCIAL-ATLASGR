@@ -72,6 +72,42 @@ instabilidade, também deve virar uma entrada de "débito conhecido" no inventá
   decidido pelo mantenedor upstream, não por nós.
 - **Dono:** time de integrações (WhatsApp) — mesma responsabilidade de BACK-006.
 
+## Dependências diretas que processam upload de usuário — parsers de documento
+
+Regra: uma dependência direta de produção que faz *parsing* de arquivo enviado por usuário (não
+gerado internamente) entra aqui — motivo do uso, superfície de risco real e mitigação, mesmo
+quando a lib está ativamente mantida (o risco não é "abandono", é processar conteúdo não confiável
+por definição).
+
+### `mammoth@^1.12.0` — extração de texto de `.docx`
+
+- **Uso:** `src/features/knowledge/knowledge.routes.ts:3,126` — extrai texto de arquivos `.docx`
+  enviados por usuário autenticado (upload de documento para a Base de Conhecimento, vira embedding
+  para RAG). Irmão do `pdf-parse` (mesmo arquivo, mesmo padrão de import estático) para `.pdf`.
+- **Manutenção upstream:** **ativa** — última publicação `1.12.1` em 2026-08-09 (confirmado via
+  `npm view mammoth time.modified`), ~3 semanas antes desta entrada. Uma versão anterior deste
+  documento chegou a circular a alegação de que o pacote estaria "abandonado desde 2020"; isso é
+  **falso** e não deve ser reintroduzido sem reverificar `npm view mammoth time.modified` primeiro.
+- **Risco avaliado:** não é abandono, é superfície de ataque — `mammoth.extractRawText` processa
+  bytes de um arquivo `.docx` (é um ZIP com XML dentro) vindo de upload de usuário autenticado, não
+  de um parceiro confiável. Um `.docx` malformado/malicioso é vetor plausível de DoS (ZIP bomb,
+  parsing patológico) ou, em tese, de exploração de bug de parser. Mitigado por: (1) o upload exige
+  autenticação e `writeRoles` (`ADMIN`/`GESTOR`/`CLOSER`/`SDR`) — não é endpoint público; (2)
+  `MAX_CONTENT_CHARS` (`knowledge.routes.ts:27`) limita o texto extraído pós-parsing, não o arquivo
+  de entrada — não protege contra custo de CPU do parsing em si; (3) `npm run
+  security:audit-waivers`/CodeQL/Trivy cobrem CVE conhecida do pacote como qualquer outra
+  dependência.
+- **Lacuna real, não coberta pelos itens acima:** não há limite de tamanho do arquivo `.docx`
+  **antes** do parsing (só do texto extraído, depois) nem timeout dedicado ao `extractRawText` — um
+  upload grande o suficiente pode consumir CPU do processo Node antes de qualquer limite existente
+  entrar em ação. Não é uma vulnerabilidade conhecida (CVE) do `mammoth` hoje, é um gap de robustez
+  do endpoint que o usa — considerar limite de tamanho de arquivo pré-parsing e/ou timeout, mesmo
+  padrão que caberia a `pdf-parse`.
+- **Critério de saída:** nenhum — biblioteca ativa, sem alternativa mais segura conhecida para
+  `.docx→texto` que justifique a troca. Reavaliar apenas se `npm audit`/CodeQL/Trivy reportar CVE
+  específica, ou se a lacuna de limite de tamanho acima for tratada.
+- **Dono:** time de Knowledge/RAG (mesma área de `ingestion.service.ts`/`search.service.ts`).
+
 ## Pacotes não utilizados — critério de remoção
 
 Um pacote entra como candidato a remoção quando:
@@ -116,6 +152,36 @@ nesta rodada por não servirem ao objetivo de redução de superfície de risco 
 (`"@langchain/community": { "ioredis": "$ioredis" }`) — removida junto, por ficar sem efeito depois
 que o pacote que ela ajustava deixou de existir na árvore.
 
+## Overrides de `package.json` — por que cada um existe
+
+Regra: toda entrada em `overrides` precisa de uma linha aqui explicando o motivo — sem isso, um
+override vira dívida silenciosa (ninguém sabe se ainda é necessário, ninguém sabe se pode remover
+quando a dependência que o motivou for atualizada/removida). Verificado em 2026-08-28 contra o
+`package-lock.json` resolvido (`npm ls <pacote>`), não só contra o texto do `package.json` — um
+override pode sobreviver tecnicamente "sem efeito" (nenhum pacote na árvore mais precisa dele) sem
+que ninguém perceba, como aconteceu com `@browserbasehq/stagehand` abaixo.
+
+| Override | Resolve para | Por que existe |
+|---|---|---|
+| `brace-expansion: "^2.0.1"` | `2.1.4` | ReDoS conhecido em versões antigas de `brace-expansion` (múltiplas linhas major afetadas — `minimatch`, puxado por `eslint-plugin-jsx-a11y@6.10.2`/`eslint-plugin-react@7.37.5`/toolchain do `@cyclonedx/cyclonedx-npm`, resolveria por padrão numa versão vulnerável sem o piso). Confirmado via `npm ls brace-expansion`: sem o override, `eslint-plugin-jsx-a11y`→`minimatch@3.1.5` puxaria uma `brace-expansion` desatualizada. |
+| `uuid: "^14.0.1"` | `14.0.1`/`14.0.2` | Já documentado acima ("Cadência de atualização"/histórico ITEM-11) — incidente real de mismatch entre `overrides.uuid` e a dependência direta, corrigido. |
+| `@xenova/transformers.sharp: "^0.35.3"` | `0.35.3` | `sharp` já é dependência direta do projeto (processamento de imagem) — o override garante que a cópia nested que `@xenova/transformers` (e `@whiskeysockets/baileys`) puxariam resolva para a MESMA versão da raiz (`npm ls sharp` confirma: as três resolvem para `0.35.3 deduped`), em vez de instalar um binário nativo do `sharp` duplicado e potencialmente mais antigo/vulnerável só para essas duas dependências. |
+| `protobufjs: "7.6.5"` (pin exato, não faixa) | `7.6.5` | Puxado por `@xenova/transformers` via `onnxruntime-web`/`onnx-proto`. Pin exato (não `^`/`>=`) porque essa cadeia foi validada especificamente contra `7.6.5` (ver commit `dabb7fb7`/"DEP-001/DEP-007" — importação normal confirmada com essa versão travada); uma versão mais nova poderia mudar a API do protobuf gerado sem aviso, quebrando o `onnx-proto` sem gerar erro de instalação. |
+| `lodash: "^4.17.24"` | `4.18.1` | Fecha a última vulnerabilidade conhecida de `lodash` corrigível sem breaking change (commit `dabb7fb7`, "DEP-001") — dependência transitiva de múltiplas ferramentas de build/teste, não usada diretamente pelo app. |
+| `react-router: ">=7.18.0"` | `7.18.2` | `react-router-dom@7.18.2` (dependência direta real do app) já resolve seu próprio `react-router@7.18.2` — o override garante que qualquer OUTRA dependência transitiva que também puxe `react-router` resolva para a mesma versão em vez de uma cópia separada/mais antiga. Duas cópias de `react-router` no mesmo bundle é uma classe de bug real em apps React (contexto de rota duplicado, `useContext` quebrado) — o override existe para nunca deixar isso acontecer silenciosamente. |
+| `js-yaml: "^4.1.0"` | `4.3.1` | Puxado por `@cyclonedx/cyclonedx-npm` (via `xmlbuilder2`) e por `@eslint/eslintrc` — ambos resolveriam por padrão numa faixa mais antiga de `js-yaml` (linha 3.x teve um CVE real de execução de código via `safeLoad`/tags YAML customizadas). O piso força a família 4.x, que não tem essa classe de vulnerabilidade. |
+| `xcode.uuid: ">=11.1.1"` | `uuid` nested de `xcode@3.0.1` (puxado por `@capacitor/cli`, usado para o build nativo Android/iOS) | Mesmo racional do override `uuid` de topo, mas escopado à árvore do `xcode` — sem isso, o `uuid` que o `xcode` embute resolveria numa versão antiga independente da que a raiz do projeto já fixa. |
+| `openai.zod: "$zod"` | força qualquer `openai` na árvore a usar o `zod` da raiz (hoje `4.4.3`) | `openai` não é mais dependência direta (a integração real é via `@langchain/openai`, que traz seu próprio `openai@6.49.0` nested com peer `zod: "^3.25 \|\| ^4.0"`). O override garante uma ÚNICA instalação de `zod` na árvore em vez de duas cópias que passariam a falhar em checagens `instanceof ZodType` entre si — um bug de zod duplicado é normalmente silencioso até um schema de um lado não validar um valor construído do outro. Ainda ativo e necessário hoje (verificado via `npm ls zod`/`npm ls openai` em 2026-08-28). |
+
+**Removido em 2026-08-28 por estar morto:** `@browserbasehq/stagehand: { zod: "$zod", dotenv: "^17.4.2" }`.
+Foi adicionado quando `@langchain/community` (peer obrigatório de `stagehand`) foi puxado por engano
+(ver commit que introduziu o override, referenciando exatamente esse conflito de `zod` v3 vs v4).
+`@langchain/community` já havia sido removido do projeto no ITEM-11 (tabela "Pacotes não
+utilizados" acima) — confirmado agora que `stagehand` não aparece em NENHUM lugar do
+`package-lock.json` (`grep -c stagehand package-lock.json` → 0), então este override não fazia mais
+nenhum trabalho real: `npm install` depois de removê-lo não mudou uma linha sequer do lockfile além
+da própria remoção do override.
+
 ## Cadência de atualização
 
 - **Dependabot** (`.github/dependabot.yml`) já roda semanalmente contra o ecossistema `npm`. Este
@@ -147,6 +213,11 @@ que o pacote que ela ajustava deixou de existir na árvore.
 
 ## Histórico
 
+- 2026-08-28 — correção da ANALISE-DIVIDA-TECNICA-ROBUSTA.md original: adicionada a seção
+  "Overrides de `package.json` — por que cada um existe" (6 entradas que não tinham justificativa
+  documentada em lugar nenhum) e removido o override morto `@browserbasehq/stagehand` (sem nenhum
+  efeito real desde que `@langchain/community` foi removido no ITEM-11 — confirmado via
+  `package-lock.json`, `npm install` depois da remoção não alterou nenhuma versão resolvida).
 - 2026-08-25 — ITEM-11 (Onda 3): criado este arquivo, `docs/security/DEPENDENCY_INVENTORY.md` e
   `scripts/security/dependency-inventory.ts`. Adicionado `npm run security:sbom`
   (`@cyclonedx/cyclonedx-npm`) aos releases reais (`production.yaml`, `cd-homolog.yml`). Removidas

@@ -9,20 +9,24 @@ import { roundMoney } from '../shared/mathUtils';
 import type { ScoredDeal, StageHistoryRow } from './dealScoring';
 
 /** Quantas transições de etapa (2ª+ linha de histórico de um lead) aconteceram dentro de [start, end). */
-export function countAdvancedTransitions(history: StageHistoryRow[], start: Date, end: Date): number {
-    const byLead = new Map<string, StageHistoryRow[]>();
-    for (const row of history) {
-        if (!byLead.has(row.leadId)) byLead.set(row.leadId, []);
-        byLead.get(row.leadId)!.push(row);
+export function countAdvancedTransitions(
+  history: StageHistoryRow[],
+  start: Date,
+  end: Date,
+): number {
+  const byLead = new Map<string, StageHistoryRow[]>();
+  for (const row of history) {
+    if (!byLead.has(row.leadId)) byLead.set(row.leadId, []);
+    byLead.get(row.leadId)!.push(row);
+  }
+  let advanced = 0;
+  for (const rows of byLead.values()) {
+    const sorted = [...rows].sort((a, b) => a.enteredAt.getTime() - b.enteredAt.getTime());
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].enteredAt >= start && sorted[i].enteredAt < end) advanced++;
     }
-    let advanced = 0;
-    for (const rows of byLead.values()) {
-        const sorted = [...rows].sort((a, b) => a.enteredAt.getTime() - b.enteredAt.getTime());
-        for (let i = 1; i < sorted.length; i++) {
-            if (sorted[i].enteredAt >= start && sorted[i].enteredAt < end) advanced++;
-        }
-    }
-    return advanced;
+  }
+  return advanced;
 }
 
 /**
@@ -42,34 +46,36 @@ export function countAdvancedTransitions(history: StageHistoryRow[], start: Date
  * nenhuma etapa — nunca um progresso fabricado a partir do status final.
  */
 export function computeHistoricalStageReach(
-    inScope: ScoredDeal[],
-    history: StageHistoryRow[],
-    openStages: Array<{ id: string; sortOrder: number }>
+  inScope: ScoredDeal[],
+  history: StageHistoryRow[],
+  openStages: Array<{ id: string; sortOrder: number }>,
 ): Map<string, { count: number; amount: number }> {
-    const sortOrderByOpenStageId = new Map(openStages.map((s) => [s.id, s.sortOrder]));
-    const historyByLead = new Map<string, StageHistoryRow[]>();
-    for (const row of history) {
-        if (!historyByLead.has(row.leadId)) historyByLead.set(row.leadId, []);
-        historyByLead.get(row.leadId)!.push(row);
-    }
+  const sortOrderByOpenStageId = new Map(openStages.map((s) => [s.id, s.sortOrder]));
+  const historyByLead = new Map<string, StageHistoryRow[]>();
+  for (const row of history) {
+    if (!historyByLead.has(row.leadId)) historyByLead.set(row.leadId, []);
+    historyByLead.get(row.leadId)!.push(row);
+  }
 
-    const reachedByDeal = inScope.map((s) => {
-        const reached = new Set<number>();
-        for (const row of historyByLead.get(s.deal.id) ?? []) {
-            const so = row.stageId ? sortOrderByOpenStageId.get(row.stageId) : undefined;
-            if (so != null) reached.add(so);
-        }
-        if (isDealOpen(s.deal) && s.deal.stageSortOrder != null) reached.add(s.deal.stageSortOrder);
-        return { deal: s.deal, reached };
+  const reachedByDeal = inScope.map((s) => {
+    const reached = new Set<number>();
+    for (const row of historyByLead.get(s.deal.id) ?? []) {
+      const so = row.stageId ? sortOrderByOpenStageId.get(row.stageId) : undefined;
+      if (so != null) reached.add(so);
+    }
+    if (isDealOpen(s.deal) && s.deal.stageSortOrder != null) reached.add(s.deal.stageSortOrder);
+    return { deal: s.deal, reached };
+  });
+
+  const result = new Map<string, { count: number; amount: number }>();
+  for (const stage of openStages) {
+    const dealsThatReached = reachedByDeal.filter(({ reached }) =>
+      [...reached].some((so) => so >= stage.sortOrder),
+    );
+    result.set(stage.id, {
+      count: dealsThatReached.length,
+      amount: roundMoney(dealsThatReached.reduce((sum, r) => sum + r.deal.amount, 0)),
     });
-
-    const result = new Map<string, { count: number; amount: number }>();
-    for (const stage of openStages) {
-        const dealsThatReached = reachedByDeal.filter(({ reached }) => [...reached].some((so) => so >= stage.sortOrder));
-        result.set(stage.id, {
-            count: dealsThatReached.length,
-            amount: roundMoney(dealsThatReached.reduce((sum, r) => sum + r.deal.amount, 0)),
-        });
-    }
-    return result;
+  }
+  return result;
 }

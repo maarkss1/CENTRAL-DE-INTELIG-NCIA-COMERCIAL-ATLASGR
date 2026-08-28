@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Cpu, Loader2, Save, Check, AlertTriangle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { api } from '../../../lib/api';
@@ -9,8 +15,16 @@ import { api } from '../../../lib/api';
 const MODEL_OPTIONS = [
   { value: 'local-llama3-fast', label: 'Llama 3.1 8B · rápido', provider: 'Groq' },
   { value: 'local-llama3', label: 'Llama 3.3 70B · qualidade', provider: 'Groq' },
-  { value: 'qwen-coder', label: 'Qwen 2.5 Coder 32B · especialista API/Código', provider: 'OpenRouter' },
-  { value: 'deepseek-coder', label: 'DeepSeek Coder V2 · arquitetura & lógica', provider: 'OpenRouter' },
+  {
+    value: 'qwen-coder',
+    label: 'Qwen 2.5 Coder 32B · especialista API/Código',
+    provider: 'OpenRouter',
+  },
+  {
+    value: 'deepseek-coder',
+    label: 'DeepSeek Coder V2 · arquitetura & lógica',
+    provider: 'OpenRouter',
+  },
 ] as const;
 
 const PROVIDER_BY_MODEL: Record<string, string> = Object.fromEntries(
@@ -98,7 +112,8 @@ export const AIConfigCenter: React.FC = () => {
           return next;
         });
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Falha ao carregar configurações.');
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : 'Falha ao carregar configurações.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -144,12 +159,23 @@ export const AIConfigCenter: React.FC = () => {
           </div>
           <div>
             <CardTitle className="text-gradient-brand">Central de Motores de IA</CardTitle>
-            <CardDescription>Escolha entre os perfis Groq realmente conectados e ajuste a criatividade de cada ferramenta.</CardDescription>
+            <CardDescription>
+              Escolha entre os perfis Groq realmente conectados e ajuste a criatividade de cada
+              ferramenta.
+            </CardDescription>
           </div>
         </div>
         <Button onClick={handleSave} disabled={saving || loading} className="shrink-0">
-          {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
-          <span className="ml-2">{saved ? 'Salvo!' : saving ? 'Salvando…' : 'Salvar Configurações'}</span>
+          {saving ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : saved ? (
+            <Check size={16} />
+          ) : (
+            <Save size={16} />
+          )}
+          <span className="ml-2">
+            {saved ? 'Salvo!' : saving ? 'Salvando…' : 'Salvar Configurações'}
+          </span>
         </Button>
       </CardHeader>
 
@@ -203,7 +229,9 @@ export const AIConfigCenter: React.FC = () => {
                         max={1}
                         step={0.05}
                         value={setting.temperature}
-                        onChange={(e) => updateTool(tool.key, { temperature: Number(e.target.value) })}
+                        onChange={(e) =>
+                          updateTool(tool.key, { temperature: Number(e.target.value) })
+                        }
                         className="accent-brand mt-2"
                       />
                     </label>

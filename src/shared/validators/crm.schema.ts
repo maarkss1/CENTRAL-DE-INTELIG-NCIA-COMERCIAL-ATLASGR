@@ -35,15 +35,18 @@ export const DealSchema = z.object({
   contactId: z.string().cuid().optional(),
 });
 
-export const NoteSchema = z.object({
-  content: z.string().min(1, 'A nota não pode estar vazia'),
-  leadId: z.string().cuid().optional(),
-  companyId: z.string().cuid().optional(),
-  contactId: z.string().cuid().optional(),
-  dealId: z.string().cuid().optional(),
-}).refine(data => data.leadId || data.companyId || data.contactId || data.dealId, {
-  message: "A nota deve estar associada a pelo menos uma entidade (Lead, Company, Contact ou Deal)"
-});
+export const NoteSchema = z
+  .object({
+    content: z.string().min(1, 'A nota não pode estar vazia'),
+    leadId: z.string().cuid().optional(),
+    companyId: z.string().cuid().optional(),
+    contactId: z.string().cuid().optional(),
+    dealId: z.string().cuid().optional(),
+  })
+  .refine((data) => data.leadId || data.companyId || data.contactId || data.dealId, {
+    message:
+      'A nota deve estar associada a pelo menos uma entidade (Lead, Company, Contact ou Deal)',
+  });
 
 export const ActivitySchema = z.object({
   type: z.enum(['call', 'email', 'meeting', 'task', 'note']),
@@ -100,4 +103,3 @@ export const TemplateSchema = z.object({
   type: z.enum(['email', 'linkedin', 'whatsapp', 'framework']),
   content: z.string().min(1),
 });
-

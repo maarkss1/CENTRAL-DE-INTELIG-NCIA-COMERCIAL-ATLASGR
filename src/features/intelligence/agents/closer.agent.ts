@@ -1,17 +1,21 @@
 import { BaseAgent } from './base.agent.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
+import {
+  SWARM_IDENTITY,
+  SWARM_OUTPUT_CONTRACT,
+  SWARM_UNTRUSTED_CONTENT_GUARD,
+} from './swarm.constants.js';
 
 /**
  * Closer Autônomo Enterprise: estrategista de negociação B2B de alta complexidade.
  * Opera no framework MEDDPICC + Challenger Sale para oportunidades qualificadas.
  */
 export class CloserAgent extends BaseAgent {
-    protected agentType = 'CLOSER';
-    protected modelName = 'local-llama3-fast';
-    protected temperature = 0.25;
+  protected agentType = 'CLOSER';
+  protected modelName = 'local-llama3-fast';
+  protected temperature = 0.25;
 
-    protected buildSystemPrompt(learnedStyle: string | null): string {
-        const base = `${SWARM_IDENTITY} Você é o Closer Enterprise de Elite — o estrategista de fechamento mais agressivo e inteligente do mercado B2B brasileiro de Gerenciamento de Risco e Logística.
+  protected buildSystemPrompt(learnedStyle: string | null): string {
+    const base = `${SWARM_IDENTITY} Você é o Closer Enterprise de Elite — o estrategista de fechamento mais agressivo e inteligente do mercado B2B brasileiro de Gerenciamento de Risco e Logística.
 
 Sua missão é transformar oportunidades qualificadas em contratos fechados através de uma análise cirúrgica usando o framework MEDDPICC adaptado para vendas consultivas B2B.
 
@@ -60,23 +64,23 @@ ${SWARM_OUTPUT_CONTRACT}
 
 ${SWARM_UNTRUSTED_CONTENT_GUARD}`;
 
-        return learnedStyle
-            ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}`
-            : base;
-    }
+    return learnedStyle
+      ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}`
+      : base;
+  }
 
-    protected buildHumanMessage(input: string): string {
-        return `Contexto da oportunidade e missão de fechamento:\n${input}`;
-    }
+  protected buildHumanMessage(input: string): string {
+    return `Contexto da oportunidade e missão de fechamento:\n${input}`;
+  }
 
-    async run(inputData: string, sessionId?: string) {
-        const { marketResearchTool } = await import('../tools/marketResearchTool.js');
-        const result = await this.runWithTools(inputData, [marketResearchTool], sessionId);
+  async run(inputData: string, sessionId?: string) {
+    const { marketResearchTool } = await import('../tools/marketResearchTool.js');
+    const result = await this.runWithTools(inputData, [marketResearchTool], sessionId);
 
-        return {
-            closePlan: result.output as string | undefined,
-            error: result.error,
-            sessionId: result.sessionId,
-        };
-    }
+    return {
+      closePlan: result.output as string | undefined,
+      error: result.error,
+      sessionId: result.sessionId,
+    };
+  }
 }

@@ -18,26 +18,26 @@
  */
 
 export interface InboundEmailReply {
-    organizationId: string;
-    leadId: string;
-    providerMessageId: string;
-    inReplyTo: string | null;
-    fromEmail: string;
-    subject: string | null;
-    body: string;
-    /** Cabeçalhos relevantes para detecção de auto-resposta — nunca a mensagem inteira. */
-    autoSubmittedHeader?: string | null;
-    receivedAt: Date;
+  organizationId: string;
+  leadId: string;
+  providerMessageId: string;
+  inReplyTo: string | null;
+  fromEmail: string;
+  subject: string | null;
+  body: string;
+  /** Cabeçalhos relevantes para detecção de auto-resposta — nunca a mensagem inteira. */
+  autoSubmittedHeader?: string | null;
+  receivedAt: Date;
 }
 
 const AUTO_REPLY_SUBJECT_PATTERNS = [
-    /^auto(?:matic)?[\s-]?reply/i,
-    /^out of office/i,
-    /^resposta autom[aá]tica/i,
-    /^ausente/i,
-    /^undeliverable/i,
-    /^mail delivery (failed|subsystem)/i,
-    /^delivery status notification/i,
+  /^auto(?:matic)?[\s-]?reply/i,
+  /^out of office/i,
+  /^resposta autom[aá]tica/i,
+  /^ausente/i,
+  /^undeliverable/i,
+  /^mail delivery (failed|subsystem)/i,
+  /^delivery status notification/i,
 ];
 
 /**
@@ -48,63 +48,69 @@ const AUTO_REPLY_SUBJECT_PATTERNS = [
  * respondeu — mas os padrões acima são específicos o bastante para não capturar respostas reais.
  */
 export function isGenuineLeadReply(email: InboundEmailReply): boolean {
-    if (!email.body || !email.body.trim()) return false;
-    if (email.autoSubmittedHeader && email.autoSubmittedHeader.toLowerCase() !== 'no') return false;
-    if (email.subject && AUTO_REPLY_SUBJECT_PATTERNS.some((pattern) => pattern.test(email.subject!.trim()))) return false;
-    return true;
+  if (!email.body || !email.body.trim()) return false;
+  if (email.autoSubmittedHeader && email.autoSubmittedHeader.toLowerCase() !== 'no') return false;
+  if (
+    email.subject &&
+    AUTO_REPLY_SUBJECT_PATTERNS.some((pattern) => pattern.test(email.subject!.trim()))
+  )
+    return false;
+  return true;
 }
 
 /** Mesmo formato de saída do classificador de WhatsApp (`ConversationSignalResult`) — não um paralelo novo. */
 export interface ConversationSignalDraft {
-    organizationId: string;
-    leadId: string;
-    channel: 'email' | 'whatsapp';
-    messageCount: number;
-    intent: string | null;
-    urgency: string | null;
-    objections: string[];
-    budgetMentioned: boolean;
-    nextStep: string | null;
-    summary: string | null;
-    confidence: number | null;
-    rawModelOutput: unknown;
+  organizationId: string;
+  leadId: string;
+  channel: 'email' | 'whatsapp';
+  messageCount: number;
+  intent: string | null;
+  urgency: string | null;
+  objections: string[];
+  budgetMentioned: boolean;
+  nextStep: string | null;
+  summary: string | null;
+  confidence: number | null;
+  rawModelOutput: unknown;
 }
 
 /** O que o classificador de intenção devolve — mesmo shape usado hoje para WhatsApp, reaproveitado aqui. */
 export interface IntentClassificationResult {
-    intent: string | null;
-    urgency: string | null;
-    objections: string[];
-    budgetMentioned: boolean;
-    nextStep: string | null;
-    summary: string | null;
-    confidence: number | null;
-    raw: unknown;
+  intent: string | null;
+  urgency: string | null;
+  objections: string[];
+  budgetMentioned: boolean;
+  nextStep: string | null;
+  summary: string | null;
+  confidence: number | null;
+  raw: unknown;
 }
 
 /** Porta para o classificador real (LLM) — implementação real é a mesma já usada para WhatsApp, adaptada para transcrição de e-mail. */
 export interface IntentClassifierPort {
-    classify(transcript: string): Promise<IntentClassificationResult>;
+  classify(transcript: string): Promise<IntentClassificationResult>;
 }
 
 /** Porta de persistência do sinal — grava em `ConversationSignal` (schema já existe; só falta a coluna `channel`, ver handoff ao 01). */
 export interface ConversationSignalPort {
-    record(draft: ConversationSignalDraft): Promise<void>;
+  record(draft: ConversationSignalDraft): Promise<void>;
 }
 
 /** Monta o transcript de e-mail no mesmo espírito de `buildTranscript` do canal WhatsApp: só o essencial, identificando quem fala. */
-export function buildEmailTranscript(messages: Array<{ direction: 'inbound' | 'outbound'; body: string | null }>): string {
-    return messages
-        .filter((m) => m.body && m.body.trim())
-        .map((m) => `${m.direction === 'inbound' ? 'Cliente' : 'Atlas'}: ${m.body!.trim()}`)
-        .join('\n');
+export function buildEmailTranscript(
+  messages: Array<{ direction: 'inbound' | 'outbound'; body: string | null }>,
+): string {
+  return messages
+    .filter((m) => m.body && m.body.trim())
+    .map((m) => `${m.direction === 'inbound' ? 'Cliente' : 'Atlas'}: ${m.body!.trim()}`)
+    .join('\n');
 }
 
 export interface HandleEmailReplyResult {
-    /** `true` quando a cadência deste lead deve ser encerrada (requisito duro da entrega 2). */
-    shouldStopCadence: boolean;
-    /** `null` quando o e-mail foi descartado por parecer auto-resposta/bounce — não gera sinal nem estatística. */
-    signalDraft: ConversationSignalDraft | null;
+  /** `true` quando a cadência deste lead deve ser encerrada (requisito duro da entrega 2). */
+  shouldStopCadence: boolean;
+  /** `null` quando o e-mail foi descartado por parecer auto-resposta/bounce — não gera sinal nem estatística. */
+  signalDraft: ConversationSignalDraft | null;
 }
 
 /**
@@ -115,35 +121,38 @@ export interface HandleEmailReplyResult {
  * Auto-reply/bounce nunca encerra a cadência — não é uma resposta do lead, é ruído de transporte.
  */
 export async function handleEmailReply(
-    email: InboundEmailReply,
-    priorMessages: Array<{ direction: 'inbound' | 'outbound'; body: string | null }>,
-    classifier: IntentClassifierPort,
+  email: InboundEmailReply,
+  priorMessages: Array<{ direction: 'inbound' | 'outbound'; body: string | null }>,
+  classifier: IntentClassifierPort,
 ): Promise<HandleEmailReplyResult> {
-    if (!isGenuineLeadReply(email)) {
-        return { shouldStopCadence: false, signalDraft: null };
-    }
+  if (!isGenuineLeadReply(email)) {
+    return { shouldStopCadence: false, signalDraft: null };
+  }
 
-    const transcript = buildEmailTranscript([...priorMessages, { direction: 'inbound', body: email.body }]);
-    const classification = await classifier.classify(transcript);
+  const transcript = buildEmailTranscript([
+    ...priorMessages,
+    { direction: 'inbound', body: email.body },
+  ]);
+  const classification = await classifier.classify(transcript);
 
-    const signalDraft: ConversationSignalDraft = {
-        organizationId: email.organizationId,
-        leadId: email.leadId,
-        channel: 'email',
-        messageCount: priorMessages.length + 1,
-        intent: classification.intent,
-        urgency: classification.urgency,
-        objections: classification.objections,
-        budgetMentioned: classification.budgetMentioned,
-        nextStep: classification.nextStep,
-        summary: classification.summary,
-        confidence: classification.confidence,
-        rawModelOutput: classification.raw,
-    };
+  const signalDraft: ConversationSignalDraft = {
+    organizationId: email.organizationId,
+    leadId: email.leadId,
+    channel: 'email',
+    messageCount: priorMessages.length + 1,
+    intent: classification.intent,
+    urgency: classification.urgency,
+    objections: classification.objections,
+    budgetMentioned: classification.budgetMentioned,
+    nextStep: classification.nextStep,
+    summary: classification.summary,
+    confidence: classification.confidence,
+    rawModelOutput: classification.raw,
+  };
 
-    // Resposta genuína do lead encerra a cadência (entrega 2), independentemente do que o
-    // classificador de intenção concluiu — mesmo uma resposta "sem interesse"/"neutro" é uma
-    // resposta humana real, e a máquina de estados já trata isso como razão de parada distinta de
-    // opt-out (`lead-reply`), não como sinal para decidir se continua ou não.
-    return { shouldStopCadence: true, signalDraft };
+  // Resposta genuína do lead encerra a cadência (entrega 2), independentemente do que o
+  // classificador de intenção concluiu — mesmo uma resposta "sem interesse"/"neutro" é uma
+  // resposta humana real, e a máquina de estados já trata isso como razão de parada distinta de
+  // opt-out (`lead-reply`), não como sinal para decidir se continua ou não.
+  return { shouldStopCadence: true, signalDraft };
 }

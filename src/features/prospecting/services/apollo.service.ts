@@ -14,11 +14,11 @@
 // e ApolloAdapter.ts sem exigir nenhuma mudança neles.
 
 export type {
-    DecisionMakerCriteria,
-    ApolloOrganization,
-    ApolloSearchResponse,
-    ApolloContact,
-    ApolloPersonRaw,
+  DecisionMakerCriteria,
+  ApolloOrganization,
+  ApolloSearchResponse,
+  ApolloContact,
+  ApolloPersonRaw,
 } from './apollo/types.js';
 
 export type { ApolloConnectionStatus } from './apollo/client.js';
@@ -27,8 +27,8 @@ export { checkApolloConnection } from './apollo/client.js';
 export { fetchApolloCandidates } from './apollo/organizationSearch.js';
 export { enrichOrganizationByDomain } from './apollo/organizationEnrich.js';
 export {
-    enrichPersonByName,
-    enrichCandidatesWithDecisionMakers,
-    enrichOrganizationWithContacts,
-    searchDecisionMakersAdvanced,
+  enrichPersonByName,
+  enrichCandidatesWithDecisionMakers,
+  enrichOrganizationWithContacts,
+  searchDecisionMakersAdvanced,
 } from './apollo/people.js';

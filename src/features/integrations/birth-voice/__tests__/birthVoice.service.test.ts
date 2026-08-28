@@ -6,32 +6,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/config/env', () => ({
-    env: {
-        BIRTH_VOICES_URL: 'http://hub.local',
-        BIRTH_VOICES_API_KEY: 'chave',
-        BIRTH_VOICES_AGENT_ID: 'agente-1',
-        PUBLIC_BASE_URL: 'http://prospector.local',
-    },
+  env: {
+    BIRTH_VOICES_URL: 'http://hub.local',
+    BIRTH_VOICES_API_KEY: 'chave',
+    BIRTH_VOICES_AGENT_ID: 'agente-1',
+    PUBLIC_BASE_URL: 'http://prospector.local',
+  },
 }));
 
 vi.mock('@/lib/prisma', () => ({
-    prisma: { lead: { findFirst: vi.fn() } },
+  prisma: { lead: { findFirst: vi.fn() } },
 }));
 
 vi.mock('@/lib/logger', () => ({
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock('@/features/integrations/birth-voice/callSuppression.service', () => ({
-    isSuppressed: vi.fn(),
+  isSuppressed: vi.fn(),
 }));
 
 import { prisma } from '@/lib/prisma';
 import { isSuppressed } from '@/features/integrations/birth-voice/callSuppression.service';
 import {
-    callLead,
-    SuppressedNumberError,
-    NoPhoneNumberError,
+  callLead,
+  SuppressedNumberError,
+  NoPhoneNumberError,
 } from '@/features/integrations/birth-voice/birthVoice.service';
 
 const leadMock = prisma.lead as unknown as { findFirst: ReturnType<typeof vi.fn> };
@@ -40,84 +40,92 @@ const mockIsSuppressed = vi.mocked(isSuppressed);
 const ORG = 'org-1';
 
 function leadComTelefone(phone: string | null = '(11) 99999-8888', email: string | null = null) {
-    return {
-        id: 'lead-9',
-        contact: { name: 'Ana', phone, whatsapp: null, email },
-        company: { tradeName: 'Transportes X', legalName: null, phones: [] },
-    };
+  return {
+    id: 'lead-9',
+    contact: { name: 'Ana', phone, whatsapp: null, email },
+    company: { tradeName: 'Transportes X', legalName: null, phones: [] },
+  };
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
-    mockIsSuppressed.mockResolvedValue(false);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ sessionId: 'sess-1', callSid: 'CA1', status: 'queued' }),
-    }));
+  vi.clearAllMocks();
+  mockIsSuppressed.mockResolvedValue(false);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: 'sess-1', callSid: 'CA1', status: 'queued' }),
+    }),
+  );
 });
 
 describe('callLead', () => {
-    it('disca para o telefone do contato quando não há bloqueio', async () => {
-        leadMock.findFirst.mockResolvedValue(leadComTelefone());
+  it('disca para o telefone do contato quando não há bloqueio', async () => {
+    leadMock.findFirst.mockResolvedValue(leadComTelefone());
 
-        await expect(callLead(ORG, 'lead-9')).resolves.toMatchObject({ callSid: 'CA1' });
+    await expect(callLead(ORG, 'lead-9')).resolves.toMatchObject({ callSid: 'CA1' });
 
-        expect(mockIsSuppressed).toHaveBeenCalledWith(ORG, '+5511999998888', { leadId: 'lead-9', email: null });
-        expect(fetch).toHaveBeenCalledOnce();
+    expect(mockIsSuppressed).toHaveBeenCalledWith(ORG, '+5511999998888', {
+      leadId: 'lead-9',
+      email: null,
     });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
 
-    // leadId/email do lead entram como contexto para o opt-out unificado entre canais (05/06) —
-    // ver `17-para-05-06-12-contrato-optout.md`. Sem isso, um opt-out registrado só por e-mail
-    // não teria como ser encontrado por `isSuppressed`.
-    it('passa leadId e e-mail do contato como contexto do opt-out unificado', async () => {
-        leadMock.findFirst.mockResolvedValue(leadComTelefone('(11) 99999-8888', 'ana@exemplo.com'));
+  // leadId/email do lead entram como contexto para o opt-out unificado entre canais (05/06) —
+  // ver `17-para-05-06-12-contrato-optout.md`. Sem isso, um opt-out registrado só por e-mail
+  // não teria como ser encontrado por `isSuppressed`.
+  it('passa leadId e e-mail do contato como contexto do opt-out unificado', async () => {
+    leadMock.findFirst.mockResolvedValue(leadComTelefone('(11) 99999-8888', 'ana@exemplo.com'));
 
-        await callLead(ORG, 'lead-9');
+    await callLead(ORG, 'lead-9');
 
-        expect(mockIsSuppressed).toHaveBeenCalledWith(ORG, '+5511999998888', {
-            leadId: 'lead-9',
-            email: 'ana@exemplo.com',
-        });
+    expect(mockIsSuppressed).toHaveBeenCalledWith(ORG, '+5511999998888', {
+      leadId: 'lead-9',
+      email: 'ana@exemplo.com',
     });
+  });
 
-    it('recusa a ligação e não chama o Hub quando o número tem opt-out', async () => {
-        leadMock.findFirst.mockResolvedValue(leadComTelefone());
-        mockIsSuppressed.mockResolvedValue(true);
+  it('recusa a ligação e não chama o Hub quando o número tem opt-out', async () => {
+    leadMock.findFirst.mockResolvedValue(leadComTelefone());
+    mockIsSuppressed.mockResolvedValue(true);
 
-        await expect(callLead(ORG, 'lead-9')).rejects.toBeInstanceOf(SuppressedNumberError);
-        expect(fetch).not.toHaveBeenCalled();
-    });
+    await expect(callLead(ORG, 'lead-9')).rejects.toBeInstanceOf(SuppressedNumberError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
 
-    // A ordem importa: sem número discável não há chave de bloqueio para consultar, então este
-    // caminho tem de sair antes — e sem gastar uma consulta ao banco.
-    it('recusa antes de consultar a lista quando o lead não tem número discável', async () => {
-        leadMock.findFirst.mockResolvedValue(leadComTelefone('ramal 22'));
+  // A ordem importa: sem número discável não há chave de bloqueio para consultar, então este
+  // caminho tem de sair antes — e sem gastar uma consulta ao banco.
+  it('recusa antes de consultar a lista quando o lead não tem número discável', async () => {
+    leadMock.findFirst.mockResolvedValue(leadComTelefone('ramal 22'));
 
-        await expect(callLead(ORG, 'lead-9')).rejects.toBeInstanceOf(NoPhoneNumberError);
-        expect(mockIsSuppressed).not.toHaveBeenCalled();
-        expect(fetch).not.toHaveBeenCalled();
-    });
+    await expect(callLead(ORG, 'lead-9')).rejects.toBeInstanceOf(NoPhoneNumberError);
+    expect(mockIsSuppressed).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
 
-    // Achado de auditoria (onda 12): a detecção de provedor Bland era
-    // `config.baseUrl.includes('bland.ai') || process.env.BLAND_API_KEY` — a presença incidental
-    // dessa env (documentada em `.env.example` como só usada quando o baseUrl for bland.ai) fazia
-    // TODA ligação ser roteada para a Bland AI mesmo com o Hub real configurado em BIRTH_VOICES_URL.
-    // Este teste prova que o Hub configurado é sempre respeitado, independente de BLAND_API_KEY
-    // estar presente no processo.
-    it('sempre disca contra o Hub configurado (BIRTH_VOICES_URL), mesmo com BLAND_API_KEY presente no processo', async () => {
-        leadMock.findFirst.mockResolvedValue(leadComTelefone());
-        process.env.BLAND_API_KEY = 'chave-bland-de-outra-integracao';
+  // Achado de auditoria (onda 12): a detecção de provedor Bland era
+  // `config.baseUrl.includes('bland.ai') || process.env.BLAND_API_KEY` — a presença incidental
+  // dessa env (documentada em `.env.example` como só usada quando o baseUrl for bland.ai) fazia
+  // TODA ligação ser roteada para a Bland AI mesmo com o Hub real configurado em BIRTH_VOICES_URL.
+  // Este teste prova que o Hub configurado é sempre respeitado, independente de BLAND_API_KEY
+  // estar presente no processo.
+  it('sempre disca contra o Hub configurado (BIRTH_VOICES_URL), mesmo com BLAND_API_KEY presente no processo', async () => {
+    leadMock.findFirst.mockResolvedValue(leadComTelefone());
+    process.env.BLAND_API_KEY = 'chave-bland-de-outra-integracao';
 
-        try {
-            await callLead(ORG, 'lead-9');
+    try {
+      await callLead(ORG, 'lead-9');
 
-            expect(fetch).toHaveBeenCalledOnce();
-            const [calledUrl, options] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
-            expect(calledUrl).toBe('http://hub.local/api/voice/outbound');
-            expect(calledUrl).not.toContain('bland.ai');
-            expect((options as { headers: Record<string, string> }).headers.Authorization).toBe('Bearer chave');
-        } finally {
-            delete process.env.BLAND_API_KEY;
-        }
-    });
+      expect(fetch).toHaveBeenCalledOnce();
+      const [calledUrl, options] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(calledUrl).toBe('http://hub.local/api/voice/outbound');
+      expect(calledUrl).not.toContain('bland.ai');
+      expect((options as { headers: Record<string, string> }).headers.Authorization).toBe(
+        'Bearer chave',
+      );
+    } finally {
+      delete process.env.BLAND_API_KEY;
+    }
+  });
 });

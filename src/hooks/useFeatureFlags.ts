@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { featureFlagsApi, type ResolvedFeatureFlag } from '../features/feature-flags/featureFlags.api';
+import {
+  featureFlagsApi,
+  type ResolvedFeatureFlag,
+} from '../features/feature-flags/featureFlags.api';
 
 // Cache in-memory compartilhado entre todos os componentes que usam este hook na mesma aba —
 // evita um GET /api/feature-flags redundante por componente montado (BugReportButton +
@@ -11,52 +14,53 @@ let cache: ResolvedFeatureFlag[] | null = null;
 let inFlight: Promise<ResolvedFeatureFlag[]> | null = null;
 
 async function fetchFlags(): Promise<ResolvedFeatureFlag[]> {
-    if (!inFlight) {
-        inFlight = featureFlagsApi.list()
-            .then((flags) => {
-                cache = flags;
-                return flags;
-            })
-            .finally(() => {
-                inFlight = null;
-            });
-    }
-    return inFlight;
+  if (!inFlight) {
+    inFlight = featureFlagsApi
+      .list()
+      .then((flags) => {
+        cache = flags;
+        return flags;
+      })
+      .finally(() => {
+        inFlight = null;
+      });
+  }
+  return inFlight;
 }
 
 /** Chamado depois de alterar um override em Settings, para que o próximo componente que ler o
  *  flag (ex.: BugReportButton) veja o valor novo sem precisar de reload da página. */
 export function invalidateFeatureFlagsCache(): void {
-    cache = null;
+  cache = null;
 }
 
 export function useFeatureFlags() {
-    const [flags, setFlags] = useState<ResolvedFeatureFlag[] | null>(cache);
-    const [isLoading, setIsLoading] = useState(!cache);
+  const [flags, setFlags] = useState<ResolvedFeatureFlag[] | null>(cache);
+  const [isLoading, setIsLoading] = useState(!cache);
 
-    const load = useCallback(() => {
-        setIsLoading(true);
-        fetchFlags()
-            .then((f) => setFlags(f))
-            .catch(() => setFlags((prev) => prev ?? []))
-            .finally(() => setIsLoading(false));
-    }, []);
+  const load = useCallback(() => {
+    setIsLoading(true);
+    fetchFlags()
+      .then((f) => setFlags(f))
+      .catch(() => setFlags((prev) => prev ?? []))
+      .finally(() => setIsLoading(false));
+  }, []);
 
-    const refetch = useCallback(() => {
-        invalidateFeatureFlagsCache();
-        load();
-    }, [load]);
+  const refetch = useCallback(() => {
+    invalidateFeatureFlagsCache();
+    load();
+  }, [load]);
 
-    useEffect(() => {
-        if (cache) {
-            setFlags(cache);
-            setIsLoading(false);
-            return;
-        }
-        load();
-    }, [load]);
+  useEffect(() => {
+    if (cache) {
+      setFlags(cache);
+      setIsLoading(false);
+      return;
+    }
+    load();
+  }, [load]);
 
-    return { flags: flags ?? [], isLoading, refetch };
+  return { flags: flags ?? [], isLoading, refetch };
 }
 
 /**
@@ -66,8 +70,8 @@ export function useFeatureFlags() {
  * falha de rede não deve esconder silenciosamente um botão que já devia estar visível.
  */
 export function useFeatureFlag(key: string, fallback = true): boolean {
-    const { flags, isLoading } = useFeatureFlags();
-    if (isLoading) return fallback;
-    const flag = flags.find((f) => f.key === key);
-    return flag ? flag.enabled : fallback;
+  const { flags, isLoading } = useFeatureFlags();
+  if (isLoading) return fallback;
+  const flag = flags.find((f) => f.key === key);
+  return flag ? flag.enabled : fallback;
 }

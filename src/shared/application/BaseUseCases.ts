@@ -8,12 +8,12 @@ import { Repository } from '../domain/Repository';
  * `string | undefined` de forma genérica.
  */
 export interface FilterablePaginatedRepository<T> {
-    findAllWithFilters(
-        organizationId: string,
-        filter?: string,
-        page?: number,
-        limit?: number
-    ): Promise<{ data: T[]; meta: unknown }>;
+  findAllWithFilters(
+    organizationId: string,
+    filter?: string,
+    page?: number,
+    limit?: number,
+  ): Promise<{ data: T[]; meta: unknown }>;
 }
 
 /** Contrato mínimo de repositório exigido pelo `BaseUseCases`. */
@@ -39,25 +39,37 @@ export type CrudRepository<T> = Repository<T> & FilterablePaginatedRepository<T>
  * sobre adotar CQRS nessas features).
  */
 export abstract class BaseUseCases<T, TRepository extends CrudRepository<T> = CrudRepository<T>> {
-    protected constructor(protected readonly repository: TRepository) {}
+  protected constructor(protected readonly repository: TRepository) {}
 
-    protected async findAll(organizationId: string, filter?: string, page: number = 1, limit: number = 50) {
-        return this.repository.findAllWithFilters(organizationId, filter, page, limit);
-    }
+  protected async findAll(
+    organizationId: string,
+    filter?: string,
+    page: number = 1,
+    limit: number = 50,
+  ) {
+    return this.repository.findAllWithFilters(organizationId, filter, page, limit);
+  }
 
-    protected async findById(organizationId: string, id: string): Promise<T | null> {
-        return this.repository.findById!(organizationId, id);
-    }
+  protected async findById(organizationId: string, id: string): Promise<T | null> {
+    return this.repository.findById!(organizationId, id);
+  }
 
-    protected async create(organizationId: string, data: Partial<T> | Record<string, unknown>): Promise<T> {
-        return this.repository.create!(organizationId, data);
-    }
+  protected async create(
+    organizationId: string,
+    data: Partial<T> | Record<string, unknown>,
+  ): Promise<T> {
+    return this.repository.create!(organizationId, data);
+  }
 
-    protected async update(organizationId: string, id: string, data: Partial<T> | Record<string, unknown>): Promise<T> {
-        return this.repository.update!(organizationId, id, data);
-    }
+  protected async update(
+    organizationId: string,
+    id: string,
+    data: Partial<T> | Record<string, unknown>,
+  ): Promise<T> {
+    return this.repository.update!(organizationId, id, data);
+  }
 
-    protected async delete(organizationId: string, id: string): Promise<T | void> {
-        return this.repository.delete!(organizationId, id);
-    }
+  protected async delete(organizationId: string, id: string): Promise<T | void> {
+    return this.repository.delete!(organizationId, id);
+  }
 }

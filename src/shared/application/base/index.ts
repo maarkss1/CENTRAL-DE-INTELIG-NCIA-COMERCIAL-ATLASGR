@@ -3,8 +3,18 @@
  * @description Public API surface of the Application base layer.
  */
 
-export { ApplicationError, type ApplicationErrorDetails, type SerializedApplicationError } from './ApplicationError.js';
-export { Result, type ResultMapper, type ResultFlatMapper, type ResultMatchers, type ApplicationErrorLike } from './Result.js';
+export {
+  ApplicationError,
+  type ApplicationErrorDetails,
+  type SerializedApplicationError,
+} from './ApplicationError.js';
+export {
+  Result,
+  type ResultMapper,
+  type ResultFlatMapper,
+  type ResultMatchers,
+  type ApplicationErrorLike,
+} from './Result.js';
 export { Either, Left, Right } from './Either.js';
 export { UseCase, UseCaseExecutionError } from './UseCase.js';
 export { Command } from './Command.js';

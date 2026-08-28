@@ -3,28 +3,28 @@ import { superagentAiResultSchema } from '../schema.js';
 import { SYSTEM_RULES, invokeStructured, jsonOnlyInstruction, safeIdentifier } from '../shared.js';
 
 function buildSuperagentScaffolds(
-    request: Extract<StudioGenerationRequest, { kind: 'superagent' }>,
-    aiResult: { summary: string; systemPrompt: string },
+  request: Extract<StudioGenerationRequest, { kind: 'superagent' }>,
+  aiResult: { summary: string; systemPrompt: string },
 ) {
-    const { inputs } = request;
-    const className = `${safeIdentifier(inputs.name)}Agent`;
-    const agentId = `agent_${safeIdentifier(inputs.name).toLowerCase()}`;
-    const jsonConfig = {
-        agent_id: agentId,
-        name: inputs.name,
-        role: inputs.role,
-        target_llm: {
-            provider: inputs.provider,
-            model: inputs.model,
-            temperature: inputs.temperature,
-        },
-        memory: { type: inputs.memory },
-        tools: inputs.tools,
-        status: 'draft',
-        requires_review_before_deploy: true,
-    };
+  const { inputs } = request;
+  const className = `${safeIdentifier(inputs.name)}Agent`;
+  const agentId = `agent_${safeIdentifier(inputs.name).toLowerCase()}`;
+  const jsonConfig = {
+    agent_id: agentId,
+    name: inputs.name,
+    role: inputs.role,
+    target_llm: {
+      provider: inputs.provider,
+      model: inputs.model,
+      temperature: inputs.temperature,
+    },
+    memory: { type: inputs.memory },
+    tools: inputs.tools,
+    status: 'draft',
+    requires_review_before_deploy: true,
+  };
 
-    const pythonScript = `import json
+  const pythonScript = `import json
 import os
 from typing import Any
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     print(json.dumps({"agent": ${JSON.stringify(inputs.name)}, "status": "DRAFT"}, ensure_ascii=False))
 `;
 
-    const powershellScript = `[CmdletBinding()]
+  const powershellScript = `[CmdletBinding()]
 param(
     [string]$ConfigPath = ".\\agent-config.json"
 )
@@ -70,17 +70,19 @@ $config = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
 } | ConvertTo-Json
 `;
 
-    return {
-        summary: aiResult.summary,
-        systemPrompt: aiResult.systemPrompt,
-        jsonConfig: JSON.stringify(jsonConfig, null, 2),
-        pythonScript,
-        powershellScript,
-    };
+  return {
+    summary: aiResult.summary,
+    systemPrompt: aiResult.systemPrompt,
+    jsonConfig: JSON.stringify(jsonConfig, null, 2),
+    pythonScript,
+    powershellScript,
+  };
 }
 
-export async function generateSuperagent(request: Extract<StudioGenerationRequest, { kind: 'superagent' }>) {
-    const prompt = `${SYSTEM_RULES}
+export async function generateSuperagent(
+  request: Extract<StudioGenerationRequest, { kind: 'superagent' }>,
+) {
+  const prompt = `${SYSTEM_RULES}
 
 Projete o prompt de sistema de um agente para ${request.brand.name}.
 Contexto da marca: ${request.brand.description}
@@ -90,12 +92,12 @@ O prompt deve definir missão, limites, dados permitidos, tratamento de incertez
 confirmação humana antes de qualquer ação externa e um contrato JSON de saída. A configuração de provedor/modelo
 é o alvo de implantação, não alegue que ele já está provisionado.
 ${jsonOnlyInstruction('{"summary":"resumo do projeto em 2 a 4 frases","systemPrompt":"prompt de sistema completo"}')}`;
-    const aiResult = await invokeStructured(
-        prompt,
-        'studio:superagent',
-        superagentAiResultSchema,
-        '{"summary":"string","systemPrompt":"string"}',
-        0.35,
-    );
-    return buildSuperagentScaffolds(request, aiResult);
+  const aiResult = await invokeStructured(
+    prompt,
+    'studio:superagent',
+    superagentAiResultSchema,
+    '{"summary":"string","systemPrompt":"string"}',
+    0.35,
+  );
+  return buildSuperagentScaffolds(request, aiResult);
 }

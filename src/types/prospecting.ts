@@ -64,7 +64,7 @@ export interface IEnrichedLead {
   actionArea?: string;
   decisionMakers: IEnrichedDecisionMaker[];
   sources: ISourceData[];
-  
+
   // Intelligence Fields
   leadScore?: number;
   intelligence?: {
@@ -79,7 +79,7 @@ export interface IEnrichedLead {
   qualifications?: Record<string, unknown>;
   objectionsMatrix?: Record<string, unknown>[];
   cadenceScripts?: Record<string, unknown>;
-  
+
   status: 'NEW' | 'ENRICHING' | 'READY' | 'EXPORTED';
   bitrixId?: string;
 }

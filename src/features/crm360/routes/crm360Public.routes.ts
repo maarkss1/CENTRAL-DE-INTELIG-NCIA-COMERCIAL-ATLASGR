@@ -14,7 +14,7 @@ import type { Crm360Controller } from '../presentation/Crm360Controller.js';
 const router = Router();
 
 router.get('/:token/view', (req, res, next) =>
-    container.resolve<Crm360Controller>('Crm360Controller').viewPublicDocument(req, res, next)
+  container.resolve<Crm360Controller>('Crm360Controller').viewPublicDocument(req, res, next),
 );
 
 export const crm360PublicRoutes = router;

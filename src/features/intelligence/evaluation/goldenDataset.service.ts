@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import goldenDatasetRaw from './golden-dataset.json';
 import {
-    goldenDatasetFileSchema,
-    GOLDEN_CASE_CATEGORIES,
-    type GoldenCase,
-    type GoldenCaseCategory,
-    type GoldenDatasetFile,
-    type ToolUseGoldenCase,
+  goldenDatasetFileSchema,
+  GOLDEN_CASE_CATEGORIES,
+  type GoldenCase,
+  type GoldenCaseCategory,
+  type GoldenDatasetFile,
+  type ToolUseGoldenCase,
 } from './goldenDataset.types.js';
 
 /**
@@ -23,49 +23,53 @@ import {
 let cached: GoldenDatasetFile | null = null;
 
 export function loadGoldenDataset(): GoldenDatasetFile {
-    if (cached) return cached;
-    cached = goldenDatasetFileSchema.parse(goldenDatasetRaw);
-    return cached;
+  if (cached) return cached;
+  cached = goldenDatasetFileSchema.parse(goldenDatasetRaw);
+  return cached;
 }
 
 /** Só para testes: força a próxima chamada a revalidar o JSON do zero. */
 export function __resetGoldenDatasetCacheForTests(): void {
-    cached = null;
+  cached = null;
 }
 
-export function getCasesByCategory<C extends GoldenCaseCategory>(category: C): Extract<GoldenCase, { category: C }>[] {
-    const dataset = loadGoldenDataset();
-    return dataset.cases.filter((c): c is Extract<GoldenCase, { category: C }> => c.category === category);
+export function getCasesByCategory<C extends GoldenCaseCategory>(
+  category: C,
+): Extract<GoldenCase, { category: C }>[] {
+  const dataset = loadGoldenDataset();
+  return dataset.cases.filter(
+    (c): c is Extract<GoldenCase, { category: C }> => c.category === category,
+  );
 }
 
 export interface GoldenDatasetSummary {
-    version: string;
-    generatedAt: string;
-    totalCases: number;
-    countByCategory: Record<GoldenCaseCategory, number>;
+  version: string;
+  generatedAt: string;
+  totalCases: number;
+  countByCategory: Record<GoldenCaseCategory, number>;
 }
 
 export function getDatasetSummary(): GoldenDatasetSummary {
-    const dataset = loadGoldenDataset();
-    const countByCategory = Object.fromEntries(
-        GOLDEN_CASE_CATEGORIES.map((category) => [category, 0]),
-    ) as Record<GoldenCaseCategory, number>;
-    for (const goldenCase of dataset.cases) {
-        countByCategory[goldenCase.category] += 1;
-    }
-    return {
-        version: dataset.version,
-        generatedAt: dataset.generatedAt,
-        totalCases: dataset.cases.length,
-        countByCategory,
-    };
+  const dataset = loadGoldenDataset();
+  const countByCategory = Object.fromEntries(
+    GOLDEN_CASE_CATEGORIES.map((category) => [category, 0]),
+  ) as Record<GoldenCaseCategory, number>;
+  for (const goldenCase of dataset.cases) {
+    countByCategory[goldenCase.category] += 1;
+  }
+  return {
+    version: dataset.version,
+    generatedAt: dataset.generatedAt,
+    totalCases: dataset.cases.length,
+    countByCategory,
+  };
 }
 
 export interface ToolUseValidationResult {
-    caseId: string;
-    valid: boolean;
-    /** Presente só quando `valid` é `false` — o erro real do Zod da ferramenta, não uma mensagem genérica. */
-    error?: string;
+  caseId: string;
+  valid: boolean;
+  /** Presente só quando `valid` é `false` — o erro real do Zod da ferramenta, não uma mensagem genérica. */
+  error?: string;
 }
 
 /**
@@ -82,36 +86,39 @@ export interface ToolUseValidationResult {
  * custo de import.
  */
 export async function validateToolUseCases(): Promise<ToolUseValidationResult[]> {
-    const cases = getCasesByCategory('tool_use') as ToolUseGoldenCase[];
-    const schemasByTool = await loadToolSchemas();
+  const cases = getCasesByCategory('tool_use') as ToolUseGoldenCase[];
+  const schemasByTool = await loadToolSchemas();
 
-    return cases.map((goldenCase) => {
-        const schema = schemasByTool[goldenCase.expected.expectedTool];
-        const result = schema.safeParse(goldenCase.expected.expectedArgs);
-        if (result.success) return { caseId: goldenCase.id, valid: true };
-        return { caseId: goldenCase.id, valid: false, error: z.prettifyError(result.error) };
-    });
+  return cases.map((goldenCase) => {
+    const schema = schemasByTool[goldenCase.expected.expectedTool];
+    const result = schema.safeParse(goldenCase.expected.expectedArgs);
+    if (result.success) return { caseId: goldenCase.id, valid: true };
+    return { caseId: goldenCase.id, valid: false, error: z.prettifyError(result.error) };
+  });
 }
 
-async function loadToolSchemas(): Promise<Record<ToolUseGoldenCase['expected']['expectedTool'], z.ZodTypeAny>> {
-    const [crmTools, opsTools, marketResearchTool, playbookTool, summarizeLeadTool, copywriterTool] = await Promise.all([
-        import('../tools/crmTools.js'),
-        import('../tools/opsTools.js'),
-        import('../tools/marketResearchTool.js'),
-        import('../tools/playbookTool.js'),
-        import('../tools/summarizeLeadTool.js'),
-        import('../tools/copywriterTool.js'),
+async function loadToolSchemas(): Promise<
+  Record<ToolUseGoldenCase['expected']['expectedTool'], z.ZodTypeAny>
+> {
+  const [crmTools, opsTools, marketResearchTool, playbookTool, summarizeLeadTool, copywriterTool] =
+    await Promise.all([
+      import('../tools/crmTools.js'),
+      import('../tools/opsTools.js'),
+      import('../tools/marketResearchTool.js'),
+      import('../tools/playbookTool.js'),
+      import('../tools/summarizeLeadTool.js'),
+      import('../tools/copywriterTool.js'),
     ]);
 
-    return {
-        search_leads: crmTools.searchLeadsTool.schema,
-        get_lead_context: crmTools.getLeadContextTool.schema,
-        update_lead_qualification: crmTools.updateLeadQualificationTool.schema,
-        create_follow_up_task: opsTools.createFollowUpTaskTool.schema,
-        notify_team: opsTools.notifyTeamTool.schema,
-        market_research: marketResearchTool.marketResearchTool.schema,
-        search_playbook: playbookTool.searchPlaybookTool.schema,
-        summarize_lead_history: summarizeLeadTool.summarizeLeadTool.schema,
-        generate_cold_email_copy: copywriterTool.copywriterTool.schema,
-    };
+  return {
+    search_leads: crmTools.searchLeadsTool.schema,
+    get_lead_context: crmTools.getLeadContextTool.schema,
+    update_lead_qualification: crmTools.updateLeadQualificationTool.schema,
+    create_follow_up_task: opsTools.createFollowUpTaskTool.schema,
+    notify_team: opsTools.notifyTeamTool.schema,
+    market_research: marketResearchTool.marketResearchTool.schema,
+    search_playbook: playbookTool.searchPlaybookTool.schema,
+    summarize_lead_history: summarizeLeadTool.summarizeLeadTool.schema,
+    generate_cold_email_copy: copywriterTool.copywriterTool.schema,
+  };
 }

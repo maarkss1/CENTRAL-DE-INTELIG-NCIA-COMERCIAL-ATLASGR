@@ -9,56 +9,66 @@ export const lgpdRouter = Router();
 // mínimo (ADMIN/GESTOR), mesmo padrão de src/features/commercial-intelligence/routes/
 // commercialIntelligence.routes.ts. Este router é montado em server.ts com
 // `authenticateToken, requireTenant`, então `req.user` sempre existe aqui.
-lgpdRouter.delete('/titular/:contactId', requireRole(['ADMIN', 'GESTOR']), (req: Request, res: Response, next: NextFunction): void => {
+lgpdRouter.delete(
+  '/titular/:contactId',
+  requireRole(['ADMIN', 'GESTOR']),
+  (req: Request, res: Response, next: NextFunction): void => {
     (async () => {
-        // organizationId vem exclusivamente do usuário autenticado (req.user, populado por
-        // authenticateToken a partir da sessão) — nunca de um header controlado pelo cliente.
-        // Um fallback para `x-organization-id` aqui permitiria que qualquer requisição forjasse
-        // esse header e apagasse/anonimizasse dados de OUTRO tenant.
-        const { organizationId } = (req as AuthRequest).user;
-        const { contactId } = req.params;
-        const result = await lgpdService.eraseContact(organizationId, contactId);
+      // organizationId vem exclusivamente do usuário autenticado (req.user, populado por
+      // authenticateToken a partir da sessão) — nunca de um header controlado pelo cliente.
+      // Um fallback para `x-organization-id` aqui permitiria que qualquer requisição forjasse
+      // esse header e apagasse/anonimizasse dados de OUTRO tenant.
+      const { organizationId } = (req as AuthRequest).user;
+      const { contactId } = req.params;
+      const result = await lgpdService.eraseContact(organizationId, contactId);
 
-        res.json({
-            message: 'Dados do titular anonimizados com sucesso.',
-            result
-        });
+      res.json({
+        message: 'Dados do titular anonimizados com sucesso.',
+        result,
+      });
     })().catch(next);
-});
+  },
+);
 
 // Exportação / Portabilidade de Titular (LGPD Art. 18 V)
-lgpdRouter.get('/titular/:contactId/export', (req: Request, res: Response, next: NextFunction): void => {
+lgpdRouter.get(
+  '/titular/:contactId/export',
+  (req: Request, res: Response, next: NextFunction): void => {
     (async () => {
-        // Mesmo raciocínio da rota de exclusão acima: organizationId só do usuário autenticado.
-        const { organizationId } = (req as AuthRequest).user;
-        const { contactId } = req.params;
-        const data = await lgpdService.exportContactData(organizationId, contactId);
+      // Mesmo raciocínio da rota de exclusão acima: organizationId só do usuário autenticado.
+      const { organizationId } = (req as AuthRequest).user;
+      const { contactId } = req.params;
+      const data = await lgpdService.exportContactData(organizationId, contactId);
 
-        res.json(data);
+      res.json(data);
     })().catch(next);
-});
+  },
+);
 
 // Listagem de Logs de Auditoria de Segurança & LGPD
-lgpdRouter.get('/audit-logs', requireRole(['ADMIN', 'GESTOR']), (req: Request, res: Response, next: NextFunction): void => {
+lgpdRouter.get(
+  '/audit-logs',
+  requireRole(['ADMIN', 'GESTOR']),
+  (req: Request, res: Response, next: NextFunction): void => {
     (async () => {
-        const { organizationId } = (req as AuthRequest).user;
-        const limit = Math.min(Number(req.query.limit) || 50, 100);
-        const { prisma } = await import('../../lib/prisma.js');
+      const { organizationId } = (req as AuthRequest).user;
+      const limit = Math.min(Number(req.query.limit) || 50, 100);
+      const { prisma } = await import('../../lib/prisma.js');
 
-        const logs = await prisma.auditLog.findMany({
-            where: {
-                tenantId: organizationId,
-            },
-            orderBy: {
-                timestamp: 'desc',
-            },
-            take: limit,
-        });
+      const logs = await prisma.auditLog.findMany({
+        where: {
+          tenantId: organizationId,
+        },
+        orderBy: {
+          timestamp: 'desc',
+        },
+        take: limit,
+      });
 
-        res.json({
-            success: true,
-            logs,
-        });
+      res.json({
+        success: true,
+        logs,
+      });
     })().catch(next);
-});
-
+  },
+);

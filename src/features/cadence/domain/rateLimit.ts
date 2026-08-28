@@ -19,12 +19,12 @@ import type { CadenceChannel } from './optOut.js';
 export type RateLimitBlockReason = 'contact-rate-limit' | 'domain-rate-limit';
 
 export interface CadenceRateLimitPolicy {
-    /** N: máximo de toques com `result: 'sent'`, em QUALQUER canal e QUALQUER cadência/run, por contato dentro da janela (`contactWindowHours`). */
-    maxTouchesPerContactWindow: number;
-    /** Duração da janela deslizante do limite por contato, em horas. */
-    contactWindowHours: number;
-    /** M: máximo de contatos DISTINTOS do mesmo domínio de e-mail recebendo e-mail (`result: 'sent'`, canal `email`) no mesmo dia. */
-    maxEmailRecipientsPerDomainPerDay: number;
+  /** N: máximo de toques com `result: 'sent'`, em QUALQUER canal e QUALQUER cadência/run, por contato dentro da janela (`contactWindowHours`). */
+  maxTouchesPerContactWindow: number;
+  /** Duração da janela deslizante do limite por contato, em horas. */
+  contactWindowHours: number;
+  /** M: máximo de contatos DISTINTOS do mesmo domínio de e-mail recebendo e-mail (`result: 'sent'`, canal `email`) no mesmo dia. */
+  maxEmailRecipientsPerDomainPerDay: number;
 }
 
 /**
@@ -44,9 +44,9 @@ export interface CadenceRateLimitPolicy {
  * `application/rateLimitConfig.ts`.
  */
 export const DEFAULT_RATE_LIMIT_POLICY: CadenceRateLimitPolicy = {
-    maxTouchesPerContactWindow: 3,
-    contactWindowHours: 24,
-    maxEmailRecipientsPerDomainPerDay: 20,
+  maxTouchesPerContactWindow: 3,
+  contactWindowHours: 24,
+  maxEmailRecipientsPerDomainPerDay: 20,
 };
 
 /**
@@ -55,16 +55,19 @@ export const DEFAULT_RATE_LIMIT_POLICY: CadenceRateLimitPolicy = {
  * domínio por um dado ruim do que travar uma cadência inteira por engano de parsing.
  */
 export function extractEmailDomain(email: string | null | undefined): string | null {
-    if (!email) return null;
-    const trimmed = email.trim().toLowerCase();
-    const at = trimmed.lastIndexOf('@');
-    if (at <= 0 || at === trimmed.length - 1) return null;
-    return trimmed.slice(at + 1);
+  if (!email) return null;
+  const trimmed = email.trim().toLowerCase();
+  const at = trimmed.lastIndexOf('@');
+  if (at <= 0 || at === trimmed.length - 1) return null;
+  return trimmed.slice(at + 1);
 }
 
 /** Contato já recebeu `sentTouchesInWindow` toques 'sent' (qualquer canal/cadência) dentro da janela — no limite ou acima dele bloqueia o próximo. */
-export function isContactRateLimited(sentTouchesInWindow: number, policy: CadenceRateLimitPolicy = DEFAULT_RATE_LIMIT_POLICY): boolean {
-    return sentTouchesInWindow >= policy.maxTouchesPerContactWindow;
+export function isContactRateLimited(
+  sentTouchesInWindow: number,
+  policy: CadenceRateLimitPolicy = DEFAULT_RATE_LIMIT_POLICY,
+): boolean {
+  return sentTouchesInWindow >= policy.maxTouchesPerContactWindow;
 }
 
 /**
@@ -74,25 +77,25 @@ export function isContactRateLimited(sentTouchesInWindow: number, policy: Cadenc
  * quem decide se ele já recebeu e-mail demais.
  */
 export function isDomainRateLimited(
-    distinctRecipientsToday: number,
-    currentLeadAlreadyCounted: boolean,
-    policy: CadenceRateLimitPolicy = DEFAULT_RATE_LIMIT_POLICY,
+  distinctRecipientsToday: number,
+  currentLeadAlreadyCounted: boolean,
+  policy: CadenceRateLimitPolicy = DEFAULT_RATE_LIMIT_POLICY,
 ): boolean {
-    if (currentLeadAlreadyCounted) return false;
-    return distinctRecipientsToday >= policy.maxEmailRecipientsPerDomainPerDay;
+  if (currentLeadAlreadyCounted) return false;
+  return distinctRecipientsToday >= policy.maxEmailRecipientsPerDomainPerDay;
 }
 
 export interface DomainRateLimitCheck {
-    distinctRecipientsToday: number;
-    currentLeadAlreadyCounted: boolean;
+  distinctRecipientsToday: number;
+  currentLeadAlreadyCounted: boolean;
 }
 
 export interface DecideRateLimitBlockInput {
-    channel: CadenceChannel;
-    sentTouchesInWindow: number;
-    /** `null` quando o canal não é `email` ou o e-mail do contato não pôde ser resolvido/normalizado — nesse caso só o limite por contato se aplica. */
-    domainCheck: DomainRateLimitCheck | null;
-    policy?: CadenceRateLimitPolicy;
+  channel: CadenceChannel;
+  sentTouchesInWindow: number;
+  /** `null` quando o canal não é `email` ou o e-mail do contato não pôde ser resolvido/normalizado — nesse caso só o limite por contato se aplica. */
+  domainCheck: DomainRateLimitCheck | null;
+  policy?: CadenceRateLimitPolicy;
 }
 
 /**
@@ -101,11 +104,21 @@ export interface DecideRateLimitBlockInput {
  * domínio — é o motivo mais específico ao lead, e um contato que já estourou o próprio limite não
  * precisa do motivo de domínio para ser bloqueado.
  */
-export function decideRateLimitBlock(input: DecideRateLimitBlockInput): RateLimitBlockReason | null {
-    const policy = input.policy ?? DEFAULT_RATE_LIMIT_POLICY;
-    if (isContactRateLimited(input.sentTouchesInWindow, policy)) return 'contact-rate-limit';
-    if (input.channel === 'email' && input.domainCheck && isDomainRateLimited(input.domainCheck.distinctRecipientsToday, input.domainCheck.currentLeadAlreadyCounted, policy)) {
-        return 'domain-rate-limit';
-    }
-    return null;
+export function decideRateLimitBlock(
+  input: DecideRateLimitBlockInput,
+): RateLimitBlockReason | null {
+  const policy = input.policy ?? DEFAULT_RATE_LIMIT_POLICY;
+  if (isContactRateLimited(input.sentTouchesInWindow, policy)) return 'contact-rate-limit';
+  if (
+    input.channel === 'email' &&
+    input.domainCheck &&
+    isDomainRateLimited(
+      input.domainCheck.distinctRecipientsToday,
+      input.domainCheck.currentLeadAlreadyCounted,
+      policy,
+    )
+  ) {
+    return 'domain-rate-limit';
+  }
+  return null;
 }

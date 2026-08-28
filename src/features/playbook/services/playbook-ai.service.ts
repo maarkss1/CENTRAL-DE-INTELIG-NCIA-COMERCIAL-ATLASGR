@@ -3,36 +3,36 @@ import { cleanAndParseJson, getAiModel, logAiUsage } from '../../../lib/ai/gatew
 import { logger } from '../../../lib/logger.js';
 
 export interface PlaybookChapterInput {
-    topic: string; // ex: 'Como Contornar a Objeção "Já tenho Seguro e não preciso de Rastreamento"'
-    targetAudience: 'SDR' | 'Closer' | 'Onboarding' | 'CS';
-    industrySegment: string; // ex: 'Transportadoras de Cargas Perigosas e Químicos'
-    winningPatternsObserved?: string[];
+  topic: string; // ex: 'Como Contornar a Objeção "Já tenho Seguro e não preciso de Rastreamento"'
+  targetAudience: 'SDR' | 'Closer' | 'Onboarding' | 'CS';
+  industrySegment: string; // ex: 'Transportadoras de Cargas Perigosas e Químicos'
+  winningPatternsObserved?: string[];
 }
 
 export interface GeneratedPlaybookChapter {
-    title: string;
-    targetPersona: string;
-    diagnosticQuestionsSpin: {
-        situation: string[];
-        problem: string[];
-        implication: string[];
-        needPayoff: string[];
-    };
-    objectionTurnaroundScripts: Array<{
-        customerSays: string;
-        recommendedReply: string;
-        psychologicalRationale: string;
-    }>;
-    goldenRules: string[];
-    checklistForSuccess: string[];
+  title: string;
+  targetPersona: string;
+  diagnosticQuestionsSpin: {
+    situation: string[];
+    problem: string[];
+    implication: string[];
+    needPayoff: string[];
+  };
+  objectionTurnaroundScripts: Array<{
+    customerSays: string;
+    recommendedReply: string;
+    psychologicalRationale: string;
+  }>;
+  goldenRules: string[];
+  checklistForSuccess: string[];
 }
 
 export class PlaybookAiService {
-    async generatePlaybookChapter(input: PlaybookChapterInput): Promise<GeneratedPlaybookChapter> {
-        const model = getAiModel('local-llama3-fast', 0.2, 'playbook-ai');
-        const startTime = Date.now();
+  async generatePlaybookChapter(input: PlaybookChapterInput): Promise<GeneratedPlaybookChapter> {
+    const model = getAiModel('local-llama3-fast', 0.2, 'playbook-ai');
+    const startTime = Date.now();
 
-        const systemPrompt = `Você é o Head de Capacitação Comercial e autor do Playbook de Vendas da AtlasGR / TotalTrac.
+    const systemPrompt = `Você é o Head de Capacitação Comercial e autor do Playbook de Vendas da AtlasGR / TotalTrac.
 Escreva um capítulo completo e prático do Playbook de Vendas sobre o tema solicitado.
 Estruture utilizando a metodologia SPIN Selling adaptada para o mercado de logística, telemetria e gestão de risco.
 
@@ -57,39 +57,41 @@ Retorne SEMPRE e APENAS um JSON válido no formato:
   "checklistForSuccess": ["Validar decisor", "Calcular custo da dor antes de passar preço"]
 }`;
 
-        try {
-            const response = await model.invoke([
-                new SystemMessage(systemPrompt),
-                new HumanMessage(`Parâmetros do Playbook:\n${JSON.stringify(input, null, 2)}`),
-            ]);
+    try {
+      const response = await model.invoke([
+        new SystemMessage(systemPrompt),
+        new HumanMessage(`Parâmetros do Playbook:\n${JSON.stringify(input, null, 2)}`),
+      ]);
 
-            await logAiUsage({
-                model: response.response_metadata.model,
-                usage: response.response_metadata.tokenUsage,
-                latencyMs: Date.now() - startTime,
-                promptId: 'playbook-generation',
-            });
+      await logAiUsage({
+        model: response.response_metadata.model,
+        usage: response.response_metadata.tokenUsage,
+        latencyMs: Date.now() - startTime,
+        promptId: 'playbook-generation',
+      });
 
-            return cleanAndParseJson<GeneratedPlaybookChapter>(response.content);
-        } catch (error) {
-            logger.error({ err: error }, 'Erro ao gerar capítulo do playbook');
-            return {
-                title: input.topic,
-                targetPersona: input.industrySegment,
-                diagnosticQuestionsSpin: {
-                    situation: ['Quantos veículos compõem a frota?'],
-                    problem: ['Quais as maiores dificuldades na gestão diária?'],
-                    implication: ['Qual o impacto no faturamento?'],
-                    needPayoff: ['Como a automação melhoraria o resultado?'],
-                },
-                objectionTurnaroundScripts: [{
-                    customerSays: 'Preciso pensar.',
-                    recommendedReply: 'Com certeza. Qual ponto principal você gostaria de analisar?',
-                    psychologicalRationale: 'Isola a objeção oculta.',
-                }],
-                goldenRules: ['Sempre faça perguntas abertas.'],
-                checklistForSuccess: ['Revisar histórico antes do contato.'],
-            };
-        }
+      return cleanAndParseJson<GeneratedPlaybookChapter>(response.content);
+    } catch (error) {
+      logger.error({ err: error }, 'Erro ao gerar capítulo do playbook');
+      return {
+        title: input.topic,
+        targetPersona: input.industrySegment,
+        diagnosticQuestionsSpin: {
+          situation: ['Quantos veículos compõem a frota?'],
+          problem: ['Quais as maiores dificuldades na gestão diária?'],
+          implication: ['Qual o impacto no faturamento?'],
+          needPayoff: ['Como a automação melhoraria o resultado?'],
+        },
+        objectionTurnaroundScripts: [
+          {
+            customerSays: 'Preciso pensar.',
+            recommendedReply: 'Com certeza. Qual ponto principal você gostaria de analisar?',
+            psychologicalRationale: 'Isola a objeção oculta.',
+          },
+        ],
+        goldenRules: ['Sempre faça perguntas abertas.'],
+        checklistForSuccess: ['Revisar histórico antes do contato.'],
+      };
     }
+  }
 }

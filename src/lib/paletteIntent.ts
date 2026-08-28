@@ -11,6 +11,4 @@ export const OPEN_AI_CHAT_EVENT = 'atlas:open-ai-chat';
  * `location.state` do `navigate()` — ver `CommandPalette.tsx` (produtor) e `ContactList`/
  * `CompanyList`/`ActivityList` (consumidores, via `useLocation().state`).
  */
-export type PaletteIntent =
-    | { type: 'prefill-search'; value: string }
-    | { type: 'open-create' };
+export type PaletteIntent = { type: 'prefill-search'; value: string } | { type: 'open-create' };

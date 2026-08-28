@@ -1,9 +1,9 @@
 import {
-    isVerifiableConfirmation,
-    scheduleMeetingIfConfirmed,
-    type AvailabilityConfirmation,
-    type CalendarSchedulerPort,
-    type ScheduleMeetingResult,
+  isVerifiableConfirmation,
+  scheduleMeetingIfConfirmed,
+  type AvailabilityConfirmation,
+  type CalendarSchedulerPort,
+  type ScheduleMeetingResult,
 } from '../domain/scheduling.js';
 
 /**
@@ -20,25 +20,25 @@ import {
  */
 
 export interface MeetingConfirmationNotePort {
-    /** Cria o registro de evidência real (Note do lead) referenciado pela confirmação. */
-    createConfirmationNote(input: {
-        organizationId: string;
-        leadId: string;
-        authorUserId: string;
-        scheduledStart: Date;
-        scheduledEnd: Date;
-    }): Promise<{ id: string }>;
+  /** Cria o registro de evidência real (Note do lead) referenciado pela confirmação. */
+  createConfirmationNote(input: {
+    organizationId: string;
+    leadId: string;
+    authorUserId: string;
+    scheduledStart: Date;
+    scheduledEnd: Date;
+  }): Promise<{ id: string }>;
 }
 
 export interface ScheduleVerifiedMeetingInput {
-    organizationId: string;
-    leadId: string;
-    actorUserId: string;
-    proposedStart: Date;
-    proposedEnd: Date;
-    leadTitle: string;
-    leadEmail: string;
-    ownerEmail: string;
+  organizationId: string;
+  leadId: string;
+  actorUserId: string;
+  proposedStart: Date;
+  proposedEnd: Date;
+  leadTitle: string;
+  leadEmail: string;
+  ownerEmail: string;
 }
 
 export type ScheduleVerifiedMeetingResult = ScheduleMeetingResult & { noteId: string | null };
@@ -50,43 +50,48 @@ export type ScheduleVerifiedMeetingResult = ScheduleMeetingResult & { noteId: st
  * com o id dela como evidência.
  */
 export async function scheduleVerifiedMeeting(
-    ports: { notes: MeetingConfirmationNotePort; scheduler: CalendarSchedulerPort },
-    input: ScheduleVerifiedMeetingInput,
-    now: Date,
+  ports: { notes: MeetingConfirmationNotePort; scheduler: CalendarSchedulerPort },
+  input: ScheduleVerifiedMeetingInput,
+  now: Date,
 ): Promise<ScheduleVerifiedMeetingResult> {
-    const preflight: AvailabilityConfirmation = {
-        organizationId: input.organizationId,
-        leadId: input.leadId,
-        evidenceType: 'manual-verified',
-        evidenceRef: input.actorUserId,
-        proposedStart: input.proposedStart,
-        proposedEnd: input.proposedEnd,
+  const preflight: AvailabilityConfirmation = {
+    organizationId: input.organizationId,
+    leadId: input.leadId,
+    evidenceType: 'manual-verified',
+    evidenceRef: input.actorUserId,
+    proposedStart: input.proposedStart,
+    proposedEnd: input.proposedEnd,
+  };
+
+  if (!isVerifiableConfirmation(preflight, now)) {
+    return {
+      scheduled: false,
+      googleEventId: null,
+      rejectedReason: 'not-verifiable',
+      noteId: null,
     };
+  }
 
-    if (!isVerifiableConfirmation(preflight, now)) {
-        return { scheduled: false, googleEventId: null, rejectedReason: 'not-verifiable', noteId: null };
-    }
+  const note = await ports.notes.createConfirmationNote({
+    organizationId: input.organizationId,
+    leadId: input.leadId,
+    authorUserId: input.actorUserId,
+    scheduledStart: input.proposedStart,
+    scheduledEnd: input.proposedEnd,
+  });
 
-    const note = await ports.notes.createConfirmationNote({
-        organizationId: input.organizationId,
-        leadId: input.leadId,
-        authorUserId: input.actorUserId,
-        scheduledStart: input.proposedStart,
-        scheduledEnd: input.proposedEnd,
-    });
+  const confirmation: AvailabilityConfirmation = { ...preflight, evidenceRef: note.id };
+  const result = await scheduleMeetingIfConfirmed(
+    confirmation,
+    {
+      leadTitle: input.leadTitle,
+      leadEmail: input.leadEmail,
+      ownerEmail: input.ownerEmail,
+      ownerUserId: input.actorUserId,
+    },
+    ports.scheduler,
+    now,
+  );
 
-    const confirmation: AvailabilityConfirmation = { ...preflight, evidenceRef: note.id };
-    const result = await scheduleMeetingIfConfirmed(
-        confirmation,
-        {
-            leadTitle: input.leadTitle,
-            leadEmail: input.leadEmail,
-            ownerEmail: input.ownerEmail,
-            ownerUserId: input.actorUserId,
-        },
-        ports.scheduler,
-        now,
-    );
-
-    return { ...result, noteId: note.id };
+  return { ...result, noteId: note.id };
 }

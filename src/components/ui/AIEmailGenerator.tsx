@@ -1,5 +1,18 @@
 import { useState } from 'react';
-import { Sparkles, Copy, Check, Send, Bot, RefreshCw, ShieldCheck, Zap, AlertCircle, Mail, Phone, MessageCircle } from 'lucide-react';
+import {
+  Sparkles,
+  Copy,
+  Check,
+  Send,
+  Bot,
+  RefreshCw,
+  ShieldCheck,
+  Zap,
+  AlertCircle,
+  Mail,
+  Phone,
+  MessageCircle,
+} from 'lucide-react';
 import { Button } from './Button';
 import { useBrand } from '../../contexts/BrandContext';
 import { api } from '../../lib/api';
@@ -38,10 +51,28 @@ interface MessageResult {
   icpAnalysis: string;
 }
 
-const CHANNEL_META: Record<Channel, { label: string; icon: typeof Mail; cta: string; ctaLoading: string }> = {
-  email: { label: 'E-mail', icon: Mail, cta: 'Sintetizar E-mail com IA', ctaLoading: 'Sintetizando E-mail Inteligente...' },
-  call: { label: 'Ligação', icon: Phone, cta: 'Gerar Roteiro de Ligação', ctaLoading: 'Montando Roteiro de Ligação...' },
-  message: { label: 'Mensagem', icon: MessageCircle, cta: 'Gerar Mensagem Curta', ctaLoading: 'Escrevendo Mensagem...' },
+const CHANNEL_META: Record<
+  Channel,
+  { label: string; icon: typeof Mail; cta: string; ctaLoading: string }
+> = {
+  email: {
+    label: 'E-mail',
+    icon: Mail,
+    cta: 'Sintetizar E-mail com IA',
+    ctaLoading: 'Sintetizando E-mail Inteligente...',
+  },
+  call: {
+    label: 'Ligação',
+    icon: Phone,
+    cta: 'Gerar Roteiro de Ligação',
+    ctaLoading: 'Montando Roteiro de Ligação...',
+  },
+  message: {
+    label: 'Mensagem',
+    icon: MessageCircle,
+    cta: 'Gerar Mensagem Curta',
+    ctaLoading: 'Escrevendo Mensagem...',
+  },
 };
 
 /** Só dígitos, com DDI — formato aceito pelo wa.me. */
@@ -72,7 +103,8 @@ export function AIEmailGenerator({
   const [error, setError] = useState('');
 
   const meta = CHANNEL_META[channel];
-  const hasResult = channel === 'email' ? !!emailResult : channel === 'call' ? !!callResult : !!messageResult;
+  const hasResult =
+    channel === 'email' ? !!emailResult : channel === 'call' ? !!callResult : !!messageResult;
 
   const generate = async () => {
     setGenerating(true);
@@ -84,17 +116,33 @@ export function AIEmailGenerator({
 
     try {
       if (channel === 'email') {
-        const response = await api.post<{ result: EmailResult }>('/api/intelligence/studio', { kind: 'email', brand, inputs }, { timeoutMs: 90_000 });
+        const response = await api.post<{ result: EmailResult }>(
+          '/api/intelligence/studio',
+          { kind: 'email', brand, inputs },
+          { timeoutMs: 90_000 },
+        );
         setEmailResult(response.result);
       } else if (channel === 'call') {
-        const response = await api.post<{ result: CallScriptResult }>('/api/intelligence/studio', { kind: 'call_script', brand, inputs }, { timeoutMs: 90_000 });
+        const response = await api.post<{ result: CallScriptResult }>(
+          '/api/intelligence/studio',
+          { kind: 'call_script', brand, inputs },
+          { timeoutMs: 90_000 },
+        );
         setCallResult(response.result);
       } else {
-        const response = await api.post<{ result: MessageResult }>('/api/intelligence/studio', { kind: 'message', brand, inputs }, { timeoutMs: 90_000 });
+        const response = await api.post<{ result: MessageResult }>(
+          '/api/intelligence/studio',
+          { kind: 'message', brand, inputs },
+          { timeoutMs: 90_000 },
+        );
         setMessageResult(response.result);
       }
     } catch (generationError) {
-      setError(generationError instanceof Error ? generationError.message : 'Não foi possível gerar o conteúdo.');
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : 'Não foi possível gerar o conteúdo.',
+      );
     } finally {
       setGenerating(false);
     }
@@ -135,25 +183,31 @@ export function AIEmailGenerator({
                 <ShieldCheck className="w-3 h-3 text-emerald-400" /> ICP Match
               </span>
             </div>
-            <p className="text-xs text-ink-2">Personalização profunda baseada na Persona ({role}) e ICP ({companySize})</p>
+            <p className="text-xs text-ink-2">
+              Personalização profunda baseada na Persona ({role}) e ICP ({companySize})
+            </p>
           </div>
         </div>
 
         {/* Seleção de Tom */}
         <div className="flex flex-wrap items-center bg-surface-2 p-1 rounded-xl border border-line text-[11px] font-semibold">
-          {([
-            ['consultative', 'Consultivo'],
-            ['direct', 'Direto'],
-            ['roi_focused', 'Foco ROI'],
-            ['hyper_personalized', 'Hiper-personalizado'],
-          ] as [Tone, string][]).map(([value, label]) => (
+          {(
+            [
+              ['consultative', 'Consultivo'],
+              ['direct', 'Direto'],
+              ['roi_focused', 'Foco ROI'],
+              ['hyper_personalized', 'Hiper-personalizado'],
+            ] as [Tone, string][]
+          ).map(([value, label]) => (
             <button
               key={value}
               type="button"
               aria-pressed={tone === value}
               onClick={() => setTone(value)}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                tone === value ? 'bg-brand-active text-white font-bold shadow-sm' : 'text-ink-2 hover:text-ink'
+                tone === value
+                  ? 'bg-brand-active text-white font-bold shadow-sm'
+                  : 'text-ink-2 hover:text-ink'
               }`}
             >
               {label}
@@ -171,7 +225,11 @@ export function AIEmailGenerator({
               key={c}
               type="button"
               aria-pressed={channel === c}
-              onClick={() => { setChannel(c); setError(''); setCopied(false); }}
+              onClick={() => {
+                setChannel(c);
+                setError('');
+                setCopied(false);
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 channel === c ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'
               }`}
@@ -183,7 +241,10 @@ export function AIEmailGenerator({
       </div>
 
       {error && (
-        <div role="alert" className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200"
+        >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -194,14 +255,39 @@ export function AIEmailGenerator({
           <Sparkles className="w-8 h-8 text-indigo-400 mx-auto animate-pulse" />
           <div>
             <p className="text-xs font-bold text-ink mb-1">
-              Pronto para gerar {channel === 'email' ? 'cold mail' : channel === 'call' ? 'roteiro de ligação' : 'mensagem'} de altíssima conversão
+              Pronto para gerar{' '}
+              {channel === 'email'
+                ? 'cold mail'
+                : channel === 'call'
+                  ? 'roteiro de ligação'
+                  : 'mensagem'}{' '}
+              de altíssima conversão
             </p>
             <p className="text-xs text-ink-2 max-w-md mx-auto">
-              O motor de IA cruzará a persona <strong className="text-indigo-300">{role}</strong>, os dados do segmento <strong className="text-indigo-300">{sector}</strong>{technologies.length > 0 ? <span> e as ferramentas detectadas (<strong className="text-indigo-300">{technologies.join(', ')}</strong>)</span> : ''}.
+              O motor de IA cruzará a persona <strong className="text-indigo-300">{role}</strong>,
+              os dados do segmento <strong className="text-indigo-300">{sector}</strong>
+              {technologies.length > 0 ? (
+                <span>
+                  {' '}
+                  e as ferramentas detectadas (
+                  <strong className="text-indigo-300">{technologies.join(', ')}</strong>)
+                </span>
+              ) : (
+                ''
+              )}
+              .
             </p>
           </div>
-          <Button onClick={generate} disabled={generating} className="w-full sm:w-auto shadow-lg shadow-brand/20 cursor-pointer">
-            {generating ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2 text-amber-400" />}
+          <Button
+            onClick={generate}
+            disabled={generating}
+            className="w-full sm:w-auto shadow-lg shadow-brand/20 cursor-pointer"
+          >
+            {generating ? (
+              <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Zap className="w-4 h-4 mr-2 text-amber-400" />
+            )}
             {generating ? meta.ctaLoading : meta.cta}
           </Button>
         </div>
@@ -210,22 +296,30 @@ export function AIEmailGenerator({
           {channel === 'email' && emailResult && (
             <EmailPanel result={emailResult} onChange={setEmailResult} />
           )}
-          {channel === 'call' && callResult && (
-            <CallScriptPanel result={callResult} />
-          )}
+          {channel === 'call' && callResult && <CallScriptPanel result={callResult} />}
           {channel === 'message' && messageResult && (
             <MessagePanel result={messageResult} onChange={setMessageResult} />
           )}
 
           <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
-            <Button variant="ghost" size="sm" onClick={generate} disabled={generating} className="text-xs text-indigo-400">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={generate}
+              disabled={generating}
+              className="text-xs text-indigo-400"
+            >
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${generating ? 'animate-spin' : ''}`} />
               Regerar com Novo Tom
             </Button>
 
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={copyToClipboard} className="text-xs">
-                {copied ? <Check className="w-3.5 h-3.5 text-green-400 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
+                {copied ? (
+                  <Check className="w-3.5 h-3.5 text-green-400 mr-1.5" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 mr-1.5" />
+                )}
                 {copied ? 'Copiado!' : 'Copiar Texto'}
               </Button>
               {channel === 'email' && emailResult && (
@@ -266,17 +360,28 @@ function IcpBadge({ text }: { text: string }) {
   return (
     <div className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs text-indigo-200 font-semibold flex items-center justify-between gap-2">
       <span>{text}</span>
-      <span className="text-[10px] bg-indigo-500/20 px-2 py-0.5 rounded text-indigo-300 uppercase shrink-0">Validação Persona OK</span>
+      <span className="text-[10px] bg-indigo-500/20 px-2 py-0.5 rounded text-indigo-300 uppercase shrink-0">
+        Validação Persona OK
+      </span>
     </div>
   );
 }
 
-function EmailPanel({ result, onChange }: { result: EmailResult; onChange: (r: EmailResult) => void }) {
+function EmailPanel({
+  result,
+  onChange,
+}: {
+  result: EmailResult;
+  onChange: (r: EmailResult) => void;
+}) {
   return (
     <>
       <IcpBadge text={result.icpAnalysis} />
       <div>
-        <label htmlFor="email-subject" className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+        <label
+          htmlFor="email-subject"
+          className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1"
+        >
           Assunto Recomendado (AIDA Hook)
         </label>
         <input
@@ -288,7 +393,10 @@ function EmailPanel({ result, onChange }: { result: EmailResult; onChange: (r: E
         />
       </div>
       <div>
-        <label htmlFor="email-body" className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+        <label
+          htmlFor="email-body"
+          className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1"
+        >
           Corpo da Mensagem (Engenharia de Prompt ICP)
         </label>
         <textarea
@@ -309,22 +417,38 @@ function CallScriptPanel({ result }: { result: CallScriptResult }) {
       <IcpBadge text={result.icpAnalysis} />
       <div className="space-y-3 text-xs text-ink">
         <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Abertura (primeiros 10s)</p>
-          <p className="px-3 py-2.5 rounded-lg bg-surface-2 border border-line leading-relaxed">{result.opening}</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+            Abertura (primeiros 10s)
+          </p>
+          <p className="px-3 py-2.5 rounded-lg bg-surface-2 border border-line leading-relaxed">
+            {result.opening}
+          </p>
         </div>
         <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Perguntas de Descoberta</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+            Perguntas de Descoberta
+          </p>
           <ul className="space-y-1.5">
             {result.discoveryQuestions.map((q, i) => (
-              <li key={i} className="px-3 py-2 rounded-lg bg-surface-2 border border-line leading-relaxed">{i + 1}. {q}</li>
+              <li
+                key={i}
+                className="px-3 py-2 rounded-lg bg-surface-2 border border-line leading-relaxed"
+              >
+                {i + 1}. {q}
+              </li>
             ))}
           </ul>
         </div>
         <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Contorno de Objeções</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+            Contorno de Objeções
+          </p>
           <div className="space-y-1.5">
             {result.objectionTips.map((o, i) => (
-              <div key={i} className="px-3 py-2 rounded-lg bg-surface-2 border border-line leading-relaxed">
+              <div
+                key={i}
+                className="px-3 py-2 rounded-lg bg-surface-2 border border-line leading-relaxed"
+              >
                 <p className="text-ink-2 italic">&quot;{o.objection}&quot;</p>
                 <p className="mt-1">→ {o.response}</p>
               </div>
@@ -332,20 +456,33 @@ function CallScriptPanel({ result }: { result: CallScriptResult }) {
           </div>
         </div>
         <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Fechamento (próximo passo)</p>
-          <p className="px-3 py-2.5 rounded-lg bg-surface-2 border border-line leading-relaxed">{result.closing}</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+            Fechamento (próximo passo)
+          </p>
+          <p className="px-3 py-2.5 rounded-lg bg-surface-2 border border-line leading-relaxed">
+            {result.closing}
+          </p>
         </div>
       </div>
     </>
   );
 }
 
-function MessagePanel({ result, onChange }: { result: MessageResult; onChange: (r: MessageResult) => void }) {
+function MessagePanel({
+  result,
+  onChange,
+}: {
+  result: MessageResult;
+  onChange: (r: MessageResult) => void;
+}) {
   return (
     <>
       <IcpBadge text={result.icpAnalysis} />
       <div>
-        <label htmlFor="msg-body" className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+        <label
+          htmlFor="msg-body"
+          className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1"
+        >
           Mensagem (WhatsApp / SMS)
         </label>
         <textarea
@@ -357,8 +494,12 @@ function MessagePanel({ result, onChange }: { result: MessageResult; onChange: (
         />
       </div>
       <div>
-        <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Se não responder</p>
-        <p className="px-3 py-2 rounded-lg bg-surface-2 border border-line text-xs text-ink-2 leading-relaxed">{result.followUpSuggestion}</p>
+        <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+          Se não responder
+        </p>
+        <p className="px-3 py-2 rounded-lg bg-surface-2 border border-line text-xs text-ink-2 leading-relaxed">
+          {result.followUpSuggestion}
+        </p>
       </div>
     </>
   );

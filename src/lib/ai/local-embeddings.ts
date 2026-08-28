@@ -22,8 +22,8 @@ const MODEL_ID = process.env.LOCAL_EMBEDDING_MODEL || 'Xenova/multilingual-e5-ba
 export const EMBEDDING_DIMENSIONS = 768;
 
 type FeatureExtractor = (
-    text: string,
-    opts: { pooling: 'mean'; normalize: boolean },
+  text: string,
+  opts: { pooling: 'mean'; normalize: boolean },
 ) => Promise<{ data: Float32Array | number[] }>;
 
 let carregando: Promise<FeatureExtractor> | null = null;
@@ -36,28 +36,37 @@ let carregando: Promise<FeatureExtractor> | null = null;
  * esperar por um modelo que talvez ninguém use naquela execução.
  */
 function obterExtrator(): Promise<FeatureExtractor> {
-    if (carregando) return carregando;
+  if (carregando) return carregando;
 
-    carregando = (async () => {
-        const t0 = Date.now();
-        const { pipeline, env } = await import('@xenova/transformers');
+  carregando = (async () => {
+    const t0 = Date.now();
+    const { pipeline, env } = await import('@xenova/transformers');
 
-        // Sem isso o Transformers.js procura o modelo em disco antes de buscar no Hub e polui o log.
-        env.allowLocalModels = false;
-        // Cache fora de node_modules: um `npm ci` não deve forçar novo download de 400 MB.
-        env.cacheDir = process.env.LOCAL_EMBEDDING_CACHE || path.resolve(process.cwd(), '.cache/models');
+    // Sem isso o Transformers.js procura o modelo em disco antes de buscar no Hub e polui o log.
+    env.allowLocalModels = false;
+    // Cache fora de node_modules: um `npm ci` não deve forçar novo download de 400 MB.
+    env.cacheDir =
+      process.env.LOCAL_EMBEDDING_CACHE || path.resolve(process.cwd(), '.cache/models');
 
-        logger.info({ model: MODEL_ID }, 'Carregando modelo de embeddings local (primeira vez baixa ~400 MB)');
-        const extrator = (await pipeline('feature-extraction', MODEL_ID)) as unknown as FeatureExtractor;
-        logger.info({ model: MODEL_ID, ms: Date.now() - t0 }, 'Modelo de embeddings local pronto');
-        return extrator;
-    })();
+    logger.info(
+      { model: MODEL_ID },
+      'Carregando modelo de embeddings local (primeira vez baixa ~400 MB)',
+    );
+    const extrator = (await pipeline(
+      'feature-extraction',
+      MODEL_ID,
+    )) as unknown as FeatureExtractor;
+    logger.info({ model: MODEL_ID, ms: Date.now() - t0 }, 'Modelo de embeddings local pronto');
+    return extrator;
+  })();
 
-    // Falha no carregamento não pode envenenar o cache: sem isto, um erro transitório de rede
-    // deixaria a promise rejeitada memorizada e nenhuma tentativa futura funcionaria.
-    carregando.catch(() => { carregando = null; });
+  // Falha no carregamento não pode envenenar o cache: sem isto, um erro transitório de rede
+  // deixaria a promise rejeitada memorizada e nenhuma tentativa futura funcionaria.
+  carregando.catch(() => {
+    carregando = null;
+  });
 
-    return carregando;
+  return carregando;
 }
 
 const EMBEDDING_CACHE_MAX_SIZE = 500;
@@ -65,62 +74,62 @@ const embeddingCache = new Map<string, number[]>();
 
 /** Gera o vetor de um texto. `kind` define o prefixo exigido pelo e5. */
 export async function embedLocal(text: string, kind: EmbeddingKind = 'passage'): Promise<number[]> {
-    const normalizado = text.trim();
-    if (!normalizado) throw new Error('O texto do embedding não pode ser vazio.');
+  const normalizado = text.trim();
+  if (!normalizado) throw new Error('O texto do embedding não pode ser vazio.');
 
-    const cacheKey = `${kind}:${normalizado}`;
-    const cached = embeddingCache.get(cacheKey);
-    if (cached) {
-        return [...cached];
-    }
+  const cacheKey = `${kind}:${normalizado}`;
+  const cached = embeddingCache.get(cacheKey);
+  if (cached) {
+    return [...cached];
+  }
 
-    // Suporte ao TEI (Text Embeddings Inference - open-source engine de altíssima performance)
-    if (process.env.TEI_BASE_URL) {
-        try {
-            const teiUrl = process.env.TEI_BASE_URL.replace(/\/+$/, '');
-            const res = await fetch(`${teiUrl}/embed`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ inputs: `${kind}: ${normalizado}` }),
-            });
-            if (res.ok) {
-                const data = (await res.json()) as number[][];
-                if (data && data[0] && data[0].length === EMBEDDING_DIMENSIONS) {
-                    embeddingCache.set(cacheKey, data[0]);
-                    return data[0];
-                }
-            }
-        } catch {
-            // Fallback transparente para o pipeline transformers local
+  // Suporte ao TEI (Text Embeddings Inference - open-source engine de altíssima performance)
+  if (process.env.TEI_BASE_URL) {
+    try {
+      const teiUrl = process.env.TEI_BASE_URL.replace(/\/+$/, '');
+      const res = await fetch(`${teiUrl}/embed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputs: `${kind}: ${normalizado}` }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as number[][];
+        if (data && data[0] && data[0].length === EMBEDDING_DIMENSIONS) {
+          embeddingCache.set(cacheKey, data[0]);
+          return data[0];
         }
+      }
+    } catch {
+      // Fallback transparente para o pipeline transformers local
     }
+  }
 
-    const extrator = await obterExtrator();
-    const saida = await extrator(`${kind}: ${normalizado}`, { pooling: 'mean', normalize: true });
-    const vetor = Array.from(saida.data as ArrayLike<number>);
+  const extrator = await obterExtrator();
+  const saida = await extrator(`${kind}: ${normalizado}`, { pooling: 'mean', normalize: true });
+  const vetor = Array.from(saida.data as ArrayLike<number>);
 
-    if (vetor.length !== EMBEDDING_DIMENSIONS) {
-        throw new Error(
-            `O modelo ${MODEL_ID} devolveu ${vetor.length} dimensões, mas a coluna espera ${EMBEDDING_DIMENSIONS}.`,
-        );
-    }
-    if (!vetor.every(Number.isFinite)) {
-        throw new Error('O modelo devolveu um embedding com valores inválidos.');
-    }
+  if (vetor.length !== EMBEDDING_DIMENSIONS) {
+    throw new Error(
+      `O modelo ${MODEL_ID} devolveu ${vetor.length} dimensões, mas a coluna espera ${EMBEDDING_DIMENSIONS}.`,
+    );
+  }
+  if (!vetor.every(Number.isFinite)) {
+    throw new Error('O modelo devolveu um embedding com valores inválidos.');
+  }
 
-    if (embeddingCache.size >= EMBEDDING_CACHE_MAX_SIZE) {
-        const oldestKey = embeddingCache.keys().next().value;
-        if (oldestKey) embeddingCache.delete(oldestKey);
-    }
-    embeddingCache.set(cacheKey, vetor);
+  if (embeddingCache.size >= EMBEDDING_CACHE_MAX_SIZE) {
+    const oldestKey = embeddingCache.keys().next().value;
+    if (oldestKey) embeddingCache.delete(oldestKey);
+  }
+  embeddingCache.set(cacheKey, vetor);
 
-    return vetor;
+  return vetor;
 }
 
 /** Usado nos testes para reiniciar o estado do carregamento. */
 export function resetLocalEmbeddings(): void {
-    carregando = null;
-    embeddingCache.clear();
+  carregando = null;
+  embeddingCache.clear();
 }
 
 export const LOCAL_EMBEDDING_MODEL_ID = MODEL_ID;

@@ -1,6 +1,10 @@
 import type { ProspectingProviderMode } from '../../../config/prospecting-integrations.js';
 import type { SearchIntent } from './searchIntent.js';
-import { PROVIDER_CAPABILITIES, isProviderAvailable, type DiscoveryProviderId } from './providerCapabilities.js';
+import {
+  PROVIDER_CAPABILITIES,
+  isProviderAvailable,
+  type DiscoveryProviderId,
+} from './providerCapabilities.js';
 
 /**
  * CPI DEC-12 (opção A) — camada `QueryPlanner`.
@@ -27,26 +31,26 @@ import { PROVIDER_CAPABILITIES, isProviderAvailable, type DiscoveryProviderId } 
  */
 
 export interface ProviderPlanStep {
-    provider: DiscoveryProviderId;
-    /** Quantos candidatos pedir a este provider nesta chamada. */
-    quota: number;
-    /** Score de prioridade (maior = mais prioritário) — ver `scoreProvider`. Controla a ORDEM do
-     * plano, que por sua vez controla a ordem de absorção/dedupe em `discoverCandidates`: quando o
-     * mesmo nome de empresa aparece em mais de um provider da mesma leva, o resultado do provider
-     * que aparece PRIMEIRO no plano é o que fica (ver `absorb` em `prospecting.service.ts`). Não
-     * controla velocidade — todos os providers da leva primária ainda são chamados em paralelo. */
-    score: number;
-    /** Por que este provider entrou no plano com esta quota/posição — pensado para log/teste, não
-     * só comentário de código. Sempre tem ao menos a razão de prioridade-base. */
-    reasons: string[];
+  provider: DiscoveryProviderId;
+  /** Quantos candidatos pedir a este provider nesta chamada. */
+  quota: number;
+  /** Score de prioridade (maior = mais prioritário) — ver `scoreProvider`. Controla a ORDEM do
+   * plano, que por sua vez controla a ordem de absorção/dedupe em `discoverCandidates`: quando o
+   * mesmo nome de empresa aparece em mais de um provider da mesma leva, o resultado do provider
+   * que aparece PRIMEIRO no plano é o que fica (ver `absorb` em `prospecting.service.ts`). Não
+   * controla velocidade — todos os providers da leva primária ainda são chamados em paralelo. */
+  score: number;
+  /** Por que este provider entrou no plano com esta quota/posição — pensado para log/teste, não
+   * só comentário de código. Sempre tem ao menos a razão de prioridade-base. */
+  reasons: string[];
 }
 
 export interface QueryPlan {
-    /** Ordenados por score decrescente — a ordem em que `discoverCandidates` deve chamar e
-     * absorver os resultados. */
-    steps: ProviderPlanStep[];
-    intent: SearchIntent;
-    providerMode: ProspectingProviderMode;
+  /** Ordenados por score decrescente — a ordem em que `discoverCandidates` deve chamar e
+   * absorver os resultados. */
+  steps: ProviderPlanStep[];
+  intent: SearchIntent;
+  providerMode: ProspectingProviderMode;
 }
 
 // Pesos do scoring — números escolhidos com uma folga grande o bastante entre o "score base" de
@@ -56,16 +60,16 @@ export interface QueryPlan {
 // ML nem precisa ser: é uma função determinística, pequena o bastante para ser auditada por
 // inteiro num code review, e testada exatamente por isso.
 const BASE_SCORE: Record<DiscoveryProviderId, number> = {
-    // Único provider com filtro firmográfico estruturado real (porte, faturamento, ano de
-    // fundação, tecnologia, capital aberto) e decisor pré-buscado — a fonte de dado mais rica do
-    // ICP logístico da Atlas hoje (ver `organizationSearch.ts`/`rankByIcpAffinity`).
-    apollo: 100,
-    // Dado real de "lugar" (endereço, avaliação, telefone, site) com geocodificação precisa — mais
-    // confiável que a Apollo para geografia hiperlocal, mais rico que o Nominatim.
-    googlePlaces: 70,
-    // Fallback aberto/gratuito — cobertura mais fraca de campos (sem avaliação; telefone/site
-    // dependem de tag OSM preenchida pela comunidade), mas sem custo e sem exigir chave.
-    nominatim: 40,
+  // Único provider com filtro firmográfico estruturado real (porte, faturamento, ano de
+  // fundação, tecnologia, capital aberto) e decisor pré-buscado — a fonte de dado mais rica do
+  // ICP logístico da Atlas hoje (ver `organizationSearch.ts`/`rankByIcpAffinity`).
+  apollo: 100,
+  // Dado real de "lugar" (endereço, avaliação, telefone, site) com geocodificação precisa — mais
+  // confiável que a Apollo para geografia hiperlocal, mais rico que o Nominatim.
+  googlePlaces: 70,
+  // Fallback aberto/gratuito — cobertura mais fraca de campos (sem avaliação; telefone/site
+  // dependem de tag OSM preenchida pela comunidade), mas sem custo e sem exigir chave.
+  nominatim: 40,
 };
 
 const W_FIRMOGRAPHIC_MATCH = 15;
@@ -78,30 +82,33 @@ const W_DECISION_MAKER_MATCH = 10;
  * capacidade real do provider (`providerCapabilities.ts`) bate com uma necessidade real da busca.
  * Exportada para ser testada isoladamente, sem precisar montar um `QueryPlan` inteiro.
  */
-export function scoreProvider(provider: DiscoveryProviderId, intent: SearchIntent): { score: number; reasons: string[] } {
-    const capability = PROVIDER_CAPABILITIES[provider];
-    let score = BASE_SCORE[provider];
-    const reasons: string[] = [`Prioridade-base (${capability.label}): ${BASE_SCORE[provider]}`];
+export function scoreProvider(
+  provider: DiscoveryProviderId,
+  intent: SearchIntent,
+): { score: number; reasons: string[] } {
+  const capability = PROVIDER_CAPABILITIES[provider];
+  let score = BASE_SCORE[provider];
+  const reasons: string[] = [`Prioridade-base (${capability.label}): ${BASE_SCORE[provider]}`];
 
-    if (intent.needsFirmographicFiltering && capability.supportsFirmographicFilters) {
-        score += W_FIRMOGRAPHIC_MATCH;
-        reasons.push(
-            `+${W_FIRMOGRAPHIC_MATCH}: busca pede filtro firmográfico estruturado (porte/faturamento/ano/tecnologia/capital aberto) e este provider sabe filtrar por isso`
-        );
-    }
-    if (intent.location.isCitySpecific && capability.supportsCitySpecificPrecision) {
-        score += W_CITY_PRECISION_MATCH;
-        reasons.push(
-            `+${W_CITY_PRECISION_MATCH}: busca informou cidade+estado (geografia hiperlocal) e este provider geocodifica com precisão real`
-        );
-    }
-    if (intent.needsDecisionMakerContacts && capability.dataKinds.includes('decisionMakerContacts')) {
-        score += W_DECISION_MAKER_MATCH;
-        reasons.push(
-            `+${W_DECISION_MAKER_MATCH}: busca informou cargos-alvo de decisor e este provider já traz decisor pré-buscado`
-        );
-    }
-    return { score, reasons };
+  if (intent.needsFirmographicFiltering && capability.supportsFirmographicFilters) {
+    score += W_FIRMOGRAPHIC_MATCH;
+    reasons.push(
+      `+${W_FIRMOGRAPHIC_MATCH}: busca pede filtro firmográfico estruturado (porte/faturamento/ano/tecnologia/capital aberto) e este provider sabe filtrar por isso`,
+    );
+  }
+  if (intent.location.isCitySpecific && capability.supportsCitySpecificPrecision) {
+    score += W_CITY_PRECISION_MATCH;
+    reasons.push(
+      `+${W_CITY_PRECISION_MATCH}: busca informou cidade+estado (geografia hiperlocal) e este provider geocodifica com precisão real`,
+    );
+  }
+  if (intent.needsDecisionMakerContacts && capability.dataKinds.includes('decisionMakerContacts')) {
+    score += W_DECISION_MAKER_MATCH;
+    reasons.push(
+      `+${W_DECISION_MAKER_MATCH}: busca informou cargos-alvo de decisor e este provider já traz decisor pré-buscado`,
+    );
+  }
+  return { score, reasons };
 }
 
 /** Abaixo desta quantidade solicitada, o Nominatim não entra no plano — mesma regra que já valia
@@ -124,9 +131,9 @@ const CITY_SPECIFIC_GOOGLE_PLACES_SHARE = 0.4;
 const GOOGLE_PLACES_QUOTA_CAP = 25;
 
 function googlePlacesQuota(intent: SearchIntent): number {
-    return intent.location.isCitySpecific
-        ? Math.max(1, Math.round(intent.quantityRequested * CITY_SPECIFIC_GOOGLE_PLACES_SHARE))
-        : Math.min(intent.quantityRequested, GOOGLE_PLACES_QUOTA_CAP);
+  return intent.location.isCitySpecific
+    ? Math.max(1, Math.round(intent.quantityRequested * CITY_SPECIFIC_GOOGLE_PLACES_SHARE))
+    : Math.min(intent.quantityRequested, GOOGLE_PLACES_QUOTA_CAP);
 }
 
 /**
@@ -134,57 +141,60 @@ function googlePlacesQuota(intent: SearchIntent): number {
  * descoberta de empresas — substitui o cascade fixo anterior (Apollo → Google Places → Nominatim,
  * sempre nesta ordem, sempre com esta aritmética de cota) por uma decisão explícita e testável.
  */
-export function planCompanyDiscovery(intent: SearchIntent, providerMode: ProspectingProviderMode): QueryPlan {
-    const steps: ProviderPlanStep[] = [];
+export function planCompanyDiscovery(
+  intent: SearchIntent,
+  providerMode: ProspectingProviderMode,
+): QueryPlan {
+  const steps: ProviderPlanStep[] = [];
 
-    // Apollo só participa em modo 'hybrid' — em 'free' não há chave paga habilitada
-    // (`getPaidProspectingKey`) e o cascade anterior já pulava a chamada inteiramente nesse caso
-    // (`Promise.resolve({candidates: []})` em vez de chamar `fetchApolloCandidates`). Usa
-    // `isProviderAvailable` (baseado na capacidade declarada `requiresPaidKey`) em vez de repetir
-    // a checagem de modo solta.
-    if (isProviderAvailable('apollo', providerMode)) {
-        const { score, reasons } = scoreProvider('apollo', intent);
-        steps.push({
-            provider: 'apollo',
-            quota: intent.quantityRequested,
-            score,
-            reasons: [...reasons, `providerMode='hybrid' habilita este provider pago`],
-        });
-    }
+  // Apollo só participa em modo 'hybrid' — em 'free' não há chave paga habilitada
+  // (`getPaidProspectingKey`) e o cascade anterior já pulava a chamada inteiramente nesse caso
+  // (`Promise.resolve({candidates: []})` em vez de chamar `fetchApolloCandidates`). Usa
+  // `isProviderAvailable` (baseado na capacidade declarada `requiresPaidKey`) em vez de repetir
+  // a checagem de modo solta.
+  if (isProviderAvailable('apollo', providerMode)) {
+    const { score, reasons } = scoreProvider('apollo', intent);
+    steps.push({
+      provider: 'apollo',
+      quota: intent.quantityRequested,
+      score,
+      reasons: [...reasons, `providerMode='hybrid' habilita este provider pago`],
+    });
+  }
 
-    // Google Places é sempre tentado na leva primária, independente do modo — o cascade anterior
-    // também chamava `discoverViaGooglePlaces` incondicionalmente; sem chave paga habilitada (modo
-    // 'free'), a chamada real já devolvia vazio internamente (`getPaidProspectingKey` depende do
-    // mesmo `providerMode`), então o resultado observável é idêntico. Preservado por fidelidade
-    // estrita ao comportamento anterior — não é uma escolha nova deste planner (por isso não usa
-    // `isProviderAvailable`, diferente da Apollo acima).
-    {
-        const { score, reasons } = scoreProvider('googlePlaces', intent);
-        steps.push({ provider: 'googlePlaces', quota: googlePlacesQuota(intent), score, reasons });
-    }
+  // Google Places é sempre tentado na leva primária, independente do modo — o cascade anterior
+  // também chamava `discoverViaGooglePlaces` incondicionalmente; sem chave paga habilitada (modo
+  // 'free'), a chamada real já devolvia vazio internamente (`getPaidProspectingKey` depende do
+  // mesmo `providerMode`), então o resultado observável é idêntico. Preservado por fidelidade
+  // estrita ao comportamento anterior — não é uma escolha nova deste planner (por isso não usa
+  // `isProviderAvailable`, diferente da Apollo acima).
+  {
+    const { score, reasons } = scoreProvider('googlePlaces', intent);
+    steps.push({ provider: 'googlePlaces', quota: googlePlacesQuota(intent), score, reasons });
+  }
 
-    if (intent.quantityRequested > NOMINATIM_SUPPLEMENT_MIN_QUANTITY) {
-        const { score, reasons } = scoreProvider('nominatim', intent);
-        steps.push({
-            provider: 'nominatim',
-            quota: Math.min(intent.quantityRequested, NOMINATIM_QUOTA_CAP),
-            score,
-            reasons: [
-                ...reasons,
-                `quantidade solicitada (${intent.quantityRequested}) > ${NOMINATIM_SUPPLEMENT_MIN_QUANTITY} — cota grande o bastante para justificar uma terceira fonte gratuita`,
-            ],
-        });
-    }
+  if (intent.quantityRequested > NOMINATIM_SUPPLEMENT_MIN_QUANTITY) {
+    const { score, reasons } = scoreProvider('nominatim', intent);
+    steps.push({
+      provider: 'nominatim',
+      quota: Math.min(intent.quantityRequested, NOMINATIM_QUOTA_CAP),
+      score,
+      reasons: [
+        ...reasons,
+        `quantidade solicitada (${intent.quantityRequested}) > ${NOMINATIM_SUPPLEMENT_MIN_QUANTITY} — cota grande o bastante para justificar uma terceira fonte gratuita`,
+      ],
+    });
+  }
 
-    // Ordena por score decrescente (maior prioridade primeiro). No cascade legado a ORDEM da leva
-    // primária (que também é a ordem de absorção/dedupe — ver `absorb` em
-    // `prospecting.service.ts`) já era hardcoded como Apollo → Google Places → Nominatim; o
-    // scoring acima foi desenhado (ver `BASE_SCORE`) para reproduzir exatamente essa ordem por
-    // padrão, mas agora de forma explícita e auditável — a posição no array de código deixou de
-    // ser o que determina a prioridade.
-    steps.sort((a, b) => b.score - a.score);
+  // Ordena por score decrescente (maior prioridade primeiro). No cascade legado a ORDEM da leva
+  // primária (que também é a ordem de absorção/dedupe — ver `absorb` em
+  // `prospecting.service.ts`) já era hardcoded como Apollo → Google Places → Nominatim; o
+  // scoring acima foi desenhado (ver `BASE_SCORE`) para reproduzir exatamente essa ordem por
+  // padrão, mas agora de forma explícita e auditável — a posição no array de código deixou de
+  // ser o que determina a prioridade.
+  steps.sort((a, b) => b.score - a.score);
 
-    return { steps, intent, providerMode };
+  return { steps, intent, providerMode };
 }
 
 /**
@@ -197,22 +207,22 @@ export function planCompanyDiscovery(intent: SearchIntent, providerMode: Prospec
  * fazer — a cota já foi preenchida, ou o modo não permite.
  */
 export function planShortfallFallback(
-    intent: SearchIntent,
-    providerMode: ProspectingProviderMode,
-    gatheredCount: number
+  intent: SearchIntent,
+  providerMode: ProspectingProviderMode,
+  gatheredCount: number,
 ): ProviderPlanStep | null {
-    if (providerMode !== 'hybrid') return null;
-    if (gatheredCount >= intent.quantityRequested) return null;
+  if (providerMode !== 'hybrid') return null;
+  if (gatheredCount >= intent.quantityRequested) return null;
 
-    const remaining = intent.quantityRequested - gatheredCount;
-    const { score, reasons } = scoreProvider('googlePlaces', intent);
-    return {
-        provider: 'googlePlaces',
-        quota: remaining,
-        score,
-        reasons: [
-            ...reasons,
-            `leva primária trouxe só ${gatheredCount}/${intent.quantityRequested} candidatos — reforço para completar a cota`,
-        ],
-    };
+  const remaining = intent.quantityRequested - gatheredCount;
+  const { score, reasons } = scoreProvider('googlePlaces', intent);
+  return {
+    provider: 'googlePlaces',
+    quota: remaining,
+    score,
+    reasons: [
+      ...reasons,
+      `leva primária trouxe só ${gatheredCount}/${intent.quantityRequested} candidatos — reforço para completar a cota`,
+    ],
+  };
 }

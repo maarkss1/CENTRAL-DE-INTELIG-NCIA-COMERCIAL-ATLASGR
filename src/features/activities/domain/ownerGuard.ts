@@ -16,18 +16,18 @@ import { AppError } from '../../../shared/middlewares/errorHandler';
  * dois caminhos).
  */
 const FORBIDDEN_PLACEHOLDER_OWNERS = new Set([
-    'enxame de ia atlas',
-    'enxame de ia atlasgr',
-    'vendedor 1',
-    'vendedor padrão',
-    'vendedor genérico',
+  'enxame de ia atlas',
+  'enxame de ia atlasgr',
+  'vendedor 1',
+  'vendedor padrão',
+  'vendedor genérico',
 ]);
 
 export function assertRealOwner(owner: string): void {
-    if (FORBIDDEN_PLACEHOLDER_OWNERS.has(owner.trim().toLowerCase())) {
-        throw new AppError(
-            `"${owner}" não é um responsável real — informe a pessoa de fato responsável por esta atividade, sem usar um nome de preenchimento.`,
-            422,
-        );
-    }
+  if (FORBIDDEN_PLACEHOLDER_OWNERS.has(owner.trim().toLowerCase())) {
+    throw new AppError(
+      `"${owner}" não é um responsável real — informe a pessoa de fato responsável por esta atividade, sem usar um nome de preenchimento.`,
+      422,
+    );
+  }
 }

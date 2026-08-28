@@ -26,7 +26,9 @@ function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
     }
   }, deps); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return { data, loading, error, refetch: load };
 }
@@ -34,28 +36,43 @@ function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPANIES HOOK
 // ─────────────────────────────────────────────────────────────────────────────
-export function useCompanies(params?: { page?: number; limit?: number; search?: string; status?: string; segment?: string }) {
+export function useCompanies(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  segment?: string;
+}) {
   const { data, loading, error, refetch } = useFetch(
     () => companiesDB.list(params),
-    [params?.page, params?.limit, params?.search, params?.status, params?.segment]
+    [params?.page, params?.limit, params?.search, params?.status, params?.segment],
   );
 
-  const createCompany = useCallback(async (newData: Partial<Company>) => {
-    const created = await companiesDB.create(newData);
-    await refetch();
-    return created;
-  }, [refetch]);
+  const createCompany = useCallback(
+    async (newData: Partial<Company>) => {
+      const created = await companiesDB.create(newData);
+      await refetch();
+      return created;
+    },
+    [refetch],
+  );
 
-  const updateCompany = useCallback(async (id: string, updates: Partial<Company>) => {
-    const updated = await companiesDB.update(id, updates);
-    await refetch();
-    return updated;
-  }, [refetch]);
+  const updateCompany = useCallback(
+    async (id: string, updates: Partial<Company>) => {
+      const updated = await companiesDB.update(id, updates);
+      await refetch();
+      return updated;
+    },
+    [refetch],
+  );
 
-  const deleteCompany = useCallback(async (id: string) => {
-    await companiesDB.delete(id);
-    await refetch();
-  }, [refetch]);
+  const deleteCompany = useCallback(
+    async (id: string) => {
+      await companiesDB.delete(id);
+      await refetch();
+    },
+    [refetch],
+  );
 
   return {
     companies: (data as PaginatedResponse<Company>)?.data ?? [],
@@ -72,28 +89,43 @@ export function useCompanies(params?: { page?: number; limit?: number; search?: 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTACTS HOOK
 // ─────────────────────────────────────────────────────────────────────────────
-export function useContacts(params?: { page?: number; limit?: number; search?: string; companyId?: string; status?: string }) {
+export function useContacts(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  companyId?: string;
+  status?: string;
+}) {
   const { data, loading, error, refetch } = useFetch(
     () => contactsDB.list(params),
-    [params?.page, params?.limit, params?.search, params?.companyId, params?.status]
+    [params?.page, params?.limit, params?.search, params?.companyId, params?.status],
   );
 
-  const createContact = useCallback(async (newData: Partial<Contact>) => {
-    const created = await contactsDB.create(newData);
-    await refetch();
-    return created;
-  }, [refetch]);
+  const createContact = useCallback(
+    async (newData: Partial<Contact>) => {
+      const created = await contactsDB.create(newData);
+      await refetch();
+      return created;
+    },
+    [refetch],
+  );
 
-  const updateContact = useCallback(async (id: string, updates: Partial<Contact>) => {
-    const updated = await contactsDB.update(id, updates);
-    await refetch();
-    return updated;
-  }, [refetch]);
+  const updateContact = useCallback(
+    async (id: string, updates: Partial<Contact>) => {
+      const updated = await contactsDB.update(id, updates);
+      await refetch();
+      return updated;
+    },
+    [refetch],
+  );
 
-  const deleteContact = useCallback(async (id: string) => {
-    await contactsDB.delete(id);
-    await refetch();
-  }, [refetch]);
+  const deleteContact = useCallback(
+    async (id: string) => {
+      await contactsDB.delete(id);
+      await refetch();
+    },
+    [refetch],
+  );
 
   return {
     contacts: (data as PaginatedResponse<Contact>)?.data ?? [],
@@ -110,34 +142,52 @@ export function useContacts(params?: { page?: number; limit?: number; search?: s
 // ─────────────────────────────────────────────────────────────────────────────
 // LEADS / CRM HOOK
 // ─────────────────────────────────────────────────────────────────────────────
-export function useLeads(params?: { page?: number; limit?: number; status?: string; companyId?: string; owner?: string }) {
+export function useLeads(params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  companyId?: string;
+  owner?: string;
+}) {
   const { data, loading, error, refetch } = useFetch(
     () => leadsDB.list(params),
-    [params?.page, params?.limit, params?.status, params?.companyId, params?.owner]
+    [params?.page, params?.limit, params?.status, params?.companyId, params?.owner],
   );
 
-  const createLead = useCallback(async (newData: Partial<Lead>) => {
-    const created = await leadsDB.create(newData);
-    await refetch();
-    return created;
-  }, [refetch]);
+  const createLead = useCallback(
+    async (newData: Partial<Lead>) => {
+      const created = await leadsDB.create(newData);
+      await refetch();
+      return created;
+    },
+    [refetch],
+  );
 
-  const updateLead = useCallback(async (id: string, updates: Partial<Lead>) => {
-    const updated = await leadsDB.update(id, updates);
-    await refetch();
-    return updated;
-  }, [refetch]);
+  const updateLead = useCallback(
+    async (id: string, updates: Partial<Lead>) => {
+      const updated = await leadsDB.update(id, updates);
+      await refetch();
+      return updated;
+    },
+    [refetch],
+  );
 
-  const moveLead = useCallback(async (id: string, status: string) => {
-    const updated = await leadsDB.updateStatus(id, status);
-    await refetch();
-    return updated;
-  }, [refetch]);
+  const moveLead = useCallback(
+    async (id: string, status: string) => {
+      const updated = await leadsDB.updateStatus(id, status);
+      await refetch();
+      return updated;
+    },
+    [refetch],
+  );
 
-  const deleteLead = useCallback(async (id: string) => {
-    await leadsDB.delete(id);
-    await refetch();
-  }, [refetch]);
+  const deleteLead = useCallback(
+    async (id: string) => {
+      await leadsDB.delete(id);
+      await refetch();
+    },
+    [refetch],
+  );
 
   return {
     leads: (data as PaginatedResponse<Lead>)?.data ?? [],
@@ -155,7 +205,15 @@ export function useLeads(params?: { page?: number; limit?: number; status?: stri
 // ─────────────────────────────────────────────────────────────────────────────
 // ACTIVITIES HOOK
 // ─────────────────────────────────────────────────────────────────────────────
-export function useActivities(params?: { page?: number; limit?: number; leadId?: string; status?: string; type?: string; from?: string; to?: string }) {
+export function useActivities(params?: {
+  page?: number;
+  limit?: number;
+  leadId?: string;
+  status?: string;
+  type?: string;
+  from?: string;
+  to?: string;
+}) {
   // `from`/`to` faltavam neste array de deps: o efeito em useFetch só reagia a page/limit/leadId/
   // status/type, então trocar o intervalo de datas (ex.: navegar de mês no calendário) nunca
   // disparava um novo fetch — a tela ficava presa nos dados do primeiro intervalo carregado.
@@ -164,25 +222,42 @@ export function useActivities(params?: { page?: number; limit?: number; leadId?:
   // mudaria de identidade a cada render.
   const { data, loading, error, refetch } = useFetch(
     () => activitiesDB.list(params),
-    [params?.page, params?.limit, params?.leadId, params?.status, params?.type, params?.from, params?.to]
+    [
+      params?.page,
+      params?.limit,
+      params?.leadId,
+      params?.status,
+      params?.type,
+      params?.from,
+      params?.to,
+    ],
   );
 
-  const createActivity = useCallback(async (newData: Partial<Activity>) => {
-    const created = await activitiesDB.create(newData);
-    await refetch();
-    return created;
-  }, [refetch]);
+  const createActivity = useCallback(
+    async (newData: Partial<Activity>) => {
+      const created = await activitiesDB.create(newData);
+      await refetch();
+      return created;
+    },
+    [refetch],
+  );
 
-  const updateActivity = useCallback(async (id: string, updates: Partial<Activity>) => {
-    const updated = await activitiesDB.update(id, updates);
-    await refetch();
-    return updated;
-  }, [refetch]);
+  const updateActivity = useCallback(
+    async (id: string, updates: Partial<Activity>) => {
+      const updated = await activitiesDB.update(id, updates);
+      await refetch();
+      return updated;
+    },
+    [refetch],
+  );
 
-  const deleteActivity = useCallback(async (id: string) => {
-    await activitiesDB.delete(id);
-    await refetch();
-  }, [refetch]);
+  const deleteActivity = useCallback(
+    async (id: string) => {
+      await activitiesDB.delete(id);
+      await refetch();
+    },
+    [refetch],
+  );
 
   return {
     activities: (data as PaginatedResponse<Activity>)?.data ?? [],

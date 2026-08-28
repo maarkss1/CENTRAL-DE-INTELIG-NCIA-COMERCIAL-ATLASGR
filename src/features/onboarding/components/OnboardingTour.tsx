@@ -16,24 +16,28 @@ type TourStep = {
 const steps: TourStep[] = [
   {
     id: 1,
-    message: "Olá! Bem-vindo à nossa plataforma B2B. Eu sou a Inteligência Artificial do sistema. Estou aqui para ajudar você a dominar a prospecção.",
+    message:
+      'Olá! Bem-vindo à nossa plataforma B2B. Eu sou a Inteligência Artificial do sistema. Estou aqui para ajudar você a dominar a prospecção.',
     position: 'center',
   },
   {
     id: 2,
-    message: "Aqui na página inicial, você deve escolher em qual operação deseja trabalhar: AtlasGR ou Total Trac. Cada uma tem ferramentas e identidades próprias.",
+    message:
+      'Aqui na página inicial, você deve escolher em qual operação deseja trabalhar: AtlasGR ou Total Trac. Cada uma tem ferramentas e identidades próprias.',
     position: 'left-center',
   },
   {
     id: 3,
-    message: "Na parte inferior, você sempre terá acesso ao 'Dock de Inteligências'. Lá estão nossas ferramentas avançadas, como o Copilot e o simulador de Roleplay.",
+    message:
+      "Na parte inferior, você sempre terá acesso ao 'Dock de Inteligências'. Lá estão nossas ferramentas avançadas, como o Copilot e o simulador de Roleplay.",
     position: 'bottom-center',
   },
   {
     id: 4,
-    message: "Tudo pronto! Se precisar de mim, estarei sempre no canto inferior. Vamos começar a vender!",
+    message:
+      'Tudo pronto! Se precisar de mim, estarei sempre no canto inferior. Vamos começar a vender!',
     position: 'center',
-  }
+  },
 ];
 
 export function OnboardingTour() {
@@ -64,7 +68,7 @@ export function OnboardingTour() {
   const handleNext = () => {
     SoundFX.playClick();
     if (currentStep < steps.length - 1) {
-      setCurrentStep(prev => prev + 1);
+      setCurrentStep((prev) => prev + 1);
     } else {
       handleClose();
     }
@@ -82,11 +86,16 @@ export function OnboardingTour() {
   // Helper to map position to CSS classes
   const getPositionClasses = (pos: string) => {
     switch (pos) {
-      case 'center': return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
-      case 'left-center': return 'top-1/2 left-32 -translate-y-1/2';
-      case 'top-right': return 'top-20 right-20';
-      case 'bottom-center': return 'bottom-32 left-1/2 -translate-x-1/2';
-      default: return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
+      case 'center':
+        return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
+      case 'left-center':
+        return 'top-1/2 left-32 -translate-y-1/2';
+      case 'top-right':
+        return 'top-20 right-20';
+      case 'bottom-center':
+        return 'bottom-32 left-1/2 -translate-x-1/2';
+      default:
+        return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
     }
   };
 
@@ -109,13 +118,15 @@ export function OnboardingTour() {
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 200, damping: 20 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         className={`absolute flex flex-col items-center pointer-events-auto ${getPositionClasses(step.position)}`}
       >
         <div className="relative mb-6">
           <AtlasOrb size={180} />
           {/* Pulsing indicator behind the orb */}
-          <div className={`absolute inset-0 rounded-full animate-ping opacity-20 ${isAtlas ? 'bg-brand' : 'bg-brand-2'}`} />
+          <div
+            className={`absolute inset-0 rounded-full animate-ping opacity-20 ${isAtlas ? 'bg-brand' : 'bg-brand-2'}`}
+          />
         </div>
 
         <motion.div
@@ -129,17 +140,19 @@ export function OnboardingTour() {
           }`}
         >
           {/* Subtle glow inside tooltip */}
-          <div className={`absolute top-0 inset-x-0 h-1 ${isAtlas ? 'bg-gradient-to-r from-brand/0 via-brand to-brand/0' : 'bg-gradient-to-r from-brand-2/0 via-brand-2 to-brand-2/0'}`} />
+          <div
+            className={`absolute top-0 inset-x-0 h-1 ${isAtlas ? 'bg-gradient-to-r from-brand/0 via-brand to-brand/0' : 'bg-gradient-to-r from-brand-2/0 via-brand-2 to-brand-2/0'}`}
+          />
 
-          <p className="text-base font-semibold leading-relaxed mb-6">
-            {step.message}
-          </p>
+          <p className="text-base font-semibold leading-relaxed mb-6">{step.message}</p>
 
           <div className="flex w-full justify-between items-center mt-2">
             <button
               onClick={handleClose}
               className={`text-xs font-semibold transition-colors flex items-center gap-1 ${
-                theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-white/50 hover:text-white'
+                theme === 'light'
+                  ? 'text-slate-500 hover:text-slate-800'
+                  : 'text-white/50 hover:text-white'
               }`}
             >
               <X size={14} /> Pular Tour
@@ -148,7 +161,8 @@ export function OnboardingTour() {
               onClick={handleNext}
               className={`${isAtlas ? 'bg-brand-active hover:bg-orange-600' : 'bg-brand-2-active hover:bg-sky-600'} text-white shadow-lg`}
             >
-              {currentStep === steps.length - 1 ? 'Começar' : 'Avançar'} <ChevronRight size={16} className="ml-1" />
+              {currentStep === steps.length - 1 ? 'Começar' : 'Avançar'}{' '}
+              <ChevronRight size={16} className="ml-1" />
             </Button>
           </div>
         </motion.div>

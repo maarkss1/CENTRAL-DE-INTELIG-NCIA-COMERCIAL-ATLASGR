@@ -11,13 +11,19 @@ export type RepositoryFactoryFn<TAggregate extends AggregateRoot<unknown, Unique
   () => Repository<TAggregate>;
 
 export class RepositoryFactory {
-  private readonly factories = new Map<string, RepositoryFactoryFn<AggregateRoot<unknown, UniqueEntityID>>>();
+  private readonly factories = new Map<
+    string,
+    RepositoryFactoryFn<AggregateRoot<unknown, UniqueEntityID>>
+  >();
 
   public register<TAggregate extends AggregateRoot<unknown, UniqueEntityID>>(
     token: string,
     factory: RepositoryFactoryFn<TAggregate>,
   ): void {
-    this.factories.set(token, factory as RepositoryFactoryFn<AggregateRoot<unknown, UniqueEntityID>>);
+    this.factories.set(
+      token,
+      factory as RepositoryFactoryFn<AggregateRoot<unknown, UniqueEntityID>>,
+    );
   }
 
   public create<TAggregate extends AggregateRoot<unknown, UniqueEntityID>>(

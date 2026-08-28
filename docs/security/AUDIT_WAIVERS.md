@@ -43,9 +43,14 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
   por CVE ID para este achado — os dois IDs são o mesmo waiver, não dois achados diferentes.
 - **Severidade reportada pelo `npm audit`:** high (propaga para `@prisma/config` e `prisma`, ambos
   marcados high por dependerem transitivamente de `deepmerge-ts`).
-- **Cadeia:** `prisma@7.8.0` → `@prisma/config@7.8.0` → `deepmerge-ts<8.0.0`.
+- **Cadeia:** `prisma@7.10.0` → `@prisma/config@7.10.0` → `deepmerge-ts@7.1.5` (`<8.0.0`) — versões
+  resolvidas no `package-lock.json` em 2026-08-28. A cadeia já foi `7.8.0`/`7.8.0` quando este waiver
+  foi registrado (2026-08-17); Prisma foi atualizado desde então mas `deepmerge-ts` continua `<8.0.0`
+  em todas as versões `7.x` do Prisma publicadas até agora — a atualização não resolveu o achado,
+  só mudou o número da versão na cadeia. Atualize esta linha a cada bump de major/minor do Prisma
+  para não deixar a documentação do waiver referenciar uma versão antiga.
 - **Por que é aceito temporariamente:** o único fix automático (`npm audit fix --force`) rebaixa
-  `prisma`/`@prisma/config`/`@prisma/client` de `7.8.0` para `6.12.0` — downgrade major do ORM que
+  `prisma`/`@prisma/config`/`@prisma/client` para `6.12.0` — downgrade major do ORM que
   todo o schema, as migrations e o RLS multi-tenant do projeto já assumem como Prisma 7 (ver
   handoffs de correção de `AsyncLocalStorage` sob Prisma 7). Reverter a major é um projeto próprio de
   migração, não uma correção pontual de CI. `deepmerge-ts` é usado pelo carregamento de

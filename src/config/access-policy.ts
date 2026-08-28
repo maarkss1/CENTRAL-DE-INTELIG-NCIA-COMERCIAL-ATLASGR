@@ -3,10 +3,7 @@ export const AUTHORIZED_LOGIN_EMAILS = [
   'joao.reis@atlasgr.com.br',
 ] as const;
 
-export const AUTHORIZED_LOGIN_DOMAINS = [
-  'atlasgr.com.br',
-  'totaltrac.com.br',
-] as const;
+export const AUTHORIZED_LOGIN_DOMAINS = ['atlasgr.com.br', 'totaltrac.com.br'] as const;
 
 export function normalizeLoginEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -37,4 +34,3 @@ export function getBrandFromEmail(email: string): 'atlasgr' | 'totaltrac' {
   }
   return 'atlasgr';
 }
-

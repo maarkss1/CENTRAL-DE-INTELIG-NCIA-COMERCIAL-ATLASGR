@@ -67,8 +67,7 @@ export class CommandBus implements ICommandBus {
     context: UseCaseContext = UseCaseContext.create(),
   ): Promise<CommandResult<TValue>> {
     const handler = this.handlers.get(command.commandName) as
-      | ICommandHandler<TCommand, TValue>
-      | undefined;
+      ICommandHandler<TCommand, TValue> | undefined;
 
     if (!handler) {
       return Result.fail<TValue, ApplicationError>(
@@ -90,7 +89,11 @@ export class CommandBus implements ICommandBus {
 
       const chain = this.behaviors.reduceRight<PipelineNext<TValue>>(
         (next, behavior) => () =>
-          (behavior as unknown as PipelineBehavior<TCommand, TValue>).handle(command, context, next),
+          (behavior as unknown as PipelineBehavior<TCommand, TValue>).handle(
+            command,
+            context,
+            next,
+          ),
         executeHandler,
       );
 

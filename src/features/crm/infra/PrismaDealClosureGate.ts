@@ -9,36 +9,40 @@ import type { DealClosureEvidencePort } from '../application/dealClosureGate.js'
  * `docs/CADENCE-CYCLE-AUDIT.md` (schema existia, zero leitura/escrita em código) até esta rodada.
  */
 
-const TYPE_TO_DB: Record<DealClosureEventType, 'SignatureCompleted' | 'PaymentConfirmed' | 'ManualCrmConfirmation'> = {
-    signature_completed: 'SignatureCompleted',
-    payment_confirmed: 'PaymentConfirmed',
-    manual_crm_confirmation: 'ManualCrmConfirmation',
+const TYPE_TO_DB: Record<
+  DealClosureEventType,
+  'SignatureCompleted' | 'PaymentConfirmed' | 'ManualCrmConfirmation'
+> = {
+  signature_completed: 'SignatureCompleted',
+  payment_confirmed: 'PaymentConfirmed',
+  manual_crm_confirmation: 'ManualCrmConfirmation',
 };
 
 export const prismaDealClosureGate: DealClosureEvidencePort = {
-    async createConfirmationNote({ leadId, authorUserId }) {
-        const note = await prisma.note.create({
-            data: {
-                leadId,
-                author: authorUserId,
-                content: 'Negócio movido para "Negócios Ganhos" — confirmação manual registrada automaticamente ao fechar.',
-            },
-            select: { id: true },
-        });
-        return { id: note.id };
-    },
+  async createConfirmationNote({ leadId, authorUserId }) {
+    const note = await prisma.note.create({
+      data: {
+        leadId,
+        author: authorUserId,
+        content:
+          'Negócio movido para "Negócios Ganhos" — confirmação manual registrada automaticamente ao fechar.',
+      },
+      select: { id: true },
+    });
+    return { id: note.id };
+  },
 
-    async saveDealClosureEvent(event) {
-        await prisma.dealClosureEvent.create({
-            data: {
-                id: event.id,
-                organizationId: event.organizationId,
-                leadId: event.leadId,
-                type: TYPE_TO_DB[event.type],
-                evidenceRef: event.evidenceRef,
-                triggeredBy: event.triggeredBy,
-                occurredAt: event.occurredAt,
-            },
-        });
-    },
+  async saveDealClosureEvent(event) {
+    await prisma.dealClosureEvent.create({
+      data: {
+        id: event.id,
+        organizationId: event.organizationId,
+        leadId: event.leadId,
+        type: TYPE_TO_DB[event.type],
+        evidenceRef: event.evidenceRef,
+        triggeredBy: event.triggeredBy,
+        occurredAt: event.occurredAt,
+      },
+    });
+  },
 };

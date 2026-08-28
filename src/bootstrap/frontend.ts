@@ -12,17 +12,17 @@ import { env } from '../config/env.js';
  * handler e do restante do boot em server.ts.
  */
 export async function mountFrontend(app: Express): Promise<void> {
-    if (env.NODE_ENV !== 'production') {
-        const vite = await createViteServer({
-            server: { middlewareMode: true, host: true, allowedHosts: true },
-            appType: 'spa',
-        });
-        app.use(vite.middlewares);
-    } else {
-        const distPath = path.join(process.cwd(), 'dist');
-        app.use(express.static(distPath));
-        app.get('*', (_req, res) => {
-            res.sendFile(path.join(distPath, 'index.html'));
-        });
-    }
+  if (env.NODE_ENV !== 'production') {
+    const vite = await createViteServer({
+      server: { middlewareMode: true, host: true, allowedHosts: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
 }

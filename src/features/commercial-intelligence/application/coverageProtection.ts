@@ -9,14 +9,18 @@ import type { CoverageProtectionStatus } from '../domain/CommercialIntelligence'
 export const COVERAGE_PROTECTION_FALLBACK_HEALTHY = 3;
 export const COVERAGE_PROTECTION_FALLBACK_WARNING = 1.5;
 
-export function classifyCoverageProtection(hasGoal: boolean, coverage: number | null, coverageRecommended: number | null): CoverageProtectionStatus {
-    if (!hasGoal || coverage == null) return 'sem_dados';
-    if (coverageRecommended != null && coverageRecommended > 0) {
-        if (coverage >= coverageRecommended) return 'saudavel';
-        if (coverage >= coverageRecommended * 0.6) return 'atencao';
-        return 'critico';
-    }
-    if (coverage >= COVERAGE_PROTECTION_FALLBACK_HEALTHY) return 'saudavel';
-    if (coverage >= COVERAGE_PROTECTION_FALLBACK_WARNING) return 'atencao';
+export function classifyCoverageProtection(
+  hasGoal: boolean,
+  coverage: number | null,
+  coverageRecommended: number | null,
+): CoverageProtectionStatus {
+  if (!hasGoal || coverage == null) return 'sem_dados';
+  if (coverageRecommended != null && coverageRecommended > 0) {
+    if (coverage >= coverageRecommended) return 'saudavel';
+    if (coverage >= coverageRecommended * 0.6) return 'atencao';
     return 'critico';
+  }
+  if (coverage >= COVERAGE_PROTECTION_FALLBACK_HEALTHY) return 'saudavel';
+  if (coverage >= COVERAGE_PROTECTION_FALLBACK_WARNING) return 'atencao';
+  return 'critico';
 }

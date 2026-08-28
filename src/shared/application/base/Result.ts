@@ -5,9 +5,7 @@
 
 export type ResultMapper<TValue, TMapped> = (value: TValue) => TMapped;
 
-export type ResultFlatMapper<TValue, TMapped, TError> = (
-  value: TValue,
-) => Result<TMapped, TError>;
+export type ResultFlatMapper<TValue, TMapped, TError> = (value: TValue) => Result<TMapped, TError>;
 
 export interface ResultMatchers<TValue, TError, TOutput> {
   readonly onSuccess: (value: TValue) => TOutput;

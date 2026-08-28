@@ -18,7 +18,7 @@ export const MAX_ATTEMPTS_PER_LEG = 3;
 export const RETRY_BASE_DELAY_MS = 300;
 
 function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -28,11 +28,11 @@ function sleep(ms: number): Promise<void> {
  * esperando mais do que o necessário.
  */
 export function extractSuggestedRetryDelayMs(message: string): number | null {
-    const msMatch = message.match(/try again in\s+([\d.]+)\s*ms/i);
-    if (msMatch) return Math.ceil(Number(msMatch[1]));
-    const secondsMatch = message.match(/try again in\s+([\d.]+)\s*s\b/i);
-    if (secondsMatch) return Math.ceil(Number(secondsMatch[1]) * 1000);
-    return null;
+  const msMatch = message.match(/try again in\s+([\d.]+)\s*ms/i);
+  if (msMatch) return Math.ceil(Number(msMatch[1]));
+  const secondsMatch = message.match(/try again in\s+([\d.]+)\s*s\b/i);
+  if (secondsMatch) return Math.ceil(Number(secondsMatch[1]) * 1000);
+  return null;
 }
 
 /**
@@ -43,10 +43,10 @@ export function extractSuggestedRetryDelayMs(message: string): number | null {
  * com status de erro, ou recusa de conexão).
  */
 export function isRetryableAiError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-    if (/HTTP (429|5\d{2}):/.test(error.message)) return true;
-    if (error.name === 'TypeError' && /fetch|network/i.test(error.message)) return true;
-    return false;
+  if (!(error instanceof Error)) return false;
+  if (/HTTP (429|5\d{2}):/.test(error.message)) return true;
+  if (error.name === 'TypeError' && /fetch|network/i.test(error.message)) return true;
+  return false;
 }
 
 /**
@@ -59,18 +59,24 @@ export function isRetryableAiError(error: unknown): boolean {
  * Usado pelo próprio gateway (cada camada de provedor) e reaproveitado por outros serviços de IA
  * (ex.: geração de conteúdo em ai.service.ts) para não precisarem reimplementar a mesma lógica.
  */
-export async function withRetry<T>(fn: () => Promise<T>, retries: number = 1, backoffMs: number = 400): Promise<T> {
-    let lastError: unknown;
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            return await fn();
-        } catch (error) {
-            lastError = error;
-            if (attempt === retries || !isRetryableAiError(error)) throw error;
-            const suggestedMs = error instanceof Error ? extractSuggestedRetryDelayMs(error.message) : null;
-            const delay = suggestedMs !== null ? Math.max(suggestedMs + 50, backoffMs) : backoffMs * (attempt + 1);
-            await sleep(delay);
-        }
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries: number = 1,
+  backoffMs: number = 400,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt === retries || !isRetryableAiError(error)) throw error;
+      const suggestedMs =
+        error instanceof Error ? extractSuggestedRetryDelayMs(error.message) : null;
+      const delay =
+        suggestedMs !== null ? Math.max(suggestedMs + 50, backoffMs) : backoffMs * (attempt + 1);
+      await sleep(delay);
     }
-    throw lastError;
+  }
+  throw lastError;
 }

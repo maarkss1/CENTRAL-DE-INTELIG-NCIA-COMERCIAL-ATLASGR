@@ -53,12 +53,17 @@ const REDIS_KEY_PREFIX = 'prospecting-budget:org:';
 // disso).
 const REDIS_KEY_TTL_SECONDS = 60 * 60 * 24 * 62;
 
+// UTC, não hora local: se o processo rodar num servidor num fuso atrás de UTC (ex.: America/
+// Sao_Paulo, UTC-3), `getFullYear()`/`getMonth()` ainda reportam o mês anterior nas primeiras horas
+// do dia 1 — a virada do teto mensal de prospecção dependeria do fuso do container em vez de ser
+// determinística. Achado real ao investigar um teste flaky (`escopa o acumulado pelo mês corrente`
+// em providerBudget.test.ts) que só falhava em máquinas num fuso atrás de UTC.
 function currentMonthKey(date: Date = new Date()): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 function buildKey(organizationId: string, monthKey: string = currentMonthKey()): string {
-    return `${REDIS_KEY_PREFIX}${organizationId}:${monthKey}`;
+  return `${REDIS_KEY_PREFIX}${organizationId}:${monthKey}`;
 }
 
 // Fallback em memória — bounded (mesma eviction simples "mais antigo inserido" de providerCache.ts)
@@ -67,19 +72,19 @@ const MEMORY_MAX_ENTRIES = 1000;
 const memoryTotals = new Map<string, number>();
 
 function memoryIncr(key: string, amountUsd: number): number {
-    const current = memoryTotals.get(key) ?? 0;
-    const next = current + amountUsd;
-    if (!memoryTotals.has(key) && memoryTotals.size >= MEMORY_MAX_ENTRIES) {
-        const oldestKey = memoryTotals.keys().next().value;
-        if (oldestKey !== undefined) memoryTotals.delete(oldestKey);
-    }
-    memoryTotals.set(key, next);
-    return next;
+  const current = memoryTotals.get(key) ?? 0;
+  const next = current + amountUsd;
+  if (!memoryTotals.has(key) && memoryTotals.size >= MEMORY_MAX_ENTRIES) {
+    const oldestKey = memoryTotals.keys().next().value;
+    if (oldestKey !== undefined) memoryTotals.delete(oldestKey);
+  }
+  memoryTotals.set(key, next);
+  return next;
 }
 
 /** Só para testes: limpa o fallback em memória entre casos. */
 export function __resetProspectingBudgetForTests(): void {
-    memoryTotals.clear();
+  memoryTotals.clear();
 }
 
 /**
@@ -91,45 +96,45 @@ export function __resetProspectingBudgetForTests(): void {
  * recebeu o resultado real do provider) — só logado.
  */
 export async function recordProspectingProviderSpend(
-    provider: ProspectingCostProvider,
-    costUsd: number,
-    organizationId: string | undefined = getTenantId(),
+  provider: ProspectingCostProvider,
+  costUsd: number,
+  organizationId: string | undefined = getTenantId(),
 ): Promise<void> {
-    if (!organizationId) return; // chamada sem tenant conhecido (script/worker) — nada a debitar por organização
-    if (!Number.isFinite(costUsd) || costUsd <= 0) return;
+  if (!organizationId) return; // chamada sem tenant conhecido (script/worker) — nada a debitar por organização
+  if (!Number.isFinite(costUsd) || costUsd <= 0) return;
 
-    const key = buildKey(organizationId);
-    if (redisConfigured) {
-        try {
-            await cacheConnection.incrbyfloat(key, costUsd);
-            await cacheConnection.expire(key, REDIS_KEY_TTL_SECONDS);
-            return;
-        } catch (err) {
-            logger.warn(
-                { err, organizationId, provider },
-                'providerBudget: falha ao gravar gasto no Redis — usando fallback em memória só para esta chamada',
-            );
-        }
+  const key = buildKey(organizationId);
+  if (redisConfigured) {
+    try {
+      await cacheConnection.incrbyfloat(key, costUsd);
+      await cacheConnection.expire(key, REDIS_KEY_TTL_SECONDS);
+      return;
+    } catch (err) {
+      logger.warn(
+        { err, organizationId, provider },
+        'providerBudget: falha ao gravar gasto no Redis — usando fallback em memória só para esta chamada',
+      );
     }
-    memoryIncr(key, costUsd);
+  }
+  memoryIncr(key, costUsd);
 }
 
 /** Gasto acumulado (USD) do mês corrente de UMA organização com providers de prospecção pagos. */
 export async function getOrgMonthProspectingCostUsd(organizationId: string): Promise<number> {
-    const key = buildKey(organizationId);
-    if (redisConfigured) {
-        try {
-            const raw = await cacheConnection.get(key);
-            return raw != null ? Number(raw) : 0;
-        } catch (err) {
-            logger.warn(
-                { err, organizationId },
-                'providerBudget: falha ao ler gasto do Redis — tratando como custo desconhecido (nunca bloqueia por falha de leitura)',
-            );
-            return 0;
-        }
+  const key = buildKey(organizationId);
+  if (redisConfigured) {
+    try {
+      const raw = await cacheConnection.get(key);
+      return raw != null ? Number(raw) : 0;
+    } catch (err) {
+      logger.warn(
+        { err, organizationId },
+        'providerBudget: falha ao ler gasto do Redis — tratando como custo desconhecido (nunca bloqueia por falha de leitura)',
+      );
+      return 0;
     }
-    return memoryTotals.get(key) ?? 0;
+  }
+  return memoryTotals.get(key) ?? 0;
 }
 
 /**
@@ -137,43 +142,43 @@ export async function getOrgMonthProspectingCostUsd(organizationId: string): Pro
  * (`Organization.monthlyProspectingBudgetUsd`). `null`/ausente = sem teto (nunca bloqueia).
  */
 async function getOrgProspectingBudgetUsd(organizationId: string): Promise<number | null> {
-    try {
-        const org = await prisma.organization.findUnique({
-            where: { id: organizationId },
-            select: { monthlyProspectingBudgetUsd: true },
-        });
-        return org?.monthlyProspectingBudgetUsd ?? null;
-    } catch (err) {
-        logger.warn(
-            { err, organizationId },
-            'providerBudget: falha ao ler o teto mensal de prospecção da organização — tratando como sem teto configurado',
-        );
-        return null;
-    }
+  try {
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { monthlyProspectingBudgetUsd: true },
+    });
+    return org?.monthlyProspectingBudgetUsd ?? null;
+  } catch (err) {
+    logger.warn(
+      { err, organizationId },
+      'providerBudget: falha ao ler o teto mensal de prospecção da organização — tratando como sem teto configurado',
+    );
+    return null;
+  }
 }
 
 export const prospectingBudgetBlockedTotal = new client.Counter({
-    name: 'prospecting_budget_blocked_total',
-    help: 'Chamadas a providers de prospecção (Apollo/Hunter) bloqueadas pelo teto mensal por organização (DEC-09, Organization.monthlyProspectingBudgetUsd), por organização e provider.',
-    labelNames: ['organization', 'provider'] as const,
+  name: 'prospecting_budget_blocked_total',
+  help: 'Chamadas a providers de prospecção (Apollo/Hunter) bloqueadas pelo teto mensal por organização (DEC-09, Organization.monthlyProspectingBudgetUsd), por organização e provider.',
+  labelNames: ['organization', 'provider'] as const,
 });
 
 export class ProspectingBudgetExceededError extends AppError {
-    constructor(
-        public readonly organizationId: string,
-        public readonly provider: ProspectingCostProvider,
-        public readonly monthCostUsd: number,
-        public readonly budgetUsd: number,
-    ) {
-        super(
-            `Orçamento mensal de prospecção (Apollo/Hunter) desta organização foi atingido ` +
-            `(US$ ${monthCostUsd.toFixed(2)} de US$ ${budgetUsd.toFixed(2)}). Novas buscas em providers pagos de ` +
-            'prospecção estão bloqueadas para esta organização até o início do próximo mês ou até o teto mensal ' +
-            'de prospecção da organização ser aumentado.',
-            429,
-        );
-        this.name = 'ProspectingBudgetExceededError';
-    }
+  constructor(
+    public readonly organizationId: string,
+    public readonly provider: ProspectingCostProvider,
+    public readonly monthCostUsd: number,
+    public readonly budgetUsd: number,
+  ) {
+    super(
+      `Orçamento mensal de prospecção (Apollo/Hunter) desta organização foi atingido ` +
+        `(US$ ${monthCostUsd.toFixed(2)} de US$ ${budgetUsd.toFixed(2)}). Novas buscas em providers pagos de ` +
+        'prospecção estão bloqueadas para esta organização até o início do próximo mês ou até o teto mensal ' +
+        'de prospecção da organização ser aumentado.',
+      429,
+    );
+    this.name = 'ProspectingBudgetExceededError';
+  }
 }
 
 /**
@@ -189,16 +194,18 @@ export class ProspectingBudgetExceededError extends AppError {
  * está configurado E foi atingido/excedido — mesma decisão de segurança/produto documentada (e
  * pendente de confirmação) no handoff citado acima, espelhando `assertAiBudgetNotExceeded`.
  */
-export async function assertProspectingBudgetNotExceeded(provider: ProspectingCostProvider): Promise<void> {
-    const organizationId = getTenantId();
-    if (!organizationId) return;
+export async function assertProspectingBudgetNotExceeded(
+  provider: ProspectingCostProvider,
+): Promise<void> {
+  const organizationId = getTenantId();
+  if (!organizationId) return;
 
-    const budgetUsd = await getOrgProspectingBudgetUsd(organizationId);
-    if (budgetUsd === null) return;
+  const budgetUsd = await getOrgProspectingBudgetUsd(organizationId);
+  if (budgetUsd === null) return;
 
-    const monthCostUsd = await getOrgMonthProspectingCostUsd(organizationId);
-    if (monthCostUsd >= budgetUsd) {
-        prospectingBudgetBlockedTotal.inc({ organization: organizationId, provider });
-        throw new ProspectingBudgetExceededError(organizationId, provider, monthCostUsd, budgetUsd);
-    }
+  const monthCostUsd = await getOrgMonthProspectingCostUsd(organizationId);
+  if (monthCostUsd >= budgetUsd) {
+    prospectingBudgetBlockedTotal.inc({ organization: organizationId, provider });
+    throw new ProspectingBudgetExceededError(organizationId, provider, monthCostUsd, budgetUsd);
+  }
 }

@@ -7,31 +7,31 @@ export {};
  * entre si, que o TypeScript rejeita ao mesclar `declare global` de arquivos diferentes.
  */
 declare global {
-    interface SpeechRecognitionResultLike {
-        0: { transcript: string };
-        /** true quando o reconhecimento terminou de processar este resultado (não é mais interino). */
-        isFinal: boolean;
-    }
+  interface SpeechRecognitionResultLike {
+    0: { transcript: string };
+    /** true quando o reconhecimento terminou de processar este resultado (não é mais interino). */
+    isFinal: boolean;
+  }
 
-    interface SpeechRecognitionEventLike {
-        results: ArrayLike<SpeechRecognitionResultLike>;
-    }
+  interface SpeechRecognitionEventLike {
+    results: ArrayLike<SpeechRecognitionResultLike>;
+  }
 
-    interface SpeechRecognitionLike {
-        continuous: boolean;
-        interimResults?: boolean;
-        lang: string;
-        onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-        onerror: (() => void) | null;
-        onend: (() => void) | null;
-        start(): void;
-        stop(): void;
-    }
+  interface SpeechRecognitionLike {
+    continuous: boolean;
+    interimResults?: boolean;
+    lang: string;
+    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+    onerror: (() => void) | null;
+    onend: (() => void) | null;
+    start(): void;
+    stop(): void;
+  }
 
-    type SpeechRecognitionConstructorLike = new () => SpeechRecognitionLike;
+  type SpeechRecognitionConstructorLike = new () => SpeechRecognitionLike;
 
-    interface Window {
-        SpeechRecognition?: SpeechRecognitionConstructorLike;
-        webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
-    }
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructorLike;
+    webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
+  }
 }

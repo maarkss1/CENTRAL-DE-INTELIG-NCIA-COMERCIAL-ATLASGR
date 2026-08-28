@@ -35,6 +35,11 @@ export class PaginatedResult<TItem> {
   }
 
   public map<TMapped>(mapper: (item: TItem) => TMapped): PaginatedResult<TMapped> {
-    return new PaginatedResult<TMapped>(this.items.map(mapper), this.total, this.page, this.pageSize);
+    return new PaginatedResult<TMapped>(
+      this.items.map(mapper),
+      this.total,
+      this.page,
+      this.pageSize,
+    );
   }
 }

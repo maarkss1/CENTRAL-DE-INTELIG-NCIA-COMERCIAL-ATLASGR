@@ -2,9 +2,27 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Calendar, CheckCircle2, Clock, Phone, Mail, MessageCircle, Users,
-  MapPin, RefreshCw, CheckSquare, Activity as ActivityIcon, Plus,
-  Search, Trash2, Loader2, X, Save, AlertCircle, Sparkles, Moon, Download
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Phone,
+  Mail,
+  MessageCircle,
+  Users,
+  MapPin,
+  RefreshCw,
+  CheckSquare,
+  Activity as ActivityIcon,
+  Plus,
+  Search,
+  Trash2,
+  Loader2,
+  X,
+  Save,
+  AlertCircle,
+  Sparkles,
+  Moon,
+  Download,
 } from 'lucide-react';
 import { useActivities } from '../../../hooks/useDatabase';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -16,36 +34,44 @@ import type { PaletteIntent } from '../../../lib/paletteIntent';
 import React from 'react';
 
 const TYPE_ICONS: Record<string, React.JSX.Element> = {
-  'ligação': <Phone className="w-4 h-4" />,
+  ligação: <Phone className="w-4 h-4" />,
   'e-mail': <Mail className="w-4 h-4" />,
-  'whatsapp': <MessageCircle className="w-4 h-4" />,
-  'reunião': <Users className="w-4 h-4" />,
-  'visita': <MapPin className="w-4 h-4" />,
+  whatsapp: <MessageCircle className="w-4 h-4" />,
+  reunião: <Users className="w-4 h-4" />,
+  visita: <MapPin className="w-4 h-4" />,
   'follow-up': <RefreshCw className="w-4 h-4" />,
-  'tarefa': <CheckSquare className="w-4 h-4" />,
+  tarefa: <CheckSquare className="w-4 h-4" />,
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  'ligação': 'bg-blue-100 text-blue-700 border-blue-200',
+  ligação: 'bg-blue-100 text-blue-700 border-blue-200',
   'e-mail': 'bg-indigo-100 text-indigo-700 border-indigo-200',
-  'whatsapp': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  'reunião': 'bg-violet-100 text-violet-700 border-violet-200',
-  'visita': 'bg-amber-100 text-amber-700 border-amber-200',
+  whatsapp: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  reunião: 'bg-violet-100 text-violet-700 border-violet-200',
+  visita: 'bg-amber-100 text-amber-700 border-amber-200',
   'follow-up': 'bg-sky-100 text-sky-700 border-sky-200',
-  'tarefa': 'bg-rose-100 text-rose-700 border-rose-200',
+  tarefa: 'bg-rose-100 text-rose-700 border-rose-200',
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  'pending': 'bg-amber-100 text-amber-700 border-amber-200',
-  'done': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  'cancelled': 'bg-surface-2 text-ink-2 border-line',
+  pending: 'bg-amber-100 text-amber-700 border-amber-200',
+  done: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  cancelled: 'bg-surface-2 text-ink-2 border-line',
   // pt-BR variants
-  'Pendente': 'bg-amber-100 text-amber-700 border-amber-200',
-  'Concluída': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  'Cancelada': 'bg-surface-2 text-ink-2 border-line',
+  Pendente: 'bg-amber-100 text-amber-700 border-amber-200',
+  Concluída: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  Cancelada: 'bg-surface-2 text-ink-2 border-line',
 };
 
-const ACTIVITY_TYPES = ['Ligação', 'E-mail', 'WhatsApp', 'Reunião', 'Visita', 'Follow-up', 'Tarefa'];
+const ACTIVITY_TYPES = [
+  'Ligação',
+  'E-mail',
+  'WhatsApp',
+  'Reunião',
+  'Visita',
+  'Follow-up',
+  'Tarefa',
+];
 
 const FOLLOW_UP_TEMPLATES = [
   {
@@ -53,7 +79,8 @@ const FOLLOW_UP_TEMPLATES = [
     title: 'Follow-up Pós-Demo',
     type: 'Reunião',
     defaultTime: '10:00',
-    description: 'Revisão dos pontos discutidos na demonstração de telemetria/rastreamento e alinhamento do piloto.',
+    description:
+      'Revisão dos pontos discutidos na demonstração de telemetria/rastreamento e alinhamento do piloto.',
     suggestedOffsetDays: 1,
   },
   {
@@ -61,7 +88,8 @@ const FOLLOW_UP_TEMPLATES = [
     title: 'Apresentação de Proposta',
     type: 'Reunião',
     defaultTime: '14:30',
-    description: 'Apresentação do ROI, dimensionamento de frota e validação com o decisor financeiro.',
+    description:
+      'Apresentação do ROI, dimensionamento de frota e validação com o decisor financeiro.',
     suggestedOffsetDays: 2,
   },
   {
@@ -77,7 +105,8 @@ const FOLLOW_UP_TEMPLATES = [
     title: 'Diagnóstico de Frota',
     type: 'Visita',
     defaultTime: '09:00',
-    description: 'Mapeamento in-loco dos gargalos de telemetria, consumo de combustível e riscos de carga.',
+    description:
+      'Mapeamento in-loco dos gargalos de telemetria, consumo de combustível e riscos de carga.',
     suggestedOffsetDays: 4,
   },
 ];
@@ -109,7 +138,8 @@ interface NewActivityForm {
 }
 
 export function ActivityList() {
-  const { activities, loading, error, refetch, createActivity, updateActivity, deleteActivity } = useActivities({ limit: 100 });
+  const { activities, loading, error, refetch, createActivity, updateActivity, deleteActivity } =
+    useActivities({ limit: 100 });
   const { currentUser } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -162,8 +192,8 @@ export function ActivityList() {
         duration === '2h'
           ? '⏰ Atividade adiada em +2 horas!'
           : duration === 'tomorrow'
-          ? '⏰ Atividade adiada para amanhã às 09:00!'
-          : '⏰ Atividade adiada para a próxima semana!'
+            ? '⏰ Atividade adiada para amanhã às 09:00!'
+            : '⏰ Atividade adiada para a próxima semana!',
       );
       refetch();
     } catch {
@@ -171,7 +201,7 @@ export function ActivityList() {
     }
   };
 
-  const handleApplyTemplate = (tpl: typeof FOLLOW_UP_TEMPLATES[0]) => {
+  const handleApplyTemplate = (tpl: (typeof FOLLOW_UP_TEMPLATES)[0]) => {
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + tpl.suggestedOffsetDays);
     setForm({
@@ -211,7 +241,14 @@ export function ActivityList() {
         status: 'Pendente' as import('../../../lib/zod').ActivityStatus,
       });
       setIsFormOpen(false);
-      setForm({ type: 'Ligação', date: new Date().toISOString().split('T')[0], time: '', owner: currentUser?.name || '', observations: '', leadId: '' });
+      setForm({
+        type: 'Ligação',
+        date: new Date().toISOString().split('T')[0],
+        time: '',
+        owner: currentUser?.name || '',
+        observations: '',
+        leadId: '',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -224,13 +261,14 @@ export function ActivityList() {
       className="flex-1 overflow-y-auto bg-transparent p-6 md:p-8"
     >
       <div className="max-w-6xl mx-auto space-y-6">
-
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-surface/75 backdrop-blur-xl p-6 rounded-3xl border border-line">
           <div>
             <h1 className="text-2xl font-black text-ink tracking-tight">📅 Agenda & Tarefas</h1>
             <p className="text-xs text-ink-2 mt-0.5 font-medium">
-              {loading ? 'Carregando compromissos...' : `${filtered.length} atividade${filtered.length !== 1 ? 's' : ''} no funil`}
+              {loading
+                ? 'Carregando compromissos...'
+                : `${filtered.length} atividade${filtered.length !== 1 ? 's' : ''} no funil`}
             </p>
 
             {/* Filtro por Vendedor */}
@@ -280,7 +318,9 @@ export function ActivityList() {
               onClick={() => {
                 const icsUrl = `${window.location.origin}/api/activities/feed.ics${currentUser?.name ? `?owner=${encodeURIComponent(currentUser.name)}` : ''}`;
                 navigator.clipboard.writeText(icsUrl);
-                toast.success('Link do feed iCal copiado! Cole no seu Google Calendar / Outlook para sincronizar.');
+                toast.success(
+                  'Link do feed iCal copiado! Cole no seu Google Calendar / Outlook para sincronizar.',
+                );
               }}
               className="flex items-center gap-1.5 bg-surface-2 hover:bg-surface-3 border border-line text-ink font-bold text-xs px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
               title="Copiar link de sincronização com Google Agenda e celular"
@@ -304,14 +344,18 @@ export function ActivityList() {
           <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex items-center gap-3 text-red-700 text-sm font-semibold">
             <AlertCircle className="w-5 h-5 shrink-0" />
             <span>{error}</span>
-            <button onClick={refetch} className="ml-auto text-xs underline cursor-pointer">Tentar novamente</button>
+            <button onClick={refetch} className="ml-auto text-xs underline cursor-pointer">
+              Tentar novamente
+            </button>
           </div>
         )}
 
         {/* Loading Skeleton */}
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+            {[...Array(6)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
           </div>
         )}
 
@@ -326,7 +370,10 @@ export function ActivityList() {
               <Calendar className="w-10 h-10 text-ink-2" />
             </div>
             <p className="font-extrabold text-ink-2 text-base">Nenhuma atividade encontrada</p>
-            <p className="text-xs text-ink-2">Clique em &quot;Nova Atividade&quot; ou use &quot;Modelos Rápidos&quot; para agendar tarefas pós-demo.</p>
+            <p className="text-xs text-ink-2">
+              Clique em &quot;Nova Atividade&quot; ou use &quot;Modelos Rápidos&quot; para agendar
+              tarefas pós-demo.
+            </p>
             <button
               onClick={() => setIsFormOpen(true)}
               className="mt-2 flex items-center gap-2 bg-brand-active text-white font-bold text-xs px-5 py-2.5 rounded-xl cursor-pointer"
@@ -346,7 +393,11 @@ export function ActivityList() {
               const statusStyle = STATUS_STYLES[a.status] ?? 'bg-surface-2 text-ink-2 border-line';
               const isDone = a.status === 'Concluída';
               const formattedDate = a.date
-                ? new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
+                ? new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR', {
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: 'short',
+                  })
                 : '—';
 
               return (
@@ -358,11 +409,15 @@ export function ActivityList() {
                   className={`bg-surface backdrop-blur-2xl rounded-[1.75rem] border border-line shadow-sm hover:shadow-md transition-all duration-300 p-5 flex flex-col justify-between space-y-3 ${isDone ? 'opacity-60' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className={`flex items-center gap-1.5 text-[11px] font-black px-3 py-1 rounded-full border ${typeColor}`}>
+                    <span
+                      className={`flex items-center gap-1.5 text-[11px] font-black px-3 py-1 rounded-full border ${typeColor}`}
+                    >
                       {typeIcon} {a.type}
                     </span>
-                    <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${statusStyle}`}>
-                      {isDone ? 'Concluída' : (a.status === 'Cancelada') ? 'Cancelada' : 'Pendente'}
+                    <span
+                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${statusStyle}`}
+                    >
+                      {isDone ? 'Concluída' : a.status === 'Cancelada' ? 'Cancelada' : 'Pendente'}
                     </span>
                   </div>
 
@@ -370,13 +425,18 @@ export function ActivityList() {
                     <div className="flex items-center gap-2 text-[11px] text-ink-2 font-semibold">
                       <Calendar className="w-3.5 h-3.5" />
                       <span>{formattedDate}</span>
-                      {a.time && <><Clock className="w-3.5 h-3.5 ml-1" /><span>{a.time}</span></>}
+                      {a.time && (
+                        <>
+                          <Clock className="w-3.5 h-3.5 ml-1" />
+                          <span>{a.time}</span>
+                        </>
+                      )}
                     </div>
-                    {a.owner && (
-                      <p className="text-xs text-ink-2 font-bold">👤 {a.owner}</p>
-                    )}
+                    {a.owner && <p className="text-xs text-ink-2 font-bold">👤 {a.owner}</p>}
                     {a.observations && (
-                      <p className="text-xs text-ink font-medium leading-relaxed line-clamp-3">{a.observations}</p>
+                      <p className="text-xs text-ink font-medium leading-relaxed line-clamp-3">
+                        {a.observations}
+                      </p>
                     )}
                   </div>
 
@@ -457,11 +517,18 @@ export function ActivityList() {
                 <Sparkles className="w-5 h-5 text-amber-500" />
                 <h3 className="text-base font-black text-ink">Modelos de Follow-up Comercial</h3>
               </div>
-              <button onClick={() => setIsTemplatesOpen(false)} aria-label="Fechar" className="p-1.5 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2">
+              <button
+                onClick={() => setIsTemplatesOpen(false)}
+                aria-label="Fechar"
+                className="p-1.5 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-ink-2">Selecione um roteiro pré-configurado de follow-up para preencher a atividade instantaneamente:</p>
+            <p className="text-xs text-ink-2">
+              Selecione um roteiro pré-configurado de follow-up para preencher a atividade
+              instantaneamente:
+            </p>
 
             <div className="space-y-2.5">
               {FOLLOW_UP_TEMPLATES.map((tpl) => (
@@ -494,27 +561,45 @@ export function ActivityList() {
           >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-ink">Nova Atividade</h3>
-              <button onClick={() => setIsFormOpen(false)} aria-label="Fechar" className="p-2 rounded-xl bg-surface-2 hover:bg-line cursor-pointer transition-all">
+              <button
+                onClick={() => setIsFormOpen(false)}
+                aria-label="Fechar"
+                className="p-2 rounded-xl bg-surface-2 hover:bg-line cursor-pointer transition-all"
+              >
                 <X className="w-4 h-4 text-ink-2" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="activity-type" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Tipo de Atividade</label>
+                <label
+                  htmlFor="activity-type"
+                  className="block text-[11px] font-black text-ink-2 uppercase mb-1"
+                >
+                  Tipo de Atividade
+                </label>
                 <select
                   id="activity-type"
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
                   className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-brand focus:outline-none"
                 >
-                  {ACTIVITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {ACTIVITY_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="activity-date" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Data</label>
+                  <label
+                    htmlFor="activity-date"
+                    className="block text-[11px] font-black text-ink-2 uppercase mb-1"
+                  >
+                    Data
+                  </label>
                   <input
                     id="activity-date"
                     type="date"
@@ -525,7 +610,12 @@ export function ActivityList() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="activity-time" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Hora (opcional)</label>
+                  <label
+                    htmlFor="activity-time"
+                    className="block text-[11px] font-black text-ink-2 uppercase mb-1"
+                  >
+                    Hora (opcional)
+                  </label>
                   <input
                     id="activity-time"
                     type="time"
@@ -537,7 +627,12 @@ export function ActivityList() {
               </div>
 
               <div>
-                <label htmlFor="activity-owner" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Responsável</label>
+                <label
+                  htmlFor="activity-owner"
+                  className="block text-[11px] font-black text-ink-2 uppercase mb-1"
+                >
+                  Responsável
+                </label>
                 <input
                   id="activity-owner"
                   type="text"
@@ -550,7 +645,12 @@ export function ActivityList() {
               </div>
 
               <div>
-                <label htmlFor="activity-observations" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Observações</label>
+                <label
+                  htmlFor="activity-observations"
+                  className="block text-[11px] font-black text-ink-2 uppercase mb-1"
+                >
+                  Observações
+                </label>
                 <textarea
                   id="activity-observations"
                   value={form.observations}
@@ -566,7 +666,11 @@ export function ActivityList() {
                 disabled={isSaving}
                 className="w-full bg-gradient-to-r from-brand to-amber-500 text-white font-extrabold py-3.5 rounded-2xl text-xs shadow-lg shadow-brand/30 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
                 {isSaving ? 'Salvando...' : 'Salvar Atividade'}
               </button>
             </form>

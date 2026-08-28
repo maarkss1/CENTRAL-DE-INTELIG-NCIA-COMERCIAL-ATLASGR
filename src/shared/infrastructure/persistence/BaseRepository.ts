@@ -12,10 +12,15 @@ import type {
   PaginatedQueryOptions,
 } from '../../domain/contracts/IReadRepository.js';
 
-export interface PersistenceGateway<TAggregate extends AggregateRoot<unknown, UniqueEntityID>, TId> {
+export interface PersistenceGateway<
+  TAggregate extends AggregateRoot<unknown, UniqueEntityID>,
+  TId,
+> {
   findById(id: TId): Promise<TAggregate | null>;
   findAll(options?: FindAllOptions<TAggregate>): Promise<ReadonlyArray<TAggregate>>;
-  findPaginated(options: PaginatedQueryOptions<TAggregate>): Promise<PaginatedQueryResult<TAggregate>>;
+  findPaginated(
+    options: PaginatedQueryOptions<TAggregate>,
+  ): Promise<PaginatedQueryResult<TAggregate>>;
   exists(id: TId): Promise<boolean>;
   count(options?: FindAllOptions<TAggregate>): Promise<number>;
   create(aggregate: TAggregate): Promise<void>;
@@ -32,9 +37,10 @@ export interface PersistenceGateway<TAggregate extends AggregateRoot<unknown, Un
  * Delegates persistence operations to an injected PersistenceGateway, keeping
  * the Domain and Application layers decoupled from any concrete database.
  */
-export abstract class BaseRepository<TAggregate extends AggregateRoot<unknown, UniqueEntityID>, TId>
-  implements IRepository<TAggregate, TId>
-{
+export abstract class BaseRepository<
+  TAggregate extends AggregateRoot<unknown, UniqueEntityID>,
+  TId,
+> implements IRepository<TAggregate, TId> {
   protected constructor(protected readonly gateway: PersistenceGateway<TAggregate, TId>) {}
 
   public findById(id: TId): Promise<TAggregate | null> {

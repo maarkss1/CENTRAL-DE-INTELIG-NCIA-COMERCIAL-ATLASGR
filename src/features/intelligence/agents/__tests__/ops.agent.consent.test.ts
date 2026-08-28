@@ -4,7 +4,7 @@ const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS
 vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
 
 vi.mock('../../../../lib/logger.js', () => ({
-    logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 // Sem leadId, o teste abaixo prova que o Ops passa direto do gate de consentimento (que só se
@@ -13,12 +13,12 @@ vi.mock('../../../../lib/logger.js', () => ({
 // AIMessage (não um objeto solto): o reducer do MessagesAnnotation do LangGraph rejeita qualquer
 // coisa que não seja human/AI/system/developer/tool.
 vi.mock('../fallback.util.js', async () => {
-    const { AIMessage } = await import('@langchain/core/messages');
-    return {
-        buildModelWithFallbackAndTools: () => ({
-            invoke: vi.fn().mockResolvedValue(new AIMessage('Notificação registrada.')),
-        }),
-    };
+  const { AIMessage } = await import('@langchain/core/messages');
+  return {
+    buildModelWithFallbackAndTools: () => ({
+      invoke: vi.fn().mockResolvedValue(new AIMessage('Notificação registrada.')),
+    }),
+  };
 });
 
 // AI-003 (onda 31): agentMemory.store.ts (usado por OpsAgent.updateMemory/recordAgentFailure) faz
@@ -26,14 +26,14 @@ vi.mock('../fallback.util.js', async () => {
 // requestContext.run({tenantId: 'org-sem-consentimento'}), então sempre passam por upsert, nunca
 // pelo fallback findFirst+create/update (só usado quando organizationId é null).
 vi.mock('../../../../lib/prisma.js', () => ({
-    prisma: {
-        agentMemory: {
-            upsert: vi.fn().mockResolvedValue({}),
-            findFirst: vi.fn().mockResolvedValue(null),
-            create: vi.fn().mockResolvedValue({}),
-            update: vi.fn().mockResolvedValue({}),
-        },
+  prisma: {
+    agentMemory: {
+      upsert: vi.fn().mockResolvedValue({}),
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({}),
     },
+  },
 }));
 
 // AI-002 (onda 32): ops.agent.ts agora compila o grafo com o checkpointer real de Postgres
@@ -42,46 +42,44 @@ vi.mock('../../../../lib/prisma.js', () => ({
 // unitário. Um MemorySaver real (mesma classe do LangGraph, satisfaz a mesma interface de
 // checkpointer) mantém o comportamento observável idêntico ao de antes desta correção.
 vi.mock('../../../../lib/ai/checkpointer.js', async () => {
-    const { MemorySaver } = await import('@langchain/langgraph');
-    return {
-        checkpointer: new MemorySaver(),
-        ensureCheckpointerReady: vi.fn().mockResolvedValue(undefined),
-    };
+  const { MemorySaver } = await import('@langchain/langgraph');
+  return {
+    checkpointer: new MemorySaver(),
+    ensureCheckpointerReady: vi.fn().mockResolvedValue(undefined),
+  };
 });
 
 const { requestContext } = await import('../../../../lib/async-context');
 const { OpsAgent } = await import('../ops.agent');
 
 afterEach(() => {
-    mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
+  mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
 });
 
 describe('OpsAgent.run — trava de consentimento LGPD', () => {
-    it('bloqueia quando um leadId real é informado sem base legal registrada', async () => {
-        const agent = new OpsAgent();
+  it('bloqueia quando um leadId real é informado sem base legal registrada', async () => {
+    const agent = new OpsAgent();
 
-        const result = await requestContext.run(
-            { tenantId: 'org-sem-consentimento' },
-            () => agent.run('Agende um follow-up para o lead.', undefined, 'lead-1'),
-        );
+    const result = await requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
+      agent.run('Agende um follow-up para o lead.', undefined, 'lead-1'),
+    );
 
-        expect(result.success).toBe(false);
-        expect(result.error).toContain('org-sem-consentimento');
-    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('org-sem-consentimento');
+  });
 
-    it('não bloqueia quando não há leadId (instrução sem titular associado)', async () => {
-        // Sem leadId, o Ops nunca chega em get_lead_context com um Contact real — não há PII de
-        // titular em jogo, então a trava de consentimento não se aplica. O modelo é um stub (ver
-        // mock de fallback.util.js acima); o que este teste prova é que o gate foi pulado, não o
-        // comportamento do LLM em si.
-        const agent = new OpsAgent();
+  it('não bloqueia quando não há leadId (instrução sem titular associado)', async () => {
+    // Sem leadId, o Ops nunca chega em get_lead_context com um Contact real — não há PII de
+    // titular em jogo, então a trava de consentimento não se aplica. O modelo é um stub (ver
+    // mock de fallback.util.js acima); o que este teste prova é que o gate foi pulado, não o
+    // comportamento do LLM em si.
+    const agent = new OpsAgent();
 
-        const result = await requestContext.run(
-            { tenantId: 'org-sem-consentimento' },
-            () => agent.run('Notifique a equipe sobre um risco geral.', 'session-x'),
-        );
+    const result = await requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
+      agent.run('Notifique a equipe sobre um risco geral.', 'session-x'),
+    );
 
-        expect(result.success).toBe(true);
-        expect(result.output).toBe('Notificação registrada.');
-    });
+    expect(result.success).toBe(true);
+    expect(result.output).toBe('Notificação registrada.');
+  });
 });

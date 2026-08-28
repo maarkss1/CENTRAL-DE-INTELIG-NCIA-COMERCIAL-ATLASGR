@@ -4,49 +4,49 @@ import { Request, Response } from 'express';
 import { trace } from '@opentelemetry/api';
 
 vi.mock('@opentelemetry/api', () => ({
-    trace: {
-        getSpan: vi.fn()
-    },
-    context: {
-        active: vi.fn()
-    }
+  trace: {
+    getSpan: vi.fn(),
+  },
+  context: {
+    active: vi.fn(),
+  },
 }));
 
 describe('Observability Middleware', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-    it('should inject request, correlation, trace, and span IDs', () => {
-        const req = {
-            headers: {},
-            method: 'GET',
-            url: '/test',
-            user: { id: 'u1', organizationId: 't1' }
-        } as unknown as Request;
+  it('should inject request, correlation, trace, and span IDs', () => {
+    const req = {
+      headers: {},
+      method: 'GET',
+      url: '/test',
+      user: { id: 'u1', organizationId: 't1' },
+    } as unknown as Request;
 
-        const res = {
-            setHeader: vi.fn()
-        } as unknown as Response;
+    const res = {
+      setHeader: vi.fn(),
+    } as unknown as Response;
 
-        const next = vi.fn();
+    const next = vi.fn();
 
-        const mockSpan = {
-            spanContext: () => ({ traceId: 'test-trace', spanId: 'test-span' }),
-            setAttribute: vi.fn()
-        };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        vi.mocked(trace.getSpan).mockReturnValue(mockSpan as any);
+    const mockSpan = {
+      spanContext: () => ({ traceId: 'test-trace', spanId: 'test-span' }),
+      setAttribute: vi.fn(),
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(trace.getSpan).mockReturnValue(mockSpan as any);
 
-        observabilityMiddleware(req, res, next);
+    observabilityMiddleware(req, res, next);
 
-        expect(res.setHeader).toHaveBeenCalledWith('x-request-id', expect.any(String));
-        expect(res.setHeader).toHaveBeenCalledWith('x-correlation-id', expect.any(String));
-        expect(mockSpan.setAttribute).toHaveBeenCalledWith('http.request_id', expect.any(String));
-        expect(mockSpan.setAttribute).toHaveBeenCalledWith('user.id', 'u1');
-        expect(mockSpan.setAttribute).toHaveBeenCalledWith('tenant.id', 't1');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect((req as any).observability.traceId).toBe('test-trace');
-        expect(next).toHaveBeenCalled();
-    });
+    expect(res.setHeader).toHaveBeenCalledWith('x-request-id', expect.any(String));
+    expect(res.setHeader).toHaveBeenCalledWith('x-correlation-id', expect.any(String));
+    expect(mockSpan.setAttribute).toHaveBeenCalledWith('http.request_id', expect.any(String));
+    expect(mockSpan.setAttribute).toHaveBeenCalledWith('user.id', 'u1');
+    expect(mockSpan.setAttribute).toHaveBeenCalledWith('tenant.id', 't1');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((req as any).observability.traceId).toBe('test-trace');
+    expect(next).toHaveBeenCalled();
+  });
 });

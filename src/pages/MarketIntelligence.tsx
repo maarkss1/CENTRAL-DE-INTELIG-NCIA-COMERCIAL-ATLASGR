@@ -14,7 +14,11 @@ export function MarketIntelligence() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface">
       <div className="shrink-0 border-b border-line bg-surface px-4 py-3 md:px-6">
-        <div className="inline-flex max-w-full overflow-x-auto rounded-xl border border-line bg-surface-2 p-1" role="group" aria-label="Visão do Market Intelligence">
+        <div
+          className="inline-flex max-w-full overflow-x-auto rounded-xl border border-line bg-surface-2 p-1"
+          role="group"
+          aria-label="Visão do Market Intelligence"
+        >
           <button
             type="button"
             onClick={() => setView('territories')}

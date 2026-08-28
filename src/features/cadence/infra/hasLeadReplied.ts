@@ -10,15 +10,15 @@ import { prisma } from '../../../lib/prisma.js';
  * resposta só por ligação não vai parar sozinha por esta checagem.
  */
 export async function hasLeadReplied(organizationId: string, leadId: string): Promise<boolean> {
-    const [inboundWhatsApp, inboundEmail] = await Promise.all([
-        prisma.whatsAppMessage.findFirst({
-            where: { organizationId, leadId, direction: 'inbound' },
-            select: { id: true },
-        }),
-        prisma.emailMessage.findFirst({
-            where: { organizationId, leadId, direction: 'inbound' },
-            select: { id: true },
-        }),
-    ]);
-    return inboundWhatsApp !== null || inboundEmail !== null;
+  const [inboundWhatsApp, inboundEmail] = await Promise.all([
+    prisma.whatsAppMessage.findFirst({
+      where: { organizationId, leadId, direction: 'inbound' },
+      select: { id: true },
+    }),
+    prisma.emailMessage.findFirst({
+      where: { organizationId, leadId, direction: 'inbound' },
+      select: { id: true },
+    }),
+  ]);
+  return inboundWhatsApp !== null || inboundEmail !== null;
 }

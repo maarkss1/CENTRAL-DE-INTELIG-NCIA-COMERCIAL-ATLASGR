@@ -20,7 +20,7 @@ export function Drawer({
   title,
   subtitle,
   children,
-  side = 'right'
+  side = 'right',
 }: DrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -76,13 +76,13 @@ export function Drawer({
     closed: {
       x: side === 'right' ? '100%' : '-100%',
       opacity: 0,
-      transition: { type: 'spring' as const, damping: 25, stiffness: 250 }
+      transition: { type: 'spring' as const, damping: 25, stiffness: 250 },
     },
     open: {
       x: '0%',
       opacity: 1,
-      transition: { type: 'spring' as const, damping: 25, stiffness: 250 }
-    }
+      transition: { type: 'spring' as const, damping: 25, stiffness: 250 },
+    },
   };
 
   return (
@@ -115,7 +115,9 @@ export function Drawer({
             {/* Header */}
             <div className="p-6 border-b border-line flex items-center justify-between bg-surface backdrop-blur-md sticky top-0 z-10">
               <div>
-                <h3 id="drawer-title" className="text-lg font-bold text-ink tracking-tight">{title}</h3>
+                <h3 id="drawer-title" className="text-lg font-bold text-ink tracking-tight">
+                  {title}
+                </h3>
                 {subtitle && <p className="text-xs text-ink-2 mt-0.5">{subtitle}</p>}
               </div>
               <button
@@ -130,9 +132,7 @@ export function Drawer({
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {children}
-            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">{children}</div>
           </motion.div>
         </div>
       )}

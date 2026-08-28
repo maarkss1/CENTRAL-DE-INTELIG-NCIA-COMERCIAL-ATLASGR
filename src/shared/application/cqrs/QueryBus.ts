@@ -65,13 +65,10 @@ export class QueryBus implements IQueryBus {
     context: UseCaseContext = UseCaseContext.create(),
   ): Promise<QueryResult<TResult>> {
     const handler = this.handlers.get(query.queryName) as
-      | IQueryHandler<TQuery, TResult>
-      | undefined;
+      IQueryHandler<TQuery, TResult> | undefined;
 
     if (!handler) {
-      return Result.fail<TResult, ApplicationError>(
-        new QueryHandlerNotFoundError(query.queryName),
-      );
+      return Result.fail<TResult, ApplicationError>(new QueryHandlerNotFoundError(query.queryName));
     }
 
     const pipeline = this.buildPipeline<TQuery, TResult>(handler, context);

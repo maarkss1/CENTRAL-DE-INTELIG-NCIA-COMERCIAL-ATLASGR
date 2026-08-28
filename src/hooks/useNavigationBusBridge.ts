@@ -13,13 +13,13 @@ import type { TabType } from '../components/layout/tabMeta';
  * (`TabType`), não uma tabela de rotas duplicada.
  */
 export function useNavigationBusBridge(): void {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        const navigator = (tab: TabType) => {
-            navigate(tab === 'dashboard' ? '/app' : `/app/${tab}`);
-        };
-        navigationBus.registerNavigator(navigator);
-        return () => navigationBus.registerNavigator(null);
-    }, [navigate]);
+  useEffect(() => {
+    const navigator = (tab: TabType) => {
+      navigate(tab === 'dashboard' ? '/app' : `/app/${tab}`);
+    };
+    navigationBus.registerNavigator(navigator);
+    return () => navigationBus.registerNavigator(null);
+  }, [navigate]);
 }

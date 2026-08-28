@@ -17,7 +17,15 @@ type DialogProps = {
   preventClose?: boolean;
 };
 
-export function Dialog({ isOpen, onClose, title, children, maxWidth = 'max-w-md', footer, preventClose = false }: DialogProps) {
+export function Dialog({
+  isOpen,
+  onClose,
+  title,
+  children,
+  maxWidth = 'max-w-md',
+  footer,
+  preventClose = false,
+}: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -71,12 +79,11 @@ export function Dialog({ isOpen, onClose, title, children, maxWidth = 'max-w-md'
     if (!dialog) return;
 
     const rect = dialog.getBoundingClientRect();
-    const isInDialog = (
+    const isInDialog =
       rect.top <= e.clientY &&
       e.clientY <= rect.top + rect.height &&
       rect.left <= e.clientX &&
-      e.clientX <= rect.left + rect.width
-    );
+      e.clientX <= rect.left + rect.width;
     if (!isInDialog) {
       onClose();
     }
@@ -88,7 +95,7 @@ export function Dialog({ isOpen, onClose, title, children, maxWidth = 'max-w-md'
       onClick={handleBackdropClick}
       className={cn(
         'backdrop:bg-ink/50 backdrop:backdrop-blur-sm bg-surface rounded-card-lg shadow-card w-full p-0 outline-none overflow-hidden max-h-[90vh] open:flex open:flex-col',
-        maxWidth
+        maxWidth,
       )}
     >
       <div className="flex items-center justify-between p-4 border-b border-line shrink-0">
@@ -102,13 +109,9 @@ export function Dialog({ isOpen, onClose, title, children, maxWidth = 'max-w-md'
           <X size={20} />
         </button>
       </div>
-      <div className="p-4 overflow-y-auto">
-        {children}
-      </div>
+      <div className="p-4 overflow-y-auto">{children}</div>
       {footer && (
-        <div className="p-4 border-t border-line shrink-0 flex justify-end gap-3">
-          {footer}
-        </div>
+        <div className="p-4 border-t border-line shrink-0 flex justify-end gap-3">{footer}</div>
       )}
     </dialog>
   );

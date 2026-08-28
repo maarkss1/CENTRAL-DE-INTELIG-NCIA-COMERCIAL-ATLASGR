@@ -12,39 +12,39 @@ import { prisma } from '../../../lib/prisma.js';
  * observabilidade, não a fonte de verdade da etapa atual, que continua sendo `Lead.pipelineStageId`).
  */
 export async function recordStageTransition(
-    organizationId: string,
-    leadId: string,
-    stage: { id: string; name: string; probability: number; isWon: boolean; isLost: boolean } | null,
-    pipelineId: string | null,
-    now: Date = new Date()
+  organizationId: string,
+  leadId: string,
+  stage: { id: string; name: string; probability: number; isWon: boolean; isLost: boolean } | null,
+  pipelineId: string | null,
+  now: Date = new Date(),
 ): Promise<void> {
-    try {
-        await prisma.leadStageHistory.updateMany({
-            where: { organizationId, leadId, exitedAt: null },
-            data: { exitedAt: now },
-        });
+  try {
+    await prisma.leadStageHistory.updateMany({
+      where: { organizationId, leadId, exitedAt: null },
+      data: { exitedAt: now },
+    });
 
-        if (stage) {
-            await prisma.leadStageHistory.create({
-                data: {
-                    organizationId,
-                    leadId,
-                    pipelineId,
-                    stageId: stage.id,
-                    stageName: stage.name,
-                    probability: stage.probability,
-                    isWon: stage.isWon,
-                    isLost: stage.isLost,
-                    enteredAt: now,
-                },
-            });
-        }
-    } catch (error) {
-        // Logger estruturado em vez de console — mesmo padrão do resto do backend
-        // (ver src/lib/logger.ts). Falha aqui nunca deve propagar para o caller (moveRecord/
-        // createDeal/convertLead) — o negócio já foi movido de verdade, só o registro histórico
-        // (usado por Aging por Etapa/Sales Cycle) que ficaria incompleto.
-        const { logger } = await import('../../../lib/logger.js');
-        logger.error({ err: error, leadId, organizationId }, 'Falha ao registrar LeadStageHistory');
+    if (stage) {
+      await prisma.leadStageHistory.create({
+        data: {
+          organizationId,
+          leadId,
+          pipelineId,
+          stageId: stage.id,
+          stageName: stage.name,
+          probability: stage.probability,
+          isWon: stage.isWon,
+          isLost: stage.isLost,
+          enteredAt: now,
+        },
+      });
     }
+  } catch (error) {
+    // Logger estruturado em vez de console — mesmo padrão do resto do backend
+    // (ver src/lib/logger.ts). Falha aqui nunca deve propagar para o caller (moveRecord/
+    // createDeal/convertLead) — o negócio já foi movido de verdade, só o registro histórico
+    // (usado por Aging por Etapa/Sales Cycle) que ficaria incompleto.
+    const { logger } = await import('../../../lib/logger.js');
+    logger.error({ err: error, leadId, organizationId }, 'Falha ao registrar LeadStageHistory');
+  }
 }

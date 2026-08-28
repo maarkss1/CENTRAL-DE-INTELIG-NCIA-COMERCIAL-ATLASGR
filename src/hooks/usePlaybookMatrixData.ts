@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { playbookApi, type ObjectionMatrixItem, type QualificationMatrixItem } from '../features/playbook/playbook.api';
+import {
+  playbookApi,
+  type ObjectionMatrixItem,
+  type QualificationMatrixItem,
+} from '../features/playbook/playbook.api';
 import { clientLogger } from '../lib/clientLogger';
 
 /**
@@ -9,31 +13,32 @@ import { clientLogger } from '../lib/clientLogger';
  * (ChatbookHub.tsx). Sem isso, cada um dos 3 hooks buscaria a mesma coisa separadamente.
  */
 export function usePlaybookMatrixData(brand: 'atlasgr' | 'totaltrac') {
-    const [objections, setObjections] = useState<ObjectionMatrixItem[]>([]);
-    const [qualifications, setQualifications] = useState<QualificationMatrixItem[]>([]);
-    const [loading, setLoading] = useState(true);
+  const [objections, setObjections] = useState<ObjectionMatrixItem[]>([]);
+  const [qualifications, setQualifications] = useState<QualificationMatrixItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        let cancelled = false;
-        setLoading(true);
-        Promise.all([
-            playbookApi.listObjections(brand),
-            playbookApi.listQualifications(brand),
-        ])
-            .then(([objs, quals]) => {
-                if (cancelled) return;
-                setObjections(objs);
-                setQualifications(quals);
-            })
-            .catch((err) => {
-                if (cancelled) return;
-                clientLogger.error({ err }, 'Falha ao carregar matrizes de qualificação/objeções');
-                setObjections([]);
-                setQualifications([]);
-            })
-            .finally(() => { if (!cancelled) setLoading(false); });
-        return () => { cancelled = true; };
-    }, [brand]);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([playbookApi.listObjections(brand), playbookApi.listQualifications(brand)])
+      .then(([objs, quals]) => {
+        if (cancelled) return;
+        setObjections(objs);
+        setQualifications(quals);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        clientLogger.error({ err }, 'Falha ao carregar matrizes de qualificação/objeções');
+        setObjections([]);
+        setQualifications([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [brand]);
 
-    return { objections, qualifications, loading };
+  return { objections, qualifications, loading };
 }

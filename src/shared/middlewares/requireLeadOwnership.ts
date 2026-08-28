@@ -19,40 +19,41 @@ import { prisma } from '../../lib/prisma.js';
  * usuário autenticado (nunca compara contra o nome de outra pessoa).
  */
 export function requireLeadOwnership() {
-    return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-        const authReq = req as AuthRequest;
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const authReq = req as AuthRequest;
 
-        if (authReq.user.role !== 'CLOSER' && authReq.user.role !== 'SDR') {
-            next();
-            return;
-        }
+    if (authReq.user.role !== 'CLOSER' && authReq.user.role !== 'SDR') {
+      next();
+      return;
+    }
 
-        const lead = await prisma.lead.findFirst({
-            where: { id: req.params.id, organizationId: authReq.user.organizationId },
-            select: { owner: true },
-        });
+    const lead = await prisma.lead.findFirst({
+      where: { id: req.params.id, organizationId: authReq.user.organizationId },
+      select: { owner: true },
+    });
 
-        if (!lead) {
-            res.status(404).json({ success: false, error: 'Lead not found' });
-            return;
-        }
+    if (!lead) {
+      res.status(404).json({ success: false, error: 'Lead not found' });
+      return;
+    }
 
-        const ownsById = lead.owner === authReq.user.id;
-        const ownsByLegacyName = !ownsById && lead.owner != null && await ownerMatchesUserName(lead.owner, authReq.user.id);
+    const ownsById = lead.owner === authReq.user.id;
+    const ownsByLegacyName =
+      !ownsById && lead.owner != null && (await ownerMatchesUserName(lead.owner, authReq.user.id));
 
-        if (!ownsById && !ownsByLegacyName) {
-            res.status(403).json({
-                success: false,
-                error: 'Você só pode editar leads que você capturou.',
-            });
-            return;
-        }
+    if (!ownsById && !ownsByLegacyName) {
+      res.status(403).json({
+        success: false,
+        error: 'Você só pode editar leads que você capturou.',
+      });
+      return;
+    }
 
-        next();
-    };
+    next();
+  };
 }
 
 async function ownerMatchesUserName(owner: string, userId: string): Promise<boolean> {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
-    return !!user?.name && user.name === owner;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+  return !!user?.name && user.name === owner;
 }

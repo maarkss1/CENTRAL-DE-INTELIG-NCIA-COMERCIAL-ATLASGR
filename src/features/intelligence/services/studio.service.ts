@@ -18,25 +18,41 @@ import { generateAssistant } from './studio/generators/assistant.js';
 import { generateRoleplay } from './studio/generators/roleplay.js';
 import { generateSuperagent } from './studio/generators/superagent.js';
 
-export { studioGenerationSchema, assistantRequestSchema, type StudioGenerationRequest } from './studio/schema.js';
+export {
+  studioGenerationSchema,
+  assistantRequestSchema,
+  type StudioGenerationRequest,
+} from './studio/schema.js';
 
 export class StudioService {
-    async generate(request: StudioGenerationRequest): Promise<unknown> {
-        switch (request.kind) {
-            case 'email': return generateEmail(request);
-            case 'call_script': return generateCallScript(request);
-            case 'message': return generateMessage(request);
-            case 'ocr_extract': return generateOcrExtract(request);
-            case 'b2b_matrix': return generateB2bMatrix(request);
-            case 'training': return generateTraining(request);
-            case 'methodology': return generateMethodology(request);
-            case 'script': return generateScript(request);
-            case 'automation': return generateAutomation(request);
-            case 'assistant': return generateAssistant(request);
-            case 'roleplay': return generateRoleplay(request);
-            case 'superagent': return generateSuperagent(request);
-        }
+  async generate(request: StudioGenerationRequest): Promise<unknown> {
+    switch (request.kind) {
+      case 'email':
+        return generateEmail(request);
+      case 'call_script':
+        return generateCallScript(request);
+      case 'message':
+        return generateMessage(request);
+      case 'ocr_extract':
+        return generateOcrExtract(request);
+      case 'b2b_matrix':
+        return generateB2bMatrix(request);
+      case 'training':
+        return generateTraining(request);
+      case 'methodology':
+        return generateMethodology(request);
+      case 'script':
+        return generateScript(request);
+      case 'automation':
+        return generateAutomation(request);
+      case 'assistant':
+        return generateAssistant(request);
+      case 'roleplay':
+        return generateRoleplay(request);
+      case 'superagent':
+        return generateSuperagent(request);
     }
+  }
 }
 
 export const studioService = new StudioService();

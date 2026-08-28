@@ -13,87 +13,91 @@ export const redisConfigured = Boolean(configuredRedisUrl);
 // Em produção, o web precisa poder PRODUZIR jobs e usar o rate limit distribuído mesmo quando a
 // antiga flag ENABLE_QUEUES=false está mantida no Blueprint para impedir consumers embutidos.
 // O worker dedicado, por outro lado, continua exigindo ENABLE_QUEUES=true explicitamente.
-export const queuesEnabled = redisConfigured && (
-    process.env.ENABLE_QUEUES === 'true' || (isProduction && !isDedicatedWorkerProcess)
-);
+export const queuesEnabled =
+  redisConfigured &&
+  (process.env.ENABLE_QUEUES === 'true' || (isProduction && !isDedicatedWorkerProcess));
 
 export const rateLimitRedisEnabled = isProduction && redisConfigured && !isDedicatedWorkerProcess;
 
 if (isProduction && process.env.ENABLE_EMBEDDED_WORKERS === 'true') {
-    logger.fatal('ENABLE_EMBEDDED_WORKERS=true não é permitido em produção; use worker.ts dedicado.');
-    if (process.env.NODE_ENV !== 'test') process.exit(1);
+  logger.fatal('ENABLE_EMBEDDED_WORKERS=true não é permitido em produção; use worker.ts dedicado.');
+  if (process.env.NODE_ENV !== 'test') process.exit(1);
 }
 
 function retryDelay(times: number): number {
-    return Math.min(Math.max(times, 1) * 500, 5_000);
+  return Math.min(Math.max(times, 1) * 500, 5_000);
 }
 
-function observeConnection(redis: Redis, role: 'bullmq' | 'rate-limit' | 'cache', enabled: () => boolean): void {
-    redis.on('connect', () => {
-        if (enabled()) logger.info({ redisRole: role }, 'Connected to Redis successfully');
-    });
-    redis.on('reconnecting', (delay: number) => {
-        if (!enabled()) return;
-        recordRedisReconnect(role);
-        logger.warn({ redisRole: role, delayMs: delay }, 'Redis reconnect scheduled');
-    });
-    redis.on('error', (err) => {
-        if (!enabled()) return;
-        if (process.env.NODE_ENV === 'development') {
-            logger.warn({ redisRole: role, message: err.message }, 'Redis offline or connecting...');
-        } else {
-            logger.error({ redisRole: role, err }, 'Redis connection error');
-        }
-    });
+function observeConnection(
+  redis: Redis,
+  role: 'bullmq' | 'rate-limit' | 'cache',
+  enabled: () => boolean,
+): void {
+  redis.on('connect', () => {
+    if (enabled()) logger.info({ redisRole: role }, 'Connected to Redis successfully');
+  });
+  redis.on('reconnecting', (delay: number) => {
+    if (!enabled()) return;
+    recordRedisReconnect(role);
+    logger.warn({ redisRole: role, delayMs: delay }, 'Redis reconnect scheduled');
+  });
+  redis.on('error', (err) => {
+    if (!enabled()) return;
+    if (process.env.NODE_ENV === 'development') {
+      logger.warn({ redisRole: role, message: err.message }, 'Redis offline or connecting...');
+    } else {
+      logger.error({ redisRole: role, err }, 'Redis connection error');
+    }
+  });
 }
 
 export const connection = new Redis(redisUrl, {
-    lazyConnect: !queuesEnabled,
-    enableOfflineQueue: queuesEnabled,
-    maxRetriesPerRequest: null,
-    connectTimeout: 10_000,
-    retryStrategy(times) {
-        if (!queuesEnabled) return null;
-        return retryDelay(times);
-    },
+  lazyConnect: !queuesEnabled,
+  enableOfflineQueue: queuesEnabled,
+  maxRetriesPerRequest: null,
+  connectTimeout: 10_000,
+  retryStrategy(times) {
+    if (!queuesEnabled) return null;
+    return retryDelay(times);
+  },
 });
 observeConnection(connection, 'bullmq', () => queuesEnabled);
 registerRedisConnectionForMetrics('bullmq', connection, () => queuesEnabled);
 
 export const rateLimiterConnection = new Redis(redisUrl, {
-    lazyConnect: !rateLimitRedisEnabled,
-    // rate-limit-redis carrega os scripts Lua no construtor do middleware, poucos milissegundos
-    // antes de o evento `connect` poder ocorrer num cold-start. Sem offline queue, essa primeira
-    // carga falha com "Stream isn't writeable" apesar de a conexão ficar pronta logo em seguida.
-    // A fila é segura aqui porque commandTimeout/maxRetries continuam limitando indisponibilidade;
-    // ela serve apenas para atravessar a janela de conexão inicial, não para esconder outage longa.
-    enableOfflineQueue: rateLimitRedisEnabled,
-    maxRetriesPerRequest: 1,
-    connectTimeout: 3_000,
-    commandTimeout: 2_000,
-    retryStrategy(times) {
-        if (!rateLimitRedisEnabled) return null;
-        return retryDelay(times);
-    },
+  lazyConnect: !rateLimitRedisEnabled,
+  // rate-limit-redis carrega os scripts Lua no construtor do middleware, poucos milissegundos
+  // antes de o evento `connect` poder ocorrer num cold-start. Sem offline queue, essa primeira
+  // carga falha com "Stream isn't writeable" apesar de a conexão ficar pronta logo em seguida.
+  // A fila é segura aqui porque commandTimeout/maxRetries continuam limitando indisponibilidade;
+  // ela serve apenas para atravessar a janela de conexão inicial, não para esconder outage longa.
+  enableOfflineQueue: rateLimitRedisEnabled,
+  maxRetriesPerRequest: 1,
+  connectTimeout: 3_000,
+  commandTimeout: 2_000,
+  retryStrategy(times) {
+    if (!rateLimitRedisEnabled) return null;
+    return retryDelay(times);
+  },
 });
 observeConnection(rateLimiterConnection, 'rate-limit', () => rateLimitRedisEnabled);
 registerRedisConnectionForMetrics('rate-limit', rateLimiterConnection, () => rateLimitRedisEnabled);
 
 export const cacheConnection = new Redis(redisUrl, {
-    lazyConnect: !redisConfigured,
-    enableOfflineQueue: false,
-    maxRetriesPerRequest: 1,
-    connectTimeout: 5_000,
-    commandTimeout: 3_000,
-    retryStrategy(times) {
-        if (!redisConfigured) return null;
-        return retryDelay(times);
-    },
+  lazyConnect: !redisConfigured,
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+  connectTimeout: 5_000,
+  commandTimeout: 3_000,
+  retryStrategy(times) {
+    if (!redisConfigured) return null;
+    return retryDelay(times);
+  },
 });
 observeConnection(cacheConnection, 'cache', () => redisConfigured);
 registerRedisConnectionForMetrics('cache', cacheConnection, () => redisConfigured);
 
 export async function pingRedis(connectionToPing: Redis = connection): Promise<void> {
-    const pong = await connectionToPing.ping();
-    if (pong !== 'PONG') throw new Error(`Redis health check returned ${pong}`);
+  const pong = await connectionToPing.ping();
+  if (pong !== 'PONG') throw new Error(`Redis health check returned ${pong}`);
 }
