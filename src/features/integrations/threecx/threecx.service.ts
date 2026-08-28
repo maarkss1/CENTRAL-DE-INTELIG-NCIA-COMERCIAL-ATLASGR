@@ -8,6 +8,7 @@ import { assertSafeExternalUrl } from '../../../shared/security/urlGuard.js';
 import { isSuppressed } from '../birth-voice/callSuppression.service.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { classifyCallOutcome, callResultedInConversation, callMarker } from '../birth-voice/birthVoice.helpers.js';
+import { last8DigitsIndex } from '../../../lib/crypto/piiIndex.js';
 
 export interface ThreeCXConnectionInput {
     label?: string;
@@ -545,16 +546,19 @@ export async function process3CXWebhook(payload: Record<string, unknown>): Promi
             : null;
 
         if (!lead) {
+            // Contact.phone/whatsapp cifrados em repouso (ver src/lib/crypto/piiFields.ts) — o
+            // antigo `contains: últimos8Dígitos` contra o campo cifrado nunca mais casaria (IV
+            // aleatório por valor); substituído por igualdade contra o índice cego dos últimos 8
+            // dígitos (ver src/lib/crypto/piiIndex.ts).
             for (const num of candidateNumbers) {
-                const digits = num.replace(/\D/g, '');
-                const pattern = digits.length >= 8 ? digits.slice(-8) : digits;
-                if (!pattern) continue;
+                const patternIndex = last8DigitsIndex(num);
+                if (!patternIndex) continue;
                 lead = await prisma.lead.findFirst({
                     where: {
                         organizationId,
                         OR: [
-                            { contact: { phone: { contains: pattern } } },
-                            { contact: { whatsapp: { contains: pattern } } },
+                            { contact: { phoneLast8Index: patternIndex } },
+                            { contact: { whatsappLast8Index: patternIndex } },
                         ],
                     },
                     include: { contact: true },

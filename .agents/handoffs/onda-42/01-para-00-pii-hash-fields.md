@@ -1,8 +1,29 @@
 - De: 01
 - Para: 00
 - Onda: 42
-- Status: pendente (schema/migration/backfill de dono único do usuário)
+- Status: **superado** — ver nota de resolução no fim deste arquivo
 - Prioridade: alto
+
+## Resolução (nota adicionada depois deste handoff)
+
+A migration/backfill deste handoff foram aplicados (`20260827210000_onda42_decisoes_schema`), mas
+o mecanismo (`Contact.phoneHash/whatsappHash/emailHash`) foi substituído, numa PR paralela e
+independente, pela reativação completa da cifra AES-256-GCM de `Contact.email/phone/whatsapp` —
+exatamente o "trabalho futuro" que este handoff apontava (seção "Decisão desta rodada: cifra
+continua OFF"). O novo mecanismo (`emailIndex`/`emailDomainIndex`/`phoneIndex`/`phoneLast8Index`/
+`phoneLast9Index`/`whatsappIndex`/`whatsappLast8Index`/`whatsappLast9Index`, ver
+`src/lib/crypto/piiIndex.ts`) cobre tudo que `phoneHash`/`emailHash`/`whatsappHash` cobriam, mais as
+lacunas #2 e #3 documentadas abaixo (sufixo de telefone, domínio de e-mail) e a decriptação de
+leitura aninhada (`decryptNestedContactPii`, `src/lib/prisma.ts`).
+
+`Contact.phoneHash`/`whatsappHash`/`emailHash` foram removidos (migration
+`20260828040000_drop_contact_pii_hash_dec01_superseded`) — nunca reescrever uma migration já
+aplicada, então a remoção é uma migration nova, não uma edição da anterior. `src/lib/security/
+piiSearchIndex.ts` e seus testes também foram removidos (mesma cobertura, hoje em `src/lib/crypto/
+piiIndex.ts`). O resto deste documento (auditoria de call sites, lacunas conhecidas) permanece como
+registro histórico do levantamento original — a maioria das lacunas #1-#4 abaixo foi endereçada
+pela PR que superou este handoff; a exceção é a lacuna #1 (busca fuzzy/`contains` na tela de
+Contatos), que continua um gap real e documentado, não resolvido.
 
 ## Contexto
 

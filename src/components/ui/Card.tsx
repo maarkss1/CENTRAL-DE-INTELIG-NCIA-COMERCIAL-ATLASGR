@@ -8,9 +8,16 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-surface border border-gray-200 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]",
-        stat: "bg-gradient-to-br from-gray-50 to-white border border-gray-200 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]",
-        outline: "border border-gray-200 bg-transparent",
+        // shadow-card/shadow-card-hover (não rgba cru) — a sombra anterior era calibrada só pro
+        // tema claro (praticamente invisível sobre --surface escura, o tema padrão do produto por
+        // CREATIVE_SYSTEM_01.md seção C) e usava border-gray-200, que não reage a tema nenhum.
+        default: "bg-surface border border-line shadow-card transition-shadow hover:shadow-card-hover",
+        // Gradiente sutil (não decorativo à toa: distingue KPI/métrica de conteúdo comum, os 3
+        // consumidores reais são todos tiles de indicador — KpiTile, Analytics, Billing) trocado
+        // de from-gray-50/to-white (fixo, só funcionava no tema claro) pros próprios tokens de
+        // superfície, que já reagem a tema.
+        stat: "bg-gradient-to-br from-surface to-surface-2 border border-line shadow-card transition-shadow hover:shadow-card-hover",
+        outline: "border border-line bg-transparent",
         accent: "bg-surface border border-brand/30 shadow-glow-brand",
       },
       padding: {

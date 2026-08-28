@@ -7,6 +7,7 @@ import { requestContext } from '../../../lib/async-context.js';
 import { sendWhatsAppMessage } from '../whatsapp/whatsapp.service.js';
 import { sseService } from '../../notifications/sse.service.js';
 import { classifyCallOutcome, callResultedInConversation } from './birthVoice.helpers.js';
+import { last8DigitsIndex } from '../../../lib/crypto/piiIndex.js';
 
 /**
  * Webhook de resultado de ligação da Bland AI (rota legada /api/webhooks/voice-result).
@@ -130,21 +131,24 @@ async function handleVoiceResult(req: Request, res: Response): Promise<void> {
         const outcome = await requestContext.run({ tenantId: organizationId }, async () => {
             // Prioridade: id explícito do lead (enviado por nós na criação da chamada). O sufixo de
             // telefone é só fallback, e sempre DENTRO da organização do contexto (RLS + filtro).
-            const rawDigits = phoneNumber.replace(/\D/g, '');
-            const searchPattern = rawDigits.length >= 8 ? rawDigits.slice(-8) : rawDigits;
+            // Contact.phone/whatsapp cifrados em repouso (ver src/lib/crypto/piiFields.ts) — o
+            // antigo `contains: últimos8Dígitos` contra o campo cifrado nunca mais casaria (IV
+            // aleatório por valor); substituído por igualdade contra o índice cego dos últimos 8
+            // dígitos, computado da mesma forma dos dois lados (ver src/lib/crypto/piiIndex.ts).
+            const searchIndex = last8DigitsIndex(phoneNumber);
 
             const lead = leadId
                 ? await prisma.lead.findFirst({
                     where: { id: leadId, organizationId },
                     include: { contact: true },
                 })
-                : searchPattern
+                : searchIndex
                     ? await prisma.lead.findFirst({
                         where: {
                             organizationId,
                             OR: [
-                                { contact: { phone: { contains: searchPattern } } },
-                                { contact: { whatsapp: { contains: searchPattern } } },
+                                { contact: { phoneLast8Index: searchIndex } },
+                                { contact: { whatsappLast8Index: searchIndex } },
                             ],
                         },
                         include: { contact: true },
