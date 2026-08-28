@@ -24,9 +24,14 @@ const buttonVariants = cva(
         // ao laranja da AtlasGR.
         default: "bg-brand-active text-white hover:bg-brand-2 hover:scale-[1.02] hover:shadow-brand-sm",
         destructive: "bg-red-500 text-white shadow-sm hover:bg-red-600 hover:scale-[1.02]",
-        outline: "border border-gray-300 bg-transparent text-ink hover:bg-gray-100",
-        secondary: "bg-surface-2 text-ink hover:bg-gray-200 hover:scale-[1.02]",
-        ghost: "hover:bg-gray-100 hover:text-ink",
+        // border-gray-300/hover:bg-gray-100/200 (Tailwind cru, não token) nunca reagiam ao tema —
+        // no dark mode (padrão do produto, CREATIVE_SYSTEM_01.md seção C) produziam borda
+        // praticamente invisível e um hover claro incoerente sobre superfície escura. Trocados
+        // pelos tokens já usados em todo o resto do design system (border-line/bg-surface-2),
+        // mesmo padrão de hover já usado pelos itens de navegação da Sidebar.
+        outline: "border border-line bg-transparent text-ink hover:bg-surface-2",
+        secondary: "bg-surface-2 text-ink hover:bg-line hover:scale-[1.02]",
+        ghost: "hover:bg-surface-2 hover:text-ink",
         link: "text-brand underline-offset-4 hover:underline",
       },
       size: {

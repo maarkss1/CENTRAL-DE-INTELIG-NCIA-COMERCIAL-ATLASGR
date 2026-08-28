@@ -436,9 +436,42 @@ model Contact {
   name                String
   role                String?
   department          String?
+  // phone/whatsapp/email cifrados em repouso (AES-256-GCM, ver src/lib/crypto/piiFields.ts) desde
+  // a reativação do CPI "PII de lead/contato não cifrada em repouso" — o valor gravado aqui é
+  // ciphertext (`enc:v1:...`), nunca texto puro, decifrado de forma transparente pela extensão do
+  // Prisma em src/lib/prisma.ts. Os índices `*Index`/`*Last8Index` abaixo (HMAC-SHA256
+  // determinístico, src/lib/crypto/piiIndex.ts) existem justamente porque IV aleatório por valor
+  // faz igualdade/contains direto nesta coluna nunca casar — nenhuma busca deve filtrar por estes
+  // três campos diretamente, sempre pelo índice correspondente. Substitui `phoneHash`/
+  // `whatsappHash`/`emailHash` (DEC-01/onda-42, `src/lib/security/piiSearchIndex.ts`) — aquela
+  // rodada implementou só o mecanismo de busca (campo original continuava em texto puro), deixando
+  // a cifra em si e a migration como handoff pendente
+  // (`.agents/handoffs/onda-42/01-para-00-pii-hash-fields.md`); este conjunto de campos completa
+  // exatamente esse handoff (cifra reativada + índice mais completo: domínio de e-mail e sufixo de
+  // 8/9 dígitos de telefone, que o hash único de DEC-01 não cobria).
   phone               String?
   whatsapp            String?
   email               String?
+  // Índice cego de igualdade exata sobre `email` normalizado (trim + lowercase) — substitui todo
+  // WHERE que antes fazia `email: { equals, mode: 'insensitive' }` contra o campo cifrado.
+  emailIndex          String?
+  // Índice cego sobre o domínio do e-mail (parte após `@`) — substitui todo WHERE que antes fazia
+  // `email: { endsWith: '@dominio', mode: 'insensitive' }` (ex.: rate limit de cadência por
+  // domínio, PrismaCadenceRateLimitPort.ts).
+  emailDomainIndex    String?
+  // Índice cego de igualdade exata sobre `phone` exatamente como armazenado (sem normalizar
+  // dígitos) — substitui todo WHERE que antes fazia `phone: contact.phone` direto.
+  phoneIndex          String?
+  // Índice cego sobre os últimos 8 dígitos de `phone` — substitui o antigo `phone: { contains:
+  // últimos8Dígitos }` usado pelos webhooks de voz (Bland AI/3CX) pra casar chamada com contato.
+  phoneLast8Index     String?
+  // Índice cego sobre os últimos 9 dígitos de `phone` — substitui o antigo `regexp_replace(...)
+  // LIKE '%últimos9Dígitos'` usado por whatsappMessage.service.ts pra casar mensagem recebida com
+  // contato (9, não 8: convenção própria desse fluxo, já existente antes deste índice).
+  phoneLast9Index     String?
+  whatsappIndex       String?
+  whatsappLast8Index  String?
+  whatsappLast9Index  String?
   linkedin            String?
   birthDate           DateTime?
   observations        String?
@@ -447,19 +480,6 @@ model Contact {
   seniority           String? // ex: "c_suite", "vp", "director", "manager" — vindo da Apollo/Hunter
   emailStatus         String? // ex: "verified", "guessed" — confiabilidade do e-mail encontrado
   aiProcessingConsent Boolean? // Consentimento LGPD explícito/titular para processamento de IA externa
-
-  // DEC-01 (dossiê CPI, Onda 42): índice de busca determinístico (HMAC-SHA256 do valor
-  // normalizado, ver src/lib/security/piiSearchIndex.ts) — permite igualdade exata/dedup em
-  // phone/email/whatsapp sem depender de comparação sobre texto puro (necessário caso estes
-  // campos sejam cifrados em repouso no futuro; hoje continuam em texto puro, ver decisão em
-  // .agents/handoffs/onda-42/01-para-00-pii-hash-fields.md). Calculado automaticamente pela
-  // extensão do Prisma Client (src/lib/prisma.ts) em toda escrita — nenhum call site precisa
-  // gravar estes campos manualmente. Índice simples (não único): dois contatos podem
-  // legitimamente compartilhar o mesmo telefone/e-mail (é o que o job de dedup existe para
-  // detectar).
-  phoneHash    String?
-  whatsappHash String?
-  emailHash    String?
 
   customFields        Json?
   commercialDocuments CrmCommercialDocument[]
@@ -482,14 +502,19 @@ model Contact {
   // mesmos. Os campos pessoais continuam apenas em Contact; o LDR nao cria uma copia global.
   @@unique([id, companyId, organizationId])
   @@index([organizationId])
-  @@index([email])
   @@index([name])
   @@index([role])
-  @@index([phone])
-  @@index([whatsapp])
-  @@index([phoneHash])
-  @@index([whatsappHash])
-  @@index([emailHash])
+  // Substituem os antigos @@index([email])/@@index([phone])/@@index([whatsapp]) — inúteis contra
+  // ciphertext (IV aleatório nunca repete), ver comentário nos campos acima. Também substituem
+  // phoneHash/whatsappHash/emailHash (DEC-01/onda-42) — ver comentário grande no topo do model.
+  @@index([emailIndex])
+  @@index([emailDomainIndex])
+  @@index([phoneIndex])
+  @@index([phoneLast8Index])
+  @@index([phoneLast9Index])
+  @@index([whatsappIndex])
+  @@index([whatsappLast8Index])
+  @@index([whatsappLast9Index])
 }
 
 model Lead {
@@ -702,6 +727,12 @@ model User {
   // Força a troca de senha no próximo login — usado quando um admin define uma senha
   // temporária/padrão pra outra pessoa (ver POST /api/auth-extra/change-password).
   mustChangePassword Boolean      @default(false)
+  // Bloqueio de conta por tentativas de login malsucedidas (ver hooks.before/after em
+  // src/lib/auth.ts) — complementa o rate limit por IP (src/bootstrap/rateLimiters.ts,
+  // AUTH_RATE_LIMIT_MAX) com um limite por CONTA: um atacante distribuído por vários IPs contra a
+  // MESMA conta ainda é contido, o que o rate limit por IP sozinho não cobre.
+  failedLoginAttempts Int         @default(0)
+  lockedUntil         DateTime?
   organizationId     String
   organization       Organization @relation(fields: [organizationId], references: [id])
   createdAt          DateTime     @default(now())

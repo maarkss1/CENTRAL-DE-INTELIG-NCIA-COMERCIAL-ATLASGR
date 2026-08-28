@@ -1,5 +1,6 @@
 import { prisma } from '../../../lib/prisma.js';
 import type { CadenceRateLimitPort } from '../application/rateLimitService.js';
+import { emailDomainIndexOf } from '../../../lib/crypto/piiIndex.js';
 
 /**
  * Adaptador Prisma real de `CadenceRateLimitPort` — tabelas `CadenceTouchAttempt`/`CadenceRun`
@@ -36,6 +37,13 @@ export class PrismaCadenceRateLimitPort implements CadenceRateLimitPort {
         until: Date,
         leadId: string,
     ): Promise<{ distinctRecipientsToday: number; currentLeadAlreadyCounted: boolean }> {
+        // Contact.email cifrado em repouso (ver src/lib/crypto/piiFields.ts) — o antigo
+        // `endsWith('@dominio', insensitive)` contra o campo cifrado nunca mais casaria (IV
+        // aleatório por valor); substituído por igualdade contra o índice cego do domínio (ver
+        // src/lib/crypto/piiIndex.ts). Sem domínio válido, nenhum toque de e-mail tem como bater
+        // (evita `{ emailDomainIndex: null }` casar com contatos sem e-mail).
+        const emailDomainIndex = emailDomainIndexOf(emailDomain);
+        if (!emailDomainIndex) return { distinctRecipientsToday: 0, currentLeadAlreadyCounted: false };
         const rows = await prisma.cadenceTouchAttempt.findMany({
             where: {
                 organizationId,
@@ -44,7 +52,7 @@ export class PrismaCadenceRateLimitPort implements CadenceRateLimitPort {
                 attemptedAt: { gte: since, lte: until },
                 cadenceRun: {
                     organizationId,
-                    lead: { contact: { email: { endsWith: `@${emailDomain}`, mode: 'insensitive' } } },
+                    lead: { contact: { emailDomainIndex } },
                 },
             },
             select: { cadenceRun: { select: { leadId: true } } },

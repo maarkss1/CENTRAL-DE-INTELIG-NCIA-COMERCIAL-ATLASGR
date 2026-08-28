@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { prisma } from "./prisma.js";
 import { requestContext } from "./async-context.js";
 import { parseAllowedOrigins } from "../config/network.js";
@@ -10,6 +10,21 @@ import { sendEmail, MailerNotConfiguredError } from "./email/mailer.js";
 import { logger } from "./logger.js";
 
 const ACCESS_DENIED_MESSAGE = "Acesso restrito a e-mails corporativos autorizados (@atlasgr.com.br ou @totaltrac.com.br).";
+
+// Bloqueio de conta por tentativas de login malsucedidas — complementa o rate limit por IP
+// (AUTH_RATE_LIMIT_MAX/15min, src/bootstrap/rateLimiters.ts) com um limite por CONTA: um
+// atacante distribuído por vários IPs contra a MESMA conta (credential stuffing/força bruta
+// direcionada) não é contido só pelo limite de IP, que trata cada IP como independente. Mesma
+// janela de 15 minutos do rate limit de IP, por consistência — não é um SLA formal.
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+const ACCOUNT_LOCKED_MESSAGE = "Conta temporariamente bloqueada por excesso de tentativas de login malsucedidas. Tente novamente em alguns minutos ou use \"esqueci minha senha\".";
+// Marca própria no código da APIError que o `before` abaixo lança quando a conta já está
+// bloqueada — o `after` (que INCREMENTA o contador a cada falha) precisa reconhecer e ignorar
+// essa marca, senão uma tentativa contra uma conta JÁ bloqueada re-incrementaria o contador (e
+// empurraria `lockedUntil` pra sempre mais longe) a cada nova tentativa recebida enquanto
+// bloqueada, em vez de só a primeira leva de MAX_FAILED_LOGIN_ATTEMPTS contar.
+const ACCOUNT_LOCKED_ERROR_CODE = "ACCOUNT_LOCKED";
 
 const socialProviders = {
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
@@ -84,6 +99,62 @@ export const auth = betterAuth({
     },
     socialProviders,
     plugins: [],
+    hooks: {
+        // Roda ANTES do better-auth verificar a senha — barra a tentativa (e evita o custo de
+        // hashing) sem sequer chamar `password.verify` quando a conta já está bloqueada.
+        before: createAuthMiddleware(async (ctx) => {
+            if (ctx.path !== "/sign-in/email") return;
+            const email = typeof ctx.body?.email === "string" ? ctx.body.email.toLowerCase() : null;
+            if (!email) return;
+
+            const user = await prisma.user.findUnique({ where: { email }, select: { lockedUntil: true } });
+            if (user?.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+                throw new APIError("FORBIDDEN", { message: ACCOUNT_LOCKED_MESSAGE, code: ACCOUNT_LOCKED_ERROR_CODE });
+            }
+        }),
+        // Roda DEPOIS do resultado (sucesso ou falha) já estar decidido — incrementa/zera o
+        // contador. `ctx.context.returned` é a instância de APIError quando a tentativa falhou
+        // (senha errada, usuário inexistente), ou a sessão/usuário criados quando teve sucesso —
+        // mesmo mecanismo que `getEndpointResponse` do próprio better-auth usa internamente.
+        after: createAuthMiddleware(async (ctx) => {
+            if (ctx.path !== "/sign-in/email") return;
+            const email = typeof ctx.body?.email === "string" ? ctx.body.email.toLowerCase() : null;
+            if (!email) return;
+
+            const returned = ctx.context.returned;
+            const failed = isAPIError(returned);
+            // Já barrado pelo `before` acima (conta já bloqueada) — não reconta nem empurra
+            // `lockedUntil` mais pra frente a cada nova tentativa recebida enquanto bloqueada.
+            if (failed && returned.body?.code === ACCOUNT_LOCKED_ERROR_CODE) return;
+
+            const user = await prisma.user.findUnique({
+                where: { email },
+                select: { id: true, failedLoginAttempts: true },
+            });
+            // Não revela se o e-mail existe (mesma resposta genérica de "Invalid email or
+            // password" do better-auth já cobre isso) — sem usuário, não há o que atualizar.
+            if (!user) return;
+
+            if (failed) {
+                const attempts = user.failedLoginAttempts + 1;
+                const shouldLock = attempts >= MAX_FAILED_LOGIN_ATTEMPTS;
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        failedLoginAttempts: attempts,
+                        ...(shouldLock ? { lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MS) } : {}),
+                    },
+                });
+            } else if (user.failedLoginAttempts > 0) {
+                // Login bem-sucedido zera o contador — o titular real digitando a senha certa
+                // não deve ficar acumulando "quase bloqueios" de tentativas erradas antigas.
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: { failedLoginAttempts: 0, lockedUntil: null },
+                });
+            }
+        }),
+    },
     // Hardening explícito em vez de depender apenas dos defaults da biblioteca
     // (que variam de comportamento conforme NODE_ENV — ver ADR sobre bypass de dev).
     session: {

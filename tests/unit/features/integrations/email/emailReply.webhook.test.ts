@@ -61,7 +61,7 @@ const mockEnv: Record<string, string | undefined> = { EMAIL_INBOUND_WEBHOOK_SECR
 vi.mock('../../../../../src/config/env.js', () => ({ env: mockEnv }));
 
 const { emailReplyWebhookRoutes } = await import('../../../../../src/features/integrations/email/emailReply.webhook');
-const { hashEmailForSearchIndex } = await import('../../../../../src/lib/security/piiSearchIndex');
+const { contactEmailIndex } = await import('../../../../../src/lib/crypto/piiIndex');
 
 function buildApp() {
     const app = express();
@@ -219,13 +219,16 @@ describe('POST /api/webhooks/email/webhook', () => {
         });
     });
 
-    it('sem dica de leadId, resolve o lead pelo e-mail do contato (aberto, dentro da organização) via emailHash — não mais por igualdade sobre o valor puro (DEC-01/onda-42, ver src/lib/security/piiSearchIndex.ts)', async () => {
+    it('sem dica de leadId, resolve o lead pelo e-mail do contato (aberto, dentro da organização) via emailIndex — não mais por igualdade sobre o valor puro (Contact.email cifrado em repouso, ver src/lib/crypto/piiIndex.ts)', async () => {
         await post(inboundPayload());
 
         expect(leadFindFirst).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
                 organizationId: 'org-1',
-                contact: { emailHash: hashEmailForSearchIndex('lead@empresa.com') },
+                // Contact.email cifrado em repouso (ver src/lib/crypto/piiFields.ts) — a busca
+                // exata passou a usar o índice cego determinístico em vez do campo cifrado direto
+                // (ver src/lib/crypto/piiIndex.ts).
+                contact: { emailIndex: contactEmailIndex('lead@empresa.com') },
             }),
         }));
     });

@@ -203,10 +203,22 @@ test.describe('Kanban do CRM — drag e drop', () => {
       await page.keyboard.press('ArrowRight'); // Cadência Iniciada
       await expect(page.getByText(/sobre a coluna Cadência Iniciada/)).toBeVisible({ timeout: 500 });
     }).toPass({ timeout: 10_000 });
-    await page.keyboard.press('ArrowRight'); // Qualificação (SDR)
-    await expect(page.getByText(/sobre a coluna Qualificação \(SDR\)/)).toBeVisible({ timeout: 10_000 });
-    await page.keyboard.press('ArrowLeft'); // volta pra Cadência Iniciada
-    await expect(page.getByText(/sobre a coluna Cadência Iniciada/)).toBeVisible({ timeout: 10_000 });
+    // Achado real (CI): o segundo ArrowRight também é perdido às vezes, contrariando a suposição
+    // acima ("listener já anexado continua ativo pro resto do gesto") — o KeyboardSensor do
+    // dnd-kit também remede os containers "droppable" (measureDroppableContainers) a cada move
+    // dentro do mesmo drag, o que pode ter atraso assíncrono análogo ao setTimeout(0) do attach
+    // inicial. tests/e2e/crm-kanban.spec.ts:188 falhou exatamente nesta linha em CI (2026-08-28,
+    // 3 tentativas seguidas) sem nenhuma mudança de código relacionada — reproduzido como perda
+    // de tecla, não lentidão real (o efeito é síncrono assim que o listener/measure existe).
+    // Mesmo padrão de retry-and-resend do ArrowRight acima, agora também nos moves seguintes.
+    await expect(async () => {
+      await page.keyboard.press('ArrowRight'); // Qualificação (SDR)
+      await expect(page.getByText(/sobre a coluna Qualificação \(SDR\)/)).toBeVisible({ timeout: 500 });
+    }).toPass({ timeout: 10_000 });
+    await expect(async () => {
+      await page.keyboard.press('ArrowLeft'); // volta pra Cadência Iniciada
+      await expect(page.getByText(/sobre a coluna Cadência Iniciada/)).toBeVisible({ timeout: 500 });
+    }).toPass({ timeout: 10_000 });
     await page.keyboard.press('Space'); // drop em Cadência Iniciada
 
     const columnBody = page.locator('h3', { hasText: 'Cadência Iniciada' }).locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
