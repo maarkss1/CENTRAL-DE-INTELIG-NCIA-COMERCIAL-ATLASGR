@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
-import { assertSafeWebhookUrl } from '../../../lib/adapters/crm/Bitrix24Adapter.js';
+import { assertSafeExternalUrl } from '../../../shared/security/urlGuard.js';
 import { isSuppressed } from '../birth-voice/callSuppression.service.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { classifyCallOutcome, callResultedInConversation, callMarker } from '../birth-voice/birthVoice.helpers.js';
@@ -98,7 +98,7 @@ export async function connect3CX(organizationId: string, input: ThreeCXConnectio
     }
 
     const pbxUrl = input.pbxUrl.trim().replace(/\/$/, '');
-    await assertSafeWebhookUrl(pbxUrl);
+    await assertSafeExternalUrl(pbxUrl);
 
     const connectionId = `3cx-${Date.now()}-${randomUUID().slice(0, 8)}`;
     const newConn = {
@@ -125,11 +125,21 @@ export async function connect3CX(organizationId: string, input: ThreeCXConnectio
     };
 }
 
-/** Testa a comunicação com o servidor 3CX PABX */
+/**
+ * Testa a comunicação com o servidor 3CX PABX.
+ *
+ * Revalida `conn.pbxUrl` contra o guard de SSRF aqui, mesmo já validado uma vez em `connect3CX`
+ * antes de persistir — sem isto, um DNS rebinding (host resolvia IP público no cadastro, IP
+ * privado agora, no momento real do fetch) só seria pego na primeira vez, nunca nos testes de
+ * conexão seguintes contra a URL já salva no banco. Mesmo padrão aplicado a `testWebhook`
+ * (Bitrix24, `client.ts`).
+ */
 export async function test3CXConnection(organizationId: string, connectionId: string): Promise<{ success: boolean; message: string; pbxUrl: string }> {
     const connections = await get3CXConnectionsForOrg(organizationId);
     const conn = connections.find((c) => c.id === connectionId);
     if (!conn) throw new AppError('Conexão 3CX PABX não encontrada.', 404);
+
+    await assertSafeExternalUrl(conn.pbxUrl);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8_000);
@@ -197,7 +207,11 @@ export async function make3CXCall(
     organizationId: string,
     connectionId: string,
     destinationNumber: string,
-    leadId?: string
+    leadId?: string,
+    /** Opcional: e-mail do contato/lead, quando o chamador o tiver em mãos mesmo sem leadId
+     *  resolvido — fortalece o casamento do opt-out unificado (ver comentário abaixo). Nunca
+     *  obrigatório: um Click-to-Call continua funcionando só com telefone. */
+    email?: string
 ): Promise<{ success: boolean; callId: string; status: string }> {
     const connections = await get3CXConnectionsForOrg(organizationId);
     const conn = connections.find((c) => c.id === connectionId) || connections[0];
@@ -214,14 +228,27 @@ export async function make3CXCall(
     // pela ligação de IA não impedia um vendedor humano de disparar outra chamada pelo 3CX para o
     // mesmo número minutos depois.
     //
-    // `isSuppressed` também consulta o opt-out unificado entre canais (`OptOutRecord`) — leadId,
-    // quando informado pela rota, é o casamento mais forte para pegar um opt-out feito por e-mail
-    // (05) ou WhatsApp (06) do mesmo lead, mesmo que o número discado aqui não seja o mesmo em
-    // comum. Não busca o e-mail do lead à parte: o Click-to-Call é uma ação de latência sensível de
-    // um vendedor humano, e o casamento por leadId já cobre o caso central deste contrato.
-    if (await isSuppressed(organizationId, destinationNumber, { leadId: leadId ?? null })) {
+    // `isSuppressed` já normaliza `destinationNumber` para `phoneE164` e consulta o opt-out
+    // unificado (`OptOutRecord`) por ele independentemente de `leadId` estar presente — então um
+    // Click-to-Call sem leadId (número digitado manualmente) NUNCA pulava a checagem por telefone.
+    //
+    // CORREÇÃO (gap real de auditoria): o que faltava era `email` — quando o vendedor dispara a
+    // chamada a partir de um contato do CRM (formulário/UI) sem `leadId` resolvido, ou quando quer
+    // reforçar o casamento mesmo tendo leadId (contato pode ter opinado por e-mail com um telefone
+    // diferente do discado agora), o e-mail do contato agora também entra no contexto do opt-out
+    // unificado — mesmo padrão de `SuppressionCheckContext` já usado pelo SDR de voz
+    // (`callSuppression.service.ts`), sem duplicar a query: `isSuppressed`/`isOptedOut` já sabem
+    // casar por leadId OU email OU phoneE164 (`PrismaOptOutRepository.findMatches`). leadId e email
+    // são independentes um do outro — nenhum dos dois enfraquece a checagem por telefone que já
+    // valia antes.
+    if (await isSuppressed(organizationId, destinationNumber, { leadId: leadId ?? null, email: email ?? null })) {
         throw new AppError('Número na lista interna de bloqueio (opt-out): a ligação não foi disparada.', 409);
     }
+
+    // Revalida contra SSRF (DNS rebinding) imediatamente antes da chamada de rede real — ver
+    // comentário em `test3CXConnection` acima; `conn.pbxUrl` já foi validado uma vez em
+    // `connect3CX`, mas o servidor pode responder outro IP agora.
+    await assertSafeExternalUrl(conn.pbxUrl);
 
     const callId = `3cx-call-${Date.now()}`;
     const controller = new AbortController();

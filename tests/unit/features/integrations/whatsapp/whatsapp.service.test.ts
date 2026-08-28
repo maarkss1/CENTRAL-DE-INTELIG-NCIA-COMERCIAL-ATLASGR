@@ -16,6 +16,11 @@ vi.mock('../../../../../src/lib/queue/redis.js', () => ({
     // não existe fila real nem processo worker dedicado: validamos somente a sessão Baileys local.
     queuesEnabled: false,
     isDedicatedWorkerProcess: false,
+    // Onda 41 (lock distribuído entre réplicas): redisConfigured: false faz
+    // acquireDistributedLock cair no ramo "instância única" (trava sempre concedida, sem chamar
+    // cacheConnection.set/get/eval) — mesma suposição de "sem Redis real neste teste unitário" já
+    // documentada acima para queuesEnabled/isDedicatedWorkerProcess.
+    redisConfigured: false,
     connection: {},
     cacheConnection: {
         get: (...args: [string]) => redisGet(...args),

@@ -1,5 +1,5 @@
 import { BaseAgent } from './base.agent.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
 
 /**
  * BDR (Business Development Rep) Autônomo de Elite: Prospecção Outbound B2B de Ultra-Performance.
@@ -68,7 +68,9 @@ REGRAS DE FORMATAÇÃO:
 - **Dia 3:** [Canal] ➔ [Ação de follow-up de valor]
 - **Dia 7:** [Canal] ➔ [Última tentativa ou breakup]
 
-${SWARM_OUTPUT_CONTRACT}`;
+${SWARM_OUTPUT_CONTRACT}
+
+${SWARM_UNTRUSTED_CONTENT_GUARD}`;
 
         return learnedStyle
             ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência de tom e linguagem):\n${learnedStyle}`

@@ -4,6 +4,10 @@ import { getPaidProspectingKey } from '../../../../config/prospecting-integratio
 import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
 import { APOLLO_PEOPLE_SEARCH_URL, APOLLO_PEOPLE_MATCH_URL, MAX_DECISION_MAKER_LOOKUPS, parsePlanRestriction } from './client.js';
 import type { ApolloOrganization, ApolloContact, ApolloPersonRaw, DecisionMakerCriteria } from './types.js';
+import { checkProviderRateLimit } from '../providerRateLimit.js';
+import { withProviderCache, buildProviderCacheKey } from '../providerCache.js';
+import { recordProviderCallCost } from '../providerCostMetrics.js';
+import { assertProspectingBudgetNotExceeded } from '../providerBudget.js';
 
 /**
  * Enriquecimento de UMA pessoa específica já identificada (nome + empresa/domínio) via
@@ -18,6 +22,29 @@ export async function enrichPersonByName(
 ): Promise<{ contact: ApolloContact | null; error?: string }> {
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !fullName.trim()) return { contact: null };
+
+    // Cache por (nome, domínio, empresa) — checado ANTES do rate limit: um acerto de cache não
+    // deve consumir a vaga do token bucket, só uma chamada de rede real deve.
+    const cacheKey = buildProviderCacheKey('apollo', 'people-match', { fullName, domain: domain || null, organizationName: organizationName || null });
+    return withProviderCache(
+        cacheKey,
+        () => enrichPersonByNameUncached(fullName, domain, organizationName, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function enrichPersonByNameUncached(
+    fullName: string,
+    domain: string | null | undefined,
+    organizationName: string | null | undefined,
+    apiKey: string
+): Promise<{ contact: ApolloContact | null; error?: string }> {
+    const rateLimit = checkProviderRateLimit('apollo');
+    if (!rateLimit.allowed) return { contact: null, error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
 
     const [firstName, ...rest] = fullName.trim().split(/\s+/);
     const lastName = rest.join(' ');
@@ -40,6 +67,7 @@ export async function enrichPersonByName(
             return { contact: null, error: `Apollo People Match respondeu ${res.status}: ${text.slice(0, 150)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = await res.json();
         const p = data?.person;
         if (!p) return { contact: null };
@@ -116,6 +144,29 @@ export async function enrichOrganizationWithContacts(
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !domain) return { contacts: [] };
 
+    // Mesmo domínio+limite buscado duas vezes no mesmo TTL (ex: vendedor reabre a tela de
+    // decisores, ou a Descoberta pré-busca o mesmo domínio que a promoção do lead busca de novo)
+    // não deve bater a Apollo/Hunter de novo — ver providerCache.ts.
+    const cacheKey = buildProviderCacheKey('apollo', 'people-search-by-domain', { domain, limit });
+    return withProviderCache(
+        cacheKey,
+        () => enrichOrganizationWithContactsUncached(domain, limit, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function enrichOrganizationWithContactsUncached(
+    domain: string,
+    limit: number,
+    apiKey: string
+): Promise<{ contacts: ApolloContact[]; error?: string; source?: 'apollo' | 'hunter' }> {
+    const rateLimit = checkProviderRateLimit('apollo');
+    if (!rateLimit.allowed) return { contacts: [], error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
+
     try {
         const res = await fetchWithProviderRetry(APOLLO_PEOPLE_SEARCH_URL, {
             method: 'POST',
@@ -142,6 +193,7 @@ export async function enrichOrganizationWithContacts(
             return { contacts: [], error: `Apollo People API respondeu ${res.status}: ${text.slice(0, 100)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = await res.json();
         const people: ApolloPersonRaw[] = data.people || data.contacts || [];
 
@@ -171,6 +223,29 @@ export async function searchDecisionMakersAdvanced(
 ): Promise<{ contacts: DecisionMaker[]; error?: string; source?: 'apollo' | 'hunter' }> {
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !domain) return { contacts: [] };
+
+    // Mesmo domínio+critérios buscado de novo no mesmo TTL (o operador clicou "Buscar Decisores"
+    // outra vez para o mesmo domínio, sem mudar os filtros) não deve bater o provider de novo.
+    const cacheKey = buildProviderCacheKey('apollo', 'people-search-advanced', { domain, limit, criteria: criteria as unknown as Record<string, unknown> });
+    return withProviderCache(
+        cacheKey,
+        () => searchDecisionMakersAdvancedUncached(domain, criteria, limit, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function searchDecisionMakersAdvancedUncached(
+    domain: string,
+    criteria: DecisionMakerCriteria,
+    limit: number,
+    apiKey: string
+): Promise<{ contacts: DecisionMaker[]; error?: string; source?: 'apollo' | 'hunter' }> {
+    const rateLimit = checkProviderRateLimit('apollo');
+    if (!rateLimit.allowed) return { contacts: [], error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
 
     try {
         const body: Record<string, unknown> = {
@@ -232,6 +307,7 @@ export async function searchDecisionMakersAdvanced(
             return { contacts: [], error: `Apollo People API respondeu ${res.status}: ${text.slice(0, 100)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = await res.json();
         const people: ApolloPersonRaw[] = data.people || data.contacts || [];
 

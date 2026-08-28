@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -13,6 +13,7 @@ import {
     MapPinned,
     ShieldCheck,
     Target,
+    Users,
 } from 'lucide-react';
 import {
     type DatasetHealth,
@@ -27,7 +28,8 @@ import {
     type RevenueAssumptions,
     type SellerCostAssumptions,
 } from '../domain/sellerEconomics';
-import { loadMarketIntelligenceSnapshot } from '../marketIntelligence.data';
+import type { OptimizationScenario } from '../domain/territoryOptimizer';
+import { loadMarketIntelligenceSnapshot, loadNationalOptimizationScenarios } from '../marketIntelligence.data';
 
 type TabId = 'board' | 'territories' | 'simulator' | 'data';
 
@@ -211,33 +213,118 @@ function TopMunicipalitiesByDemand({ municipalities }: { municipalities: Municip
     );
 }
 
-function TerritoryView({ manifest, territories, municipalities }: { manifest: MarketIntelligenceManifest; territories: TerritoryRecord[]; municipalities: MunicipalityRecord[] }) {
-    if (!territories.length) {
-        return (
-            <div className="space-y-3">
-                <section className="rounded-3xl border border-line bg-surface p-8 text-center">
-                    <MapPinned className="mx-auto h-9 w-9 text-brand" aria-hidden="true" />
-                    <h2 className="mt-3 text-xl font-black text-ink">Territory Optimizer aguardando dados nacionais</h2>
-                    <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-ink-2">
-                        Nenhum território calculado foi publicado no manifest atual. Quando os agregados municipais forem produzidos, esta visão receberá cenários de 1, 2, 3, 5, 10 e 20 vendedores com raios de 100 a 400 km e penalização de sobreposição.
-                    </p>
-                    <p className="mt-4 text-xs font-bold text-amber-700">Status: {manifest.decisionReady ? 'PRONTO' : 'BLOQUEADO POR DADOS'}</p>
-                </section>
-                <TopMunicipalitiesByDemand municipalities={municipalities} />
-            </div>
-        );
-    }
+function TerritoryOptimizerPanel({ manifest }: { manifest: MarketIntelligenceManifest }) {
+    const [scenarios, setScenarios] = useState<OptimizationScenario[] | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [expanded, setExpanded] = useState<number | null>(null);
+
+    const run = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await loadNationalOptimizationScenarios(manifest);
+            setScenarios(result);
+            setExpanded(null);
+        } catch (cause) {
+            setError(cause instanceof Error ? cause.message : 'Falha ao calcular cenários de território.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <section className="overflow-hidden rounded-3xl border border-line bg-surface">
-            <div className="border-b border-line p-5"><h2 className="text-lg font-black text-ink">Territórios calculados</h2></div>
-            <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-xs">
-                    <thead className="bg-surface-2 text-ink-2"><tr><th className="p-3">Base</th><th className="p-3">Raio</th><th className="p-3">Municípios</th><th className="p-3">ICP</th><th className="p-3">Score</th><th className="p-3">Confiança</th></tr></thead>
-                    <tbody>{territories.map((territory) => <tr key={territory.id} className="border-t border-line"><td className="p-3 font-black text-ink">{territory.baseCity}/{territory.uf}</td><td className="p-3">{territory.radiusKm} km</td><td className="p-3">{number.format(territory.municipalityCount)}</td><td className="p-3">{territory.icp.total === null ? 'NÃO DISPONÍVEL' : number.format(territory.icp.total)}</td><td className="p-3">{territory.opportunityScore?.toFixed(1) ?? 'BLOQUEADO'}</td><td className="p-3 font-bold">{territory.confidence}</td></tr>)}</tbody>
-                </table>
+        <section className="rounded-3xl border border-line bg-surface p-5 md:p-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">Territory Optimizer · multi-vendedor</p>
+                    <h2 className="mt-1 text-xl font-black text-ink">Se contratarmos N vendedores, onde eles devem morar?</h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">
+                        Calcula cenários de 1, 2, 3, 5, 10 e 20 vendedores com raios de 100 a 400 km, minimizando sobreposição de território entre eles. Usa o mesmo agregado municipal nacional do Core Evidence (~11 MB), carregado sob demanda porque não faz parte do carregamento padrão desta tela.
+                    </p>
+                </div>
+                <button type="button" onClick={run} disabled={loading} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-active px-4 py-2.5 text-sm font-black text-white hover:bg-brand-2-active disabled:opacity-50">
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Users className="h-4 w-4" aria-hidden="true" />}
+                    {scenarios ? 'Recalcular cenários' : 'Calcular cenários'}
+                </button>
             </div>
+
+            {error && <div role="alert" className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}
+
+            {scenarios && (
+                <div className="mt-5 overflow-x-auto">
+                    <table className="min-w-full text-left text-xs">
+                        <thead className="bg-surface-2 text-ink-2">
+                            <tr><th className="p-3">Vendedores</th><th className="p-3">Territórios viáveis</th><th className="p-3">Contas únicas</th><th className="p-3">Contas totais</th><th className="p-3">Sobreposição</th><th className="p-3">Eficiência de cobertura</th><th className="p-3 text-right"><span className="sr-only">Ações</span></th></tr>
+                        </thead>
+                        <tbody>
+                            {scenarios.map((scenario, index) => (
+                                <Fragment key={scenario.sellerCount}>
+                                    <tr className="border-t border-line">
+                                        <td className="p-3 font-black text-ink">{scenario.sellerCount}</td>
+                                        <td className="p-3">{scenario.territories.length}</td>
+                                        <td className="p-3">{number.format(scenario.uniqueAccounts)}</td>
+                                        <td className="p-3">{number.format(scenario.grossAccounts)}</td>
+                                        <td className="p-3">{number.format(scenario.overlapAccounts)}</td>
+                                        <td className="p-3 font-bold">{(scenario.coverageEfficiency * 100).toFixed(1)}%</td>
+                                        <td className="p-3 text-right"><button type="button" onClick={() => setExpanded(expanded === index ? null : index)} className="rounded-lg border border-line px-2.5 py-1.5 font-black text-ink hover:border-brand hover:text-[#C43E0E]">{expanded === index ? 'Ocultar' : 'Ver territórios'}</button></td>
+                                    </tr>
+                                    {expanded === index && (
+                                        <tr className="border-t border-line bg-surface-2/50">
+                                            <td colSpan={7} className="p-4">
+                                                {scenario.territories.length ? (
+                                                    <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                                        {scenario.territories.map((territory) => (
+                                                            <li key={territory.id} className="rounded-xl border border-line bg-surface p-3 text-xs">
+                                                                <div className="font-black text-ink">{territory.base.name}/{territory.base.uf}</div>
+                                                                <div className="mt-1 text-ink-2">Raio {territory.radiusKm} km · {number.format(territory.municipalityCodes.length)} municípios</div>
+                                                                <div className="mt-1 text-ink-2">Contas ICP incrementais: {number.format(territory.incrementalAccounts)}</div>
+                                                            </li>
+                                                        ))}
+                                                    </ol>
+                                                ) : <p className="text-ink-2">Nenhum território elegível para este cenário.</p>}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </Fragment>
+                            ))}
+                        </tbody>
+                    </table>
+                    <p className="mt-3 text-[11px] text-ink-2">Score de oportunidade e contas ICP seguem a metodologia Core Evidence v1.1 (ver aba Saúde dos Dados). Cenários exploratórios para dimensionamento de headcount — não substituem o gate final de decisão da aba &quot;Onde contratar agora?&quot;.</p>
+                </div>
+            )}
         </section>
+    );
+}
+
+function TerritoryView({ manifest, territories, municipalities }: { manifest: MarketIntelligenceManifest; territories: TerritoryRecord[]; municipalities: MunicipalityRecord[] }) {
+    return (
+        <div className="space-y-5">
+            {!territories.length ? (
+                <div className="space-y-3">
+                    <section className="rounded-3xl border border-line bg-surface p-8 text-center">
+                        <MapPinned className="mx-auto h-9 w-9 text-brand" aria-hidden="true" />
+                        <h2 className="mt-3 text-xl font-black text-ink">Territory Optimizer aguardando dados nacionais</h2>
+                        <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-ink-2">
+                            Nenhum território calculado foi publicado no manifest atual. Quando os agregados municipais forem produzidos, esta visão receberá a tabela de territórios de referência.
+                        </p>
+                        <p className="mt-4 text-xs font-bold text-amber-700">Status: {manifest.decisionReady ? 'PRONTO' : 'BLOQUEADO POR DADOS'}</p>
+                    </section>
+                    <TopMunicipalitiesByDemand municipalities={municipalities} />
+                </div>
+            ) : (
+                <section className="overflow-hidden rounded-3xl border border-line bg-surface">
+                    <div className="border-b border-line p-5"><h2 className="text-lg font-black text-ink">Territórios calculados</h2></div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-left text-xs">
+                            <thead className="bg-surface-2 text-ink-2"><tr><th className="p-3">Base</th><th className="p-3">Raio</th><th className="p-3">Municípios</th><th className="p-3">ICP</th><th className="p-3">Score</th><th className="p-3">Confiança</th></tr></thead>
+                            <tbody>{territories.map((territory) => <tr key={territory.id} className="border-t border-line"><td className="p-3 font-black text-ink">{territory.baseCity}/{territory.uf}</td><td className="p-3">{territory.radiusKm} km</td><td className="p-3">{number.format(territory.municipalityCount)}</td><td className="p-3">{territory.icp.total === null ? 'NÃO DISPONÍVEL' : number.format(territory.icp.total)}</td><td className="p-3">{territory.opportunityScore?.toFixed(1) ?? 'BLOQUEADO'}</td><td className="p-3 font-bold">{territory.confidence}</td></tr>)}</tbody>
+                        </table>
+                    </div>
+                </section>
+            )}
+            <TerritoryOptimizerPanel manifest={manifest} />
+        </div>
     );
 }
 
@@ -320,8 +407,8 @@ function SellerSimulator() {
                         </button>
                     ))}
                 </div>
-                <div className="rounded-3xl bg-[#333333] p-6 text-white">
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FFC500]">Resultado calculado · {SCENARIO_LABELS[result.scenario]}</p>
+                <div className="rounded-3xl bg-atlas-dark p-6 text-white">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-atlas-yellow">Resultado calculado · {SCENARIO_LABELS[result.scenario]}</p>
                     <dl className="mt-5 space-y-4">
                         <div><dt className="text-xs text-white/60">Custo fixo / mês</dt><dd className="mt-1 text-3xl font-black tracking-tight">{money.format(result.monthlyFixedCost)}</dd></div>
                         <div><dt className="text-xs text-white/60">Contribuição por contrato</dt><dd className="mt-1 text-xl font-black">{result.contributionPerContract === null ? 'NÃO CALCULÁVEL' : money.format(result.contributionPerContract)}</dd></div>
@@ -412,17 +499,17 @@ export function MarketIntelligenceApp() {
     return (
         <main className="flex-1 overflow-y-auto bg-bg p-4 md:p-7">
             <div className="mx-auto w-full max-w-[1600px] space-y-5">
-                <header className="relative overflow-hidden rounded-[28px] bg-[#333333] px-5 py-6 text-white md:px-8 md:py-8">
+                <header className="relative overflow-hidden rounded-[28px] bg-atlas-dark px-5 py-6 text-white md:px-8 md:py-8">
                     <div className="absolute inset-y-0 right-0 w-2 bg-brand" aria-hidden="true" />
                     <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                         <div className="max-w-4xl">
                             <img src="/tools/atlas-market-intelligence/atlas-logo-negative.png" alt="Atlas GR" className="h-auto w-28" />
-                            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#FFC500]">National Market & Territory Intelligence System</p>
+                            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.2em] text-atlas-yellow">National Market & Territory Intelligence System</p>
                             <h1 className="mt-2 text-3xl font-black leading-tight tracking-[-0.04em] md:text-5xl">Onde a Atlas GR deve contratar o próximo vendedor?</h1>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">Geointeligência, demanda, risco, logística, concorrência e unit economics com evidência rastreável. Sem converter lacuna de dados em certeza comercial.</p>
                         </div>
-                        <div className={`rounded-2xl border px-4 py-3 ${manifest.decisionReady ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-[#FFC500]/30 bg-[#FFC500]/10'}`}>
-                            <div className="flex items-center gap-2 text-xs font-black">{manifest.decisionReady ? <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden="true" /> : <AlertTriangle className="h-4 w-4 text-[#FFC500]" aria-hidden="true" />}{manifest.decisionReady ? 'DECISÃO PRONTA' : 'DECISÃO BLOQUEADA'}</div>
+                        <div className={`rounded-2xl border px-4 py-3 ${manifest.decisionReady ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-warn/30 bg-warn/10'}`}>
+                            <div className="flex items-center gap-2 text-xs font-black">{manifest.decisionReady ? <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden="true" /> : <AlertTriangle className="h-4 w-4 text-warn" aria-hidden="true" />}{manifest.decisionReady ? 'DECISÃO PRONTA' : 'DECISÃO BLOQUEADA'}</div>
                             <p className="mt-1 text-[10px] text-white/60">Metodologia {manifest.methodologyVersion} · gerado {new Date(manifest.generatedAt).toLocaleString('pt-BR')}</p>
                         </div>
                     </div>

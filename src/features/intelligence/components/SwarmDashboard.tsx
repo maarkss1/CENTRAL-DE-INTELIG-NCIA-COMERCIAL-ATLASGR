@@ -404,7 +404,7 @@ export function SwarmDashboard() {
     };
 
     const getAgentBg = (agent: string, status: SwarmMessage['status']) => {
-        if (status === 'error') return 'bg-danger/10 border-danger/30 text-danger';
+        if (status === 'error') return 'bg-danger/10 border-danger/30 text-danger-active dark:text-danger';
         switch (agent) {
             case 'supervisor': return `${accent.bgSofter} ${accent.borderSoft} text-ink`;
             case 'sdr': return 'bg-[#00C2FF]/10 border-[#00C2FF]/30 text-ink';
@@ -466,7 +466,7 @@ export function SwarmDashboard() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
                     </span>
-                    <span className="text-xs font-bold text-success uppercase tracking-widest">Enxame Online</span>
+                    <span className="text-xs font-bold text-success-active dark:text-success uppercase tracking-widest">Enxame Online</span>
                 </div>
             </div>
 
@@ -535,7 +535,7 @@ export function SwarmDashboard() {
                                     {msg.status === 'thinking'
                                         ? <Loader2 size={12} className={`animate-spin ${accent.text}`} />
                                         : <ShieldAlert size={12} className={accent.text} />}
-                                    <span className={msg.status === 'error' ? 'text-danger' : ''}>{msg.text}</span>
+                                    <span className={msg.status === 'error' ? 'text-danger-active dark:text-danger' : ''}>{msg.text}</span>
                                 </motion.div>
                             );
                         }
@@ -572,7 +572,7 @@ export function SwarmDashboard() {
                                     {msg.status === 'thinking'
                                         ? <Loader2 size={18} className="animate-spin text-ink-2" />
                                         : msg.status === 'error'
-                                            ? <AlertTriangle size={18} className="text-danger" />
+                                            ? <AlertTriangle size={18} className="text-danger-active dark:text-danger" />
                                             : getAgentIcon(msg.agent)}
                                 </div>
                                 <div className={`p-5 rounded-2xl border backdrop-blur-xl shadow-card flex-1 ${getAgentBg(msg.agent, msg.status)}`}>
@@ -732,7 +732,7 @@ function SwarmSloPanel({ snapshot, loading, error, onRetry }: SwarmSloPanelProps
                                 <td className="px-4 py-3 text-right text-ink font-mono" title={agent.conversion.emptyReason}>{formatPercent(agent.conversion)}</td>
                                 <td className="px-4 py-3 text-right text-ink font-mono" title={agent.humanOverride.emptyReason}>{formatPercent(agent.humanOverride)}</td>
                                 <td className="px-4 py-3 text-right font-mono" title={agent.errorRate.emptyReason}>
-                                    <span className={agent.errorRate.value !== null && agent.errorRate.value > 0 ? 'text-danger font-bold' : 'text-ink'}>
+                                    <span className={agent.errorRate.value !== null && agent.errorRate.value > 0 ? 'text-danger-active dark:text-danger font-bold' : 'text-ink'}>
                                         {formatPercent(agent.errorRate)}
                                     </span>
                                 </td>

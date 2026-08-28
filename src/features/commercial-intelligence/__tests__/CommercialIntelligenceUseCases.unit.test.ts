@@ -83,8 +83,22 @@ class FakeRepository implements CommercialIntelligenceRepository {
         return this.filterOptionsResult;
     }
 
+    getGoalCallCount = 0;
+    getGoalsCallCount = 0;
+
     async getGoal(organizationId: string, period: string, metric: GoalMetric): Promise<CommercialGoalDTO | null> {
+        this.getGoalCallCount += 1;
         return this.goals.get(`${organizationId}:${period}:${metric}`) ?? null;
+    }
+
+    async getGoals(organizationId: string, periods: string[], metric: GoalMetric): Promise<Map<string, CommercialGoalDTO>> {
+        this.getGoalsCallCount += 1;
+        const result = new Map<string, CommercialGoalDTO>();
+        for (const period of periods) {
+            const g = this.goals.get(`${organizationId}:${period}:${metric}`);
+            if (g) result.set(period, g);
+        }
+        return result;
     }
 
     async upsertGoal(organizationId: string, period: string, metric: GoalMetric, amount: number, currency: string, createdBy: string): Promise<CommercialGoalDTO> {
@@ -470,6 +484,32 @@ describe('CommercialIntelligenceUseCases', () => {
         expect(overview.coverageProtection[0].remainingGoal).toBe(0);
         expect(overview.coverageProtection[0].coverage).toBeNull();
         expect(overview.coverageProtection[0].status).toBe('saudavel');
+    });
+
+    // N+1 (onda 42, auditoria de listagens/dashboards): buildExecutiveOverview buscava a meta do
+    // mês do filtro com `getGoal` e depois, dentro do loop de Proteção 90 dias (4 iterações),
+    // disparava mais um `getGoal` sequencial por mês além do primeiro — até 4 queries de meta por
+    // chamada deste relatório (o mais lido do módulo). A correção troca isso por uma única
+    // `getGoals(organizationId, periods, metric)` batelada (`period: { in: [...] }` no Prisma).
+    // Este teste mede o NÚMERO DE CHAMADAS ao repositório (não só o resultado), para não regredir
+    // silenciosamente de volta a um `getGoal` por iteração.
+    it('Proteção 90 dias: busca as metas dos 4 meses numa única chamada ao repositório (sem N+1)', async () => {
+        const repo = new FakeRepository([deal({ id: 'd1', amount: 10_000 })]);
+        await repo.upsertGoal(ORG, '2026-08', 'NEW_MRR', 50_000, 'BRL', 'user-1');
+        await repo.upsertGoal(ORG, '2026-09', 'NEW_MRR', 20_000, 'BRL', 'user-1');
+        await repo.upsertGoal(ORG, '2026-10', 'NEW_MRR', 30_000, 'BRL', 'user-1');
+        await repo.upsertGoal(ORG, '2026-11', 'NEW_MRR', 40_000, 'BRL', 'user-1');
+        const useCases = new CommercialIntelligenceUseCases(repo);
+
+        const overview = await useCases.executiveOverview(ORG, { month: PERIOD }, NOW);
+
+        // Antes da correção: getGoalCallCount seria 1 (mês do filtro) + 3 (loop) = 4, e
+        // getGoalsCallCount seria 0 (o método nem existia). Depois: exatamente o oposto.
+        expect(repo.getGoalsCallCount).toBe(1);
+        expect(repo.getGoalCallCount).toBe(0);
+        // E o resultado continua correto com a busca batelada — as 4 metas aparecem certas.
+        expect(overview.coverageProtection.map((e) => e.goalAmount)).toEqual([50_000, 20_000, 30_000, 40_000]);
+        expect(overview.goal?.amount).toBe(50_000);
     });
 
     // ─── Comparação com o mês anterior (seção 7/23) ────────────────────────────

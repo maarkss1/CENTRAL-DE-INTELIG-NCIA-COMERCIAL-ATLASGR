@@ -15,12 +15,12 @@ const TYPE_OPTIONS: DocumentType[] = ['Orcamento', 'Proposta', 'Fatura', 'Contra
 
 const STATUS_STYLES: Record<DocumentStatus, string> = {
     Rascunho: 'bg-surface-2 text-ink-2 border-line',
-    Enviado: 'bg-info/10 text-info border-info/20',
-    Visualizado: 'bg-info/10 text-info border-info/20',
-    Aceito: 'bg-success/10 text-success border-success/20',
-    Recusado: 'bg-danger/10 text-danger border-danger/20',
+    Enviado: 'bg-info/10 text-info-active dark:text-info border-info/20',
+    Visualizado: 'bg-info/10 text-info-active dark:text-info border-info/20',
+    Aceito: 'bg-success/10 text-success-active dark:text-success border-success/20',
+    Recusado: 'bg-danger/10 text-danger-active dark:text-danger border-danger/20',
     Vencido: 'bg-warn/10 text-warn border-warn/20',
-    Pago: 'bg-success/10 text-success border-success/20',
+    Pago: 'bg-success/10 text-success-active dark:text-success border-success/20',
     Cancelado: 'bg-surface-2 text-ink-2 border-line',
 };
 

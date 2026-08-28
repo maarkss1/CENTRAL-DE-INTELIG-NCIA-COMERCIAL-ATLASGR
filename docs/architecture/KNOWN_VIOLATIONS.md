@@ -9,8 +9,9 @@ sem bloquear o repositório inteiro; qualquer violação **nova**, não coberta 
 quebra `npm run lint:architecture` (e portanto o CI) normalmente.
 
 **Data de registro:** 2026-08-25 (criação do gate, ITEM-13).
-**Total na baseline:** 113 violações (95 `no-cross-feature-imports` + 18 `no-circular`).
-**Checkpoint de reavaliação:** 2026-11-30 — não é prazo para zerar a baseline (113 violações não
+**Total na baseline:** 117 violações (99 `no-cross-feature-imports` + 18 `no-circular`) — ver
+"Onda 42 (2026-08-27)" abaixo para as 4 entradas mais recentes.
+**Checkpoint de reavaliação:** 2026-11-30 — não é prazo para zerar a baseline (117 violações não
 somem numa wave), é a data em que o dono de cada grupo abaixo revisita se o número do seu grupo
 caiu, ficou igual, ou precisa de uma exceção formal renovada. Ver "Como reavaliar" no fim.
 
@@ -38,7 +39,7 @@ tabela.
 | `crm` | 10 | Agente 04 — CRM e BI | `integrations` (5), `cadence` (2), `prospecting`, `analytics`, `automations` (1 cada) |
 | `prospecting` | 8 | Agente 05 — Prospecção | `integrations` (3), `intelligence` (3), `cadence` (2) |
 | `crm360` | 7 | **Sem `AGENTS.md` de governança na pasta** — tratado como adjacente a Agente 04 (CRM e BI) por conteúdo (`Crm360UseCases`/`PrismaCrm360Repository` operam sobre `Lead`/pipeline, mesmo domínio de `crm`) | `cadence` (4), `crm` (2), `commercial-intelligence` (1) |
-| `automations` | 5 | Agente 07 — IA e Automações | `integrations` (3), `intelligence` (2) |
+| `automations` | 9 | Agente 07 — IA e Automações | `integrations` (7), `intelligence` (2) |
 | `market-intelligence` | 4 | **Sem `AGENTS.md` de governança na pasta** — dono não declarado formalmente | `commercial-intelligence` (3), `integrations` (1) |
 | `settings` | 4 | Agente 02 — Produto e UX | `feature-flags`, `integrations`, `lgpd`, `team` (1 cada) |
 | `cadence` | 3 | Agente 17 — Cadência Multicanal e Ciclo de Receita | `integrations` (3) |
@@ -59,6 +60,26 @@ contradição de outro documento). Qualquer refatoração futura que valha a pen
 passa por extrair um contrato/porta em `src/shared/` que `intelligence` consome, em vez de importar
 o serviço concreto de 15 features diferentes — mas isso é um item de dívida técnica **derivado**,
 fora do escopo do ITEM-13 (que é travar o crescimento, não pagar a dívida existente).
+
+## Onda 42 (2026-08-27) — 4 exceções novas registradas
+
+DEC-14 (dossiê CPI, onda 42) adicionou `previewCallSdrVoz` em
+`src/features/automations/automation-dry-run.service.ts`, que simula a ação "Ligar via SDR de Voz"
+sem discar de verdade. Para isso, reusa as MESMAS checagens somente-leitura que `automation.engine.ts`
+já faz antes de discar de verdade (`callLead`) — `isWithinCallWindow`/`callWindowFromEnv`
+(`coldCall.policy.ts`/`coldCall.service.ts`, já aceitos na baseline original para
+`automation.engine.ts` acima) — mais duas novas, específicas do preview: `pickCallablePhone`
+(`birthVoice.helpers.ts`) e `isSuppressed` (`callSuppression.service.ts`), para prever
+corretamente se o telefone é discável e se está na lista de opt-out sem gerar nenhum efeito
+colateral (nunca importa/chama `callLead`, que de fato inicia a chamada).
+
+Decisão (caso 2 abaixo): tratado como extensão do mesmo acoplamento `automations` → `integrations`
+(birth-voice) já aceito nesta baseline para `automation.engine.ts`, não uma nova classe de
+dívida — a alternativa (extrair as 4 funções para `src/shared/`) moveria lógica de domínio de
+chamada (janela comercial, suppression list) de `integrations/birth-voice` para fora do módulo que
+a possui, sem necessidade real além de evitar este import. Dono: Agente 07 — IA e Automações
+(`automations`) para o lado `from`; Agente 06 — Integrações e Bitrix para o lado `to`
+(`integrations/birth-voice`).
 
 ## Como adicionar uma exceção nova (crescer a baseline deliberadamente)
 

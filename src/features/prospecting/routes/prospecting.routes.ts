@@ -5,10 +5,12 @@ import { z } from 'zod';
 import { discoverCandidates, promoteToCrm, discoverDecisionMakers, rejectCandidate } from '../services/prospecting.service.js';
 import { checkApolloConnection } from '../services/apollo.service.js';
 import { fetchCnpjData } from '../services/enrichment.service.js';
+import { rntrcRiskByUf } from '../../../shared/services/rntrcTerritorialRisk.service.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
 import { extractTextFromImage, structureOcrCandidate, OcrValidationError } from '../services/ocr.service.js';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService.js';
 import { discoverCriteriaSchema } from '../schemas/discoverCriteria.schema.js';
+import { findSearchExecution } from '../services/searchExecution.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
@@ -84,7 +86,12 @@ router.post('/enrich-cnpj', async (req: Request, res: Response, next: NextFuncti
             return;
         }
         const result = await fetchCnpjData(cnpj);
-        res.json({ success: true, data: result });
+        // MI-014 (dossiê CPI, DEC-15 opção A): a UF devolvida pela Receita Federal já basta para
+        // reaproveitar o indicador RNTRC/ANTT territorial que o módulo de Market Intelligence
+        // publica (ver `rntrcRiskByUf` — mesmo dataset/cache de `rntrcTerritorialSnapshot`, sem
+        // recalcular nada). `marketRisk` fica `null` só quando a Receita não devolveu empresa.
+        const marketRisk = result.found && result.data ? rntrcRiskByUf(result.data.state) : null;
+        res.json({ success: true, data: { ...result, marketRisk } });
     } catch (error) {
         next(error);
     }
@@ -281,7 +288,7 @@ router.post('/saved-searches/:id/run', async (req: Request, res: Response, next:
         }
 
         const criteria = (savedSearch.criteria as any) || {};
-        const result = await discoverCandidates(criteria, organizationId);
+        const result = await discoverCandidates(criteria, organizationId, id);
         const count = result?.candidates?.length || 0;
 
         const updated = await prisma.savedSearch.update({
@@ -297,7 +304,27 @@ router.post('/saved-searches/:id/run', async (req: Request, res: Response, next:
             },
         });
 
-        res.json({ success: true, data: { savedSearch: updated, candidates: result?.candidates || [], count } });
+        res.json({ success: true, data: { savedSearch: updated, candidates: result?.candidates || [], count, searchId: result?.searchId } });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ───────────────────── Search-ID: auditoria/replay de execuções de busca ─────────────────────
+// Onda 42 (dossiê CPI, DEC-13, opção A): toda execução real de /discover (e de
+// /saved-searches/:id/run) grava um ProspectingSearchExecution com o Search-ID já devolvido no
+// corpo da resposta original (`data.searchId`) — esta rota lê esse registro de volta, escopado por
+// tenant (RLS + organizationId explícito, ver findSearchExecution em searchExecution.service.ts).
+router.get('/searches/:searchId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { searchId } = req.params;
+        const execution = await findSearchExecution(searchId, organizationId);
+        if (!execution) {
+            res.status(404).json({ success: false, error: 'Execução de busca não encontrada' });
+            return;
+        }
+        res.json({ success: true, data: execution });
     } catch (error) {
         next(error);
     }

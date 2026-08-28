@@ -97,32 +97,32 @@ export function ObjectionItemForm({ item, defaultBrand, onClose, onSave }: Objec
                     <div className="space-y-2">
                         <Label htmlFor="oi-title">Título da objeção *</Label>
                         <Input id="oi-title" type="text" {...register('objectionTitle')} />
-                        {errors.objectionTitle && <p className="text-xs text-danger mt-1">{errors.objectionTitle.message}</p>}
+                        {errors.objectionTitle && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.objectionTitle.message}</p>}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="oi-segment">Segmento *</Label>
                         <Input id="oi-segment" type="text" {...register('segment')} />
-                        {errors.segment && <p className="text-xs text-danger mt-1">{errors.segment.message}</p>}
+                        {errors.segment && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.segment.message}</p>}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="oi-persona">Persona *</Label>
                         <Input id="oi-persona" type="text" {...register('persona')} />
-                        {errors.persona && <p className="text-xs text-danger mt-1">{errors.persona.message}</p>}
+                        {errors.persona && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.persona.message}</p>}
                     </div>
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="oi-objection">Objeção (fala do cliente) *</Label>
                         <Textarea id="oi-objection" rows={3} {...register('objectionText')} className="resize-none" />
-                        {errors.objectionText && <p className="text-xs text-danger mt-1">{errors.objectionText.message}</p>}
+                        {errors.objectionText && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.objectionText.message}</p>}
                     </div>
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="oi-script">Script de contorno recomendado *</Label>
                         <Textarea id="oi-script" rows={3} {...register('responseScript')} className="resize-none" />
-                        {errors.responseScript && <p className="text-xs text-danger mt-1">{errors.responseScript.message}</p>}
+                        {errors.responseScript && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.responseScript.message}</p>}
                     </div>
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="oi-diff">Diferencial-chave *</Label>
                         <Textarea id="oi-diff" rows={2} {...register('keyDifferentiator')} className="resize-none" />
-                        {errors.keyDifferentiator && <p className="text-xs text-danger mt-1">{errors.keyDifferentiator.message}</p>}
+                        {errors.keyDifferentiator && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.keyDifferentiator.message}</p>}
                     </div>
                 </div>
             </form>
