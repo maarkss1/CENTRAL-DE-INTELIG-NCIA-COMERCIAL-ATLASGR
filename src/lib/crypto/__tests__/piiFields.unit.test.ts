@@ -29,13 +29,16 @@ describe('piiFields — cifra em repouso de credenciais de integração', () => 
         expect(ENCRYPTED_MODEL_FIELDS.Account).toEqual(['accessToken', 'refreshToken', 'idToken']);
     });
 
-    // Guard de regressão intencional: `Contact` chegou a entrar neste mapa nesta mesma rodada e
-    // foi revertido porque quebrou (confirmado contra Postgres real em CI, não só suposição) a
-    // busca/leitura por e-mail/telefone em pelo menos 4 fluxos reais (ver comentário em
-    // piiFields.ts e o handoff onda-39/01-para-00-pii-contact-revertida-quebra-integration.md).
-    // Não readicionar sem antes resolver busca por igualdade sobre coluna cifrada.
-    it('Contact permanece FORA do mapa até existir solução de busca compatível com ciphertext não-determinístico', () => {
-        expect(ENCRYPTED_MODEL_FIELDS.Contact).toBeUndefined();
+    // Guard de regressão intencional (o inverso do que este teste checava numa rodada anterior,
+    // quando Contact tinha acabado de ser revertido do mapa por quebrar busca exata — ver
+    // handoff onda-39/01-para-00-pii-contact-revertida-quebra-integration.md): agora que a busca
+    // exata tem um índice cego compatível (src/lib/crypto/piiIndex.ts), Contact volta ao mapa, mas
+    // SÓ com os três campos que têm esse índice construído. `name`/`linkedin`/`observations`
+    // continuam de fora de propósito (sustentam a busca livre por substring de
+    // `ContactService.findAll`) — expandir esta lista sem also construir o índice/reescrever os
+    // call sites de busca correspondentes reintroduziria exatamente a quebra da rodada anterior.
+    it('Contact cifra só email/phone/whatsapp — ampliar exige índice de busca compatível primeiro', () => {
+        expect(ENCRYPTED_MODEL_FIELDS.Contact).toEqual(['email', 'phone', 'whatsapp']);
     });
 
     it('encryptSensitiveFields cifra só os campos listados do model, e decryptSensitiveRecord devolve o roundtrip exato (write→read)', () => {
@@ -93,10 +96,32 @@ describe('piiFields — cifra em repouso de credenciais de integração', () => 
         expect(decryptSensitiveResult('BitrixConnection', single)).toEqual({ id: '3', webhookSecret: 'c' });
     });
 
-    it('modelos fora do mapa (ex.: Contact, Lead) passam intocados', () => {
-        const data = { id: 'contact-1', name: 'Ana Souza', email: 'ana@example.com' };
-        expect(encryptSensitiveFields('Contact', data)).toEqual(data);
-        expect(decryptSensitiveResult('Contact', data)).toEqual(data);
+    it('modelos fora do mapa (ex.: Lead, Company) passam intocados', () => {
+        const data = { id: 'lead-1', title: 'Negócio X' };
+        expect(encryptSensitiveFields('Lead', data)).toEqual(data);
+        expect(decryptSensitiveResult('Lead', data)).toEqual(data);
+    });
+
+    it('Contact cifra email/phone/whatsapp e devolve o roundtrip exato — name/role/observations continuam em texto puro', () => {
+        const plaintext = {
+            id: 'contact-1',
+            name: 'Ana Souza',
+            role: 'Diretora',
+            observations: 'Prefere contato por e-mail.',
+            email: 'ana@example.com',
+            phone: '+55 11 91234-5678',
+            whatsapp: '+55 11 91234-5678',
+        };
+
+        const encrypted = encryptSensitiveFields('Contact', plaintext);
+        expect(String(encrypted.email)).toMatch(/^enc:v1:/);
+        expect(String(encrypted.phone)).toMatch(/^enc:v1:/);
+        expect(String(encrypted.whatsapp)).toMatch(/^enc:v1:/);
+        expect(encrypted.name).toBe(plaintext.name);
+        expect(encrypted.role).toBe(plaintext.role);
+        expect(encrypted.observations).toBe(plaintext.observations);
+
+        expect(decryptSensitiveRecord('Contact', encrypted)).toEqual(plaintext);
     });
 
     it('ciphertext adulterado falha ao decifrar (fail-closed, mesmo comportamento de secretFields)', () => {

@@ -3,20 +3,24 @@ import { prisma } from '../../../lib/prisma';
 import { contactSchema } from '../../../lib/zod';
 import { z } from 'zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
+import { contactSearchIndexClauses } from '../../../lib/crypto/piiIndex.js';
 
 export class ContactService {
     async findAll(organizationId: string, query?: string, page: number = 1, limit: number = 50) {
         const where: Prisma.ContactWhereInput = { organizationId };
         if (query) {
+            // email/phone/whatsapp cifrados em repouso (ver src/lib/crypto/piiFields.ts) — busca
+            // livre por SUBSTRING nesses três campos não é mais possível (nenhum índice de
+            // igualdade resolve `contains` arbitrário). `contactSearchIndexClauses` cobre os casos
+            // de busca exata que continuam funcionando: e-mail completo, ou dígitos de telefone que
+            // batem com os últimos 8 dígitos de um `phone`/`whatsapp` cadastrado.
             where.OR = [
                 { name: { contains: query, mode: 'insensitive' } },
-                { email: { contains: query, mode: 'insensitive' } },
-                { phone: { contains: query, mode: 'insensitive' } },
-                { whatsapp: { contains: query, mode: 'insensitive' } },
                 { role: { contains: query, mode: 'insensitive' } },
                 { department: { contains: query, mode: 'insensitive' } },
                 { company: { tradeName: { contains: query, mode: 'insensitive' } } },
                 { company: { legalName: { contains: query, mode: 'insensitive' } } },
+                ...contactSearchIndexClauses(query),
             ];
         }
         

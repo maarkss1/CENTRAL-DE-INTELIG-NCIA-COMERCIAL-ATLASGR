@@ -7,6 +7,7 @@ import { requestContext } from '../../../lib/async-context.js';
 import { isGenuineLeadReply, handleEmailReply, type InboundEmailReply } from '../../cadence/domain/replyTracking.js';
 import { emailIntentClassifier } from '../../cadence/infra/emailIntentClassifier.js';
 import { prismaConversationSignalPort } from '../../cadence/infra/PrismaConversationSignalPort.js';
+import { contactEmailIndex } from '../../../lib/crypto/piiIndex.js';
 
 /**
  * CYC-003 (onda 26) — transporte de ENTRADA de e-mail, hoje um stub: nenhum provedor real
@@ -55,14 +56,21 @@ function isValidSignature(rawBody: Buffer, receivedSignature: string | undefined
 /**
  * Resolve o lead em aberto cujo contato tem este e-mail, dentro da organização do contexto —
  * mesmo raciocínio de `findContactByPhone` em `whatsappMessage.service.ts`, mas por e-mail em vez
- * de telefone (não precisa de `$queryRaw`/normalização de dígitos: e-mail já é um campo exato).
+ * de telefone. `Contact.email` é cifrado em repouso (ver src/lib/crypto/piiFields.ts) — a busca
+ * exata (antes `contact: { email: { equals, mode: 'insensitive' } }`) usa o índice cego
+ * determinístico `emailIndex` em vez do campo cifrado direto (ver src/lib/crypto/piiIndex.ts).
  */
 async function findOpenLeadByEmail(organizationId: string, email: string): Promise<{ id: string } | null> {
+    const emailIndex = contactEmailIndex(email);
+    // `contactEmailIndex` só devolve null para e-mail vazio/ausente — sem isso, `{ emailIndex:
+    // null }` casaria com QUALQUER contato sem e-mail cadastrado (falso positivo em massa), não
+    // com "nenhum".
+    if (!emailIndex) return null;
     const lead = await prisma.lead.findFirst({
         where: {
             organizationId,
             status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
-            contact: { email: { equals: email, mode: 'insensitive' } },
+            contact: { emailIndex },
         },
         orderBy: { createdAt: 'desc' },
         select: { id: true },

@@ -15,10 +15,19 @@
 
 ### 2. Brute Force & Credential Stuffing
 - **Threat:** Tentativas de adivinhar senha por força bruta ou credential stuffing.
-- **Mitigation:** `authLimiter` dedicado em `/api/auth` (só `POST`,
-  `AUTH_RATE_LIMIT_MAX` — default 20 tentativas/15min por IP), além do `apiLimiter` genérico
-  (`API_RATE_LIMIT_MAX`) — ver `server.ts`. Hash de senha gerido internamente pelo Better Auth
-  (provider `credential`), não implementado neste código.
+- **Mitigation:** Duas camadas independentes, por IP e por CONTA:
+  - Por IP: `authLimiter` dedicado em `/api/auth` (só `POST`, `AUTH_RATE_LIMIT_MAX` — default 20
+    tentativas/15min por IP), além do `apiLimiter` genérico (`API_RATE_LIMIT_MAX`) — ver
+    `server.ts`.
+  - Por conta: bloqueio automático (`hooks.before`/`hooks.after` em `src/lib/auth.ts`,
+    `User.failedLoginAttempts`/`lockedUntil`) — 5 tentativas malsucedidas seguidas contra a MESMA
+    conta bloqueiam login por 15 minutos, contendo um atacante distribuído por vários IPs (o rate
+    limit por IP sozinho trata cada IP como independente e não pega esse caso). Login
+    bem-sucedido zera o contador. Prova real contra Postgres/Better Auth em
+    `tests/integration/account-lockout.test.ts`.
+
+  Hash de senha gerido internamente pelo Better Auth (provider `credential`), não implementado
+  neste código.
 
 ### 3. Replay Attacks
 - **Threat:** Requisição legítima interceptada e reenviada pelo atacante.

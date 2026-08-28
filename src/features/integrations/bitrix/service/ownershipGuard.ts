@@ -1,6 +1,7 @@
 import { LeadStatus } from '@prisma/client';
 import { prisma } from '../../../../lib/prisma.js';
 import { notificationService } from '../../../notifications/notification.service.js';
+import { contactEmailIndex, contactPhoneIndex } from '../../../../lib/crypto/piiIndex.js';
 
 /**
  * Status terminais usados só para decidir se um Lead/Negócio já existente ainda "conta" como
@@ -48,6 +49,13 @@ export async function findOwnershipConflict(
 ): Promise<OwnershipConflict | null> {
     if (!contact.phone && !contact.email) return null;
 
+    // Contact.phone/email cifrados em repouso (ver src/lib/crypto/piiFields.ts) — a busca exata
+    // por telefone OU e-mail usa os índices cegos determinísticos correspondentes em vez do campo
+    // cifrado direto (ver src/lib/crypto/piiIndex.ts).
+    const phoneIndex = contactPhoneIndex(contact.phone);
+    const emailIndex = contactEmailIndex(contact.email);
+    if (!phoneIndex && !emailIndex) return null;
+
     const existing = await prisma.lead.findFirst({
         where: {
             organizationId,
@@ -55,8 +63,8 @@ export async function findOwnershipConflict(
             owner: { not: null },
             contact: {
                 OR: [
-                    contact.phone ? { phone: contact.phone } : undefined,
-                    contact.email ? { email: { equals: contact.email, mode: 'insensitive' as const } } : undefined,
+                    phoneIndex ? { phoneIndex } : undefined,
+                    emailIndex ? { emailIndex } : undefined,
                 ].filter((c): c is NonNullable<typeof c> => c !== undefined),
             },
         },
