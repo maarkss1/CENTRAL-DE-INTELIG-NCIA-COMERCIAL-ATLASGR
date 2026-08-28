@@ -85,9 +85,24 @@ function memoryCacheSet<T>(key: string, value: T, ttlMs: number, now: number): v
     memoryCache.set(key, { value, expiresAtMs: now + ttlMs });
 }
 
-/** Só para testes: limpa o fallback em memória (evita vazamento de estado entre casos). */
-export function resetProviderCacheForTests(): void {
+/**
+ * Só para testes: limpa o fallback em memória E, quando Redis está configurado (ex.: gate de CI,
+ * que roda com REDIS_URL real — diferente de rodar `vitest` sem `.env.test`, onde `redisConfigured`
+ * é false), as chaves reais gravadas no Redis sob `CACHE_KEY_PREFIX`. Sem a limpeza do Redis, um
+ * resultado cacheado por um teste "vazava" como cache hit indevido para o próximo teste que espera
+ * exercitar um caminho sem cache (achado real: 2 testes de `hunter.service.test.ts` falhavam só no
+ * gate de CI, nunca localmente, porque só lá `redisConfigured` é true) — best-effort (nunca lança:
+ * uma falha ao limpar o Redis não deve derrubar o teste que está só tentando garantir isolamento).
+ */
+export async function resetProviderCacheForTests(): Promise<void> {
     memoryCache.clear();
+    if (!redisConfigured) return;
+    try {
+        const keys = await cacheConnection.keys(`${CACHE_KEY_PREFIX}*`);
+        if (keys.length > 0) await cacheConnection.del(...keys);
+    } catch (error) {
+        logger.warn({ err: error }, 'resetProviderCacheForTests: falha ao limpar o Redis — cache pode vazar entre testes');
+    }
 }
 
 export interface ProviderCacheOptions {
