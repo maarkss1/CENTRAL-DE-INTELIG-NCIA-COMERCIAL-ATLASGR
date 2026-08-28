@@ -289,9 +289,61 @@ cada vez — `Company` nunca é lida sob bypass em nenhum caminho novo deste tra
 (244/248, 4 skips pré-existentes, **0 falhas** — incluindo `rls-bypass-allowlist.test.ts` verde).
 
 ### O que ainda falta (não incluído nesta rodada, fora do que foi pedido)
-- Decisores (D.3) e Grupo Econômico camada 1 (D.4) — nenhum gerador ainda cria `DecisionMaker` nem
-  `EconomicRelationship`.
 - `START_SDR_CADENCE` (D.6) ainda não invoca o motor real de cadência — a recomendação é gerada e
   fica `Pending` até um humano executá-la via `actionExecutor.service.ts`.
 - Scheduler HOT/WARM/COLD por prioridade de conta (Fase 5 completa do pacote original) — o worker
   novo varre todas as contas do tenant a cada tick, sem priorização ainda.
+- Camadas 2/3 do grupo econômico (controladora/marca compartilhada, inferência) — só a Camada 1
+  (raiz de CNPJ) foi implementada nesta rodada.
+
+## Addendum 2 — D.3/D.4 implementados (mesma sessão, após merge com origin/main)
+
+Entre o addendum anterior e este, um `git pull` trouxe 3 commits do `origin/main` (segurança de
+login/PII, reformulação de tokens de design, correções de E2E) e uma segunda sessão paralela
+commitou uma correção de dívida técnica de larga escala (Prettier em `src/` inteiro, decomposição
+de `prospecting.service.ts`, hardening de `docker-compose.yml`). Ambos foram integrados com
+sucesso — ver histórico do commit `88cb2fb2`→merge→`d42daabe`. Nenhum dos dois tocou os arquivos
+do LDR.
+
+### O que foi criado
+- **[accountDecisionMakers.ts](src/features/market-intelligence/domain/accountDecisionMakers.ts)**
+  — `classifyBuyingRole`, heurística determinística (sem IA, para não multiplicar custo/latência
+  num worker em lote) a partir de `Contact.role`/`seniority`/`department` reais. Reusa a MESMA
+  taxonomia de `buyingRole` já usada em `decision-committee.service.ts`/`Account360.tsx` (Decisor
+  Econômico/Decisor Operacional/Influenciador Técnico/Usuário Final) em vez de criar um segundo
+  vocabulário. Sem cargo/senioridade reconhecível, devolve `null` — nenhum `DecisionMaker` fabricado.
+- **[accountEconomicGroup.ts](src/features/market-intelligence/domain/accountEconomicGroup.ts)** —
+  `matchEconomicGroupByCnpjRoot`, Camada 1 (determinística) do grupo econômico: agrupa contas do
+  mesmo tenant pela raiz de 8 dígitos do CNPJ, normalizando formato (dígitos crus/pontuado — CNPJ
+  não tem formato consistente no banco hoje, ver DEC-16/Onda 42) e ignorando CNPJ malformado.
+- **`accountIntelligenceInsights.worker.ts`** estendido: `generateDecisionMakersForAccount`
+  (D.3, por conta — nunca reclassifica um `DecisionMaker` já existente, mesmo criado por humano)
+  e `generateEconomicRelationshipsForOrganization` (D.4, uma vez por organização por tick, não por
+  conta, para não processar cada dupla duas vezes).
+
+### Achado real durante a implementação
+`EconomicRelationship` tem a mesma classe de constraint que `DecisionMaker`
+(`EconomicRelationship_verified_timestamp`: `status = 'Verified'` exige `verifiedAt` não nulo).
+Diferente de `DecisionMaker` (que nasce `Unverified` — inferência de cargo precisa de revisão
+humana antes de contar no Account Score), aqui é legítimo já nascer `Verified`/`verifiedAt`
+preenchido: raiz de CNPJ é fato matematicamente derivável do próprio dado, não uma inferência.
+
+### Testes adicionados
+- `tests/unit/market-intelligence/accountDecisionMakers.test.ts` — 8 testes da heurística de
+  classificação.
+- `tests/unit/market-intelligence/accountEconomicGroup.test.ts` — 9 testes de normalização de CNPJ
+  e agrupamento por raiz (incluindo determinismo de ordem e nunca cruzar raízes diferentes).
+- `tests/integration/accountIntelligenceInsights.worker.test.ts` — +4 testes contra Postgres real:
+  decisor classificado sem tocar um já existente; nenhum decisor fabricado sem sinal; duas contas
+  do mesmo tenant com mesma raiz de CNPJ viram `MATRIZ_FILIAL` `Verified`, idempotente; nunca
+  cruza organizações diferentes.
+
+### Gate final desta rodada
+`tsc --noEmit` limpo, `lint` 0 erros nos arquivos tocados, `test:architecture` 0 violações novas
+(os 2 hotspots que bloqueiam o gate — `CadenceHub.tsx`/`BitrixImportPanel.tsx` — são pré-existentes,
+de outra frente, não tocados aqui), `build` limpo, `test:integration` do arquivo do LDR + do teste
+de regressão de RLS: 10/10.
+
+### O que ainda falta
+Inalterado da lista acima, exceto que D.3/D.4 saíram dela: `START_SDR_CADENCE` real (D.6),
+scheduler por prioridade (Fase 5), Camadas 2/3 do grupo econômico.

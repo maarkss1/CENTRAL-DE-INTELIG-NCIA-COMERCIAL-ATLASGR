@@ -1,11 +1,12 @@
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 
 /**
- * Prova, contra Postgres real, que o worker de insights do LDR (D.1/D.5 do audit da Fase 0 —
- * `.agents/runs/ldr-fase-0-auditoria.md`) calcula Account Score e gera Next Best Action a partir
- * de dado real persistido (nunca fabricado), com descoberta cross-tenant segura (bypass restrito
- * a `Company`, reescopada por tenant real em seguida — ver `BYPASS_RLS_ALLOWED_MODELS` em
- * `src/lib/prisma.ts`) e idempotência real (rodar duas vezes não duplica linha).
+ * Prova, contra Postgres real, que o worker de insights do LDR (D.1/D.3/D.4/D.5 do audit da
+ * Fase 0 — `.agents/runs/ldr-fase-0-auditoria.md`) calcula Account Score, gera Next Best Action,
+ * classifica decisores reais (D.3) e liga contas do mesmo grupo econômico por raiz de CNPJ (D.4)
+ * — tudo a partir de dado real persistido (nunca fabricado), com descoberta cross-tenant segura
+ * (bypass restrito a `Organization` — ver `BYPASS_RLS_ALLOWED_MODELS` em `src/lib/prisma.ts`) e
+ * idempotência real (rodar duas vezes não duplica linha).
  */
 
 import { prisma } from '../../src/lib/prisma';
@@ -36,6 +37,7 @@ afterEach(async () => {
         await asOrg(organizationId, async () => {
             await prisma.accountRecommendation.deleteMany({ where: { organizationId } });
             await prisma.accountScore.deleteMany({ where: { organizationId } });
+            await prisma.economicRelationship.deleteMany({ where: { organizationId } });
             await prisma.decisionMaker.deleteMany({ where: { organizationId } });
             await prisma.accountSignal.deleteMany({ where: { organizationId } });
             await prisma.accountIntelligenceSnapshot.deleteMany({ where: { organizationId } });
@@ -195,6 +197,161 @@ describe('scanAndGenerateAccountInsights — score e Next Best Action reais, con
         await asOrg(orgB, async () => {
             const leaked = await prisma.accountScore.findFirst({ where: { companyId } });
             expect(leaked).toBeNull();
+        });
+    });
+
+    it('D.3: classifica um DecisionMaker real a partir do Contact, nunca reclassifica um já existente', async () => {
+        const orgId = await createTestOrg();
+        const { companyId, contactId, preExistingDecisionMakerId } = await asOrg(orgId, async () => {
+            const company = await prisma.company.create({
+                data: { legalName: 'Conta com Decisores Ltda.', tradeName: 'Conta Decisores', organizationId: orgId },
+            });
+            await prisma.accountIntelligenceSnapshot.create({
+                data: {
+                    organizationId: orgId,
+                    companyId: company.id,
+                    version: 1,
+                    summary: 'Conta com Decisores — resumo factual de teste.',
+                    structuredFacts: { legalName: company.legalName },
+                    sourceStatus: { crm: { status: 'available' } },
+                    status: 'Complete',
+                },
+            });
+            const classifiableContact = await prisma.contact.create({
+                data: {
+                    name: 'Diretor Real',
+                    role: 'Diretor de TI',
+                    seniority: 'director',
+                    department: 'Tecnologia',
+                    companyId: company.id,
+                    organizationId: orgId,
+                },
+            });
+            const noSignalContact = await prisma.contact.create({
+                data: { name: 'Contato Sem Cargo', companyId: company.id, organizationId: orgId },
+            });
+            // Já classificado por um humano antes — o worker nunca deve tocar este registro de novo.
+            const preExisting = await prisma.decisionMaker.create({
+                data: {
+                    organizationId: orgId,
+                    companyId: company.id,
+                    contactId: noSignalContact.id,
+                    buyingRole: 'Decisor Econômico',
+                    roleEvidenceType: 'FACT',
+                    source: 'human:verified',
+                    confidence: 1,
+                    status: 'Active',
+                    verifiedAt: new Date(),
+                },
+            });
+            return { companyId: company.id, contactId: classifiableContact.id, preExistingDecisionMakerId: preExisting.id };
+        });
+
+        await scanAndGenerateAccountInsights();
+
+        await asOrg(orgId, async () => {
+            const generated = await prisma.decisionMaker.findUnique({ where: { organizationId_companyId_contactId: { organizationId: orgId, companyId, contactId } } });
+            expect(generated).not.toBeNull();
+            expect(generated?.buyingRole).toBe('Influenciador Técnico');
+            expect(generated?.roleEvidenceType).toBe('INFERENCE');
+            expect(generated?.status).toBe('Unverified');
+            expect(generated?.verifiedAt).toBeNull();
+
+            const untouched = await prisma.decisionMaker.findUnique({ where: { id: preExistingDecisionMakerId } });
+            expect(untouched).toMatchObject({ buyingRole: 'Decisor Econômico', roleEvidenceType: 'FACT', source: 'human:verified' });
+
+            const total = await prisma.decisionMaker.count({ where: { organizationId: orgId, companyId } });
+            expect(total).toBe(2);
+        });
+    });
+
+    it('D.3: não cria DecisionMaker para Contact sem cargo, senioridade ou departamento reconhecível', async () => {
+        const orgId = await createTestOrg();
+        const companyId = await asOrg(orgId, async () => {
+            const company = await prisma.company.create({
+                data: { legalName: 'Conta Sem Sinal de Decisor Ltda.', tradeName: 'Conta Sem Sinal', organizationId: orgId },
+            });
+            await prisma.accountIntelligenceSnapshot.create({
+                data: {
+                    organizationId: orgId,
+                    companyId: company.id,
+                    version: 1,
+                    summary: 'Conta Sem Sinal de Decisor — resumo factual de teste.',
+                    structuredFacts: { legalName: company.legalName },
+                    sourceStatus: { crm: { status: 'available' } },
+                    status: 'Complete',
+                },
+            });
+            await prisma.contact.create({
+                data: { name: 'Contato Sem Nenhum Sinal', companyId: company.id, organizationId: orgId },
+            });
+            return company.id;
+        });
+
+        await scanAndGenerateAccountInsights();
+
+        await asOrg(orgId, async () => {
+            const count = await prisma.decisionMaker.count({ where: { organizationId: orgId, companyId } });
+            expect(count).toBe(0);
+        });
+    });
+
+    it('D.4: liga duas contas do mesmo tenant com a mesma raiz de CNPJ como MATRIZ_FILIAL, idempotente', async () => {
+        const orgId = await createTestOrg();
+        const cnpjRootDigits = `${Date.now()}`.slice(-8);
+        const { matrizId, filialId } = await asOrg(orgId, async () => {
+            const matriz = await prisma.company.create({
+                data: {
+                    legalName: 'Matriz Real Ltda.',
+                    tradeName: 'Matriz Real',
+                    organizationId: orgId,
+                    cnpj: `${cnpjRootDigits}000191`,
+                },
+            });
+            const filial = await prisma.company.create({
+                data: {
+                    legalName: 'Filial Real Ltda.',
+                    tradeName: 'Filial Real',
+                    organizationId: orgId,
+                    cnpj: `${cnpjRootDigits}000272`,
+                },
+            });
+            return { matrizId: matriz.id, filialId: filial.id };
+        });
+
+        await scanAndGenerateAccountInsights();
+        await scanAndGenerateAccountInsights();
+
+        await asOrg(orgId, async () => {
+            const relationships = await prisma.economicRelationship.findMany({ where: { organizationId: orgId } });
+            expect(relationships).toHaveLength(1);
+            const [relationship] = relationships;
+            expect(relationship).toMatchObject({
+                relationType: 'MATRIZ_FILIAL',
+                status: 'Verified',
+                confidence: 1,
+            });
+            const pair = [relationship.sourceCompanyId, relationship.targetCompanyId].sort();
+            expect(pair).toEqual([matrizId, filialId].sort());
+        });
+    });
+
+    it('D.4: nunca liga empresas com a mesma raiz de CNPJ em organizações diferentes', async () => {
+        const orgA = await createTestOrg();
+        const orgB = await createTestOrg();
+        const cnpjRootDigits = `${Date.now()}`.slice(-8);
+        await asOrg(orgA, () => prisma.company.create({
+            data: { legalName: 'Empresa Org A Ltda.', tradeName: 'Empresa Org A', organizationId: orgA, cnpj: `${cnpjRootDigits}000191` },
+        }));
+        await asOrg(orgB, () => prisma.company.create({
+            data: { legalName: 'Empresa Org B Ltda.', tradeName: 'Empresa Org B', organizationId: orgB, cnpj: `${cnpjRootDigits}000272` },
+        }));
+
+        await scanAndGenerateAccountInsights();
+
+        await asOrg(orgA, async () => {
+            const relationships = await prisma.economicRelationship.findMany({ where: { organizationId: orgA } });
+            expect(relationships).toHaveLength(0);
         });
     });
 });

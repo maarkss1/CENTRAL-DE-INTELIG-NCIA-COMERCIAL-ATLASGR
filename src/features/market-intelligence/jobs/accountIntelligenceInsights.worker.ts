@@ -12,6 +12,8 @@ import {
   type AccountScoreDecisionMakerInput,
   type AccountScoreSignalInput,
 } from '../domain/accountInsights.js';
+import { classifyBuyingRole } from '../domain/accountDecisionMakers.js';
+import { matchEconomicGroupByCnpjRoot, type EconomicGroupCompanyInput } from '../domain/accountEconomicGroup.js';
 
 /**
  * D.1/D.5 do audit da Fase 0 (`.agents/runs/ldr-fase-0-auditoria.md`): até aqui nada persistia
@@ -46,6 +48,94 @@ interface AccountForInsights {
   id: string;
   organizationId: string;
   lookalikeScore: number | null;
+  cnpj: string | null;
+}
+
+/**
+ * D.3: classifica cada `Contact` da conta que ainda não tem `DecisionMaker` — nunca reclassifica
+ * um já existente (o registro pode ter sido corrigido/verificado por um humano depois de criado;
+ * um worker automático nunca sobrescreve isso). `classifyBuyingRole` devolve `null` quando não há
+ * cargo/senioridade suficiente; esse contato simplesmente não vira `DecisionMaker` nesta rodada,
+ * em vez de gerar um registro sem base real.
+ */
+async function generateDecisionMakersForAccount(account: AccountForInsights): Promise<void> {
+  const existingContactIds = await prisma.decisionMaker.findMany({
+    where: { companyId: account.id, organizationId: account.organizationId },
+    select: { contactId: true },
+  });
+  const alreadyClassified = new Set(existingContactIds.map((row) => row.contactId));
+
+  const contacts = await prisma.contact.findMany({
+    where: { companyId: account.id, organizationId: account.organizationId, status: 'Ativo' },
+    select: { id: true, role: true, seniority: true, department: true },
+  });
+
+  for (const contact of contacts) {
+    if (alreadyClassified.has(contact.id)) continue;
+    const classification = classifyBuyingRole({
+      role: contact.role,
+      seniority: contact.seniority,
+      department: contact.department,
+    });
+    if (!classification) continue;
+
+    await prisma.decisionMaker.create({
+      data: {
+        organizationId: account.organizationId,
+        companyId: account.id,
+        contactId: contact.id,
+        buyingRole: classification.buyingRole,
+        roleEvidenceType: 'INFERENCE',
+        source: 'system:account-intelligence-insights-worker.v1',
+        confidence: classification.confidence,
+        // Unverified (default do schema): inferência automática não vira "Active" sozinha — Active
+        // exige verifiedAt (constraint DecisionMaker_active_requires_verification), reservado para
+        // quando um humano revisar. Só então esse decisor passa a contar no Account Score.
+      },
+    });
+  }
+}
+
+/**
+ * D.4 (Camada 1 do grupo econômico): matriz/filial por raiz de CNPJ, determinístico. Roda uma vez
+ * por organização (não por conta) — todas as contas do lote desta organização entram no mesmo
+ * agrupamento, então uma dupla só é processada uma vez por tick, não uma vez por lado do par.
+ */
+async function generateEconomicRelationshipsForOrganization(
+  organizationId: string,
+  companies: EconomicGroupCompanyInput[],
+  now: Date,
+): Promise<void> {
+  const matches = matchEconomicGroupByCnpjRoot(companies);
+  if (matches.length === 0) return;
+
+  await requestContext.run({ tenantId: organizationId }, async () => {
+    for (const match of matches) {
+      const dedupeKey = `cnpj-root:${match.cnpjRoot}:${match.sourceCompanyId}:${match.targetCompanyId}`;
+      const existing = await prisma.economicRelationship.findFirst({
+        where: { organizationId, dedupeKey },
+        select: { id: true },
+      });
+      if (existing) continue;
+
+      await prisma.economicRelationship.create({
+        data: {
+          organizationId,
+          sourceCompanyId: match.sourceCompanyId,
+          targetCompanyId: match.targetCompanyId,
+          relationType: 'MATRIZ_FILIAL',
+          status: 'Verified',
+          source: 'system:account-intelligence-insights-worker.v1',
+          confidence: 1,
+          dedupeKey,
+          // Constraint real do banco (EconomicRelationship_verified_timestamp): status Verified
+          // exige verifiedAt não nulo. Aqui é legítimo marcar sozinho — raiz de CNPJ é fato
+          // matematicamente derivável, não uma inferência que precise de revisão humana antes.
+          verifiedAt: now,
+        },
+      });
+    }
+  });
 }
 
 async function computeAndPersistForAccount(account: AccountForInsights, now: Date): Promise<void> {
@@ -70,6 +160,12 @@ async function computeAndPersistForAccount(account: AccountForInsights, now: Dat
     // `intelligenceSnapshots: { some: {} }` (ver scanAndGenerateAccountInsights), mas a conta pode
     // ter sido excluída/perdido o snapshot entre a descoberta e este ponto.
     if (!latestSnapshot) return;
+
+    // D.3: classifica decisores a partir dos Contacts reais da conta antes de recalcular o score —
+    // não afeta a dimensão `relationship` nesta mesma rodada (decisor recém-criado nasce
+    // Unverified, só um humano promove pra Active), mas mantém a lista de decisores sempre
+    // atualizada para quem consultar `listDecisionMakers` logo em seguida.
+    await generateDecisionMakersForAccount(account);
 
     const signalInputs: AccountScoreSignalInput[] = activeSignals.map((signal) => ({
       type: signal.type,
@@ -195,6 +291,8 @@ export async function scanAndGenerateAccountInsights(
   });
 
   const accounts: AccountForInsights[] = [];
+  let errors = 0;
+
   for (const organizationId of organizationIds) {
     if (accounts.length >= MAX_ACCOUNTS_PER_TICK) break;
     // Company nunca é lida sob bypass (ver comentário do módulo) — cada organização é escopada
@@ -202,17 +300,25 @@ export async function scanAndGenerateAccountInsights(
     const companies = await requestContext.run({ tenantId: organizationId }, () =>
       prisma.company.findMany({
         where: { deletedAt: null },
-        select: { id: true, lookalikeScore: true },
+        select: { id: true, lookalikeScore: true, cnpj: true },
         take: Math.min(MAX_ACCOUNTS_PER_ORGANIZATION_PER_TICK, MAX_ACCOUNTS_PER_TICK - accounts.length),
       }),
     );
     for (const company of companies) {
-      accounts.push({ id: company.id, organizationId, lookalikeScore: company.lookalikeScore });
+      accounts.push({ id: company.id, organizationId, lookalikeScore: company.lookalikeScore, cnpj: company.cnpj });
+    }
+
+    // D.4: agrupamento de CNPJ roda uma vez por organização, com todas as contas do lote desta
+    // organização — não por conta, para não processar cada dupla duas vezes.
+    try {
+      await generateEconomicRelationshipsForOrganization(organizationId, companies, now);
+    } catch (err) {
+      errors += 1;
+      logger.error({ err, organizationId }, 'Falha ao gerar relações de grupo econômico (D.4) para a organização.');
     }
   }
 
   let processed = 0;
-  let errors = 0;
 
   for (const account of accounts) {
     try {
