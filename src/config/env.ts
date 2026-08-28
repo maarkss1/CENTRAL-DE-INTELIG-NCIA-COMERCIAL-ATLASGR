@@ -22,15 +22,15 @@ const envSchema = z.object({
   // secretFields.ts, não aqui, para não derrubar a aplicação inteira ao subir só por causa deste
   // schema quando NODE_ENV ainda não foi resolvido nesta camada.
   CREDENTIALS_ENCRYPTION_KEY: z.string().optional(),
-  // Segredo do índice de busca determinístico (HMAC-SHA256) de PII de Contact (phone/email/
-  // whatsapp) — ver src/lib/security/piiSearchIndex.ts. Permite `WHERE`/dedup por igualdade exata
-  // continuar funcionando no dia em que esses campos voltarem a ser cifrados em repouso (cifra com
-  // IV aleatório nunca produz o mesmo ciphertext duas vezes — ver
-  // .agents/handoffs/onda-39/01-para-00-pii-contact-revertida-quebra-integration.md). Separado de
-  // CREDENTIALS_ENCRYPTION_KEY/BETTER_AUTH_SECRET pelo mesmo motivo que aqueles são separados entre
-  // si: um segredo comprometido não deve comprometer os outros. Opcional aqui (mesmo padrão) — a
-  // obrigatoriedade em produção é reforçada em runtime por piiSearchIndex.ts.
-  PII_SEARCH_HMAC_SECRET: z.string().optional(),
+  // Mesma obrigatoriedade condicional de CREDENTIALS_ENCRYPTION_KEY acima, reforçada em runtime
+  // por src/lib/crypto/piiIndex.ts — chave do índice cego (HMAC-SHA256) de busca exata sobre
+  // Contact.email/phone/whatsapp cifrados em repouso. Substitui `PII_SEARCH_HMAC_SECRET`
+  // (DEC-01/onda-42, `src/lib/security/piiSearchIndex.ts`) — aquela rodada implementou só o
+  // mecanismo de busca, deixando a cifra e a migration como handoff pendente
+  // (`.agents/handoffs/onda-42/01-para-00-pii-hash-fields.md`); este PR completa exatamente esse
+  // handoff (schema, migration, cifra AES-256-GCM reativada, decriptação de leitura aninhada,
+  // backfill) — ver esse mesmo handoff para o resumo da consolidação.
+  PII_BLIND_INDEX_KEY: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   MEILI_MASTER_KEY: z.string().optional(),

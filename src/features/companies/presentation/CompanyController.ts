@@ -10,7 +10,12 @@ export class CompanyController {
             const { organizationId: orgId } = (req as AuthRequest).user;
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 50;
-            const result = await this.companyUseCases.findCompanies(orgId, req.query.q as string | undefined, page, limit);
+            // Mesmo padrão de ContactController.getContacts: `req.query.q` pode chegar como array
+            // (`?q=a&q=b`) ou objeto (`?q[x]=y`), não só string — `as string | undefined` só
+            // engana o TypeScript, não o runtime (CodeQL: "Type confusion through parameter
+            // tampering").
+            const query = typeof req.query.q === 'string' ? req.query.q : undefined;
+            const result = await this.companyUseCases.findCompanies(orgId, query, page, limit);
             res.json({ success: true, data: result.data, meta: result.meta });
         } catch (error) {
             next(error);

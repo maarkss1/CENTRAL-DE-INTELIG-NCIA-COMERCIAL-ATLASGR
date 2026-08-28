@@ -1,7 +1,7 @@
-import { LeadStatus, type Prisma } from '@prisma/client';
+import { LeadStatus } from '@prisma/client';
 import { prisma } from '../../../../lib/prisma.js';
 import { notificationService } from '../../../notifications/notification.service.js';
-import { hashEmailForSearchIndex, hashPhoneForSearchIndex } from '../../../../lib/security/piiSearchIndex.js';
+import { contactEmailIndex, contactPhoneIndex } from '../../../../lib/crypto/piiIndex.js';
 
 /**
  * Status terminais usados só para decidir se um Lead/Negócio já existente ainda "conta" como
@@ -42,10 +42,10 @@ export interface OwnershipConflict {
  * a checagem trata como conflito mesmo quando é o mesmo dono na prática. É uma falha para o lado
  * seguro (bloqueia e notifica em vez de deixar passar), não uma regressão de segurança.
  *
- * Casa por `Contact.phoneHash`/`emailHash` (índice de busca determinístico, ver
- * src/lib/security/piiSearchIndex.ts — DEC-01/onda-42), não mais pelo valor puro: mesmo raciocínio
- * de `emailReply.webhook.ts` → `findOpenLeadByEmail` (o campo original pode voltar a ser cifrado em
- * repouso a qualquer momento, e uma cifra com IV aleatório nunca casa por igualdade).
+ * Casa por `Contact.phoneIndex`/`emailIndex` (índice cego determinístico, ver
+ * src/lib/crypto/piiIndex.ts), não pelo valor puro: `Contact.phone`/`email` são cifrados em
+ * repouso (ver src/lib/crypto/piiFields.ts) — mesmo raciocínio de `emailReply.webhook.ts` →
+ * `findOpenLeadByEmail`.
  */
 export async function findOwnershipConflict(
     organizationId: string,
@@ -54,23 +54,25 @@ export async function findOwnershipConflict(
 ): Promise<OwnershipConflict | null> {
     if (!contact.phone && !contact.email) return null;
 
-    const phoneHash = hashPhoneForSearchIndex(contact.phone);
-    const emailHash = hashEmailForSearchIndex(contact.email);
-    const or = [
-        phoneHash ? { phoneHash } : undefined,
-        emailHash ? { emailHash } : undefined,
-    ].filter((c): c is NonNullable<typeof c> => c !== undefined);
-    if (or.length === 0) return null;
-
-    const where = {
-        organizationId,
-        status: { notIn: TERMINAL_STATUSES },
-        owner: { not: null },
-        contact: { OR: or },
-    } as unknown as Prisma.LeadWhereInput;
+    // Contact.phone/email cifrados em repouso (ver src/lib/crypto/piiFields.ts) — a busca exata
+    // por telefone OU e-mail usa os índices cegos determinísticos correspondentes em vez do campo
+    // cifrado direto (ver src/lib/crypto/piiIndex.ts).
+    const phoneIndex = contactPhoneIndex(contact.phone);
+    const emailIndex = contactEmailIndex(contact.email);
+    if (!phoneIndex && !emailIndex) return null;
 
     const existing = await prisma.lead.findFirst({
-        where,
+        where: {
+            organizationId,
+            status: { notIn: TERMINAL_STATUSES },
+            owner: { not: null },
+            contact: {
+                OR: [
+                    phoneIndex ? { phoneIndex } : undefined,
+                    emailIndex ? { emailIndex } : undefined,
+                ].filter((c): c is NonNullable<typeof c> => c !== undefined),
+            },
+        },
         select: { id: true, owner: true, title: true },
         orderBy: { updatedAt: 'desc' },
     });
