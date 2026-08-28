@@ -290,7 +290,7 @@ function TerritoryOptimizerPanel({ manifest }: { manifest: MarketIntelligenceMan
                             ))}
                         </tbody>
                     </table>
-                    <p className="mt-3 text-[11px] text-ink-2">Score de oportunidade e contas ICP seguem a metodologia Core Evidence v1.1 (ver aba Saúde dos Dados). Cenários exploratórios para dimensionamento de headcount — não substituem o gate final de decisão da aba "Onde contratar agora?".</p>
+                    <p className="mt-3 text-[11px] text-ink-2">Score de oportunidade e contas ICP seguem a metodologia Core Evidence v1.1 (ver aba Saúde dos Dados). Cenários exploratórios para dimensionamento de headcount — não substituem o gate final de decisão da aba &quot;Onde contratar agora?&quot;.</p>
                 </div>
             )}
         </section>
