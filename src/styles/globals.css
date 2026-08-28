@@ -194,11 +194,20 @@
   --warning-active: color-mix(in srgb, var(--color-warning) 55%, black);
   --danger-active: color-mix(in srgb, var(--color-danger) 65%, black);
   --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 28px -16px rgba(0, 0, 0, .22);
+  /* Elevação de hover do Card — mesma curva de profundidade de --shadow-card-value, um degrau mais
+     forte. Existe pra Card.tsx parar de escurecer o hover com um rgba solto (só calibrado pro tema
+     claro, invisível/errado no escuro) e passar a reagir a tema como o resto do design system. */
+  --shadow-card-hover-value: 0 1px 3px rgba(0, 0, 0, .06), 0 18px 40px -18px rgba(0, 0, 0, .28);
   --shadow-nav-value: 12px 0 34px -28px rgba(26, 21, 19, .45);
   --shadow-nav-active-value: 0 10px 26px -14px color-mix(in srgb, var(--brand) 52%, black);
   --radius-nav-item-value: 1rem;
   --font-brand-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
-  --font-brand-display: "Mont", "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  /* "Mont" nunca foi carregada neste projeto (nenhum @font-face, nenhum arquivo local) — sempre
+     caía silenciosamente pro fallback Montserrat. `CREATIVE_SYSTEM_01.md` (seção C) já formalizou
+     que Montserrat é "o que o produto efetivamente renderiza... não 'Mont'/'Space Grotesk' do
+     manual histórico" — removida a referência morta em vez de mantê-la como falso indício de uma
+     segunda família tipográfica. Nenhuma mudança visual: o fallback já era sempre Montserrat. */
+  --font-brand-display: "Montserrat", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root[data-brand="totaltrac"] {
@@ -215,6 +224,7 @@
   --line: rgba(255, 255, 255, .10);
   --soft: rgba(255, 86, 24, .15);
   --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .6), 0 14px 34px -18px rgba(0, 0, 0, .9);
+  --shadow-card-hover-value: 0 1px 3px rgba(0, 0, 0, .7), 0 20px 46px -20px rgba(0, 0, 0, .95);
   --shadow-nav-value: 12px 0 38px -24px rgba(0, 0, 0, .85);
   --shadow-nav-active-value: 0 12px 30px -15px color-mix(in srgb, var(--brand) 58%, black);
   --critical: #ef4444;
@@ -297,6 +307,7 @@
   --color-danger-active: var(--danger-active);
   --color-soft: var(--soft);
   --shadow-card: var(--shadow-card-value);
+  --shadow-card-hover: var(--shadow-card-hover-value);
   --shadow-nav: var(--shadow-nav-value);
   --shadow-nav-active: var(--shadow-nav-active-value);
   /* Sombra/glow reativos à marca ativa (color-mix com var(--brand), mesmo idioma já usado no
@@ -420,13 +431,20 @@
     outline-offset: 2px;
   }
 
-  /* Clean Premium Glassmorphism & Elevation utilities */
+  /* Clean Premium Glassmorphism & Elevation utilities.
+     Hairline de topo (inset, 1px) somado à sombra já existente — não decorativo: reforça a leitura
+     de "painel de instrumento" (borda precisa, camada com peso físico) pedida pela personalidade
+     "controle/precisão" de CREATIVE_SYSTEM_01.md (seção A), sem introduzir blur/gradiente novo.
+     rgba(255,255,255,...) fixo (não token) de propósito: é um realce de borda superior, não texto —
+     não participa de nenhum cálculo de contraste AA, e no tema padrão do produto (escuro, seção C
+     do mesmo documento) é onde ele é visível; no tema claro fica praticamente imperceptível sobre
+     --surface clara, o que é o comportamento correto (não deve competir com o conteúdo ali). */
   .glass-panel {
     background: color-mix(in srgb, var(--surface) 88%, transparent);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--line);
-    box-shadow: var(--shadow-card);
+    box-shadow: var(--shadow-card), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
   }
 
   .glass-panel-elevated {
@@ -434,7 +452,7 @@
     backdrop-filter: blur(28px);
     -webkit-backdrop-filter: blur(28px);
     border: 1px solid color-mix(in srgb, var(--line) 150%, transparent);
-    box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
   }
 
   .glass-card {

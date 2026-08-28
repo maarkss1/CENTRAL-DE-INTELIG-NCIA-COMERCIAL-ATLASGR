@@ -428,6 +428,83 @@ entrada nova.
     de código; aqui o achado foi automatizado (axe-core pegou a aba ativa) e visual (screenshot
     pegou o banner de governança) em conjunto.
 
+## Pilot 006 — Reformulação de estilo em nível de plataforma ("Sinal", camada de tokens/primitivos)
+
+- **Objetivo**: pedido explícito do usuário ("reformular todo o estilo da plataforma... algo vivo,
+  conceitual, elegante e enigmático") — a primeira tarefa deste tipo (mudança visual ampla,
+  autorizada pela seção 13 da Constituição por ter sido pedida explicitamente, não assumida).
+  Primeiro piloto a operar na camada de tokens/primitivos (`globals.css`, `Card.tsx`, `Button.tsx`)
+  em vez de numa tela isolada — decisão deliberada: como praticamente toda tela consome esses
+  tokens/primitivos, uma mudança bem contida ali se propaga pra a plataforma inteira sem exigir
+  reescrever manualmente 25+ módulos de feature numa única sessão.
+- **Achado que redirecionou o conceito antes de qualquer código**: a hipótese inicial (adotar Space
+  Grotesk pros headings, "Mont"/manual histórico) foi descartada ao ler `CREATIVE_SYSTEM_01.md`
+  (raiz do repo) — documento institucional que já formaliza, com data mais recente que
+  `docs/BrandConstitution.md`, que "Montserrat é o que o produto efetivamente renderiza... não
+  'Mont'/'Space Grotesk' do manual histórico" e proíbe explicitamente gradiente azul/roxo genérico,
+  glassmorphism decorativo, holograma, cérebro digital, robô e HUD militar. O mesmo documento já
+  define a narrativa conceitual real do produto — "Do Sinal à Ação" (Sinal→Contexto→Prioridade→
+  Ação→Aprendizado→Decisão), personalidade "inteligente, madura, precisa, silenciosamente
+  poderosa", território emocional "controle/clareza, nunca ansiedade ou caos" — usada aqui como o
+  conceito real por trás de "vivo/conceitual/elegante/enigmático" em vez de um conceito novo
+  inventado do zero. Isso também descartou de saída duas ideias que teriam violado a proibição
+  explícita do documento: um motivo de fundo tipo radar/grid de rede (leria como "HUD militar") e
+  qualquer ajuste às curvas de motion já existentes (o documento já confirma `EASE_PREMIUM`/
+  `SPRING_SOFT`/`SPRING_SNAPPY` como a física correta, "controlada e precisa, nunca elástica").
+- **Mudanças implementadas** (todas tokens/primitivos, nenhuma tela específica tocada):
+  - `--font-brand-display` parava de referenciar `"Mont"` (nunca carregada por nenhum `@font-face`
+    neste repo — sempre caía silenciosamente pro fallback Montserrat) e passou a declarar
+    Montserrat diretamente — corrige a referência morta, zero mudança visual (fallback já era
+    sempre Montserrat), alinhado à decisão explícita de `CREATIVE_SYSTEM_01.md`.
+  - `Card.tsx` (`default`/`stat`): sombra trocada de `rgba(...)` cru calibrado só pro tema claro
+    (praticamente invisível/errado sobre `--surface` escura, o tema padrão real do produto) pro
+    token `shadow-card`/novo `shadow-card-hover` (`globals.css`, valores próprios por tema); borda
+    de `border-gray-200` (não reage a tema) pra `border-line`. Variante `stat` também trocou
+    `from-gray-50 to-white` (quebraria em dark mode) por `from-surface to-surface-2`, mantendo a
+    distinção visual dos 3 consumidores reais (KpiTile, Analytics, Billing) sem o bug.
+  - `Button.tsx` (`outline`/`secondary`/`ghost`): mesma classe de bug — `border-gray-300`/
+    `hover:bg-gray-100`/`hover:bg-gray-200` nunca reagiam a tema, produzindo borda quase invisível
+    e hover claro incoerente sobre superfície escura. Trocados por `border-line`/`hover:bg-surface-2`/
+    `hover:bg-line`, mesmo idioma já usado pelos itens de navegação da própria `Sidebar.tsx`.
+  - `.glass-panel`/`.glass-panel-elevated` (`globals.css`): hairline de topo (`inset 0 1px 0 0
+    rgba(255,255,255,...)`, somado à sombra existente, não substituindo) — reforça a leitura de
+    "painel de instrumento" pedida pela personalidade "controle/precisão", sem introduzir blur ou
+    gradiente novo; imperceptível no tema claro de propósito (não deve competir com conteúdo ali).
+- **Decisões explícitas de não-fazer** (registradas aqui pra sessão futura não "redescobrir" e
+  reverter por engano): sem Space Grotesk/segunda família tipográfica; sem motivo de fundo
+  radar/grid/rede; sem alterar `EASE_PREMIUM`/springs de `src/lib/motion.ts`; sem tocar
+  `AtlasOrb.tsx`/`SpaceGame.tsx` (3D decorativo já contido/aceito, fora do escopo pedido); sem
+  implementar feedback sonoro de UI (iniciativa Onda 38, `.agents/handoffs/onda-38/
+  00-para-02-03-redesign-plataforma.md`, explicitamente congelada pelo freeze de escopo — não
+  reaberta aqui); sem tocar `--bg`/`--surface`/`--ink` (hex base) — mudar luminância de base
+  invalidaria toda a matemática de contraste WCAG AA já corrigida em pilotos anteriores
+  (`--critical`, `--color-brand-active`, `--ok-active` etc.), risco desproporcional ao pedido.
+- **Ambiente sem Docker (mesmo padrão dos Pilotos 003/005)**: `docker.sock` inexistente;
+  `postgresql-16-pgvector` instalado via `apt-get`, cluster local + Redis provisionados
+  manualmente, `prospectordb_test` criado com `scripts/db/create-app-role.sql`, `prisma migrate
+  deploy` real, servidor Express real (`tsx server.ts`) no ar, sessão criada via signup real pelo
+  formulário (mesmo caminho de `tests/e2e/helpers.ts::signUp`). `.env.test`/banco/servidor
+  removidos ao final da sessão.
+- **Validação**: `npx tsc -b --noEmit` (0 erros), `npm run lint` (0 erros/warnings nos 3 arquivos
+  tocados — os 2 erros e 156 warnings pré-existentes no restante do projeto continuam idênticos,
+  não relacionados a esta mudança), `npx vite build` (limpo; CSS gerado conferido — `shadow-card-
+  hover`, `--font-brand-display`, hairline do `.glass-panel` compilam com os valores esperados).
+  `tests/e2e/accessibility.spec.ts` completo rodou contra o servidor real: 34/35 passando: a 1
+  falha ("Chatbook") é contraste pré-existente num badge `bg-emerald-500/20 text-emerald-500`
+  ("Groq IA") não relacionado a `Card`/`Button`/`globals.css` — confirmado pré-existente rodando o
+  mesmo teste via `git stash` (falha idêntica antes desta mudança), não investigado por estar fora
+  do escopo pedido (reportado, não corrigido). QA visual real via Playwright/Chromium (signup real,
+  sem simular sessão): Dashboard e Configurações em light/dark × AtlasGR/Total Trac (4 combinações
+  mínimas da `design-system/SKILL.md`) — sombra de `Card` visível e correta nos dois temas, troca
+  de marca preserva a nova sombra/borda sem vazamento de cor, hover dos botões `outline`/`secondary`/
+  `ghost` renderiza como esperado, nenhum erro de console novo (só o `ERR_CONNECTION_RESET`/SSE já
+  documentado no Piloto P3 como comportamento esperado do `/api/notifications/stream`).
+- **Escopo deliberadamente não coberto nesta sessão**: nenhuma tela de feature individual
+  (dashboard/CRM/analytics/etc.) foi editada diretamente — elas herdam a mudança automaticamente
+  por já consumirem `Card`/`Button`/tokens, confirmado nos screenshots acima, mas não foram
+  auditadas uma a uma em busca de outros usos de cor não-tokenizada (esse é um escopo de auditoria
+  separado, não parte do pedido de "reformular o estilo").
+
 ## Onda P3 — Layout/design system (tipografia responsiva, sombra/gradiente por marca, QA mobile, sidebar)
 
 - **Objetivo**: 4 itens do backlog de design system — tokenizar tipografia responsiva, parametrizar
