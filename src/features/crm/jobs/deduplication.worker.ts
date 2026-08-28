@@ -38,7 +38,7 @@ export function createDeduplicationWorker() {
             });
 
             const phoneDupes = duplicatePhones.filter(e => !!e.phoneIndex);
-            
+
             // No futuro, isso poderia realizar o "merge" usando os IDs dos Leads associados.
             // Por enquanto, apenas detecta e envia logs para a organização ou diretoria sobre a base suja.
             logger.info({ 

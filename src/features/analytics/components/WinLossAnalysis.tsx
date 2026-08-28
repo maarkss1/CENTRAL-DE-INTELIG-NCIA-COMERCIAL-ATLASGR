@@ -101,8 +101,8 @@ export function WinLossAnalysis() {
                     <Card padding="lg" className="text-center border-dashed">
                         <div className="flex flex-col items-center gap-4 py-6">
                             <div className="flex gap-6 text-4xl">
-                                <TrendingUp className="w-12 h-12 text-[#199e70]" />
-                                <TrendingDown className="w-12 h-12 text-[#d95926]" />
+                                <TrendingUp className="w-12 h-12 text-success-active dark:text-success" />
+                                <TrendingDown className="w-12 h-12 text-danger-active dark:text-danger" />
                             </div>
                             <h3 className="text-lg font-bold text-ink">Análise Inteligente de Ciclos Comerciais</h3>
                             <p className="text-sm text-ink-2 max-w-lg">
@@ -147,8 +147,8 @@ export function WinLossAnalysis() {
 
                 {/* Error state */}
                 {error && (
-                    <Card padding="lg" className="text-center border-[#d95926]/40">
-                        <AlertCircle className="w-8 h-8 mx-auto mb-3 text-[#d95926]" />
+                    <Card padding="lg" className="text-center border-danger/40">
+                        <AlertCircle className="w-8 h-8 mx-auto mb-3 text-danger-active dark:text-danger" />
                         <p className="text-sm font-semibold text-ink mb-1">Falha ao gerar análise</p>
                         <p className="text-xs text-ink-2 mb-4">{error}</p>
                         <Button variant="outline" onClick={runAnalysis}>Tentar novamente</Button>

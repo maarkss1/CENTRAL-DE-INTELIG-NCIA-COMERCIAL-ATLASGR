@@ -442,7 +442,13 @@ model Contact {
   // Prisma em src/lib/prisma.ts. Os índices `*Index`/`*Last8Index` abaixo (HMAC-SHA256
   // determinístico, src/lib/crypto/piiIndex.ts) existem justamente porque IV aleatório por valor
   // faz igualdade/contains direto nesta coluna nunca casar — nenhuma busca deve filtrar por estes
-  // três campos diretamente, sempre pelo índice correspondente.
+  // três campos diretamente, sempre pelo índice correspondente. Substitui `phoneHash`/
+  // `whatsappHash`/`emailHash` (DEC-01/onda-42, `src/lib/security/piiSearchIndex.ts`) — aquela
+  // rodada implementou só o mecanismo de busca (campo original continuava em texto puro), deixando
+  // a cifra em si e a migration como handoff pendente
+  // (`.agents/handoffs/onda-42/01-para-00-pii-hash-fields.md`); este conjunto de campos completa
+  // exatamente esse handoff (cifra reativada + índice mais completo: domínio de e-mail e sufixo de
+  // 8/9 dígitos de telefone, que o hash único de DEC-01 não cobria).
   phone               String?
   whatsapp            String?
   email               String?
@@ -499,7 +505,8 @@ model Contact {
   @@index([name])
   @@index([role])
   // Substituem os antigos @@index([email])/@@index([phone])/@@index([whatsapp]) — inúteis contra
-  // ciphertext (IV aleatório nunca repete), ver comentário nos campos acima.
+  // ciphertext (IV aleatório nunca repete), ver comentário nos campos acima. Também substituem
+  // phoneHash/whatsappHash/emailHash (DEC-01/onda-42) — ver comentário grande no topo do model.
   @@index([emailIndex])
   @@index([emailDomainIndex])
   @@index([phoneIndex])
@@ -807,6 +814,18 @@ model Organization {
   threeCXCallEvents             ThreeCXCallEvent[]
   publicBookingLinks            PublicBookingLink[]
   savedSearches                 SavedSearch[]
+  prospectingSearchExecutions   ProspectingSearchExecution[]
+  automationVersions            AutomationVersion[]
+
+  /// DEC-09 (dossiê CPI, Onda 42): teto mensal de gasto com IA (USD) desta organização. Nullable =
+  /// SEM TETO (nunca bloqueia) — nunca um default implícito de US$0, que bloquearia toda
+  /// organização nova silenciosamente. Comparado contra a soma de AILog.cost do mês corrente desta
+  /// organização por assertOrgAiBudgetNotExceeded (src/lib/ai/budget.ts).
+  monthlyAiBudgetUsd Float?
+  /// DEC-09: teto mensal de gasto com providers de prospecção pagos (Apollo/Hunter, USD) desta
+  /// organização. Nullable = SEM TETO, mesmo raciocínio do campo acima. Comparado contra o
+  /// acumulado do mês corrente (Redis, ver providerBudget.ts) por assertProspectingBudgetNotExceeded.
+  monthlyProspectingBudgetUsd Float?
 }
 
 // ─── Comercial Inteligente (Revenue Command Center) ────────────────────────
@@ -1665,7 +1684,46 @@ model Automation {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  /// DEC-14 (dossiê CPI, Onda 42): histórico de versões da REGRA (não das execuções — isso já
+  /// existe via AuditLog/automation-history.service.ts).
+  versions AutomationVersion[]
+
   @@index([organizationId, enabled])
+}
+
+/// DEC-14 (dossiê CPI, Onda 42, opção A): histórico de versões da REGRA de uma automação
+/// (trigger/condições/ação/config) — não das execuções dela. Cada registro é um snapshot do
+/// estado da regra imediatamente ANTES de uma edição ou remoção; o estado "atual" sempre é a
+/// própria linha em Automation (ou deixa de existir, no caso de remoção).
+model AutomationVersion {
+  id           String     @id @default(cuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  /// Snapshot da regra ANTES da edição/remoção que gerou este registro.
+  name         String
+  enabled      Boolean
+  trigger      AutomationTrigger
+  conditions   Json?
+  action       AutomationAction
+  actionConfig Json
+
+  /// Quem fez a edição/remoção que tornou este snapshot histórico (não quem criou o estado
+  /// snapshotado). Sem FK de propósito — mesmo padrão já usado no schema pelo mesmo motivo
+  /// (OrganizationFeatureFlag.updatedByUserId, BugReport.userId/userEmail): o histórico deve
+  /// sobreviver à remoção do usuário (ex-funcionário).
+  editedByUserId String?
+  editedByEmail  String?
+  /// 'update' | 'delete' — 'delete' registra o último estado antes da automação ser removida, para
+  /// o histórico não desaparecer junto com a regra.
+  changeReason String @default("update")
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([automationId, createdAt])
+  @@index([organizationId])
 }
 
 /// Lista interna de bloqueio de discagem: números para os quais o SDR de voz não pode ligar.
@@ -2003,12 +2061,20 @@ model BitrixExtractionRun {
   completedAt DateTime?
   cancelledAt DateTime?
 
+  /// DEC-04 (dossiê CPI, Onda 42, opção B): preenchido pelo worker de expurgo LGPD
+  /// (bitrixExtractionPurge.worker.ts) quando este run é anonimizado por retenção expirada — nunca
+  /// apagado, só anonimizado (arquivos removidos do storage, filters.search redigido). `null` =
+  /// nunca expurgado. Usado tanto para o filtro WHERE do worker (`purgedAt: null`) quanto para a
+  /// UI sinalizar "dado pessoal já removido por retenção".
+  purgedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([organizationId, createdAt])
   @@index([connectionId])
   @@index([status])
+  @@index([organizationId, purgedAt])
 }
 
 /// Conexão de PABX 3CX de uma organização (Click-to-Call / Call Control API) — antes deste modelo,
@@ -2116,20 +2182,6 @@ model ColdCallRun {
   runAt DateTime @default(now())
 
   @@index([organizationId, runAt])
-}
-
-model AIGovernancePolicy {
-  id       String @id @default(cuid())
-  name     String
-  rules    Json
-  tenantId String
-}
-
-model AIEvaluation {
-  id                 String @id @default(cuid())
-  logId              String
-  precisionScore     Float
-  hallucinationScore Float
 }
 
 model AIPendingAction {
@@ -2674,6 +2726,58 @@ model SavedSearch {
   /// qual busca salva ele veio — este relation fecha essa rastreabilidade.
   leads Lead[]
 
+  /// DEC-13 (dossiê CPI, Onda 42): relação irmã de `leads` acima, do lado da EXECUÇÃO — quando uma
+  /// busca veio de POST /saved-searches/:id/run, não de /discover direto.
+  searchExecutions ProspectingSearchExecution[]
+
   @@index([organizationId])
+}
+
+/// DEC-13 (dossiê CPI, Onda 42, opção A): Search-ID formal rastreável — amarra critério de busca →
+/// providers chamados → resultados → custo de ponta a ponta, para auditoria/replay. `SavedSearch`
+/// acima só guarda o FILTRO salvo; este model é o registro de cada EXECUÇÃO individual.
+model ProspectingSearchExecution {
+  /// Search-ID — cuid gerado em aplicação (SearchExecutionTracker, ver searchExecution.service.ts)
+  /// no INÍCIO de cada execução real de busca, não pelo @default(cuid()) do Prisma — precisa
+  /// existir ANTES do INSERT para propagar nos logs estruturados da execução inteira, inclusive
+  /// quando ela falha antes de qualquer persistência.
+  id              String       @id
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  savedSearchId String?
+  savedSearch   SavedSearch? @relation(fields: [savedSearchId], references: [id], onDelete: SetNull)
+
+  /// Mesmo formato de SavedSearch.criteria — ProspectCriteria serializado.
+  criteria Json
+
+  /// 'free' | 'hybrid' — snapshot de getProspectingProviderMode() no momento da execução.
+  providerMode String
+
+  /// Array ordenado de chamadas reais a provider dentro desta execução — ver
+  /// SearchExecutionProviderCall em searchExecution.service.ts para o shape exato.
+  providersCalled Json
+
+  totalResults Int @default(0)
+
+  /// Custo estimado acumulado desta execução (USD), soma de providersCalled[].costUsd.
+  costUsd Decimal @default(0) @db.Decimal(10, 4)
+
+  /// 'success' | 'partial' | 'error' — texto livre (não enum), mesmo padrão já usado em outros
+  /// campos de status "narrativo" deste schema.
+  status       String
+  errorMessage String?
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  /// finishedAt - startedAt em ms — redundante com os dois campos acima, evita todo consumidor de
+  /// auditoria/replay precisar recalcular a mesma subtração.
+  durationMs Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, startedAt])
+  @@index([savedSearchId])
 }
 

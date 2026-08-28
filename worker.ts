@@ -49,6 +49,7 @@ import { createColdLeadsScannerWorker, scheduleColdLeadsScannerJob } from './src
 import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './src/features/automations/application/stagnation-scanner.service.js';
 import { createCadenceRunWorker, scheduleCadenceRunJob } from './src/features/cadence/jobs/cadenceRun.worker.js';
 import { createAgentMemoryCleanupWorker, scheduleAgentMemoryCleanupJob } from './src/features/intelligence/jobs/agentMemoryCleanup.worker.js';
+import { createBitrixExtractionPurgeWorker, scheduleBitrixExtractionPurgeJob } from './src/features/integrations/bitrix/jobs/bitrixExtractionPurge.worker.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -85,6 +86,7 @@ async function startWorkerProcess() {
     const stagnationScannerWorker = createStagnationScannerWorker();
     const cadenceRunWorker = createCadenceRunWorker();
     const agentMemoryCleanupWorker = createAgentMemoryCleanupWorker();
+    const bitrixExtractionPurgeWorker = createBitrixExtractionPurgeWorker();
 
     await Promise.all([
         scheduleBitrixSync(),
@@ -98,6 +100,7 @@ async function startWorkerProcess() {
         scheduleStagnationScannerJob(),
         scheduleCadenceRunJob(),
         scheduleAgentMemoryCleanupJob(),
+        scheduleBitrixExtractionPurgeJob(),
     ]);
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -141,6 +144,7 @@ async function startWorkerProcess() {
         { name: 'cadence-run-scanner', worker: cadenceRunWorker },
         { name: 'daily-report', worker: dailyReportWorker },
         { name: 'agent-memory-cleanup', worker: agentMemoryCleanupWorker },
+        { name: 'bitrix-extraction-purge', worker: bitrixExtractionPurgeWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {

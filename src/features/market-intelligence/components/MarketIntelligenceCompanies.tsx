@@ -35,11 +35,17 @@ type CompanySummary = {
   opcaoMei: string | null;
   icpTier: string | null;
   icpScore: number | null;
+  hasRntrc: boolean | null;
+  rntrcStatus: string | null;
+  rntrcType: string | null;
   dataOrigin: string;
   competencia: string;
 };
 
 type CompanyDetail = CompanySummary & {
+  rntrcNumber: string | null;
+  rntrcSource: string | null;
+  rntrcUpdatedAt: string | null;
   cnpjBasico: string;
   cnpjOrdem: string;
   cnpjDv: string;
@@ -250,10 +256,24 @@ function DetailPanel({ cnpj, onClose }: { cnpj: string; onClose: () => void }) {
           </section>
 
           <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
-            <div className="flex items-center gap-2 text-emerald-800"><ShieldCheck className="h-5 w-5" /><h3 className="font-black">Governança de contatos e RNTRC</h3></div>
+            <div className="flex items-center gap-2 text-emerald-800"><ShieldCheck className="h-5 w-5" /><h3 className="font-black">Governança de contatos</h3></div>
             <p className="mt-2 text-sm leading-6 text-emerald-900">
-              Telefone, fax e e-mail não são publicados no catálogo empresarial global. Qualquer contato futuro deve entrar por enriquecimento escopado ao tenant. RNTRC municipal permanece um indicador territorial e não é atribuído automaticamente a este CNPJ.
+              Telefone, fax e e-mail não são publicados no catálogo empresarial global. Qualquer contato futuro deve entrar por enriquecimento escopado ao tenant.
             </p>
+          </section>
+
+          <section className="rounded-3xl border border-line p-5">
+            <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-brand" /><h3 className="font-black text-ink">RNTRC · ANTT</h3></div>
+            {data.hasRntrc ? (
+              <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+                <div><dt className="font-bold text-ink-2">Situação</dt><dd className="mt-1 text-ink">{display(data.rntrcStatus)}</dd></div>
+                <div><dt className="font-bold text-ink-2">Categoria</dt><dd className="mt-1 text-ink">{display(data.rntrcType)}</dd></div>
+                <div><dt className="font-bold text-ink-2">Número RNTRC</dt><dd className="mt-1 text-ink">{display(data.rntrcNumber)}</dd></div>
+                <div><dt className="font-bold text-ink-2">Cruzado em</dt><dd className="mt-1 text-ink">{display(data.rntrcUpdatedAt)}</dd></div>
+              </dl>
+            ) : (
+              <p className="mt-2 text-sm leading-6 text-ink-2">Este CNPJ não foi encontrado no cruzamento oficial com o RNTRC/ANTT ({display(data.competencia)}).</p>
+            )}
           </section>
 
           <section className="rounded-3xl border border-line p-5">
@@ -265,7 +285,7 @@ function DetailPanel({ cnpj, onClose }: { cnpj: string; onClose: () => void }) {
               <div><dt className="font-bold text-ink-2">ICP</dt><dd className="mt-1 text-ink">{data.provenance.icp}</dd></div>
             </dl>
             {data.provenance.sourceUrl && (
-              <a href={data.provenance.sourceUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-xs font-black text-[#C43E0E] hover:underline">
+              <a href={data.provenance.sourceUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-xs font-black text-[#C43E0E] dark:text-atlas-orange hover:underline">
                 Abrir fonte registrada <ExternalLink className="h-3.5 w-3.5" />
               </a>
             )}
@@ -354,14 +374,14 @@ export function MarketIntelligenceCompanies() {
       <section className="overflow-hidden rounded-3xl border border-line bg-surface shadow-sm" aria-busy={loading}>
         <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4"><div className="flex items-center gap-2"><Building2 className="h-5 w-5 text-brand" /><h2 className="font-black text-ink">Resultado empresarial</h2></div>{response?.meta && <span className="text-xs font-bold text-ink-2">{number.format(response.meta.total)} empresas</span>}</div>
         {loading ? <div className="flex min-h-56 items-center justify-center gap-2 text-sm text-ink-2"><Loader2 className="h-5 w-5 animate-spin" /> Consultando snapshot...</div> : response?.data.length ? (
-          <div className="overflow-x-auto"><table className="min-w-full text-left text-xs"><thead className="bg-surface-2 text-ink-2"><tr><th className="p-3">Empresa</th><th className="p-3">CNPJ</th><th className="p-3">Município</th><th className="p-3">CNAE</th><th className="p-3">Porte</th><th className="p-3">Capital social</th><th className="p-3">ICP</th><th className="p-3 text-right"><span className="sr-only">Ações</span></th></tr></thead><tbody>{response.data.map((company) => <tr key={company.id} className="border-t border-line align-top hover:bg-surface-2/70"><td className="p-3"><div className="font-black text-ink">{company.razaoSocial}</div><div className="mt-0.5 text-ink-2">{company.nomeFantasia || 'Sem fantasia'} · {display(company.matrizFilial)}</div></td><td className="p-3 font-mono font-bold text-ink">{formatCnpj(company.cnpj)}</td><td className="p-3">{display(company.municipioNome)}{company.uf ? `/${company.uf}` : ''}</td><td className="p-3"><div className="font-bold">{display(company.cnaePrincipal)}</div><div className="mt-0.5 max-w-64 text-ink-2">{display(company.cnaePrincipalDescricao)}</div></td><td className="p-3">{display(company.porte)}</td><td className="p-3 font-bold">{formatCapital(company.capitalSocial)}</td><td className="p-3">{company.icpTier ? <span className="rounded-full bg-orange-50 px-2 py-1 font-bold text-orange-800">{company.icpTier.replaceAll('_', ' ')}</span> : <span className="text-ink-2">Não calculado</span>}</td><td className="p-3 text-right flex items-center justify-end gap-1.5"><button type="button" onClick={async () => {
+          <div className="overflow-x-auto"><table className="min-w-full text-left text-xs"><thead className="bg-surface-2 text-ink-2"><tr><th className="p-3">Empresa</th><th className="p-3">CNPJ</th><th className="p-3">Município</th><th className="p-3">CNAE</th><th className="p-3">Porte</th><th className="p-3">Capital social</th><th className="p-3">ICP</th><th className="p-3">RNTRC</th><th className="p-3 text-right"><span className="sr-only">Ações</span></th></tr></thead><tbody>{response.data.map((company) => <tr key={company.id} className="border-t border-line align-top hover:bg-surface-2/70"><td className="p-3"><div className="font-black text-ink">{company.razaoSocial}</div><div className="mt-0.5 text-ink-2">{company.nomeFantasia || 'Sem fantasia'} · {display(company.matrizFilial)}</div></td><td className="p-3 font-mono font-bold text-ink">{formatCnpj(company.cnpj)}</td><td className="p-3">{display(company.municipioNome)}{company.uf ? `/${company.uf}` : ''}</td><td className="p-3"><div className="font-bold">{display(company.cnaePrincipal)}</div><div className="mt-0.5 max-w-64 text-ink-2">{display(company.cnaePrincipalDescricao)}</div></td><td className="p-3">{display(company.porte)}</td><td className="p-3 font-bold">{formatCapital(company.capitalSocial)}</td><td className="p-3">{company.icpTier ? <span className="rounded-full bg-orange-50 px-2 py-1 font-bold text-orange-800">{company.icpTier.replaceAll('_', ' ')}</span> : <span className="text-ink-2">Não calculado</span>}</td><td className="p-3">{company.hasRntrc ? <span className={`rounded-full px-2 py-1 font-bold ${company.rntrcStatus === 'ATIVO' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>{display(company.rntrcType)} · {display(company.rntrcStatus)}</span> : <span className="text-ink-2">Não encontrado</span>}</td><td className="p-3 text-right flex items-center justify-end gap-1.5"><button type="button" onClick={async () => {
             try {
               const res = await api.post<{ message: string }>(`/api/market-intelligence/companies/${encodeURIComponent(company.cnpj)}/approve-to-pipeline`);
               toast.success(res.message || 'Empresa aprovada para o CRM!');
             } catch (err) {
               toast.error(err instanceof Error ? err.message : 'Falha ao aprovar');
             }
-          }} title="Aprovar direto para o Pipeline CRM" className="inline-flex items-center gap-1 rounded-lg bg-brand/10 hover:bg-brand text-brand hover:text-white px-2.5 py-1.5 font-bold transition-colors"><Sparkles className="h-3.5 w-3.5" /> Pipeline</button><button type="button" onClick={() => setSelectedCnpj(company.cnpj)} className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 font-black text-ink hover:border-brand hover:text-[#C43E0E]">Abrir <FileSearch className="h-3.5 w-3.5" /></button></td></tr>)}</tbody></table></div>
+          }} title="Aprovar direto para o Pipeline CRM" className="inline-flex items-center gap-1 rounded-lg bg-brand/10 hover:bg-brand text-brand hover:text-white px-2.5 py-1.5 font-bold transition-colors"><Sparkles className="h-3.5 w-3.5" /> Pipeline</button><button type="button" onClick={() => setSelectedCnpj(company.cnpj)} className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 font-black text-ink hover:border-brand hover:text-[#C43E0E] dark:hover:text-atlas-orange">Abrir <FileSearch className="h-3.5 w-3.5" /></button></td></tr>)}</tbody></table></div>
         ) : response?.dataset ? <div className="p-10 text-center text-sm text-ink-2"><FileSearch className="mx-auto h-8 w-8 text-ink-2" /><p className="mt-3 font-bold text-ink">Nenhuma empresa encontrada com estes filtros.</p><p className="mt-1">A API não completa a lista com registros artificiais.</p></div> : null}
         {response?.meta && response.meta.totalPages > 1 && <div className="flex items-center justify-between border-t border-line px-5 py-4 text-xs"><span className="text-ink-2">Página {response.meta.page} de {response.meta.totalPages}</span><div className="flex gap-2"><button type="button" disabled={page <= 1} onClick={() => setPage((v) => Math.max(1, v - 1))} className="rounded-lg border border-line p-2 disabled:opacity-40" aria-label="Página anterior"><ChevronLeft className="h-4 w-4" /></button><button type="button" disabled={page >= response.meta.totalPages} onClick={() => setPage((v) => v + 1)} className="rounded-lg border border-line p-2 disabled:opacity-40" aria-label="Próxima página"><ChevronRight className="h-4 w-4" /></button></div></div>}
       </section>

@@ -133,7 +133,7 @@ export function B2BGenerator() {
                     </button>
                 </div>
                 {error && (
-                    <div role="alert" className="relative z-10 mx-auto mt-5 flex max-w-2xl items-start gap-2 rounded-2xl border border-danger/30 bg-danger/10 p-4 text-left text-sm text-danger font-medium">
+                    <div role="alert" className="relative z-10 mx-auto mt-5 flex max-w-2xl items-start gap-2 rounded-2xl border border-danger/30 bg-danger/10 p-4 text-left text-sm text-danger-active dark:text-danger font-medium">
                         <AlertCircle size={18} className="mt-0.5 shrink-0" />
                         <span>{error}</span>
                     </div>

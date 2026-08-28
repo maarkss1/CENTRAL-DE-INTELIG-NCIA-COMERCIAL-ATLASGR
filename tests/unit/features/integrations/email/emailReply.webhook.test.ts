@@ -219,7 +219,7 @@ describe('POST /api/webhooks/email/webhook', () => {
         });
     });
 
-    it('sem dica de leadId, resolve o lead pelo e-mail do contato (aberto, dentro da organização)', async () => {
+    it('sem dica de leadId, resolve o lead pelo e-mail do contato (aberto, dentro da organização) via emailIndex — não mais por igualdade sobre o valor puro (Contact.email cifrado em repouso, ver src/lib/crypto/piiIndex.ts)', async () => {
         await post(inboundPayload());
 
         expect(leadFindFirst).toHaveBeenCalledWith(expect.objectContaining({

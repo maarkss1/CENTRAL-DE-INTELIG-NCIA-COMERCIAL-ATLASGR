@@ -240,7 +240,7 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className={`shrink-0 px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border ${doc.chunkCount > 0 ? 'bg-success/15 text-success border-success/30' : 'bg-amber-500/15 text-amber-400 border-amber-500/30'}`}>
+                                        <div className={`shrink-0 px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border ${doc.chunkCount > 0 ? 'bg-success/15 text-success-active dark:text-success border-success/30' : 'bg-amber-500/15 text-amber-400 border-amber-500/30'}`}>
                                             {doc.chunkCount > 0 ? 'Indexado' : 'Sem trechos'}
                                         </div>
                                     </div>

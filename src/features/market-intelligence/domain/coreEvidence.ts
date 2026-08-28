@@ -188,8 +188,8 @@ export function hydrateCoreEvidence(
     });
 }
 
-export function buildCoreTerritories(municipalities: MunicipalityRecord[]): TerritoryRecord[] {
-    const optimizerRows: OptimizerMunicipality[] = municipalities
+export function buildOptimizerMunicipalities(municipalities: MunicipalityRecord[]): OptimizerMunicipality[] {
+    return municipalities
         .filter((row) => row.latitude !== null && row.longitude !== null)
         .map((row) => ({
             ibgeCode: row.ibgeCode,
@@ -203,6 +203,10 @@ export function buildCoreTerritories(municipalities: MunicipalityRecord[]): Terr
             confidence: row.scores.confidenceAdjustedOpportunity.confidence,
             decisionBlocked: row.scores.confidenceAdjustedOpportunity.value === null,
         }));
+}
+
+export function buildCoreTerritories(municipalities: MunicipalityRecord[]): TerritoryRecord[] {
+    const optimizerRows: OptimizerMunicipality[] = buildOptimizerMunicipalities(municipalities);
 
     const baseIcpFloor = percentileFloor(
         optimizerRows

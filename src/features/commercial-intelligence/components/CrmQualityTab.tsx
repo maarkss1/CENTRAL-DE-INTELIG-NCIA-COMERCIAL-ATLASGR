@@ -15,8 +15,8 @@ import { commercialIntelligenceApi, formatPercent, type CommercialFilter, type C
 
 const IMPACT_LABEL: Record<'alto' | 'medio' | 'baixo', string> = { alto: 'Alto impacto', medio: 'Impacto médio', baixo: 'Baixo impacto' };
 const CLASSIFICATION_STYLE: Record<'saudavel' | 'atencao' | 'critico', string> = {
-    saudavel: 'text-[#0ca30c] bg-[#0ca30c]/70',
-    atencao: 'text-[#b8860b] bg-[#b8860b]/70',
+    saudavel: 'text-success-active dark:text-success bg-success-active/70',
+    atencao: 'text-warning-active dark:text-warning bg-warning-active/70',
     critico: 'text-critical bg-critical/70',
 };
 
@@ -26,7 +26,7 @@ function DataReadinessCard({ data }: { data: DataReadinessScore }) {
         <Card padding="sm">
             <div className="flex items-center justify-between mb-1">
                 <h3 className="text-sm font-bold text-ink">Confiabilidade dos Dados</h3>
-                <span className={`text-lg font-black [font-variant-numeric:tabular-nums] ${data.classification === 'saudavel' ? 'text-[#0ca30c]' : data.classification === 'critico' ? 'text-critical' : data.classification === 'atencao' ? 'text-[#b8860b]' : 'text-ink'}`}>
+                <span className={`text-lg font-black [font-variant-numeric:tabular-nums] ${data.classification === 'saudavel' ? 'text-success-active dark:text-success' : data.classification === 'critico' ? 'text-critical' : data.classification === 'atencao' ? 'text-warning-active dark:text-warning' : 'text-ink'}`}>
                     {formatPercent(data.overallScore)}
                 </span>
             </div>
@@ -165,7 +165,7 @@ export function CrmQualityTab({ filter }: { filter: CommercialFilter }) {
                                     <div className="w-32 shrink-0 text-xs font-semibold text-ink">{field.label}</div>
                                     <div className="flex-1 h-5 rounded-md bg-surface-2 overflow-hidden">
                                         <div
-                                            className={`h-full rounded-md ${field.completeness != null && field.completeness >= 80 ? 'bg-[#0ca30c]/70' : field.completeness != null && field.completeness < 50 ? 'bg-critical/70' : 'bg-brand/70'}`}
+                                            className={`h-full rounded-md ${field.completeness != null && field.completeness >= 80 ? 'bg-success-active/70' : field.completeness != null && field.completeness < 50 ? 'bg-critical/70' : 'bg-brand/70'}`}
                                             style={{ width: `${field.completeness ?? 0}%` }}
                                         />
                                     </div>
@@ -197,7 +197,7 @@ export function CrmQualityTab({ filter }: { filter: CommercialFilter }) {
             {data.bitrixSync.connected && selectedBitrixConnectionId && (
                 <Card padding="sm">
                     <div className="flex items-center gap-2 mb-1">
-                        {data.bitrixSync.notLinked > 0 ? <Link2Off className="w-4 h-4 text-[#b8860b]" /> : <Link2 className="w-4 h-4 text-[#0ca30c]" />}
+                        {data.bitrixSync.notLinked > 0 ? <Link2Off className="w-4 h-4 text-warning-active dark:text-warning" /> : <Link2 className="w-4 h-4 text-success-active dark:text-success" />}
                         <h3 className="text-sm font-bold text-ink">Buscar e importar manualmente</h3>
                     </div>
                     <p className="text-xs text-ink-2 mb-1">

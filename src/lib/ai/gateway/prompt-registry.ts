@@ -78,6 +78,11 @@ export const PROMPT_REGISTRY = {
         version: 1,
         description: 'Resposta do copiloto de conhecimento (RAG sobre a base de conhecimento).',
     },
+    'knowledge-rerank': {
+        owner: 'src/features/knowledge/services/reranker.service.ts',
+        version: 1,
+        description: 'Reranking via LLM dos candidatos top-N já fundidos por RRF na busca da base de conhecimento (DEC-11).',
+    },
     'playbook-generation': {
         owner: 'src/features/playbook/services/playbook-ai.service.ts',
         version: 1,

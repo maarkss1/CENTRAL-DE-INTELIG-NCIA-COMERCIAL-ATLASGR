@@ -137,14 +137,14 @@ export function Team() {
                     </h2>
 
                     {createError && (
-                        <div className="bg-danger/10 border border-danger/30 text-danger p-3 rounded-xl text-xs flex items-start gap-2">
+                        <div className="bg-danger/10 border border-danger/30 text-danger-active dark:text-danger p-3 rounded-xl text-xs flex items-start gap-2">
                             <AlertCircle size={14} className="shrink-0 mt-0.5" /> {createError}
                         </div>
                     )}
 
                     {revealedCredentials && (
                         <div className="bg-success/10 border border-success/30 rounded-xl p-4 text-xs space-y-2">
-                            <p className="font-bold text-success">
+                            <p className="font-bold text-success-active dark:text-success">
                                 {revealedCredentials.justCreated ? 'Usuário criado!' : 'Senha redefinida!'} Copie a senha temporária agora — ela não aparece de novo.
                             </p>
                             <div className="bg-surface font-mono p-3 rounded-lg border border-line text-ink">
@@ -156,7 +156,7 @@ export function Team() {
                                 onClick={copyCredentials}
                                 className="flex items-center gap-1.5 text-ink-2 hover:text-ink font-bold"
                             >
-                                {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                                {copied ? <Check size={14} className="text-success-active dark:text-success" /> : <Copy size={14} />}
                                 {copied ? 'Copiado' : 'Copiar credenciais'}
                             </button>
                         </div>
@@ -219,7 +219,7 @@ export function Team() {
                             <Shield size={16} className="text-brand" /> Usuários da organização ({members.length})
                         </h2>
                         {resetError && (
-                            <div className="bg-danger/10 border border-danger/30 text-danger p-2.5 rounded-lg text-xs flex items-start gap-2">
+                            <div className="bg-danger/10 border border-danger/30 text-danger-active dark:text-danger p-2.5 rounded-lg text-xs flex items-start gap-2">
                                 <AlertCircle size={14} className="shrink-0 mt-0.5" /> {resetError}
                             </div>
                         )}
@@ -228,7 +228,7 @@ export function Team() {
                     {isLoading ? (
                         <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-ink-2" /></div>
                     ) : loadError ? (
-                        <div className="p-6 text-xs text-danger">{loadError}</div>
+                        <div className="p-6 text-xs text-danger-active dark:text-danger">{loadError}</div>
                     ) : (
                         <ul className="divide-y divide-line">
                             {members.map((member) => (
@@ -237,7 +237,7 @@ export function Team() {
                                         <div className="flex items-center gap-2">
                                             <span className="font-bold text-sm text-ink">{member.name}</span>
                                             {member.mustChangePassword && (
-                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning font-bold">senha temporária</span>
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning-active dark:text-warning font-bold">senha temporária</span>
                                             )}
                                         </div>
                                         <span className="text-xs text-ink-2">{member.email}</span>
@@ -258,7 +258,7 @@ export function Team() {
                                             onClick={() => handleDelete(member)}
                                             disabled={deletingId === member.id || member.id === currentUser?.id}
                                             title={member.id === currentUser?.id ? 'Você não pode remover a própria conta' : 'Remover usuário'}
-                                            className="text-danger hover:bg-danger/10 p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                            className="text-danger-active dark:text-danger hover:bg-danger/10 p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                         >
                                             {deletingId === member.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                         </button>

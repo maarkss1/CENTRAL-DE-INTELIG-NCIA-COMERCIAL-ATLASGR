@@ -432,7 +432,7 @@ export function CompanyList() {
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(company.id)}
-                                                className="p-2 text-ink-2 hover:text-danger hover:bg-danger/10 rounded-xl transition-colors"
+                                                className="p-2 text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-danger/10 rounded-xl transition-colors"
                                                 title="Excluir"
                                             >
                                                 <Trash className="w-4 h-4" />
@@ -572,7 +572,7 @@ export function CompanyList() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(company.id)}
-                                                            className="p-2 text-ink-2 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                                                            className="p-2 text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
                                                             title="Excluir"
                                                         >
                                                             <Trash className="w-4 h-4" />
