@@ -241,7 +241,7 @@ export function PropostaForm({ document, onClose, onSave }: PropostaFormProps) {
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="doc-title">Título *</Label>
                         <Input id="doc-title" type="text" {...register('title')} />
-                        {errors.title && <p className="text-xs text-danger mt-1">{errors.title.message}</p>}
+                        {errors.title && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.title.message}</p>}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="doc-validUntil">Válido até</Label>
@@ -268,7 +268,7 @@ export function PropostaForm({ document, onClose, onSave }: PropostaFormProps) {
                             <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar item
                         </Button>
                     </div>
-                    {errors.lineItems?.root && <p className="text-xs text-danger">{errors.lineItems.root.message}</p>}
+                    {errors.lineItems?.root && <p className="text-xs text-danger-active dark:text-danger">{errors.lineItems.root.message}</p>}
                     <div className="space-y-3" role="group" aria-labelledby="proposta-itens-heading">
                         {fields.map((field, index) => (
                             <div key={field.id} className="rounded-xl border border-line bg-surface-2 p-3 space-y-2">
@@ -286,7 +286,7 @@ export function PropostaForm({ document, onClose, onSave }: PropostaFormProps) {
                                     <div className="md:col-span-4">
                                         <Input placeholder="Nome do item" {...register(`lineItems.${index}.name`)} />
                                         {errors.lineItems?.[index]?.name && (
-                                            <p className="text-xs text-danger mt-1">{errors.lineItems[index]?.name?.message}</p>
+                                            <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.lineItems[index]?.name?.message}</p>
                                         )}
                                     </div>
                                     <div className="md:col-span-1">
@@ -303,7 +303,7 @@ export function PropostaForm({ document, onClose, onSave }: PropostaFormProps) {
                                             type="button"
                                             onClick={() => fields.length > 1 && remove(index)}
                                             disabled={fields.length <= 1}
-                                            className="h-9 w-9 flex items-center justify-center rounded-lg text-danger hover:bg-danger/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                                            className="h-9 w-9 flex items-center justify-center rounded-lg text-danger-active dark:text-danger hover:bg-danger/10 disabled:opacity-30 disabled:cursor-not-allowed"
                                             aria-label="Remover item"
                                         >
                                             <Trash2 className="w-4 h-4" />

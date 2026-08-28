@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_LEADS_PER_SEARCH } from '../domain/searchIntent.js';
 
 /**
  * Espelha `ProspectCriteria` (prospecting.service.ts) — sem isso, um filtro em formato errado
@@ -17,8 +18,10 @@ export const discoverCriteriaSchema = z.object({
     segmento: z.string().trim().min(1, 'Informe um segmento (pode ser qualquer texto)').max(200),
     localizacao: z.string().trim().max(200).default(''),
     // Teto de 20 — prioriza qualidade (CNPJ, decisores, notícias enriquecidos em todos os leads da
-    // busca) em vez de volume. Espelha MAX_LEADS_PER_SEARCH em prospecting.service.ts.
-    quantidade: z.number().int().min(1).max(20).default(20),
+    // busca) em vez de volume. Mesma constante que `SearchIntent` usa para normalizar
+    // `quantityRequested` (domain/searchIntent.ts) — uma única fonte de verdade, não mais um "20"
+    // duplicado em cada lugar que precisa desse teto.
+    quantidade: z.number().int().min(1).max(MAX_LEADS_PER_SEARCH).default(MAX_LEADS_PER_SEARCH),
     estado: z.string().trim().max(100).optional(),
     cidade: z.string().trim().max(100).optional(),
     porte: z.string().trim().max(50).optional(),

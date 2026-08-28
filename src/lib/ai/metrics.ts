@@ -49,6 +49,23 @@ export function recordAiBudgetBlocked(): void {
     aiBudgetBlockedTotal.inc();
 }
 
+/**
+ * DEC-09 (onda 42): contraparte por ORGANIZAÇÃO de `aiBudgetBlockedTotal` acima — incrementado
+ * quando `assertOrgAiBudgetNotExceeded` (src/lib/ai/budget.ts) bloqueia uma chamada por exceder o
+ * teto mensal configurado (`Organization.monthlyAiBudgetUsd`) de UMA organização específica,
+ * diferente do teto global de plataforma. Rotulado por organização para permitir alertar/painel
+ * por tenant sem precisar somar contadores sem rótulo nenhum.
+ */
+export const aiOrgBudgetBlockedTotal = new client.Counter({
+    name: 'ai_org_budget_blocked_total',
+    help: 'Chamadas de IA bloqueadas pelo teto mensal de orçamento por organização (DEC-09, Organization.monthlyAiBudgetUsd), por organização.',
+    labelNames: ['organization'] as const,
+});
+
+export function recordOrgAiBudgetBlocked(organizationId: string): void {
+    aiOrgBudgetBlockedTotal.inc({ organization: organizationId });
+}
+
 // Gauge de orçamento só é registrado (e, portanto, só aparece em /metrics) quando
 // AI_MONTHLY_BUDGET_USD está configurada. Sem valor configurado, a série simplesmente não existe
 // — não fabricamos um "0" que faria `ai_usage_cost_usd_total / ai_usage_budget_usd_total` virar

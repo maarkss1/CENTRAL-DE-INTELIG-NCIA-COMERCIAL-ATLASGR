@@ -73,7 +73,7 @@ export function ChangePasswordGate() {
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
-                                className="bg-danger/10 border border-danger/30 text-danger p-3.5 rounded-2xl text-xs flex items-start gap-2.5"
+                                className="bg-danger/10 border border-danger/30 text-danger-active dark:text-danger p-3.5 rounded-2xl text-xs flex items-start gap-2.5"
                             >
                                 <AlertCircle size={16} className="shrink-0 mt-0.5" />
                                 <p>{error}</p>

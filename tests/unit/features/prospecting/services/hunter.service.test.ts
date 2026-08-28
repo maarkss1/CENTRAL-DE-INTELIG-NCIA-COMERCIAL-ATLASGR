@@ -21,14 +21,15 @@ function jsonResponse(status: number, body: unknown = {}): Response {
 
 const originalEnv = { ...process.env };
 
-beforeEach(() => {
+beforeEach(async () => {
     process.env.PROSPECTING_PROVIDER_MODE = 'hybrid';
     process.env.HUNTER_API_KEY = 'test-hunter-key';
     // Vários testes deste arquivo reutilizam o mesmo domínio/nome com respostas HTTP diferentes
-    // (sucesso, 401, falha de rede) — sem resetar o cache/rate limit (ambos em memória, escopo de
-    // processo) entre eles, uma chamada bem-sucedida "vazaria" como cache hit para o próximo teste
-    // que espera exercitar um caminho de erro.
-    resetProviderCacheForTests();
+    // (sucesso, 401, falha de rede) — sem resetar o cache/rate limit entre eles, uma chamada
+    // bem-sucedida "vazaria" como cache hit para o próximo teste que espera exercitar um caminho de
+    // erro. `resetProviderCacheForTests` também limpa o Redis real quando configurado (ex.: gate de
+    // CI) — sem isso, esse vazamento só reproduzia lá, nunca localmente.
+    await resetProviderCacheForTests();
     resetProviderRateLimitersForTests();
 });
 

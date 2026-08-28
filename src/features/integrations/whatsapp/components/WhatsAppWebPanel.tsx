@@ -118,7 +118,7 @@ function ChatArea({ conversation, onBack }: { conversation: WhatsAppConversation
             </div>
 
             <div className="p-3 border-t border-line shrink-0">
-                {error && <p className="text-xs text-danger mb-2">{error}</p>}
+                {error && <p className="text-xs text-danger-active dark:text-danger mb-2">{error}</p>}
                 <div className="flex items-center gap-2">
                     <label htmlFor="whatsapp-web-message-input" className="sr-only">Mensagem</label>
                     <input

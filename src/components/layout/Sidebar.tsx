@@ -118,7 +118,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                 aria-current={isActive ? 'page' : undefined}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                     isActive
-                        ? 'bg-brand-active text-[#fff] shadow-md'
+                        ? 'bg-brand-active text-white shadow-md'
                         : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
                 }`}
             >

@@ -154,7 +154,7 @@ export const AIConfigCenter: React.FC = () => {
       </CardHeader>
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-danger bg-danger/10 border border-danger/30 rounded-card px-4 py-3">
+        <div className="mb-4 flex items-center gap-2 text-sm text-danger-active dark:text-danger bg-danger/10 border border-danger/30 rounded-card px-4 py-3">
           <AlertTriangle size={16} className="shrink-0" />
           {error}
         </div>

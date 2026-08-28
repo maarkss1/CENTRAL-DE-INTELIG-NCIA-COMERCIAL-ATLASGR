@@ -14,6 +14,7 @@ import {
   encryptSensitiveFields,
   decryptSensitiveResult,
 } from './crypto/piiFields.js';
+import { computeContactHashFields } from './security/piiSearchIndex.js';
 const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || "";
 
 // Campos de credencial de integração cifrados em repouso (AES-256-GCM, ver
@@ -212,6 +213,33 @@ export const prisma = basePrisma.$extends({
           } else if (operation === 'upsert') {
             if (a.create) a.create = encryptSensitiveFields(model as string, a.create as Record<string, unknown>);
             if (a.update) a.update = encryptSensitiveFields(model as string, a.update as Record<string, unknown>);
+          }
+        }
+
+        // --- 1c. Índice de busca determinístico (HMAC) de PII de Contact (write) ---
+        // DEC-01 (dossiê de auditoria CPI, opção A) — ver src/lib/security/piiSearchIndex.ts. Só
+        // `Contact` participa hoje. Calcula `phoneHash`/`whatsappHash`/`emailHash` a partir dos
+        // campos correspondentes presentes no payload (nunca mexe num campo que a escrita não
+        // tocou) e grava os dois juntos, na mesma escrita — igual ao padrão já usado acima para
+        // cifra de credenciais, mas aditivo (nunca substitui o campo original) em vez de
+        // transformá-lo. INERTE até `Contact.phoneHash/whatsappHash/emailHash` existirem no schema
+        // (ver .agents/handoffs/onda-42/01-para-00-pii-hash-fields.md) — até lá, `Object.keys`
+        // sempre vazio não muda nada, e depois de existirem no schema, o Postgres real rejeita a
+        // escrita com "Unknown argument" caso o Prisma Client não tenha sido regenerado
+        // (`prisma generate`) — nunca grava parcialmente.
+        if (model === 'Contact') {
+          const a = args as Record<string, unknown>;
+          const mergeHash = (data: Record<string, unknown>) => {
+            const hashFields = computeContactHashFields(data);
+            return Object.keys(hashFields).length ? { ...data, ...hashFields } : data;
+          };
+          if ((operation === 'create' || operation === 'update' || operation === 'updateMany') && a.data) {
+            a.data = mergeHash(a.data as Record<string, unknown>);
+          } else if (operation === 'createMany' && Array.isArray(a.data)) {
+            a.data = (a.data as Record<string, unknown>[]).map((d) => mergeHash(d));
+          } else if (operation === 'upsert') {
+            if (a.create) a.create = mergeHash(a.create as Record<string, unknown>);
+            if (a.update) a.update = mergeHash(a.update as Record<string, unknown>);
           }
         }
 

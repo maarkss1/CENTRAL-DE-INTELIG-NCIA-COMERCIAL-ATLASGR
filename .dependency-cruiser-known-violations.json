@@ -28,6 +28,42 @@
   },
   {
     "type": "dependency",
+    "from": "src/features/automations/automation-dry-run.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/birth-voice/birthVoice.helpers.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/automations/automation-dry-run.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/birth-voice/callSuppression.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/automations/automation-dry-run.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/birth-voice/coldCall.policy.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/automations/automation-dry-run.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/birth-voice/coldCall.service.ts"
+  },
+  {
+    "type": "dependency",
     "from": "src/features/automations/automation.engine.ts",
     "rule": {
       "name": "no-cross-feature-imports",
