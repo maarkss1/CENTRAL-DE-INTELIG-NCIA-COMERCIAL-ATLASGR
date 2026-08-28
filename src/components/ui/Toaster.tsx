@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 import { toast, ToastMessage } from '../../lib/toast';
 
+// bg-green-600 + text-white (abaixo) mede 3.30:1 contra o mínimo de 4.5:1 exigido pra texto normal
+// (WCAG 2 AA) — achado real, medido com a fórmula oficial de luminância relativa, independente da
+// falha intermitente de bg-red-600 no axe-core (ver comentário em animate-toast-in/globals.css: essa
+// segunda era a animação de entrada do toast sendo capturada a meio caminho, não uma cor real
+// insuficiente — bg-red-600 mede 4.83:1 em repouso, já dentro do mínimo). bg-green-700 mede 5.02:1.
 const KIND_STYLES: Record<ToastMessage['kind'], { bg: string; icon: typeof CheckCircle2 }> = {
-    success: { bg: 'bg-green-600', icon: CheckCircle2 },
+    success: { bg: 'bg-green-700', icon: CheckCircle2 },
     error: { bg: 'bg-red-600', icon: AlertTriangle },
     info: { bg: 'bg-atlas-dark', icon: Info },
 };

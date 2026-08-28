@@ -44,7 +44,10 @@ export function ChatbookHub() {
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                             <h1 className="text-2xl font-black text-ink tracking-tight">{brandInfo.name} Copilot</h1>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30 shrink-0">
+                            {/* bg-emerald-500/20 text-emerald-500 cru (contra bg-surface, tema claro) dava
+                                ~1.8:1 — achado real do axe-core, tests/e2e/accessibility.spec.ts. Mesmo
+                                padrão de badge "soft" já usado em Badge.tsx (variant="success"). */}
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success-active dark:text-success font-bold border border-success/30 shrink-0">
                                 Groq IA
                             </span>
                         </div>
