@@ -61,6 +61,7 @@ const mockEnv: Record<string, string | undefined> = { EMAIL_INBOUND_WEBHOOK_SECR
 vi.mock('../../../../../src/config/env.js', () => ({ env: mockEnv }));
 
 const { emailReplyWebhookRoutes } = await import('../../../../../src/features/integrations/email/emailReply.webhook');
+const { contactEmailIndex } = await import('../../../../../src/lib/crypto/piiIndex');
 
 function buildApp() {
     const app = express();
@@ -224,7 +225,10 @@ describe('POST /api/webhooks/email/webhook', () => {
         expect(leadFindFirst).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
                 organizationId: 'org-1',
-                contact: { email: { equals: 'lead@empresa.com', mode: 'insensitive' } },
+                // Contact.email cifrado em repouso (ver src/lib/crypto/piiFields.ts) — a busca
+                // exata passou a usar o índice cego determinístico em vez do campo cifrado direto
+                // (ver src/lib/crypto/piiIndex.ts).
+                contact: { emailIndex: contactEmailIndex('lead@empresa.com') },
             }),
         }));
     });

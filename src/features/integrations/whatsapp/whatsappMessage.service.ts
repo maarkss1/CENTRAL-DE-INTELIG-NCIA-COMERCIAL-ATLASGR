@@ -5,6 +5,8 @@ import { toE164BR } from '../../../lib/phone.js';
 import { scheduleConversationAnalysis } from '../../../lib/queue/whatsappSignal.worker.js';
 import { recordOptOut } from '../../cadence/application/optOutService.js';
 import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutRepository.js';
+import { last8DigitsIndex, last9DigitsIndex } from '../../../lib/crypto/piiIndex.js';
+import { decryptField } from '../../../lib/crypto/secretFields.js';
 
 /** Grupos (`@g.us`) e o próprio status (`status@broadcast`) não correspondem a um contato do CRM. */
 function isIndividualChat(remoteJid: string | null | undefined): boolean {
@@ -29,11 +31,20 @@ export function extractMessageText(message: WAMessage): string | null {
  * texto livre (com/sem "+55", com/sem o 9 inicial de celular), então uma igualdade exata deixaria
  * de casar contatos reais por uma diferença só de formatação.
  *
+ * Contact.phone/whatsapp/email cifrados em repouso (ver src/lib/crypto/piiFields.ts) — o antigo
+ * `regexp_replace(...) LIKE '%últimosDígitos'` contra o campo cifrado nunca mais casaria (IV
+ * aleatório por valor), substituído por igualdade contra o índice cego dos últimos 8 ou 9 dígitos
+ * (`phoneLast8Index`/`phoneLast9Index` etc., ver src/lib/crypto/piiIndex.ts) — 8 quando o número
+ * recebido só tem 8 dígitos significativos, 9 no caso comum (replica exatamente qual sufixo o
+ * `LIKE` antigo usava em cada caso, sem mudar o comprimento de corte).
+ *
  * `$queryRaw` não passa pela extensão `$allOperations` de `src/lib/prisma.ts` (RLS/tenant
- * scoping) — roda via `withRlsContext` (seta `app.current_tenant_id` na transação; sem isso a
- * policy de RLS de "Contact" devolve zero linhas sempre, mesmo com o WHERE certo) e mantém o
- * filtro explícito de `organizationId` como defesa em profundidade, igual ao padrão já usado em
- * `src/features/knowledge/search.service.ts`.
+ * scoping, e por isso também não decifra `email` automaticamente) — roda via `withRlsContext`
+ * (seta `app.current_tenant_id` na transação; sem isso a policy de RLS de "Contact" devolve zero
+ * linhas sempre, mesmo com o WHERE certo) e mantém o filtro explícito de `organizationId` como
+ * defesa em profundidade, igual ao padrão já usado em `src/features/knowledge/search.service.ts`.
+ * `email` é decifrado manualmente abaixo antes de devolver — só as colunas `*Index` (hash, não
+ * cifra) podem ser comparadas em SQL cru sem passar pela extensão.
  */
 async function findContactByPhone(organizationId: string, phoneE164: string) {
     const digits = phoneE164.replace(/\D/g, '');
@@ -43,16 +54,21 @@ async function findContactByPhone(organizationId: string, phoneE164: string) {
     // `email` incluído aqui (além de `id`) para o registro de opt-out unificado abaixo poder casar
     // por e-mail também — ver contrato em .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md
     // ("passem email e phoneE164 sempre que o canal já os tiver carregados").
-    const [found] = await withRlsContext((tx) => tx.$queryRaw<{ id: string; email: string | null }[]>`
-        SELECT id, email FROM "Contact"
-        WHERE "organizationId" = ${organizationId}
-          AND (
-            regexp_replace(COALESCE(phone, ''), '\D', '', 'g') LIKE ${'%' + significant}
-            OR regexp_replace(COALESCE(whatsapp, ''), '\D', '', 'g') LIKE ${'%' + significant}
-          )
-        LIMIT 1
-    `);
-    return found ?? null;
+    const [found] = significant.length >= 9
+        ? await withRlsContext((tx) => tx.$queryRaw<{ id: string; email: string | null }[]>`
+            SELECT id, email FROM "Contact"
+            WHERE "organizationId" = ${organizationId}
+              AND ("phoneLast9Index" = ${last9DigitsIndex(significant)} OR "whatsappLast9Index" = ${last9DigitsIndex(significant)})
+            LIMIT 1
+        `)
+        : await withRlsContext((tx) => tx.$queryRaw<{ id: string; email: string | null }[]>`
+            SELECT id, email FROM "Contact"
+            WHERE "organizationId" = ${organizationId}
+              AND ("phoneLast8Index" = ${last8DigitsIndex(significant)} OR "whatsappLast8Index" = ${last8DigitsIndex(significant)})
+            LIMIT 1
+        `);
+    if (!found) return null;
+    return { id: found.id, email: found.email ? decryptField(found.email) : null };
 }
 
 /** Lead em aberto mais recente deste contato — mensagens ficam associadas a ele quando existir um. */

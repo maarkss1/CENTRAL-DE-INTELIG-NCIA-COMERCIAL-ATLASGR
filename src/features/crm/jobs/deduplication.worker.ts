@@ -11,25 +11,33 @@ export function createDeduplicationWorker() {
         logger.info('Iniciando job de deduplicação (Limpeza de Base)');
         
         try {
+            // Contact.email/phone cifrados em repouso (ver src/lib/crypto/piiFields.ts) — o mesmo
+            // texto puro nunca produz o mesmo ciphertext duas vezes (IV aleatório por valor), então
+            // agrupar pela coluna cifrada nunca encontraria duplicata nenhuma. Agrupa pelos índices
+            // cegos determinísticos em vez disso (mesmo valor → mesmo índice, ver
+            // src/lib/crypto/piiIndex.ts); `emailIndex` normaliza e-mail (trim + lowercase) antes
+            // de indexar, então também passa a agrupar variações de maiúsculas/minúsculas do mesmo
+            // e-mail como duplicata — refinamento correto para este fim (achar o MESMO e-mail
+            // humano), não uma regressão.
             // Buscando contatos duplicados por e-mail
             const duplicateEmails = await prisma.contact.groupBy({
-                by: ['email'],
+                by: ['emailIndex'],
                 having: {
-                    email: { _count: { gt: 1 } }
+                    emailIndex: { _count: { gt: 1 } }
                 }
             });
 
-            const emailDupes = duplicateEmails.filter(e => !!e.email);
-            
+            const emailDupes = duplicateEmails.filter(e => !!e.emailIndex);
+
             // Buscando contatos duplicados por telefone
             const duplicatePhones = await prisma.contact.groupBy({
-                by: ['phone'],
+                by: ['phoneIndex'],
                 having: {
-                    phone: { _count: { gt: 1 } }
+                    phoneIndex: { _count: { gt: 1 } }
                 }
             });
 
-            const phoneDupes = duplicatePhones.filter(e => !!e.phone);
+            const phoneDupes = duplicatePhones.filter(e => !!e.phoneIndex);
             
             // No futuro, isso poderia realizar o "merge" usando os IDs dos Leads associados.
             // Por enquanto, apenas detecta e envia logs para a organização ou diretoria sobre a base suja.

@@ -436,9 +436,36 @@ model Contact {
   name                String
   role                String?
   department          String?
+  // phone/whatsapp/email cifrados em repouso (AES-256-GCM, ver src/lib/crypto/piiFields.ts) desde
+  // a reativação do CPI "PII de lead/contato não cifrada em repouso" — o valor gravado aqui é
+  // ciphertext (`enc:v1:...`), nunca texto puro, decifrado de forma transparente pela extensão do
+  // Prisma em src/lib/prisma.ts. Os índices `*Index`/`*Last8Index` abaixo (HMAC-SHA256
+  // determinístico, src/lib/crypto/piiIndex.ts) existem justamente porque IV aleatório por valor
+  // faz igualdade/contains direto nesta coluna nunca casar — nenhuma busca deve filtrar por estes
+  // três campos diretamente, sempre pelo índice correspondente.
   phone               String?
   whatsapp            String?
   email               String?
+  // Índice cego de igualdade exata sobre `email` normalizado (trim + lowercase) — substitui todo
+  // WHERE que antes fazia `email: { equals, mode: 'insensitive' }` contra o campo cifrado.
+  emailIndex          String?
+  // Índice cego sobre o domínio do e-mail (parte após `@`) — substitui todo WHERE que antes fazia
+  // `email: { endsWith: '@dominio', mode: 'insensitive' }` (ex.: rate limit de cadência por
+  // domínio, PrismaCadenceRateLimitPort.ts).
+  emailDomainIndex    String?
+  // Índice cego de igualdade exata sobre `phone` exatamente como armazenado (sem normalizar
+  // dígitos) — substitui todo WHERE que antes fazia `phone: contact.phone` direto.
+  phoneIndex          String?
+  // Índice cego sobre os últimos 8 dígitos de `phone` — substitui o antigo `phone: { contains:
+  // últimos8Dígitos }` usado pelos webhooks de voz (Bland AI/3CX) pra casar chamada com contato.
+  phoneLast8Index     String?
+  // Índice cego sobre os últimos 9 dígitos de `phone` — substitui o antigo `regexp_replace(...)
+  // LIKE '%últimos9Dígitos'` usado por whatsappMessage.service.ts pra casar mensagem recebida com
+  // contato (9, não 8: convenção própria desse fluxo, já existente antes deste índice).
+  phoneLast9Index     String?
+  whatsappIndex       String?
+  whatsappLast8Index  String?
+  whatsappLast9Index  String?
   linkedin            String?
   birthDate           DateTime?
   observations        String?
@@ -469,11 +496,18 @@ model Contact {
   // mesmos. Os campos pessoais continuam apenas em Contact; o LDR nao cria uma copia global.
   @@unique([id, companyId, organizationId])
   @@index([organizationId])
-  @@index([email])
   @@index([name])
   @@index([role])
-  @@index([phone])
-  @@index([whatsapp])
+  // Substituem os antigos @@index([email])/@@index([phone])/@@index([whatsapp]) — inúteis contra
+  // ciphertext (IV aleatório nunca repete), ver comentário nos campos acima.
+  @@index([emailIndex])
+  @@index([emailDomainIndex])
+  @@index([phoneIndex])
+  @@index([phoneLast8Index])
+  @@index([phoneLast9Index])
+  @@index([whatsappIndex])
+  @@index([whatsappLast8Index])
+  @@index([whatsappLast9Index])
 }
 
 model Lead {
@@ -686,6 +720,12 @@ model User {
   // Força a troca de senha no próximo login — usado quando um admin define uma senha
   // temporária/padrão pra outra pessoa (ver POST /api/auth-extra/change-password).
   mustChangePassword Boolean      @default(false)
+  // Bloqueio de conta por tentativas de login malsucedidas (ver hooks.before/after em
+  // src/lib/auth.ts) — complementa o rate limit por IP (src/bootstrap/rateLimiters.ts,
+  // AUTH_RATE_LIMIT_MAX) com um limite por CONTA: um atacante distribuído por vários IPs contra a
+  // MESMA conta ainda é contido, o que o rate limit por IP sozinho não cobre.
+  failedLoginAttempts Int         @default(0)
+  lockedUntil         DateTime?
   organizationId     String
   organization       Organization @relation(fields: [organizationId], references: [id])
   createdAt          DateTime     @default(now())

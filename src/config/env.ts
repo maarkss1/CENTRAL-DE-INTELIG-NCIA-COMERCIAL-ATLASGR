@@ -22,6 +22,10 @@ const envSchema = z.object({
   // secretFields.ts, não aqui, para não derrubar a aplicação inteira ao subir só por causa deste
   // schema quando NODE_ENV ainda não foi resolvido nesta camada.
   CREDENTIALS_ENCRYPTION_KEY: z.string().optional(),
+  // Mesma obrigatoriedade condicional de CREDENTIALS_ENCRYPTION_KEY acima, reforçada em runtime
+  // por src/lib/crypto/piiIndex.ts — chave do índice cego (HMAC-SHA256) de busca exata sobre
+  // Contact.email/phone/whatsapp cifrados em repouso.
+  PII_BLIND_INDEX_KEY: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   MEILI_MASTER_KEY: z.string().optional(),

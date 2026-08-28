@@ -63,6 +63,14 @@ Para estes dois: **migrar o valor atual para o Infisical sem trocá-lo** (copiar
 novo). Rotação de verdade desses dois segredos específicos é um projeto à parte, não parte desta
 migração.
 
+`PII_BLIND_INDEX_KEY` (adicionada depois desta migração, ver `src/lib/crypto/piiIndex.ts`) entra
+na MESMA categoria por um motivo análogo: trocar o valor sem reindexar `Contact` primeiro não
+quebra a leitura (o e-mail/telefone continua decifrável — a chave de índice não é a chave de
+cifra), mas invalida silenciosamente toda busca exata existente (`emailIndex`/`phoneIndex`/etc. —
+opt-out do WhatsApp, resolução de lead por resposta de e-mail, deduplicação) até rodar
+`scripts/security/backfill-contact-pii.ts` de novo com a chave nova. Mesmo tratamento: migrar sem
+trocar.
+
 ## Sequenciamento seguro (todos os outros segredos)
 
 1. Importar o valor atual (sem trocar) para o Infisical.
