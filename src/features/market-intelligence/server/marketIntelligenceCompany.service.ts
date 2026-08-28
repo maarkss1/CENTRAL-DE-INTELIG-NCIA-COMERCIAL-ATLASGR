@@ -1,6 +1,16 @@
 import { MarketIntelligenceIcpTier, Prisma } from '@prisma/client';
 
 import { prisma } from '../../../lib/prisma.js';
+import { logger } from '../../../lib/logger.js';
+import { AppError } from '../../../shared/middlewares/errorHandler.js';
+
+/** Cross-feature import de `prospecting/services/cnpj.util.ts` violaria a regra
+ * `no-cross-feature-imports` do dependency-cruiser — cópia local da mesma formatação. */
+function formatCnpj(cnpj: string): string {
+  const digits = cnpj.replace(/\D/g, '');
+  if (digits.length !== 14) return cnpj;
+  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+}
 
 export const CNPJ_CATALOG_PATTERN = /^[A-Z0-9]{12}[0-9]{2}$/;
 const ICP_TIERS = new Set(Object.values(MarketIntelligenceIcpTier));
@@ -280,6 +290,71 @@ export async function listMarketIntelligenceCompanies(query: CompanyCatalogQuery
       totalPages: total === 0 ? 0 : Math.ceil(total / query.pageSize),
     },
     dataset: datasetPayload(dataset),
+  };
+}
+
+function moneyValue(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Cria (ou reaproveita) a Company/Lead do CRM a partir de uma linha do catálogo de
+ * inteligência — usada pelo LDR (LeadApprovalDeck, CompanyBranchesView) para aprovar uma
+ * conta descoberta direto para o pipeline com 1 clique. */
+export async function approveToPipeline(organizationId: string, cnpjInput: string, userId?: string) {
+  const { company: catalogCompany } = await getMarketIntelligenceCompany(cnpjInput);
+  if (!catalogCompany) throw new AppError('Empresa não encontrada no catálogo de inteligência.', 404);
+
+  const formattedCnpj = formatCnpj(normalizeCatalogCnpj(cnpjInput));
+
+  let company = await prisma.company.findFirst({
+    where: { cnpj: formattedCnpj, organizationId, deletedAt: null },
+    include: { leads: true },
+  });
+
+  if (!company) {
+    company = await prisma.company.create({
+      data: {
+        organizationId,
+        legalName: catalogCompany.razaoSocial || 'Empresa sem Razão Social',
+        tradeName: catalogCompany.nomeFantasia || catalogCompany.razaoSocial || 'Empresa',
+        cnpj: formattedCnpj,
+        segment: catalogCompany.cnaePrincipalDescricao || undefined,
+        cnae: catalogCompany.cnaePrincipal || undefined,
+        city: catalogCompany.municipioNome || undefined,
+        state: catalogCompany.uf || undefined,
+        zipCode: catalogCompany.cep || undefined,
+        capitalSocial: moneyValue(catalogCompany.capitalSocial),
+        status: 'Ativo',
+        enrichmentStatus: 'Enriquecido',
+        enrichmentSource: 'MarketIntelligenceCatalog',
+      },
+      include: { leads: true },
+    });
+  }
+
+  let lead = company.leads[0];
+  if (!lead) {
+    lead = await prisma.lead.create({
+      data: {
+        organizationId,
+        companyId: company.id,
+        title: `${company.tradeName} - Prospecção Inteligente`,
+        status: 'Lead_Recebido',
+        source: 'Market Intelligence (Aprovação 1-Clique)',
+        temperature: catalogCompany.icpTier === 'MUITO_ALTO' || catalogCompany.icpTier === 'ALTO' ? 'Quente' : 'Morno',
+        owner: 'SDR',
+      },
+    });
+  }
+
+  logger.info({ organizationId, cnpj: formattedCnpj, companyId: company.id, leadId: lead.id, userId }, 'Conta aprovada com 1-clique para o Pipeline');
+
+  return {
+    company,
+    lead,
+    message: 'Empresa e Lead aprovados com sucesso para o Pipeline CRM!',
   };
 }
 

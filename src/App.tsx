@@ -146,9 +146,7 @@ const SelectionScreen = lazy(() =>
     default: m.SelectionScreen,
   })),
 );
-const MarketIntelligence = lazy(() =>
-  import('./pages/MarketIntelligence').then((m) => ({ default: m.MarketIntelligence })),
-);
+const Ldr = lazy(() => import('./pages/Ldr').then((m) => ({ default: m.Ldr })));
 const Account360 = lazy(() =>
   import('./features/market-intelligence/components/Account360').then((m) => ({
     default: m.Account360,
@@ -246,7 +244,7 @@ function AppLayout() {
           <Route path="knowledge" element={<KnowledgeBase />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="winloss" element={<WinLossAnalysis />} />
-          <Route path="market-intelligence" element={<MarketIntelligence />} />
+          <Route path="market-intelligence" element={<Ldr />} />
           <Route path="market-intelligence/accounts/:id" element={<Account360 />} />
           <Route path="market-intelligence/deck" element={<LeadApprovalDeck />} />
           <Route path="propostas" element={<PropostasList />} />

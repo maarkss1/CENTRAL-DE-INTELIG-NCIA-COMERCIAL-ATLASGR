@@ -187,31 +187,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
         '400': { description: CNPJ inválido }
-  /market-intelligence/territories:
-    get:
-      tags: [Market Intelligence]
-      summary: Agrega a base empresarial real e o RNTRC territorial por município
-      parameters:
-        - { name: uf, in: query, schema: { type: string, pattern: '^[A-Z]{2}$' } }
-        - { name: municipioIbge, in: query, schema: { type: string, pattern: '^\d{7}$' } }
-      responses:
-        '200': { description: Hierarquia Brasil, região, UF e município com contagens empresariais e indicador RNTRC municipal rotulado separadamente }
-  /market-intelligence/rankings:
-    get:
-      tags: [Market Intelligence]
-      summary: Ranking municipal por indicador disponível
-      parameters:
-        - { name: metric, in: query, schema: { type: string, enum: [EMPRESAS_ATIVAS, EMPRESAS_ICP, RNTRC_EMPRESARIAL, RNTRC_TERRITORIAL] } }
-        - { name: uf, in: query, schema: { type: string } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
-      responses:
-        '200': { description: Ranking sem score fabricado }
-  /market-intelligence/sources:
-    get:
-      tags: [Market Intelligence]
-      summary: Lista fontes, competências, hashes e status dos snapshots
-      responses:
-        '200': { description: Histórico de importações e snapshot ativo }
   /market-intelligence/data-quality-report:
     get:
       tags: [Market Intelligence]
