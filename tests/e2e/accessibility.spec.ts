@@ -29,6 +29,16 @@ async function assertNoBlockingViolations(page: import('@playwright/test').Page,
 }
 
 test.describe('Acessibilidade automática (axe-core)', () => {
+  // Achado real (Onda 42): um teste deste arquivo pegou `animate-toast-in` (globals.css, toast de
+  // erro/sucesso) a meio caminho da transição de opacidade — a cor renderizada nesse instante é uma
+  // mistura transitória com o que está atrás, então o axe-core mede um contraste que nunca existe em
+  // repouso (flaky: falhava numa execução, passava na tentativa seguinte). `reducedMotion: 'reduce'`
+  // aciona a regra global `@media (prefers-reduced-motion: reduce)` em globals.css, que já colapsa
+  // toda animação/transição pra 0.01ms — mesmo comportamento que um usuário real com essa preferência
+  // veria, e elimina essa classe inteira de falso positivo por captura em pleno andamento da
+  // transição, não só o caso do toast.
+  test.use({ reducedMotion: 'reduce' });
+
   test('tela de login não tem violações críticas/sérias', async ({ page }, testInfo) => {
     await page.goto('/login');
     await assertNoBlockingViolations(page, testInfo);
