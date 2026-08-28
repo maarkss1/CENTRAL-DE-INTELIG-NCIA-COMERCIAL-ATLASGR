@@ -94,7 +94,11 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="font-extrabold text-base text-ink tracking-tight">{brandInfo.name} Copilot</h2>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    {/* bg-emerald-500/20 text-emerald-300 cru (contra bg-surface, tema claro) dava
+                        contraste ainda pior que o achado do axe-core em ChatbookHub.tsx (mesmo badge,
+                        mesma superfície) — mesmo padrão de badge "soft" já usado em Badge.tsx
+                        (variant="success"). */}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success-active dark:text-success font-bold border border-success/30">
                       Groq IA
                     </span>
                   </div>

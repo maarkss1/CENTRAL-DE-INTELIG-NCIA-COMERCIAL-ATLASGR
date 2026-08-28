@@ -134,8 +134,12 @@ export function SalesMethodologyStudio() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-black text-ink tracking-tight">Estúdio de Metodologias de Vendas B2B</h2>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> 5 frameworks · Groq IA
+                {/* bg-emerald-500/20 text-emerald-300 cru (contra bg-surface, tema claro) dava
+                    contraste bem abaixo do mínimo — mesmo achado do axe-core (tests/e2e/accessibility.spec.ts)
+                    no badge irmão "Groq IA" de ChatbookHub.tsx. Mesmo padrão de badge "soft" já usado
+                    em Badge.tsx (variant="success"). */}
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-success/15 text-success-active dark:text-success border border-success/30 font-bold flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-success-active dark:text-success" /> 5 frameworks · Groq IA
                 </span>
               </div>
               <p className="text-xs text-ink-2 mt-1">
