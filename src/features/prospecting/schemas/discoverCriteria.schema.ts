@@ -13,31 +13,31 @@ import { MAX_LEADS_PER_SEARCH } from '../domain/searchIntent.js';
  * qualquer um dos dois modos de busca.
  */
 export const discoverCriteriaSchema = z.object({
-    icp: z.string().trim().max(1000).optional(),
-    decisorCargos: z.array(z.string().trim().max(200)).max(20).optional(),
-    segmento: z.string().trim().min(1, 'Informe um segmento (pode ser qualquer texto)').max(200),
-    localizacao: z.string().trim().max(200).default(''),
-    // Teto de 20 — prioriza qualidade (CNPJ, decisores, notícias enriquecidos em todos os leads da
-    // busca) em vez de volume. Mesma constante que `SearchIntent` usa para normalizar
-    // `quantityRequested` (domain/searchIntent.ts) — uma única fonte de verdade, não mais um "20"
-    // duplicado em cada lugar que precisa desse teto.
-    quantidade: z.number().int().min(1).max(MAX_LEADS_PER_SEARCH).default(MAX_LEADS_PER_SEARCH),
-    estado: z.string().trim().max(100).optional(),
-    cidade: z.string().trim().max(100).optional(),
-    porte: z.string().trim().max(50).optional(),
-    faturamentoMin: z.number().nonnegative().optional(),
-    faturamentoMax: z.number().nonnegative().optional(),
-    faturamentoMensalMin: z.number().nonnegative().optional(),
-    faturamentoMensalMax: z.number().nonnegative().optional(),
-    volume: z.string().trim().max(200).optional(),
-    palavrasChave: z.string().trim().max(300).optional(),
-    nomeEmpresa: z.string().trim().max(200).optional(),
-    anoFundacaoMin: z.number().int().min(1800).max(2100).optional(),
-    anoFundacaoMax: z.number().int().min(1800).max(2100).optional(),
-    tecnologias: z.string().trim().max(500).optional(),
-    tecnologiasExcluir: z.string().trim().max(500).optional(),
-    localizacaoExcluir: z.string().trim().max(500).optional(),
-    apenasCapitalAberto: z.boolean().optional(),
-    pagina: z.number().int().min(1).max(20).optional(),
-    excludeNames: z.array(z.string()).optional(),
+  icp: z.string().trim().max(1000).optional(),
+  decisorCargos: z.array(z.string().trim().max(200)).max(20).optional(),
+  segmento: z.string().trim().min(1, 'Informe um segmento (pode ser qualquer texto)').max(200),
+  localizacao: z.string().trim().max(200).default(''),
+  // Teto de 20 — prioriza qualidade (CNPJ, decisores, notícias enriquecidos em todos os leads da
+  // busca) em vez de volume. Mesma constante que `SearchIntent` usa para normalizar
+  // `quantityRequested` (domain/searchIntent.ts) — uma única fonte de verdade, não mais um "20"
+  // duplicado em cada lugar que precisa desse teto.
+  quantidade: z.number().int().min(1).max(MAX_LEADS_PER_SEARCH).default(MAX_LEADS_PER_SEARCH),
+  estado: z.string().trim().max(100).optional(),
+  cidade: z.string().trim().max(100).optional(),
+  porte: z.string().trim().max(50).optional(),
+  faturamentoMin: z.number().nonnegative().optional(),
+  faturamentoMax: z.number().nonnegative().optional(),
+  faturamentoMensalMin: z.number().nonnegative().optional(),
+  faturamentoMensalMax: z.number().nonnegative().optional(),
+  volume: z.string().trim().max(200).optional(),
+  palavrasChave: z.string().trim().max(300).optional(),
+  nomeEmpresa: z.string().trim().max(200).optional(),
+  anoFundacaoMin: z.number().int().min(1800).max(2100).optional(),
+  anoFundacaoMax: z.number().int().min(1800).max(2100).optional(),
+  tecnologias: z.string().trim().max(500).optional(),
+  tecnologiasExcluir: z.string().trim().max(500).optional(),
+  localizacaoExcluir: z.string().trim().max(500).optional(),
+  apenasCapitalAberto: z.boolean().optional(),
+  pagina: z.number().int().min(1).max(20).optional(),
+  excludeNames: z.array(z.string()).optional(),
 });

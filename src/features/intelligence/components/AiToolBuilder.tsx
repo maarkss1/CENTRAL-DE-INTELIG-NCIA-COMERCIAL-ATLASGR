@@ -6,8 +6,18 @@ export function AiToolBuilder() {
   const [systemPrompt, setSystemPrompt] = useState('');
   const [category, setCategory] = useState('Outbound SDR');
   const [createdTools, setCreatedTools] = useState([
-    { id: '1', name: 'Gerador de Cadência Frio SMTP', category: 'Cold Outreach', prompt: 'Gere 3 e-mails frios para decisor de logística.' },
-    { id: '2', name: 'Analisador de LTV & Risk Score', category: 'Analytics', prompt: 'Calcule o risco de churn com base no porte da frota.' }
+    {
+      id: '1',
+      name: 'Gerador de Cadência Frio SMTP',
+      category: 'Cold Outreach',
+      prompt: 'Gere 3 e-mails frios para decisor de logística.',
+    },
+    {
+      id: '2',
+      name: 'Analisador de LTV & Risk Score',
+      category: 'Analytics',
+      prompt: 'Calcule o risco de churn com base no porte da frota.',
+    },
   ]);
   const [saved, setSaved] = useState(false);
 
@@ -18,7 +28,7 @@ export function AiToolBuilder() {
       id: Date.now().toString(),
       name: toolName,
       category,
-      prompt: systemPrompt
+      prompt: systemPrompt,
     };
     setCreatedTools([newTool, ...createdTools]);
     setToolName('');
@@ -35,8 +45,12 @@ export function AiToolBuilder() {
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black tracking-tight">Estúdio de Criação de Novas Ferramentas de IA</h2>
-            <p className="text-xs text-ink-2 font-medium">Crie e publique seus próprios geradores e copilotos comerciais customizados</p>
+            <h2 className="text-xl font-black tracking-tight">
+              Estúdio de Criação de Novas Ferramentas de IA
+            </h2>
+            <p className="text-xs text-ink-2 font-medium">
+              Crie e publique seus próprios geradores e copilotos comerciais customizados
+            </p>
           </div>
         </div>
         <span className="px-3 py-1 bg-orange-50 text-brand text-xs font-black rounded-full border border-orange-200">
@@ -46,13 +60,21 @@ export function AiToolBuilder() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Formulário de Criação */}
-        <form onSubmit={handleCreate} className="lg:col-span-7 space-y-4 bg-surface-2/80 p-6 rounded-3xl border border-line">
+        <form
+          onSubmit={handleCreate}
+          className="lg:col-span-7 space-y-4 bg-surface-2/80 p-6 rounded-3xl border border-line"
+        >
           <h3 className="font-extrabold text-sm text-ink-2 flex items-center gap-2">
             <Plus className="w-4 h-4 text-brand" /> Configurar Nova Ferramenta Customizada
           </h3>
 
           <div>
-            <label htmlFor="tool-name" className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Nome da Ferramenta IA</label>
+            <label
+              htmlFor="tool-name"
+              className="block text-[11px] font-bold text-ink-2 uppercase mb-1"
+            >
+              Nome da Ferramenta IA
+            </label>
             <input
               id="tool-name"
               type="text"
@@ -65,7 +87,12 @@ export function AiToolBuilder() {
           </div>
 
           <div>
-            <label htmlFor="tool-category" className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Categoria de Aplicação</label>
+            <label
+              htmlFor="tool-category"
+              className="block text-[11px] font-bold text-ink-2 uppercase mb-1"
+            >
+              Categoria de Aplicação
+            </label>
             <select
               id="tool-category"
               value={category}
@@ -80,7 +107,12 @@ export function AiToolBuilder() {
           </div>
 
           <div>
-            <label htmlFor="tool-prompt" className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Instruções de Prompt do Sistema (AI Engine)</label>
+            <label
+              htmlFor="tool-prompt"
+              className="block text-[11px] font-bold text-ink-2 uppercase mb-1"
+            >
+              Instruções de Prompt do Sistema (AI Engine)
+            </label>
             <textarea
               id="tool-prompt"
               rows={4}
@@ -97,19 +129,25 @@ export function AiToolBuilder() {
             className="w-full bg-gradient-to-r from-brand to-amber-500 text-white font-extrabold py-3.5 rounded-2xl text-xs shadow-lg shadow-brand/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             {saved ? <Check className="w-4 h-4 animate-bounce" /> : <Save className="w-4 h-4" />}
-            <span>{saved ? 'Ferramenta de IA Criada com Sucesso!' : 'Salvar & Publicar Ferramenta'}</span>
+            <span>
+              {saved ? 'Ferramenta de IA Criada com Sucesso!' : 'Salvar & Publicar Ferramenta'}
+            </span>
           </button>
         </form>
 
         {/* Lista de Ferramentas Criadas */}
         <div className="lg:col-span-5 space-y-4">
           <h3 className="font-extrabold text-sm text-ink-2 flex items-center gap-2">
-            <Bot className="w-4 h-4 text-indigo-600" /> Ferramentas Customizadas Publicadas ({createdTools.length})
+            <Bot className="w-4 h-4 text-indigo-600" /> Ferramentas Customizadas Publicadas (
+            {createdTools.length})
           </h3>
 
           <div className="space-y-3">
             {createdTools.map((t) => (
-              <div key={t.id} className="p-4 rounded-2xl bg-surface border border-line shadow-sm space-y-1">
+              <div
+                key={t.id}
+                className="p-4 rounded-2xl bg-surface border border-line shadow-sm space-y-1"
+              >
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-xs text-ink">{t.name}</h4>
                   <span className="text-[9px] px-2 py-0.5 rounded-full bg-surface-2 text-ink-2 font-bold border border-line">

@@ -24,14 +24,22 @@ export function TopicTrainingAcademy() {
     try {
       const response = await api.post<{
         result: NonNullable<typeof trainingModule>;
-      }>('/api/intelligence/studio', {
-        kind: 'training',
-        brand: { name: brandInfo.name, description: brandInfo.description },
-        inputs: { topic },
-      }, { timeoutMs: 90_000 });
+      }>(
+        '/api/intelligence/studio',
+        {
+          kind: 'training',
+          brand: { name: brandInfo.name, description: brandInfo.description },
+          inputs: { topic },
+        },
+        { timeoutMs: 90_000 },
+      );
       setTrainingModule(response.result);
     } catch (generationError) {
-      setError(generationError instanceof Error ? generationError.message : 'Não foi possível gerar o treinamento.');
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : 'Não foi possível gerar o treinamento.',
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -45,8 +53,12 @@ export function TopicTrainingAcademy() {
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-black tracking-tight">Academia de Treinamento Comercial por Tema</h2>
-            <p className="text-xs text-ink-2 font-medium">Digite qualquer assunto ou dor para gerar uma aula interativa sob medida</p>
+            <h2 className="text-xl font-black tracking-tight">
+              Academia de Treinamento Comercial por Tema
+            </h2>
+            <p className="text-xs text-ink-2 font-medium">
+              Digite qualquer assunto ou dor para gerar uma aula interativa sob medida
+            </p>
           </div>
         </div>
         <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-black rounded-full border border-indigo-200">
@@ -54,8 +66,16 @@ export function TopicTrainingAcademy() {
         </span>
       </div>
 
-      <form onSubmit={handleGenerateTraining} className="space-y-3 bg-surface-2 p-6 rounded-3xl border border-line">
-        <label htmlFor="training-topic" className="block text-xs font-extrabold text-ink-2 uppercase">Qual tema de vendas você deseja treinar hoje?</label>
+      <form
+        onSubmit={handleGenerateTraining}
+        className="space-y-3 bg-surface-2 p-6 rounded-3xl border border-line"
+      >
+        <label
+          htmlFor="training-topic"
+          className="block text-xs font-extrabold text-ink-2 uppercase"
+        >
+          Qual tema de vendas você deseja treinar hoje?
+        </label>
         <div className="flex flex-col sm:flex-row gap-3">
           <input
             id="training-topic"
@@ -71,14 +91,21 @@ export function TopicTrainingAcademy() {
             disabled={isGenerating || !topic}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-6 py-3 rounded-2xl text-xs shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
-            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
             <span>{isGenerating ? 'Gerando Aula...' : 'Gerar Treinamento sob Medida'}</span>
           </button>
         </div>
       </form>
 
       {error && (
-        <div role="alert" className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800"
+        >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -86,17 +113,25 @@ export function TopicTrainingAcademy() {
 
       {/* Loader visual durante geração (sem o jogo 3D) */}
       {isGenerating && (
-         <div className="mt-8 animate-in fade-in duration-500 relative">
-            <div className="bg-surface-2/95 backdrop-blur-md rounded-[3rem] p-16 flex flex-col items-center justify-center border border-line shadow-card">
-                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-                <h3 className="text-ink font-black text-xl tracking-tight">Processando dados com Inteligência Artificial...</h3>
-                <p className="text-ink-2 text-sm mt-2 font-medium">Isso pode levar alguns segundos dependendo da complexidade do tema.</p>
-            </div>
-         </div>
+        <div className="mt-8 animate-in fade-in duration-500 relative">
+          <div className="bg-surface-2/95 backdrop-blur-md rounded-[3rem] p-16 flex flex-col items-center justify-center border border-line shadow-card">
+            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+            <h3 className="text-ink font-black text-xl tracking-tight">
+              Processando dados com Inteligência Artificial...
+            </h3>
+            <p className="text-ink-2 text-sm mt-2 font-medium">
+              Isso pode levar alguns segundos dependendo da complexidade do tema.
+            </p>
+          </div>
+        </div>
       )}
 
       {trainingModule && (
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pt-2">
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4 pt-2"
+        >
           <div className="p-5 rounded-2xl bg-indigo-50 border border-indigo-200">
             <h3 className="font-black text-indigo-900 text-base flex items-center gap-2">
               <Award className="w-5 h-5 text-indigo-600" /> {trainingModule.title}
@@ -106,7 +141,10 @@ export function TopicTrainingAcademy() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {trainingModule.steps.map((s) => (
-              <div key={s.step} className="p-5 rounded-3xl bg-surface border border-line shadow-sm space-y-2 flex flex-col justify-between">
+              <div
+                key={s.step}
+                className="p-5 rounded-3xl bg-surface border border-line shadow-sm space-y-2 flex flex-col justify-between"
+              >
                 <div>
                   <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
                     ETAPA {s.step}

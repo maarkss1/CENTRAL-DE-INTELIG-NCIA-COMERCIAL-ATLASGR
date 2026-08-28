@@ -9,7 +9,7 @@ const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS
 vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
 
 vi.mock('../../../../lib/logger.js', () => ({
-    logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const { requestContext } = await import('../../../../lib/async-context');
@@ -17,26 +17,28 @@ const { SDRQualificationAgent } = await import('../sdrQualification.agent');
 const { PiiConsentRequiredError } = await import('../../services/guardrails.service');
 
 afterEach(() => {
-    mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
+  mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
 });
 
 describe('SDRQualificationAgent.run — trava de consentimento LGPD', () => {
-    it('bloqueia a qualificação sem base legal registrada para a organização, sem tocar em Prisma/LLM', async () => {
-        const agent = new SDRQualificationAgent();
+  it('bloqueia a qualificação sem base legal registrada para a organização, sem tocar em Prisma/LLM', async () => {
+    const agent = new SDRQualificationAgent();
 
-        const result = await requestContext.run({ tenantId: 'org-sem-consentimento' }, () => agent.run('lead-1'));
+    const result = await requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
+      agent.run('lead-1'),
+    );
 
-        expect(result.success).toBe(false);
-        expect(result.error).toContain('org-sem-consentimento');
-        expect(new PiiConsentRequiredError('org-sem-consentimento').message).toBe(result.error);
-    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('org-sem-consentimento');
+    expect(new PiiConsentRequiredError('org-sem-consentimento').message).toBe(result.error);
+  });
 
-    it('sem organizationId no contexto (fora de requisição autenticada), também bloqueia', async () => {
-        const agent = new SDRQualificationAgent();
+  it('sem organizationId no contexto (fora de requisição autenticada), também bloqueia', async () => {
+    const agent = new SDRQualificationAgent();
 
-        const result = await agent.run('lead-1');
+    const result = await agent.run('lead-1');
 
-        expect(result.success).toBe(false);
-        expect(result.error).toBeDefined();
-    });
+    expect(result.success).toBe(false);
+    expect(result.error).toBeDefined();
+  });
 });

@@ -1,8 +1,14 @@
 import type { MetricDefinition } from '../domain/CommercialIntelligence';
 import { STAGE_AGING_CRITICAL_DAYS } from './pipelineEligibility';
 import { FORECAST_RULES, FORECAST_RULES_VERSION } from './forecastEngine';
-import { COVERAGE_PROTECTION_FALLBACK_HEALTHY, COVERAGE_PROTECTION_FALLBACK_WARNING } from './coverageProtection';
-import { DATA_READINESS_OPEN_FIELD_WEIGHTS, DATA_READINESS_LOSS_FIELD_WEIGHT } from './dataReadiness';
+import {
+  COVERAGE_PROTECTION_FALLBACK_HEALTHY,
+  COVERAGE_PROTECTION_FALLBACK_WARNING,
+} from './coverageProtection';
+import {
+  DATA_READINESS_OPEN_FIELD_WEIGHTS,
+  DATA_READINESS_LOSS_FIELD_WEIGHT,
+} from './dataReadiness';
 import { HEALTH_SCORE_RULES } from './healthScore';
 
 /**
@@ -12,324 +18,389 @@ import { HEALTH_SCORE_RULES } from './healthScore';
  * frontend (`MetricInfo.tsx`) — nunca duplicado como texto solto na UI.
  */
 export const METRICS_DICTIONARY: MetricDefinition[] = [
-    {
-        key: 'meta_new_mrr',
-        name: 'Meta New MRR',
-        description: 'Meta mensal de nova receita recorrente, cadastrada manualmente por um Gestor/Admin.',
-        formula: 'Valor digitado em CommercialGoal para o período (metric = NEW_MRR).',
-        source: 'CommercialGoal',
-        period: 'Mensal',
-        inclusionRules: 'Sempre um valor real informado por um usuário autorizado.',
-        exclusionRules: 'Sem meta cadastrada, o indicador aparece como "Não disponível" — nunca 0 fabricado.',
-    },
-    {
-        key: 'fechado',
-        name: 'Fechado (MRR realizado)',
-        description: 'Soma do valor dos negócios efetivamente ganhos no período.',
-        formula: 'SOMA(Lead.amount) onde funil=Negócio, etapa isWon=true, closedAt dentro do período.',
-        source: 'Lead + CrmPipelineStage',
-        period: 'Mensal',
-        inclusionRules: 'Usa closedAt (setado só na transição para ganho/perdido), nunca updatedAt — evita contar um fechamento antigo tocado por outra atualização como "fechado este mês".',
-        exclusionRules: 'Negócios abertos, perdidos ou fechados fora do período não entram.',
-    },
-    {
-        key: 'pct_meta',
-        name: '% da Meta',
-        description: 'Percentual da meta mensal já realizado.',
-        formula: 'Fechado / Meta New MRR',
-        source: 'Derivado',
-        period: 'Mensal',
-        inclusionRules: '—',
-        exclusionRules: 'Sem meta cadastrada, retorna "Não disponível".',
-    },
-    {
-        key: 'commit',
-        name: 'Commit',
-        description: 'Negócios com alta confiança de fechamento no período — probabilidade ponderada explicável ≥ 70%.',
-        formula: `SOMA(Lead.amount) dos negócios com probabilidade final do Forecast Ponderado Explicável ≥ ${FORECAST_RULES.COMMIT_THRESHOLD}%.`,
-        source: 'Forecast Ponderado Explicável (application/forecastEngine.ts)',
-        period: 'Mensal',
-        inclusionRules: 'Valor bruto (não ponderado) — já passou do limiar de alta confiança.',
-        exclusionRules: 'Negócios fechados não entram (já estão em "Fechado").',
-    },
-    {
-        key: 'best_case',
-        name: 'Best Case',
-        description: 'Negócios com chance real de fechar no período, mas ainda com pendências.',
-        formula: `SOMA(Lead.amount) dos negócios com probabilidade final entre ${FORECAST_RULES.BEST_CASE_THRESHOLD}% e ${FORECAST_RULES.COMMIT_THRESHOLD - 1}%.`,
-        source: 'Forecast Ponderado Explicável',
-        period: 'Mensal',
-        inclusionRules: 'Valor bruto (não ponderado).',
-        exclusionRules: 'Negócios fechados não entram.',
-    },
-    {
-        key: 'forecast',
-        name: 'Forecast',
-        description: 'Previsão de receita do período combinando o que já fechou com o que tem probabilidade real de fechar.',
-        formula: 'Fechado + Commit + Best Case + SOMA(valor ponderado dos negócios em Pipeline, ou seja probabilidade entre 10% e 39%).',
-        source: 'Derivado do Forecast Ponderado Explicável',
-        period: 'Mensal',
-        inclusionRules: 'Negócios "Upside" (probabilidade < 10%) ficam FORA do Forecast — aparecem separadamente como upside informativo.',
-        exclusionRules: '—',
-    },
-    {
-        key: 'gap_forecast',
-        name: 'Gap Forecast',
-        description: 'Distância entre a meta e o forecast atual.',
-        formula: 'Meta − Forecast',
-        source: 'Derivado',
-        period: 'Mensal',
-        inclusionRules: 'Valor negativo significa forecast acima da meta.',
-        exclusionRules: 'Sem meta cadastrada, retorna "Não disponível".',
-    },
-    {
-        key: 'gap_commit',
-        name: 'Gap Commit',
-        description: 'Distância entre a meta e o que já está fechado + em Commit.',
-        formula: 'Meta − (Fechado + Commit)',
-        source: 'Derivado',
-        period: 'Mensal',
-        inclusionRules: '—',
-        exclusionRules: 'Sem meta cadastrada, retorna "Não disponível".',
-    },
-    {
-        key: 'pipeline_total',
-        name: 'Pipeline Total',
-        description: 'Todo valor aberto no funil Negócio, sem nenhum filtro de qualidade.',
-        formula: 'SOMA(Lead.amount) onde funil=Negócio e não fechado.',
-        source: 'Lead',
-        period: 'Instantâneo (foto do momento da consulta)',
-        inclusionRules: '—',
-        exclusionRules: 'Negócios ganhos/perdidos não entram.',
-    },
-    {
-        key: 'pipeline_elegivel',
-        name: 'Pipeline Elegível',
-        description: 'Subconjunto do Pipeline Total com condição mínima real de fechar — nunca "pipeline aberto = forecast".',
-        formula: 'Pipeline Total filtrado por: valor válido (>0), responsável preenchido, data prevista preenchida, próxima ação preenchida, e aging na etapa atual dentro do limiar crítico.',
-        source: 'application/pipelineEligibility.ts',
-        period: 'Instantâneo',
-        inclusionRules: `Limiar de aging crítico atual: ${STAGE_AGING_CRITICAL_DAYS} dias na etapa (política inicial única — não há SLA por etapa configurado ainda).`,
-        exclusionRules: 'Qualquer critério que falhe remove o negócio da lista elegível (motivo fica disponível no drill-down).',
-    },
-    {
-        key: 'coverage',
-        name: 'Pipeline Coverage',
-        description: 'Quantas vezes o pipeline elegível cobre a meta restante da janela (mês, 30/60/90 dias).',
-        formula: 'Pipeline Elegível na janela / Meta restante da janela.',
-        source: 'Derivado',
-        period: 'Mês corrente e janelas móveis de 30/60/90 dias',
-        inclusionRules: 'A cobertura recomendada é derivada do Win Rate histórico real (1 / Win Rate) quando há amostra suficiente.',
-        exclusionRules: 'Sem meta cadastrada ou meta já batida, retorna "Não disponível"/0 restante (nunca divide por zero). Nas janelas móveis de 30/60/90 dias (coverage30/coverage60/coverage90), a meta proporcional da janela NUNCA é líquida de fechamentos futuros dentro dela (fechamentos futuros ainda não existem no momento da consulta) — só a janela do mês corrente desconta o que já fechou no próprio mês.',
-    },
-    {
-        key: 'pipeline_criado',
-        name: 'Pipeline Criado',
-        description: 'Negócios efetivamente CRIADOS no período (não apenas movimentados).',
-        formula: 'COUNT/SOMA(Lead) onde funil=Negócio e createdAt dentro do período.',
-        source: 'Lead',
-        period: 'Mensal (ou período do filtro)',
-        inclusionRules: 'Usa createdAt do registro — nunca confunde com negócios antigos só movimentados no período.',
-        exclusionRules: '—',
-    },
-    {
-        key: 'ritmo_criacao_pipeline',
-        name: 'Ritmo de Criação de Pipeline (Pace)',
-        description: 'Compara o pipeline já criado no mês com o que seria esperado até hoje, proporcional aos dias úteis já decorridos.',
-        formula: 'Esperado até agora = Pipeline Necessário × (dias úteis decorridos / dias úteis totais do mês). Ritmo (%) = Pipeline Criado até agora / Esperado até agora × 100.',
-        source: 'Derivado de Pipeline Criado + Pipeline Necessário (application/businessDays.ts)',
-        period: 'Mensal (mês-calendário do filtro)',
-        inclusionRules: 'Dia útil = segunda a sexta, sem calendário de feriados configurado (mesma simplificação do Cockpit legado, js/cockpit.js). "Hoje" conta como decorrido.',
-        exclusionRules: 'Sem Pipeline Necessário calculável (sem meta ou sem Win Rate), o indicador retorna "Não disponível" — nunca assume um alvo implícito.',
-    },
-    {
-        key: 'win_rate',
-        name: 'Win Rate',
-        description: 'Taxa de conversão entre negócios fechados.',
-        formula: 'Ganhos / (Ganhos + Perdidos)',
-        source: 'Lead + CrmPipelineStage (isWon/isLost)',
-        period: 'Período selecionado',
-        inclusionRules: 'Só considera negócios FECHADOS no período.',
-        exclusionRules: 'Negócios ainda abertos nunca entram no denominador.',
-    },
-    {
-        key: 'ticket_medio',
-        name: 'Ticket Médio',
-        description: 'Valor médio dos negócios, por status (criado/aberto/ganho/perdido).',
-        formula: 'SOMA(amount) / COUNT(negócios) no grupo.',
-        source: 'Lead',
-        period: 'Período selecionado',
-        inclusionRules: '—',
-        exclusionRules: 'Grupo vazio retorna "Não disponível", nunca 0.',
-    },
-    {
-        key: 'sales_cycle',
-        name: 'Sales Cycle',
-        description: 'Tempo entre criação e fechamento de um negócio.',
-        formula: 'closedAt − createdAt, em dias. Média e MEDIANA calculadas (a mediana reduz a distorção de outliers).',
-        source: 'Lead',
-        period: 'Negócios fechados no período',
-        inclusionRules: 'Só negócios fechados (ganhos ou perdidos).',
-        exclusionRules: 'Amostra vazia retorna "Não disponível".',
-    },
-    {
-        key: 'aging',
-        name: 'Aging de Oportunidades',
-        description: 'Idade dos negócios abertos desde a criação, em faixas.',
-        formula: 'AGORA − createdAt, agrupado em 0–15/16–30/31–45/46–60/61–90/90+ dias.',
-        source: 'Lead',
-        period: 'Instantâneo',
-        inclusionRules: 'Só negócios abertos.',
-        exclusionRules: '—',
-    },
-    {
-        key: 'aging_etapa',
-        name: 'Aging por Etapa',
-        description: 'Tempo dentro da etapa atual.',
-        formula: 'AGORA − data de entrada na etapa atual (LeadStageHistory.enteredAt da linha sem exitedAt).',
-        source: 'LeadStageHistory',
-        period: 'Instantâneo',
-        inclusionRules: 'Rastreamento real começa a partir da criação desta tabela — negócios sem transição registrada desde então usam updatedAt como estimativa (marcado como "estimado" na resposta), nunca um histórico inventado.',
-        exclusionRules: '—',
-    },
-    {
-        key: 'motivos_perda',
-        name: 'Motivos de Perda',
-        description: 'Classificação estruturada do texto livre de motivo de perda.',
-        formula: 'Lead.lossReason classificado por casamento de palavra-chave determinístico em uma taxonomia fixa (application/lossTaxonomy.ts).',
-        source: 'Lead.lossReason',
-        period: 'Período selecionado',
-        inclusionRules: 'Texto original sempre preservado como observação.',
-        exclusionRules: 'lossReason vazio vira "Não informado", nunca "Outro" (ausência de dado ≠ dado não classificável).',
-    },
-    {
-        key: 'leading_indicators',
-        name: 'Leading Indicators',
-        description: 'Indicadores semanais de atividade comercial que antecedem receita.',
-        formula: 'Reuniões concluídas (Activity), oportunidades qualificadas (conversão Lead→Negócio), pipeline criado, avanços de etapa, propostas enviadas e ganhos — todos por semana.',
-        source: 'Activity + TimelineEvent + Lead + LeadStageHistory',
-        period: 'Semanal, com média móvel de 4 semanas',
-        inclusionRules: '"Avanços" e "propostas" dependem de LeadStageHistory — podem estar subestimados nas primeiras semanas após o lançamento do módulo.',
-        exclusionRules: '—',
-    },
-    {
-        key: 'qualidade_crm',
-        name: 'Qualidade do CRM',
-        description: 'Completude dos campos-chave dos negócios abertos.',
-        formula: '% de negócios abertos com cada campo-chave preenchido (responsável, valor, empresa, contato, etapa, data prevista, próxima ação, última atividade, origem).',
-        source: 'Lead',
-        period: 'Instantâneo',
-        inclusionRules: 'Duplicidade suspeita: negócios abertos com a mesma empresa aparecendo mais de uma vez simultaneamente (heurística, não determinística de identidade).',
-        exclusionRules: 'Sem negócios abertos, retorna "Não disponível".',
-    },
-    {
-        key: 'confiabilidade_dados',
-        name: 'Confiabilidade dos Dados',
-        description: 'Completude dos campos que alimentam o Forecast, ponderada pelo impacto real de cada campo (não uma média simples de preenchimento).',
-        formula: `Média ponderada de completude por campo: ${DATA_READINESS_OPEN_FIELD_WEIGHTS.map((w) => `${w.label} (peso ${w.weight}, impacto ${w.forecastImpact})`).join(', ')}, avaliados sobre negócios abertos; e ${DATA_READINESS_LOSS_FIELD_WEIGHT.label} (peso ${DATA_READINESS_LOSS_FIELD_WEIGHT.weight}), avaliado sobre negócios perdidos.`,
-        source: 'application/dataReadiness.ts',
-        period: 'Instantâneo',
-        inclusionRules: 'Classificação por campo e geral: saudável ≥80%, atenção 50–79%, crítico <50% (mesmos limiares já usados na Qualidade do CRM).',
-        exclusionRules: 'Campo com população vazia (nenhum negócio aberto, ou nenhum negócio perdido para "Motivo da perda") fica fora da média ponderada — nunca conta como 0% nem 100%.',
-    },
-    {
-        key: 'forecast_confidence',
-        name: 'Forecast Confidence',
-        description: 'Quão confiável é o número de Forecast, derivado de sinais mensuráveis — nunca uma probabilidade inventada.',
-        formula: 'Completude ponderada dos campos que o Forecast Ponderado Explicável usa como sinal (valor, responsável, data prevista, próxima ação, última interação) × 70% + cobertura de histórico de etapa entre os negócios abertos × 30%. Amostra com menos de 5 negócios abertos tem o score reduzido proporcionalmente (amostra/5).',
-        source: 'application/dataReadiness.ts (CommercialIntelligenceUseCases.computeForecastConfidence)',
-        period: 'Instantâneo',
-        inclusionRules: 'Calculado sobre todos os negócios abertos no escopo do filtro (owner/produto/origem/ICP).',
-        exclusionRules: 'Sem nenhum negócio aberto no escopo, retorna "Não disponível" — nunca 0 fabricado.',
-    },
-    {
-        key: 'coverage_protecao_90_dias',
-        name: 'Proteção 90 dias (Coverage M / M+1 / M+2 / M+3)',
-        description: 'Coverage em meses de calendário reais (mês do filtro + 3 meses seguintes), distinto das janelas móveis de 30/60/90 dias corridos.',
-        formula: 'Pipeline Elegível com data prevista de fechamento dentro do mês de calendário / Meta restante daquele mês (meta cheia para meses futuros; meta − já fechado para o mês corrente).',
-        source: 'Derivado (CommercialIntelligenceUseCases.executiveOverview)',
-        period: 'Mês do filtro + M+1 + M+2 + M+3',
-        inclusionRules: `Classificação: com Win Rate histórico calculável, usa o Coverage recomendado (1 / Win Rate) — saudável ≥ recomendado, atenção ≥ 60% do recomendado, crítico abaixo disso. Sem Win Rate ainda, cai no limiar-padrão documentado (saudável ≥ ${COVERAGE_PROTECTION_FALLBACK_HEALTHY}x, atenção ≥ ${COVERAGE_PROTECTION_FALLBACK_WARNING}x, crítico abaixo).`,
-        exclusionRules: 'Sem meta cadastrada para o mês (comum em M+2/M+3), status fica "sem_dados" — nunca crítico/saudável fabricado.',
-    },
-    {
-        key: 'pipeline_creation_pace',
-        name: 'Pipeline Creation Pace (ritmo)',
-        description: 'Responde "estamos criando pipeline rápido o suficiente para sustentar as próximas metas?" comparando o que já foi criado com o que deveria ter sido criado até hoje.',
-        formula: 'Ritmo esperado = Pipeline Necessário × (dias úteis decorridos no mês / dias úteis totais do mês). Ritmo % = Pipeline Criado / Ritmo esperado × 100.',
-        source: 'Derivado (CommercialIntelligenceUseCases.pipelineCreation)',
-        period: 'Mensal, considerando dias úteis (segunda a sexta) em vez de dias corridos',
-        inclusionRules: 'Depende de Pipeline Necessário (por sua vez depende de Win Rate histórico calculável) — sem essa base, retorna "Não disponível".',
-        exclusionRules: 'Mês do filtro no futuro (ainda não começou): dias úteis decorridos = 0. Mês já encerrado: dias úteis decorridos = total do mês.',
-    },
-    {
-        key: 'funil_conversao_historica',
-        name: 'Conversão de Funil (histórico real)',
-        description: 'Quantos negócios realmente chegaram a cada etapa em algum momento, segundo o histórico de movimentação — não o snapshot de onde estão agora.',
-        formula: 'Para negócios abertos, a etapa atual sempre conta como alcançada. Para negócios ganhos/perdidos, só conta o que LeadStageHistory realmente registra — a etapa terminal (Ganho/Perdido) nunca é usada como proxy de até onde a oportunidade avançou.',
-        source: 'LeadStageHistory (CommercialIntelligenceUseCases.computeHistoricalStageReach)',
-        period: 'Todo o histórico disponível no escopo do filtro (owner/produto/origem/ICP), não só o mês selecionado',
-        inclusionRules: 'Um negócio perdido/ganho sem NENHUMA linha de LeadStageHistory não é contado em nenhuma etapa (nunca um progresso fabricado a partir do status final).',
-        exclusionRules: 'Assume que a ordem de etapas (sortOrder) reflete a ordem real do funil — pipelines que permitem pular etapas livremente podem subestimar o drop-off de uma etapa intermediária específica.',
-    },
-    {
-        key: 'tendencias_6_meses',
-        name: 'Tendências — 6 meses',
-        description: 'Win Rate, Sales Cycle, Ticket Médio (ganho) e Pipeline Criado dos últimos 6 meses (mês do filtro + 5 anteriores), para leitura de tendência além da comparação com o mês anterior.',
-        formula: 'Mesmos cálculos de performance()/pipelineCreation() aplicados a cada um dos 6 meses.',
-        source: 'Derivado (CommercialIntelligenceUseCases.historicalTrends)',
-        period: 'Mês do filtro + 5 meses anteriores',
-        inclusionRules: '—',
-        exclusionRules: 'Cada mês sem amostra suficiente (nenhum negócio fechado, por exemplo) retorna "Não disponível" nos campos daquele mês — nunca interpolado nem estimado a partir de outros meses.',
-    },
-    {
-        key: 'bitrix_sincronizacao',
-        name: 'Confiabilidade da Sincronização Bitrix24',
-        description: 'Cobertura de vínculo (quantos negócios abertos têm Lead.bitrixLeadId/bitrixDealId), última sincronização bem-sucedida e volume de sucesso/falha recente.',
-        formula: 'Cobertura = negócios abertos vinculados / negócios abertos totais. Última sincronização = mais recente BitrixConnection.lastImportedAt entre as conexões da organização. Sincronizados/Falhas = contagem de BitrixSyncLog com status success/failed nos últimos 30 dias.',
-        source: 'BitrixConnection + BitrixSyncLog',
-        period: 'Cobertura: instantâneo. Sincronizados/Falhas: janela fixa de 30 dias (atividade operacional, não segue o filtro de mês comercial)',
-        inclusionRules: 'Sem nenhuma conexão Bitrix24 ativa, todos os campos de atividade retornam 0/null explicitamente — não é o mesmo que "0 falhas, tudo certo".',
-        exclusionRules: '—',
-    },
-    {
-        key: 'comparacao_mes_anterior',
-        name: 'Comparação com o mês anterior',
-        description: 'Fechado, quantidade de negócios ganhos e Win Rate do mês imediatamente anterior ao filtro, para leitura de tendência.',
-        formula: 'Mesmos cálculos de Fechado/Win Rate aplicados ao mês anterior (mês do filtro − 1).',
-        source: 'Derivado (CommercialIntelligenceUseCases.executiveOverview)',
-        period: 'Mês anterior ao filtro selecionado',
-        inclusionRules: 'Só populado quando o mês anterior tem ao menos um negócio fechado (ganho ou perdido) no escopo do filtro.',
-        exclusionRules: 'Sem amostra suficiente no mês anterior, retorna "Não disponível" — nunca compara contra um período vazio.',
-    },
-    {
-        key: 'forecast_snapshot',
-        name: 'Snapshot do Forecast (backtest)',
-        description: 'Registro append-only do que o Forecast previa para um período em um instante específico — base para medir o erro real do motor depois que o período fecha.',
-        formula: `Copia Commit/Best Case/Forecast de ExecutiveOverview no momento do snapshot, junto da versão das regras do motor (rulesVersion = "${FORECAST_RULES_VERSION}").`,
-        source: 'application/forecastSnapshot.ts, persistido via infra/PrismaForecastSnapshotStore.ts (model ForecastSnapshot, migration 20260827020000). Ainda falta o disparo periódico real (cron/worker) que chama ForecastSnapshotStore.save — hoje só é exercitado por teste/uso manual.',
-        period: 'Instantâneo, um registro por (organização, período previsto, momento do snapshot)',
-        inclusionRules: 'Nunca sobrescrito — cada snapshot é um registro novo, mesmo para o mesmo período (permite comparar como a previsão evoluiu até o fechamento).',
-        exclusionRules: '—',
-    },
-    {
-        key: 'forecast_erro_historico',
-        name: 'Erro Histórico do Forecast',
-        description: 'Compara o Forecast previsto por um snapshot antigo com o valor realmente fechado, depois que o período de referência já encerrou — "o motor costuma acertar quanto?".',
-        formula: 'Erro = Forecast previsto (snapshot) − Fechado realizado. Erro % = |Erro| / Fechado realizado × 100. Erro Percentual Absoluto Médio = média do Erro % entre os períodos já fechados com snapshot disponível.',
-        source: 'application/forecastAccuracy.ts',
-        period: 'Só períodos (meses) já encerrados',
-        inclusionRules: 'Precisa das 3 condições: período já fechado, snapshot existente daquele período, e valor realizado conhecido.',
-        exclusionRules: 'Faltando qualquer uma das 3 condições, retorna explicitamente "sem histórico suficiente" — nunca um erro fabricado. Logo após esta implementação, é o resultado esperado até existir snapshot antigo o bastante para ter fechado.',
-    },
-    {
-        key: 'health_score',
-        name: 'Health Score composto',
-        description: 'Agrega, em 6 pilares nomeados (Pipeline, Conversão, Produtividade, Qualidade do CRM, Follow-up, Confiabilidade de Forecast), métricas que já existem em outros relatórios — nunca um cálculo paralelo/duplicado.',
-        formula: `Pipeline = Coverage do mês / Coverage recomendado (ou ${COVERAGE_PROTECTION_FALLBACK_HEALTHY}x sem Win Rate ainda). Conversão = Win Rate do período. Produtividade = média da razão (semana atual / média móvel 4 semanas) dos Leading Indicators. Qualidade do CRM = Confiabilidade dos Dados (dataReadiness.overallScore). Follow-up = % do pipeline aberto fora do aging crítico (${STAGE_AGING_CRITICAL_DAYS} dias). Confiabilidade de Forecast = 100 − Erro Percentual Absoluto Médio (forecast_erro_historico). Score geral = média simples dos pilares com dado disponível.`,
-        source: 'application/healthScore.ts',
-        period: 'Mesmo período do filtro do Cockpit (mensal)',
-        inclusionRules: `Limiares por pilar documentados em HEALTH_SCORE_RULES (ex.: Conversão saudável ≥${HEALTH_SCORE_RULES.WIN_RATE_HEALTHY_PCT}%, atenção ≥${HEALTH_SCORE_RULES.WIN_RATE_WARNING_PCT}%).`,
-        exclusionRules: 'Pilar sem dado suficiente retorna "Não disponível" individualmente (nunca um score fabricado) e fica fora da média do Score geral — o Score geral só fica "Não disponível" se NENHUM pilar tiver dado.',
-    },
+  {
+    key: 'meta_new_mrr',
+    name: 'Meta New MRR',
+    description:
+      'Meta mensal de nova receita recorrente, cadastrada manualmente por um Gestor/Admin.',
+    formula: 'Valor digitado em CommercialGoal para o período (metric = NEW_MRR).',
+    source: 'CommercialGoal',
+    period: 'Mensal',
+    inclusionRules: 'Sempre um valor real informado por um usuário autorizado.',
+    exclusionRules:
+      'Sem meta cadastrada, o indicador aparece como "Não disponível" — nunca 0 fabricado.',
+  },
+  {
+    key: 'fechado',
+    name: 'Fechado (MRR realizado)',
+    description: 'Soma do valor dos negócios efetivamente ganhos no período.',
+    formula: 'SOMA(Lead.amount) onde funil=Negócio, etapa isWon=true, closedAt dentro do período.',
+    source: 'Lead + CrmPipelineStage',
+    period: 'Mensal',
+    inclusionRules:
+      'Usa closedAt (setado só na transição para ganho/perdido), nunca updatedAt — evita contar um fechamento antigo tocado por outra atualização como "fechado este mês".',
+    exclusionRules: 'Negócios abertos, perdidos ou fechados fora do período não entram.',
+  },
+  {
+    key: 'pct_meta',
+    name: '% da Meta',
+    description: 'Percentual da meta mensal já realizado.',
+    formula: 'Fechado / Meta New MRR',
+    source: 'Derivado',
+    period: 'Mensal',
+    inclusionRules: '—',
+    exclusionRules: 'Sem meta cadastrada, retorna "Não disponível".',
+  },
+  {
+    key: 'commit',
+    name: 'Commit',
+    description:
+      'Negócios com alta confiança de fechamento no período — probabilidade ponderada explicável ≥ 70%.',
+    formula: `SOMA(Lead.amount) dos negócios com probabilidade final do Forecast Ponderado Explicável ≥ ${FORECAST_RULES.COMMIT_THRESHOLD}%.`,
+    source: 'Forecast Ponderado Explicável (application/forecastEngine.ts)',
+    period: 'Mensal',
+    inclusionRules: 'Valor bruto (não ponderado) — já passou do limiar de alta confiança.',
+    exclusionRules: 'Negócios fechados não entram (já estão em "Fechado").',
+  },
+  {
+    key: 'best_case',
+    name: 'Best Case',
+    description: 'Negócios com chance real de fechar no período, mas ainda com pendências.',
+    formula: `SOMA(Lead.amount) dos negócios com probabilidade final entre ${FORECAST_RULES.BEST_CASE_THRESHOLD}% e ${FORECAST_RULES.COMMIT_THRESHOLD - 1}%.`,
+    source: 'Forecast Ponderado Explicável',
+    period: 'Mensal',
+    inclusionRules: 'Valor bruto (não ponderado).',
+    exclusionRules: 'Negócios fechados não entram.',
+  },
+  {
+    key: 'forecast',
+    name: 'Forecast',
+    description:
+      'Previsão de receita do período combinando o que já fechou com o que tem probabilidade real de fechar.',
+    formula:
+      'Fechado + Commit + Best Case + SOMA(valor ponderado dos negócios em Pipeline, ou seja probabilidade entre 10% e 39%).',
+    source: 'Derivado do Forecast Ponderado Explicável',
+    period: 'Mensal',
+    inclusionRules:
+      'Negócios "Upside" (probabilidade < 10%) ficam FORA do Forecast — aparecem separadamente como upside informativo.',
+    exclusionRules: '—',
+  },
+  {
+    key: 'gap_forecast',
+    name: 'Gap Forecast',
+    description: 'Distância entre a meta e o forecast atual.',
+    formula: 'Meta − Forecast',
+    source: 'Derivado',
+    period: 'Mensal',
+    inclusionRules: 'Valor negativo significa forecast acima da meta.',
+    exclusionRules: 'Sem meta cadastrada, retorna "Não disponível".',
+  },
+  {
+    key: 'gap_commit',
+    name: 'Gap Commit',
+    description: 'Distância entre a meta e o que já está fechado + em Commit.',
+    formula: 'Meta − (Fechado + Commit)',
+    source: 'Derivado',
+    period: 'Mensal',
+    inclusionRules: '—',
+    exclusionRules: 'Sem meta cadastrada, retorna "Não disponível".',
+  },
+  {
+    key: 'pipeline_total',
+    name: 'Pipeline Total',
+    description: 'Todo valor aberto no funil Negócio, sem nenhum filtro de qualidade.',
+    formula: 'SOMA(Lead.amount) onde funil=Negócio e não fechado.',
+    source: 'Lead',
+    period: 'Instantâneo (foto do momento da consulta)',
+    inclusionRules: '—',
+    exclusionRules: 'Negócios ganhos/perdidos não entram.',
+  },
+  {
+    key: 'pipeline_elegivel',
+    name: 'Pipeline Elegível',
+    description:
+      'Subconjunto do Pipeline Total com condição mínima real de fechar — nunca "pipeline aberto = forecast".',
+    formula:
+      'Pipeline Total filtrado por: valor válido (>0), responsável preenchido, data prevista preenchida, próxima ação preenchida, e aging na etapa atual dentro do limiar crítico.',
+    source: 'application/pipelineEligibility.ts',
+    period: 'Instantâneo',
+    inclusionRules: `Limiar de aging crítico atual: ${STAGE_AGING_CRITICAL_DAYS} dias na etapa (política inicial única — não há SLA por etapa configurado ainda).`,
+    exclusionRules:
+      'Qualquer critério que falhe remove o negócio da lista elegível (motivo fica disponível no drill-down).',
+  },
+  {
+    key: 'coverage',
+    name: 'Pipeline Coverage',
+    description:
+      'Quantas vezes o pipeline elegível cobre a meta restante da janela (mês, 30/60/90 dias).',
+    formula: 'Pipeline Elegível na janela / Meta restante da janela.',
+    source: 'Derivado',
+    period: 'Mês corrente e janelas móveis de 30/60/90 dias',
+    inclusionRules:
+      'A cobertura recomendada é derivada do Win Rate histórico real (1 / Win Rate) quando há amostra suficiente.',
+    exclusionRules:
+      'Sem meta cadastrada ou meta já batida, retorna "Não disponível"/0 restante (nunca divide por zero). Nas janelas móveis de 30/60/90 dias (coverage30/coverage60/coverage90), a meta proporcional da janela NUNCA é líquida de fechamentos futuros dentro dela (fechamentos futuros ainda não existem no momento da consulta) — só a janela do mês corrente desconta o que já fechou no próprio mês.',
+  },
+  {
+    key: 'pipeline_criado',
+    name: 'Pipeline Criado',
+    description: 'Negócios efetivamente CRIADOS no período (não apenas movimentados).',
+    formula: 'COUNT/SOMA(Lead) onde funil=Negócio e createdAt dentro do período.',
+    source: 'Lead',
+    period: 'Mensal (ou período do filtro)',
+    inclusionRules:
+      'Usa createdAt do registro — nunca confunde com negócios antigos só movimentados no período.',
+    exclusionRules: '—',
+  },
+  {
+    key: 'ritmo_criacao_pipeline',
+    name: 'Ritmo de Criação de Pipeline (Pace)',
+    description:
+      'Compara o pipeline já criado no mês com o que seria esperado até hoje, proporcional aos dias úteis já decorridos.',
+    formula:
+      'Esperado até agora = Pipeline Necessário × (dias úteis decorridos / dias úteis totais do mês). Ritmo (%) = Pipeline Criado até agora / Esperado até agora × 100.',
+    source: 'Derivado de Pipeline Criado + Pipeline Necessário (application/businessDays.ts)',
+    period: 'Mensal (mês-calendário do filtro)',
+    inclusionRules:
+      'Dia útil = segunda a sexta, sem calendário de feriados configurado (mesma simplificação do Cockpit legado, js/cockpit.js). "Hoje" conta como decorrido.',
+    exclusionRules:
+      'Sem Pipeline Necessário calculável (sem meta ou sem Win Rate), o indicador retorna "Não disponível" — nunca assume um alvo implícito.',
+  },
+  {
+    key: 'win_rate',
+    name: 'Win Rate',
+    description: 'Taxa de conversão entre negócios fechados.',
+    formula: 'Ganhos / (Ganhos + Perdidos)',
+    source: 'Lead + CrmPipelineStage (isWon/isLost)',
+    period: 'Período selecionado',
+    inclusionRules: 'Só considera negócios FECHADOS no período.',
+    exclusionRules: 'Negócios ainda abertos nunca entram no denominador.',
+  },
+  {
+    key: 'ticket_medio',
+    name: 'Ticket Médio',
+    description: 'Valor médio dos negócios, por status (criado/aberto/ganho/perdido).',
+    formula: 'SOMA(amount) / COUNT(negócios) no grupo.',
+    source: 'Lead',
+    period: 'Período selecionado',
+    inclusionRules: '—',
+    exclusionRules: 'Grupo vazio retorna "Não disponível", nunca 0.',
+  },
+  {
+    key: 'sales_cycle',
+    name: 'Sales Cycle',
+    description: 'Tempo entre criação e fechamento de um negócio.',
+    formula:
+      'closedAt − createdAt, em dias. Média e MEDIANA calculadas (a mediana reduz a distorção de outliers).',
+    source: 'Lead',
+    period: 'Negócios fechados no período',
+    inclusionRules: 'Só negócios fechados (ganhos ou perdidos).',
+    exclusionRules: 'Amostra vazia retorna "Não disponível".',
+  },
+  {
+    key: 'aging',
+    name: 'Aging de Oportunidades',
+    description: 'Idade dos negócios abertos desde a criação, em faixas.',
+    formula: 'AGORA − createdAt, agrupado em 0–15/16–30/31–45/46–60/61–90/90+ dias.',
+    source: 'Lead',
+    period: 'Instantâneo',
+    inclusionRules: 'Só negócios abertos.',
+    exclusionRules: '—',
+  },
+  {
+    key: 'aging_etapa',
+    name: 'Aging por Etapa',
+    description: 'Tempo dentro da etapa atual.',
+    formula:
+      'AGORA − data de entrada na etapa atual (LeadStageHistory.enteredAt da linha sem exitedAt).',
+    source: 'LeadStageHistory',
+    period: 'Instantâneo',
+    inclusionRules:
+      'Rastreamento real começa a partir da criação desta tabela — negócios sem transição registrada desde então usam updatedAt como estimativa (marcado como "estimado" na resposta), nunca um histórico inventado.',
+    exclusionRules: '—',
+  },
+  {
+    key: 'motivos_perda',
+    name: 'Motivos de Perda',
+    description: 'Classificação estruturada do texto livre de motivo de perda.',
+    formula:
+      'Lead.lossReason classificado por casamento de palavra-chave determinístico em uma taxonomia fixa (application/lossTaxonomy.ts).',
+    source: 'Lead.lossReason',
+    period: 'Período selecionado',
+    inclusionRules: 'Texto original sempre preservado como observação.',
+    exclusionRules:
+      'lossReason vazio vira "Não informado", nunca "Outro" (ausência de dado ≠ dado não classificável).',
+  },
+  {
+    key: 'leading_indicators',
+    name: 'Leading Indicators',
+    description: 'Indicadores semanais de atividade comercial que antecedem receita.',
+    formula:
+      'Reuniões concluídas (Activity), oportunidades qualificadas (conversão Lead→Negócio), pipeline criado, avanços de etapa, propostas enviadas e ganhos — todos por semana.',
+    source: 'Activity + TimelineEvent + Lead + LeadStageHistory',
+    period: 'Semanal, com média móvel de 4 semanas',
+    inclusionRules:
+      '"Avanços" e "propostas" dependem de LeadStageHistory — podem estar subestimados nas primeiras semanas após o lançamento do módulo.',
+    exclusionRules: '—',
+  },
+  {
+    key: 'qualidade_crm',
+    name: 'Qualidade do CRM',
+    description: 'Completude dos campos-chave dos negócios abertos.',
+    formula:
+      '% de negócios abertos com cada campo-chave preenchido (responsável, valor, empresa, contato, etapa, data prevista, próxima ação, última atividade, origem).',
+    source: 'Lead',
+    period: 'Instantâneo',
+    inclusionRules:
+      'Duplicidade suspeita: negócios abertos com a mesma empresa aparecendo mais de uma vez simultaneamente (heurística, não determinística de identidade).',
+    exclusionRules: 'Sem negócios abertos, retorna "Não disponível".',
+  },
+  {
+    key: 'confiabilidade_dados',
+    name: 'Confiabilidade dos Dados',
+    description:
+      'Completude dos campos que alimentam o Forecast, ponderada pelo impacto real de cada campo (não uma média simples de preenchimento).',
+    formula: `Média ponderada de completude por campo: ${DATA_READINESS_OPEN_FIELD_WEIGHTS.map((w) => `${w.label} (peso ${w.weight}, impacto ${w.forecastImpact})`).join(', ')}, avaliados sobre negócios abertos; e ${DATA_READINESS_LOSS_FIELD_WEIGHT.label} (peso ${DATA_READINESS_LOSS_FIELD_WEIGHT.weight}), avaliado sobre negócios perdidos.`,
+    source: 'application/dataReadiness.ts',
+    period: 'Instantâneo',
+    inclusionRules:
+      'Classificação por campo e geral: saudável ≥80%, atenção 50–79%, crítico <50% (mesmos limiares já usados na Qualidade do CRM).',
+    exclusionRules:
+      'Campo com população vazia (nenhum negócio aberto, ou nenhum negócio perdido para "Motivo da perda") fica fora da média ponderada — nunca conta como 0% nem 100%.',
+  },
+  {
+    key: 'forecast_confidence',
+    name: 'Forecast Confidence',
+    description:
+      'Quão confiável é o número de Forecast, derivado de sinais mensuráveis — nunca uma probabilidade inventada.',
+    formula:
+      'Completude ponderada dos campos que o Forecast Ponderado Explicável usa como sinal (valor, responsável, data prevista, próxima ação, última interação) × 70% + cobertura de histórico de etapa entre os negócios abertos × 30%. Amostra com menos de 5 negócios abertos tem o score reduzido proporcionalmente (amostra/5).',
+    source:
+      'application/dataReadiness.ts (CommercialIntelligenceUseCases.computeForecastConfidence)',
+    period: 'Instantâneo',
+    inclusionRules:
+      'Calculado sobre todos os negócios abertos no escopo do filtro (owner/produto/origem/ICP).',
+    exclusionRules:
+      'Sem nenhum negócio aberto no escopo, retorna "Não disponível" — nunca 0 fabricado.',
+  },
+  {
+    key: 'coverage_protecao_90_dias',
+    name: 'Proteção 90 dias (Coverage M / M+1 / M+2 / M+3)',
+    description:
+      'Coverage em meses de calendário reais (mês do filtro + 3 meses seguintes), distinto das janelas móveis de 30/60/90 dias corridos.',
+    formula:
+      'Pipeline Elegível com data prevista de fechamento dentro do mês de calendário / Meta restante daquele mês (meta cheia para meses futuros; meta − já fechado para o mês corrente).',
+    source: 'Derivado (CommercialIntelligenceUseCases.executiveOverview)',
+    period: 'Mês do filtro + M+1 + M+2 + M+3',
+    inclusionRules: `Classificação: com Win Rate histórico calculável, usa o Coverage recomendado (1 / Win Rate) — saudável ≥ recomendado, atenção ≥ 60% do recomendado, crítico abaixo disso. Sem Win Rate ainda, cai no limiar-padrão documentado (saudável ≥ ${COVERAGE_PROTECTION_FALLBACK_HEALTHY}x, atenção ≥ ${COVERAGE_PROTECTION_FALLBACK_WARNING}x, crítico abaixo).`,
+    exclusionRules:
+      'Sem meta cadastrada para o mês (comum em M+2/M+3), status fica "sem_dados" — nunca crítico/saudável fabricado.',
+  },
+  {
+    key: 'pipeline_creation_pace',
+    name: 'Pipeline Creation Pace (ritmo)',
+    description:
+      'Responde "estamos criando pipeline rápido o suficiente para sustentar as próximas metas?" comparando o que já foi criado com o que deveria ter sido criado até hoje.',
+    formula:
+      'Ritmo esperado = Pipeline Necessário × (dias úteis decorridos no mês / dias úteis totais do mês). Ritmo % = Pipeline Criado / Ritmo esperado × 100.',
+    source: 'Derivado (CommercialIntelligenceUseCases.pipelineCreation)',
+    period: 'Mensal, considerando dias úteis (segunda a sexta) em vez de dias corridos',
+    inclusionRules:
+      'Depende de Pipeline Necessário (por sua vez depende de Win Rate histórico calculável) — sem essa base, retorna "Não disponível".',
+    exclusionRules:
+      'Mês do filtro no futuro (ainda não começou): dias úteis decorridos = 0. Mês já encerrado: dias úteis decorridos = total do mês.',
+  },
+  {
+    key: 'funil_conversao_historica',
+    name: 'Conversão de Funil (histórico real)',
+    description:
+      'Quantos negócios realmente chegaram a cada etapa em algum momento, segundo o histórico de movimentação — não o snapshot de onde estão agora.',
+    formula:
+      'Para negócios abertos, a etapa atual sempre conta como alcançada. Para negócios ganhos/perdidos, só conta o que LeadStageHistory realmente registra — a etapa terminal (Ganho/Perdido) nunca é usada como proxy de até onde a oportunidade avançou.',
+    source: 'LeadStageHistory (CommercialIntelligenceUseCases.computeHistoricalStageReach)',
+    period:
+      'Todo o histórico disponível no escopo do filtro (owner/produto/origem/ICP), não só o mês selecionado',
+    inclusionRules:
+      'Um negócio perdido/ganho sem NENHUMA linha de LeadStageHistory não é contado em nenhuma etapa (nunca um progresso fabricado a partir do status final).',
+    exclusionRules:
+      'Assume que a ordem de etapas (sortOrder) reflete a ordem real do funil — pipelines que permitem pular etapas livremente podem subestimar o drop-off de uma etapa intermediária específica.',
+  },
+  {
+    key: 'tendencias_6_meses',
+    name: 'Tendências — 6 meses',
+    description:
+      'Win Rate, Sales Cycle, Ticket Médio (ganho) e Pipeline Criado dos últimos 6 meses (mês do filtro + 5 anteriores), para leitura de tendência além da comparação com o mês anterior.',
+    formula: 'Mesmos cálculos de performance()/pipelineCreation() aplicados a cada um dos 6 meses.',
+    source: 'Derivado (CommercialIntelligenceUseCases.historicalTrends)',
+    period: 'Mês do filtro + 5 meses anteriores',
+    inclusionRules: '—',
+    exclusionRules:
+      'Cada mês sem amostra suficiente (nenhum negócio fechado, por exemplo) retorna "Não disponível" nos campos daquele mês — nunca interpolado nem estimado a partir de outros meses.',
+  },
+  {
+    key: 'bitrix_sincronizacao',
+    name: 'Confiabilidade da Sincronização Bitrix24',
+    description:
+      'Cobertura de vínculo (quantos negócios abertos têm Lead.bitrixLeadId/bitrixDealId), última sincronização bem-sucedida e volume de sucesso/falha recente.',
+    formula:
+      'Cobertura = negócios abertos vinculados / negócios abertos totais. Última sincronização = mais recente BitrixConnection.lastImportedAt entre as conexões da organização. Sincronizados/Falhas = contagem de BitrixSyncLog com status success/failed nos últimos 30 dias.',
+    source: 'BitrixConnection + BitrixSyncLog',
+    period:
+      'Cobertura: instantâneo. Sincronizados/Falhas: janela fixa de 30 dias (atividade operacional, não segue o filtro de mês comercial)',
+    inclusionRules:
+      'Sem nenhuma conexão Bitrix24 ativa, todos os campos de atividade retornam 0/null explicitamente — não é o mesmo que "0 falhas, tudo certo".',
+    exclusionRules: '—',
+  },
+  {
+    key: 'comparacao_mes_anterior',
+    name: 'Comparação com o mês anterior',
+    description:
+      'Fechado, quantidade de negócios ganhos e Win Rate do mês imediatamente anterior ao filtro, para leitura de tendência.',
+    formula: 'Mesmos cálculos de Fechado/Win Rate aplicados ao mês anterior (mês do filtro − 1).',
+    source: 'Derivado (CommercialIntelligenceUseCases.executiveOverview)',
+    period: 'Mês anterior ao filtro selecionado',
+    inclusionRules:
+      'Só populado quando o mês anterior tem ao menos um negócio fechado (ganho ou perdido) no escopo do filtro.',
+    exclusionRules:
+      'Sem amostra suficiente no mês anterior, retorna "Não disponível" — nunca compara contra um período vazio.',
+  },
+  {
+    key: 'forecast_snapshot',
+    name: 'Snapshot do Forecast (backtest)',
+    description:
+      'Registro append-only do que o Forecast previa para um período em um instante específico — base para medir o erro real do motor depois que o período fecha.',
+    formula: `Copia Commit/Best Case/Forecast de ExecutiveOverview no momento do snapshot, junto da versão das regras do motor (rulesVersion = "${FORECAST_RULES_VERSION}").`,
+    source:
+      'application/forecastSnapshot.ts, persistido via infra/PrismaForecastSnapshotStore.ts (model ForecastSnapshot, migration 20260827020000). Ainda falta o disparo periódico real (cron/worker) que chama ForecastSnapshotStore.save — hoje só é exercitado por teste/uso manual.',
+    period: 'Instantâneo, um registro por (organização, período previsto, momento do snapshot)',
+    inclusionRules:
+      'Nunca sobrescrito — cada snapshot é um registro novo, mesmo para o mesmo período (permite comparar como a previsão evoluiu até o fechamento).',
+    exclusionRules: '—',
+  },
+  {
+    key: 'forecast_erro_historico',
+    name: 'Erro Histórico do Forecast',
+    description:
+      'Compara o Forecast previsto por um snapshot antigo com o valor realmente fechado, depois que o período de referência já encerrou — "o motor costuma acertar quanto?".',
+    formula:
+      'Erro = Forecast previsto (snapshot) − Fechado realizado. Erro % = |Erro| / Fechado realizado × 100. Erro Percentual Absoluto Médio = média do Erro % entre os períodos já fechados com snapshot disponível.',
+    source: 'application/forecastAccuracy.ts',
+    period: 'Só períodos (meses) já encerrados',
+    inclusionRules:
+      'Precisa das 3 condições: período já fechado, snapshot existente daquele período, e valor realizado conhecido.',
+    exclusionRules:
+      'Faltando qualquer uma das 3 condições, retorna explicitamente "sem histórico suficiente" — nunca um erro fabricado. Logo após esta implementação, é o resultado esperado até existir snapshot antigo o bastante para ter fechado.',
+  },
+  {
+    key: 'health_score',
+    name: 'Health Score composto',
+    description:
+      'Agrega, em 6 pilares nomeados (Pipeline, Conversão, Produtividade, Qualidade do CRM, Follow-up, Confiabilidade de Forecast), métricas que já existem em outros relatórios — nunca um cálculo paralelo/duplicado.',
+    formula: `Pipeline = Coverage do mês / Coverage recomendado (ou ${COVERAGE_PROTECTION_FALLBACK_HEALTHY}x sem Win Rate ainda). Conversão = Win Rate do período. Produtividade = média da razão (semana atual / média móvel 4 semanas) dos Leading Indicators. Qualidade do CRM = Confiabilidade dos Dados (dataReadiness.overallScore). Follow-up = % do pipeline aberto fora do aging crítico (${STAGE_AGING_CRITICAL_DAYS} dias). Confiabilidade de Forecast = 100 − Erro Percentual Absoluto Médio (forecast_erro_historico). Score geral = média simples dos pilares com dado disponível.`,
+    source: 'application/healthScore.ts',
+    period: 'Mesmo período do filtro do Cockpit (mensal)',
+    inclusionRules: `Limiares por pilar documentados em HEALTH_SCORE_RULES (ex.: Conversão saudável ≥${HEALTH_SCORE_RULES.WIN_RATE_HEALTHY_PCT}%, atenção ≥${HEALTH_SCORE_RULES.WIN_RATE_WARNING_PCT}%).`,
+    exclusionRules:
+      'Pilar sem dado suficiente retorna "Não disponível" individualmente (nunca um score fabricado) e fica fora da média do Score geral — o Score geral só fica "Não disponível" se NENHUM pilar tiver dado.',
+  },
 ];

@@ -12,9 +12,9 @@ type LogFields = Record<string, unknown>;
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface RecentLogEntry {
-    level: LogLevel;
-    message: string;
-    timestamp: string;
+  level: LogLevel;
+  message: string;
+  timestamp: string;
 }
 
 // Ring buffer in-memory das últimas entradas warn/error — única razão de existir é alimentar o
@@ -27,39 +27,48 @@ const RECENT_LOG_CAPACITY = 30;
 const recentLogs: RecentLogEntry[] = [];
 
 function remember(level: LogLevel, msg: string): void {
-    if (level !== 'warn' && level !== 'error') return;
-    recentLogs.push({ level, message: msg, timestamp: new Date().toISOString() });
-    if (recentLogs.length > RECENT_LOG_CAPACITY) {
-        recentLogs.shift();
-    }
+  if (level !== 'warn' && level !== 'error') return;
+  recentLogs.push({ level, message: msg, timestamp: new Date().toISOString() });
+  if (recentLogs.length > RECENT_LOG_CAPACITY) {
+    recentLogs.shift();
+  }
 }
 
 /** Cópia rasa das últimas entradas warn/error registradas nesta aba — consumida por
  *  bugReport.api.ts ao montar o contexto do relato. Nunca modifique o array retornado. */
 export function getRecentLogs(): RecentLogEntry[] {
-    return [...recentLogs];
+  return [...recentLogs];
 }
 
 function format(fieldsOrMessage: LogFields | string, message?: string): [string, LogFields?] {
-    if (typeof fieldsOrMessage === 'string') {
-        return [fieldsOrMessage];
-    }
-    return [message ?? '', fieldsOrMessage];
+  if (typeof fieldsOrMessage === 'string') {
+    return [fieldsOrMessage];
+  }
+  return [message ?? '', fieldsOrMessage];
 }
 
-function log(level: LogLevel, consoleMethod: (...args: unknown[]) => void, fieldsOrMessage: LogFields | string, message?: string): void {
-    const [msg, fields] = format(fieldsOrMessage, message);
-    remember(level, msg);
-    if (fields && Object.keys(fields).length > 0) {
-        consoleMethod(msg, fields);
-    } else {
-        consoleMethod(msg);
-    }
+function log(
+  level: LogLevel,
+  consoleMethod: (...args: unknown[]) => void,
+  fieldsOrMessage: LogFields | string,
+  message?: string,
+): void {
+  const [msg, fields] = format(fieldsOrMessage, message);
+  remember(level, msg);
+  if (fields && Object.keys(fields).length > 0) {
+    consoleMethod(msg, fields);
+  } else {
+    consoleMethod(msg);
+  }
 }
 
 export const clientLogger = {
-    debug: (fieldsOrMessage: LogFields | string, message?: string) => log('debug', console.debug, fieldsOrMessage, message),
-    info: (fieldsOrMessage: LogFields | string, message?: string) => log('info', console.info, fieldsOrMessage, message),
-    warn: (fieldsOrMessage: LogFields | string, message?: string) => log('warn', console.warn, fieldsOrMessage, message),
-    error: (fieldsOrMessage: LogFields | string, message?: string) => log('error', console.error, fieldsOrMessage, message),
+  debug: (fieldsOrMessage: LogFields | string, message?: string) =>
+    log('debug', console.debug, fieldsOrMessage, message),
+  info: (fieldsOrMessage: LogFields | string, message?: string) =>
+    log('info', console.info, fieldsOrMessage, message),
+  warn: (fieldsOrMessage: LogFields | string, message?: string) =>
+    log('warn', console.warn, fieldsOrMessage, message),
+  error: (fieldsOrMessage: LogFields | string, message?: string) =>
+    log('error', console.error, fieldsOrMessage, message),
 };

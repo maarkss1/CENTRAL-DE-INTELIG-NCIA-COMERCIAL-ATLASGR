@@ -42,71 +42,89 @@ import { QualificationMatrixController } from '../../features/playbook/qualifica
 import { ObjectionMatrixController } from '../../features/playbook/objection-matrix/presentation/ObjectionMatrixController';
 
 export function setupDI() {
-    // 1. Shared
-    const eventBus = new InMemoryEventBus();
-    container.register('EventBus', eventBus);
+  // 1. Shared
+  const eventBus = new InMemoryEventBus();
+  container.register('EventBus', eventBus);
 
-    // 2. Repositories
-    const noteRepository = new PrismaNoteRepository();
-    const activityRepository = new PrismaActivityRepository();
-    const contactRepository = new PrismaContactRepository();
-    const companyRepository = new PrismaCompanyRepository();
-    const leadRepository = new PrismaLeadRepository();
-    const automationRepository = new PrismaAutomationRepository();
-    const analyticsRepository = new PrismaAnalyticsRepository();
-    const commercialIntelligenceRepository = new PrismaCommercialIntelligenceRepository();
-    const crm360Repository = new PrismaCrm360Repository();
-    const qualificationMatrixRepository = new PrismaQualificationMatrixRepository();
-    const objectionMatrixRepository = new PrismaObjectionMatrixRepository();
+  // 2. Repositories
+  const noteRepository = new PrismaNoteRepository();
+  const activityRepository = new PrismaActivityRepository();
+  const contactRepository = new PrismaContactRepository();
+  const companyRepository = new PrismaCompanyRepository();
+  const leadRepository = new PrismaLeadRepository();
+  const automationRepository = new PrismaAutomationRepository();
+  const analyticsRepository = new PrismaAnalyticsRepository();
+  const commercialIntelligenceRepository = new PrismaCommercialIntelligenceRepository();
+  const crm360Repository = new PrismaCrm360Repository();
+  const qualificationMatrixRepository = new PrismaQualificationMatrixRepository();
+  const objectionMatrixRepository = new PrismaObjectionMatrixRepository();
 
-    container.register('NoteRepository', noteRepository);
-    container.register('ActivityRepository', activityRepository);
-    container.register('ContactRepository', contactRepository);
-    container.register('CompanyRepository', companyRepository);
-    container.register('LeadRepository', leadRepository);
-    container.register('AutomationRepository', automationRepository);
-    container.register('AnalyticsRepository', analyticsRepository);
-    container.register('CommercialIntelligenceRepository', commercialIntelligenceRepository);
-    container.register('Crm360Repository', crm360Repository);
-    container.register('QualificationMatrixRepository', qualificationMatrixRepository);
-    container.register('ObjectionMatrixRepository', objectionMatrixRepository);
+  container.register('NoteRepository', noteRepository);
+  container.register('ActivityRepository', activityRepository);
+  container.register('ContactRepository', contactRepository);
+  container.register('CompanyRepository', companyRepository);
+  container.register('LeadRepository', leadRepository);
+  container.register('AutomationRepository', automationRepository);
+  container.register('AnalyticsRepository', analyticsRepository);
+  container.register('CommercialIntelligenceRepository', commercialIntelligenceRepository);
+  container.register('Crm360Repository', crm360Repository);
+  container.register('QualificationMatrixRepository', qualificationMatrixRepository);
+  container.register('ObjectionMatrixRepository', objectionMatrixRepository);
 
-    // 3. Use Cases
-    const noteUseCases = new NoteUseCases(noteRepository);
-    const activityUseCases = new ActivityUseCases(activityRepository);
-    const contactUseCases = new ContactUseCases(contactRepository);
-    const companyUseCases = new CompanyUseCases(companyRepository);
-    const leadUseCases = new LeadUseCases(leadRepository);
-    const automationUseCases = new AutomationUseCases(automationRepository);
-    const analyticsUseCases = new AnalyticsUseCases(analyticsRepository);
-    const commercialIntelligenceUseCases = new CommercialIntelligenceUseCases(commercialIntelligenceRepository);
-    const commercialIntelligenceAiService = new CommercialIntelligenceAiService(commercialIntelligenceUseCases);
-    const crm360UseCases = new Crm360UseCases(crm360Repository);
-    const qualificationMatrixUseCases = new QualificationMatrixUseCases(qualificationMatrixRepository);
-    const objectionMatrixUseCases = new ObjectionMatrixUseCases(objectionMatrixRepository);
+  // 3. Use Cases
+  const noteUseCases = new NoteUseCases(noteRepository);
+  const activityUseCases = new ActivityUseCases(activityRepository);
+  const contactUseCases = new ContactUseCases(contactRepository);
+  const companyUseCases = new CompanyUseCases(companyRepository);
+  const leadUseCases = new LeadUseCases(leadRepository);
+  const automationUseCases = new AutomationUseCases(automationRepository);
+  const analyticsUseCases = new AnalyticsUseCases(analyticsRepository);
+  const commercialIntelligenceUseCases = new CommercialIntelligenceUseCases(
+    commercialIntelligenceRepository,
+  );
+  const commercialIntelligenceAiService = new CommercialIntelligenceAiService(
+    commercialIntelligenceUseCases,
+  );
+  const crm360UseCases = new Crm360UseCases(crm360Repository);
+  const qualificationMatrixUseCases = new QualificationMatrixUseCases(
+    qualificationMatrixRepository,
+  );
+  const objectionMatrixUseCases = new ObjectionMatrixUseCases(objectionMatrixRepository);
 
-    container.register('NoteUseCases', noteUseCases);
-    container.register('ActivityUseCases', activityUseCases);
-    container.register('ContactUseCases', contactUseCases);
-    container.register('CompanyUseCases', companyUseCases);
-    container.register('LeadUseCases', leadUseCases);
-    container.register('AutomationUseCases', automationUseCases);
-    container.register('AnalyticsUseCases', analyticsUseCases);
-    container.register('CommercialIntelligenceUseCases', commercialIntelligenceUseCases);
-    container.register('Crm360UseCases', crm360UseCases);
-    container.register('QualificationMatrixUseCases', qualificationMatrixUseCases);
-    container.register('ObjectionMatrixUseCases', objectionMatrixUseCases);
+  container.register('NoteUseCases', noteUseCases);
+  container.register('ActivityUseCases', activityUseCases);
+  container.register('ContactUseCases', contactUseCases);
+  container.register('CompanyUseCases', companyUseCases);
+  container.register('LeadUseCases', leadUseCases);
+  container.register('AutomationUseCases', automationUseCases);
+  container.register('AnalyticsUseCases', analyticsUseCases);
+  container.register('CommercialIntelligenceUseCases', commercialIntelligenceUseCases);
+  container.register('Crm360UseCases', crm360UseCases);
+  container.register('QualificationMatrixUseCases', qualificationMatrixUseCases);
+  container.register('ObjectionMatrixUseCases', objectionMatrixUseCases);
 
-    // 4. Controllers
-    container.register('NoteController', new NoteController(noteUseCases));
-    container.register('ActivityController', new ActivityController(activityUseCases));
-    container.register('ContactController', new ContactController(contactUseCases));
-    container.register('CompanyController', new CompanyController(companyUseCases));
-    container.register('LeadController', new LeadController(leadUseCases));
-    container.register('AutomationController', new AutomationController(automationUseCases));
-    container.register('AnalyticsController', new AnalyticsController(analyticsUseCases));
-    container.register('CommercialIntelligenceController', new CommercialIntelligenceController(commercialIntelligenceUseCases, commercialIntelligenceAiService));
-    container.register('Crm360Controller', new Crm360Controller(crm360UseCases));
-    container.register('QualificationMatrixController', new QualificationMatrixController(qualificationMatrixUseCases));
-    container.register('ObjectionMatrixController', new ObjectionMatrixController(objectionMatrixUseCases));
+  // 4. Controllers
+  container.register('NoteController', new NoteController(noteUseCases));
+  container.register('ActivityController', new ActivityController(activityUseCases));
+  container.register('ContactController', new ContactController(contactUseCases));
+  container.register('CompanyController', new CompanyController(companyUseCases));
+  container.register('LeadController', new LeadController(leadUseCases));
+  container.register('AutomationController', new AutomationController(automationUseCases));
+  container.register('AnalyticsController', new AnalyticsController(analyticsUseCases));
+  container.register(
+    'CommercialIntelligenceController',
+    new CommercialIntelligenceController(
+      commercialIntelligenceUseCases,
+      commercialIntelligenceAiService,
+    ),
+  );
+  container.register('Crm360Controller', new Crm360Controller(crm360UseCases));
+  container.register(
+    'QualificationMatrixController',
+    new QualificationMatrixController(qualificationMatrixUseCases),
+  );
+  container.register(
+    'ObjectionMatrixController',
+    new ObjectionMatrixController(objectionMatrixUseCases),
+  );
 }

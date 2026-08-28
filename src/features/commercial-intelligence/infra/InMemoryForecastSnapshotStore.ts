@@ -13,26 +13,29 @@
  * NÃO usar em produção — os dados somem a cada reinício do processo; use
  * `PrismaForecastSnapshotStore` fora de teste.
  */
-import type { ForecastSnapshotRecord, ForecastSnapshotStore } from '../domain/CommercialIntelligence';
+import type {
+  ForecastSnapshotRecord,
+  ForecastSnapshotStore,
+} from '../domain/CommercialIntelligence';
 
 export class InMemoryForecastSnapshotStore implements ForecastSnapshotStore {
-    private records: ForecastSnapshotRecord[] = [];
+  private records: ForecastSnapshotRecord[] = [];
 
-    async save(record: ForecastSnapshotRecord): Promise<void> {
-        // Append-only — nunca sobrescreve/atualiza um snapshot existente, mesmo mesmo id (não deveria
-        // colidir: `randomUUID()` por chamada em `buildForecastSnapshot`).
-        this.records.push(record);
-    }
+  async save(record: ForecastSnapshotRecord): Promise<void> {
+    // Append-only — nunca sobrescreve/atualiza um snapshot existente, mesmo mesmo id (não deveria
+    // colidir: `randomUUID()` por chamada em `buildForecastSnapshot`).
+    this.records.push(record);
+  }
 
-    async findByPeriod(organizationId: string, period: string): Promise<ForecastSnapshotRecord[]> {
-        return this.records
-            .filter((r) => r.organizationId === organizationId && r.period === period)
-            .sort((a, b) => a.snapshotAt.localeCompare(b.snapshotAt));
-    }
+  async findByPeriod(organizationId: string, period: string): Promise<ForecastSnapshotRecord[]> {
+    return this.records
+      .filter((r) => r.organizationId === organizationId && r.period === period)
+      .sort((a, b) => a.snapshotAt.localeCompare(b.snapshotAt));
+  }
 
-    async findAll(organizationId: string): Promise<ForecastSnapshotRecord[]> {
-        return this.records
-            .filter((r) => r.organizationId === organizationId)
-            .sort((a, b) => a.snapshotAt.localeCompare(b.snapshotAt));
-    }
+  async findAll(organizationId: string): Promise<ForecastSnapshotRecord[]> {
+    return this.records
+      .filter((r) => r.organizationId === organizationId)
+      .sort((a, b) => a.snapshotAt.localeCompare(b.snapshotAt));
+  }
 }

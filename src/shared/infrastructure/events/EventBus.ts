@@ -9,10 +9,7 @@ export type EventHandler<TEvent extends IDomainEvent = IDomainEvent> = (
   event: TEvent,
 ) => Promise<void> | void;
 
-export type EventBusMiddleware = (
-  event: IDomainEvent,
-  next: () => Promise<void>,
-) => Promise<void>;
+export type EventBusMiddleware = (event: IDomainEvent, next: () => Promise<void>) => Promise<void>;
 
 /**
  * Contract for a decoupled Event Bus.

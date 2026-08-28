@@ -9,45 +9,70 @@
  */
 
 export const LOSS_REASON_TAXONOMY = [
-    'Preço',
-    'Concorrência',
-    'Sem orçamento',
-    'Timing',
-    'Prioridade adiada',
-    'Sem fit',
-    'Sem resposta',
-    'Projeto cancelado',
-    'Decisão interna',
-    'Produto',
-    'Prazo',
-    'Condição comercial',
-    'Implantação',
-    'Outro',
+  'Preço',
+  'Concorrência',
+  'Sem orçamento',
+  'Timing',
+  'Prioridade adiada',
+  'Sem fit',
+  'Sem resposta',
+  'Projeto cancelado',
+  'Decisão interna',
+  'Produto',
+  'Prazo',
+  'Condição comercial',
+  'Implantação',
+  'Outro',
 ] as const;
 
 export type LossReasonBucket = (typeof LOSS_REASON_TAXONOMY)[number] | 'Não informado';
 
-const KEYWORD_RULES: Array<{ bucket: (typeof LOSS_REASON_TAXONOMY)[number]; keywords: string[] }> = [
+const KEYWORD_RULES: Array<{ bucket: (typeof LOSS_REASON_TAXONOMY)[number]; keywords: string[] }> =
+  [
     { bucket: 'Preço', keywords: ['preco', 'preço', 'caro', 'valor alto', 'custo'] },
-    { bucket: 'Concorrência', keywords: ['concorrente', 'concorrencia', 'concorrência', 'outro fornecedor'] },
-    { bucket: 'Sem orçamento', keywords: ['sem orcamento', 'sem orçamento', 'orcamento', 'orçamento', 'budget'] },
-    { bucket: 'Timing', keywords: ['timing', 'nao e o momento', 'não é o momento', 'momento errado'] },
+    {
+      bucket: 'Concorrência',
+      keywords: ['concorrente', 'concorrencia', 'concorrência', 'outro fornecedor'],
+    },
+    {
+      bucket: 'Sem orçamento',
+      keywords: ['sem orcamento', 'sem orçamento', 'orcamento', 'orçamento', 'budget'],
+    },
+    {
+      bucket: 'Timing',
+      keywords: ['timing', 'nao e o momento', 'não é o momento', 'momento errado'],
+    },
     { bucket: 'Prioridade adiada', keywords: ['adiado', 'adiada', 'postergado', 'prioridade'] },
-    { bucket: 'Sem fit', keywords: ['sem fit', 'nao se encaixa', 'não se encaixa', 'fora do perfil'] },
-    { bucket: 'Sem resposta', keywords: ['sem resposta', 'nao respondeu', 'não respondeu', 'sumiu', 'silencio'] },
-    { bucket: 'Projeto cancelado', keywords: ['projeto cancelado', 'cancelou o projeto', 'projeto interrompido'] },
-    { bucket: 'Decisão interna', keywords: ['decisao interna', 'decisão interna', 'politica interna', 'reestruturacao'] },
+    {
+      bucket: 'Sem fit',
+      keywords: ['sem fit', 'nao se encaixa', 'não se encaixa', 'fora do perfil'],
+    },
+    {
+      bucket: 'Sem resposta',
+      keywords: ['sem resposta', 'nao respondeu', 'não respondeu', 'sumiu', 'silencio'],
+    },
+    {
+      bucket: 'Projeto cancelado',
+      keywords: ['projeto cancelado', 'cancelou o projeto', 'projeto interrompido'],
+    },
+    {
+      bucket: 'Decisão interna',
+      keywords: ['decisao interna', 'decisão interna', 'politica interna', 'reestruturacao'],
+    },
     { bucket: 'Produto', keywords: ['produto', 'funcionalidade', 'recurso'] },
     { bucket: 'Prazo', keywords: ['prazo', 'urgencia', 'urgência', 'tempo de implantacao'] },
-    { bucket: 'Condição comercial', keywords: ['condicao comercial', 'condição comercial', 'contrato', 'termos'] },
+    {
+      bucket: 'Condição comercial',
+      keywords: ['condicao comercial', 'condição comercial', 'contrato', 'termos'],
+    },
     { bucket: 'Implantação', keywords: ['implantacao', 'implantação', 'onboarding', 'integracao'] },
-];
+  ];
 
 function normalize(raw: string): string {
-    return raw
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
+  return raw
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 /**
@@ -58,12 +83,12 @@ function normalize(raw: string): string {
  *   automaticamente).
  */
 export function classifyLossReason(raw: string | null | undefined): LossReasonBucket {
-    if (!raw || !raw.trim()) return 'Não informado';
-    const normalized = normalize(raw);
-    for (const rule of KEYWORD_RULES) {
-        if (rule.keywords.some((keyword) => normalized.includes(normalize(keyword)))) {
-            return rule.bucket;
-        }
+  if (!raw || !raw.trim()) return 'Não informado';
+  const normalized = normalize(raw);
+  for (const rule of KEYWORD_RULES) {
+    if (rule.keywords.some((keyword) => normalized.includes(normalize(keyword)))) {
+      return rule.bucket;
     }
-    return 'Outro';
+  }
+  return 'Outro';
 }

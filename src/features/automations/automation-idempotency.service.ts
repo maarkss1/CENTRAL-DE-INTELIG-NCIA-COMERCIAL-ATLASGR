@@ -46,25 +46,28 @@ export const TRIGGER_IDEMPOTENCY_TTL_SECONDS = 30 * 60;
 export type TriggerClaimResult = 'claimed' | 'duplicate' | 'unavailable';
 
 function stableStringify(value: unknown): string {
-    if (value === undefined) return 'null';
-    if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-    if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-    const object = value as Record<string, unknown>;
-    return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(object[key])}`).join(',')}}`;
+  if (value === undefined) return 'null';
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const object = value as Record<string, unknown>;
+  return `{${Object.keys(object)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(object[key])}`)
+    .join(',')}}`;
 }
 
 export interface TriggerIdentity {
-    automationId: string;
-    organizationId: string;
-    entity: string;
-    entityId: string;
-    trigger: string;
-    data: Record<string, unknown>;
+  automationId: string;
+  organizationId: string;
+  entity: string;
+  entityId: string;
+  trigger: string;
+  data: Record<string, unknown>;
 }
 
 /** Hash determinístico da identidade do disparo — ver justificativa acima. */
 export function buildTriggerIdempotencyKey(identity: TriggerIdentity): string {
-    return createHash('sha256').update(stableStringify(identity)).digest('hex');
+  return createHash('sha256').update(stableStringify(identity)).digest('hex');
 }
 
 /**
@@ -74,15 +77,18 @@ export function buildTriggerIdempotencyKey(identity: TriggerIdentity): string {
  * - `unavailable`: Redis indisponível/não configurado — segue executando (fail-open, ver acima).
  */
 export async function claimAutomationTrigger(
-    key: string,
-    ttlSeconds: number = TRIGGER_IDEMPOTENCY_TTL_SECONDS,
+  key: string,
+  ttlSeconds: number = TRIGGER_IDEMPOTENCY_TTL_SECONDS,
 ): Promise<TriggerClaimResult> {
-    if (!redisConfigured) return 'unavailable';
-    try {
-        const result = await cacheConnection.set(`${KEY_PREFIX}${key}`, '1', 'EX', ttlSeconds, 'NX');
-        return result === 'OK' ? 'claimed' : 'duplicate';
-    } catch (err) {
-        logger.warn({ err, key }, 'Redis indisponível para dedupe de disparo de automação; executando sem proteção de idempotência.');
-        return 'unavailable';
-    }
+  if (!redisConfigured) return 'unavailable';
+  try {
+    const result = await cacheConnection.set(`${KEY_PREFIX}${key}`, '1', 'EX', ttlSeconds, 'NX');
+    return result === 'OK' ? 'claimed' : 'duplicate';
+  } catch (err) {
+    logger.warn(
+      { err, key },
+      'Redis indisponível para dedupe de disparo de automação; executando sem proteção de idempotência.',
+    );
+    return 'unavailable';
+  }
 }

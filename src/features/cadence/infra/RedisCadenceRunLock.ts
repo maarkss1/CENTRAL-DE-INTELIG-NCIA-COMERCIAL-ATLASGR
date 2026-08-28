@@ -13,8 +13,8 @@ import type { CadenceRunLockPort } from '../application/cadenceService.js';
 const LOCK_TTL_SECONDS = 90;
 
 export const redisCadenceRunLock: CadenceRunLockPort = {
-    async acquire(runId: string) {
-        const lock = await acquireDistributedLock(`cadence-run:${runId}`, LOCK_TTL_SECONDS);
-        return { acquired: lock.acquired, release: lock.release };
-    },
+  async acquire(runId: string) {
+    const lock = await acquireDistributedLock(`cadence-run:${runId}`, LOCK_TTL_SECONDS);
+    return { acquired: lock.acquired, release: lock.release };
+  },
 };

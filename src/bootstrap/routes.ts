@@ -33,7 +33,10 @@ import { notificationRoutes } from '../features/notifications/notification.route
 import { automationRoutes } from '../features/automations/routes/automation.routes.js';
 import { usageRoutes } from '../features/billing/usage.routes.js';
 import { cadenceRoutes } from '../features/cadence/cadence.routes.js';
-import { publicBookingRouter, privateBookingRouter } from '../features/calendar/routes/booking.routes.js';
+import {
+  publicBookingRouter,
+  privateBookingRouter,
+} from '../features/calendar/routes/booking.routes.js';
 import { marketIntelligenceRoutes } from '../features/market-intelligence/server/marketIntelligence.routes.js';
 import { accountIntelligenceRoutes } from '../features/market-intelligence/server/accountIntelligence.routes.js';
 import { lgpdRouter } from '../features/lgpd/lgpd.routes.js';
@@ -47,70 +50,86 @@ import { threecxRoutes } from '../features/integrations/threecx/threecx.routes.j
  * BullBoard, e antes do fallback de frontend — mesma posição do server.ts original.
  */
 export function mountFeatureRoutes(app: Express): void {
-    app.use('/api/companies', authenticateToken, requireTenant, companyRoutes);
-    app.use('/api/contacts', authenticateToken, requireTenant, contactRoutes);
-    app.use('/api/leads', authenticateToken, requireTenant, leadRoutes);
-    app.use('/api/crm', authenticateToken, requireTenant, crm360Routes);
-    app.use('/api/playbook/qualification-matrix', authenticateToken, requireTenant, qualificationMatrixRoutes);
-    app.use('/api/playbook/objection-matrix', authenticateToken, requireTenant, objectionMatrixRoutes);
-    app.use('/api/leads/:leadId/notes', authenticateToken, requireTenant, noteRoutes);
-    app.use('/api/activities', authenticateToken, requireTenant, activityRoutes);
-    app.use('/api/mesa-tratamento', authenticateToken, requireTenant, mesaTratamentoRoutes);
-    app.use('/api/prospecting', authenticateToken, requireTenant, prospectingRoutes);
-    app.use('/api/prospecting/tools', authenticateToken, requireTenant, prospectingToolsRoutes);
-    // authenticateToken já rodou pra estas 3 (junto com o aiLimiter, ver SEC-008b em rateLimiters.ts) —
-    // só falta requireTenant aqui, chamar de novo seria uma segunda consulta de sessão redundante.
-    app.use('/api/intelligence', requireTenant, intelligenceRoutes);
-    app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
-    app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
-    app.use('/api/events', authenticateToken, requireTenant, eventsRoutes);
-    // Comercial Inteligente — módulo executivo restrito (ver AGENTS.md/CLAUDE.md e
-    // src/lib/auth/authorization.ts). `requireRole` aqui é defesa em profundidade: o router em
-    // commercialIntelligence.routes.ts já se protege sozinho (router.use(requireRole(...))), mas
-    // o mount explícito garante que NENHUM caminho de acesso a este módulo (direto por URL,
-    // include futuro em outro arquivo, etc.) escapa da checagem de papel no servidor.
-    app.use('/api/commercial-intelligence', authenticateToken, requireTenant, requireRole([...COMMERCIAL_INTELLIGENCE_ROLES]), commercialIntelligenceRoutes);
-    app.use('/api/knowledge', requireTenant, knowledgeRoutes);
-    app.use('/api/lgpd', authenticateToken, requireTenant, lgpdRouter);
-    app.use('/api/feature-flags', authenticateToken, requireTenant, featureFlagsRouter);
-    // authenticateToken + bugReportLimiter já rodaram pra esta rota (ver rateLimiters.ts) — só
-    // falta requireTenant aqui, mesmo padrão de /api/intelligence.
-    app.use('/api/bug-reports', requireTenant, bugReportRouter);
-    app.use('/api/notifications', authenticateToken, requireTenant, notificationRoutes);
+  app.use('/api/companies', authenticateToken, requireTenant, companyRoutes);
+  app.use('/api/contacts', authenticateToken, requireTenant, contactRoutes);
+  app.use('/api/leads', authenticateToken, requireTenant, leadRoutes);
+  app.use('/api/crm', authenticateToken, requireTenant, crm360Routes);
+  app.use(
+    '/api/playbook/qualification-matrix',
+    authenticateToken,
+    requireTenant,
+    qualificationMatrixRoutes,
+  );
+  app.use(
+    '/api/playbook/objection-matrix',
+    authenticateToken,
+    requireTenant,
+    objectionMatrixRoutes,
+  );
+  app.use('/api/leads/:leadId/notes', authenticateToken, requireTenant, noteRoutes);
+  app.use('/api/activities', authenticateToken, requireTenant, activityRoutes);
+  app.use('/api/mesa-tratamento', authenticateToken, requireTenant, mesaTratamentoRoutes);
+  app.use('/api/prospecting', authenticateToken, requireTenant, prospectingRoutes);
+  app.use('/api/prospecting/tools', authenticateToken, requireTenant, prospectingToolsRoutes);
+  // authenticateToken já rodou pra estas 3 (junto com o aiLimiter, ver SEC-008b em rateLimiters.ts) —
+  // só falta requireTenant aqui, chamar de novo seria uma segunda consulta de sessão redundante.
+  app.use('/api/intelligence', requireTenant, intelligenceRoutes);
+  app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
+  app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
+  app.use('/api/events', authenticateToken, requireTenant, eventsRoutes);
+  // Comercial Inteligente — módulo executivo restrito (ver AGENTS.md/CLAUDE.md e
+  // src/lib/auth/authorization.ts). `requireRole` aqui é defesa em profundidade: o router em
+  // commercialIntelligence.routes.ts já se protege sozinho (router.use(requireRole(...))), mas
+  // o mount explícito garante que NENHUM caminho de acesso a este módulo (direto por URL,
+  // include futuro em outro arquivo, etc.) escapa da checagem de papel no servidor.
+  app.use(
+    '/api/commercial-intelligence',
+    authenticateToken,
+    requireTenant,
+    requireRole([...COMMERCIAL_INTELLIGENCE_ROLES]),
+    commercialIntelligenceRoutes,
+  );
+  app.use('/api/knowledge', requireTenant, knowledgeRoutes);
+  app.use('/api/lgpd', authenticateToken, requireTenant, lgpdRouter);
+  app.use('/api/feature-flags', authenticateToken, requireTenant, featureFlagsRouter);
+  // authenticateToken + bugReportLimiter já rodaram pra esta rota (ver rateLimiters.ts) — só
+  // falta requireTenant aqui, mesmo padrão de /api/intelligence.
+  app.use('/api/bug-reports', requireTenant, bugReportRouter);
+  app.use('/api/notifications', authenticateToken, requireTenant, notificationRoutes);
 
-    app.get('/api/notifications/stream', authenticateToken, requireTenant, (req, res) => {
-        const { organizationId } = (req as AuthRequest).user;
-        sseService.addClient(req, res, organizationId);
-    });
+  app.get('/api/notifications/stream', authenticateToken, requireTenant, (req, res) => {
+    const { organizationId } = (req as AuthRequest).user;
+    sseService.addClient(req, res, organizationId);
+  });
 
-    app.use('/api/automations', authenticateToken, requireTenant, automationRoutes);
-    // ADMIN-only: consumo/custo de IA da organização. A Sidebar (src/components/layout/Sidebar.tsx)
-    // já trata este item como admin-only na navegação — este era o lado que faltava (rota
-    // administrativa sem autorização real por cargo, achado da Onda 1/Roadmap v2, Agente 02).
-    app.use('/api/usage', authenticateToken, requireTenant, requireRole(['ADMIN']), usageRoutes);
-    app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
-    app.use('/api/integrations/birth-voice', authenticateToken, requireTenant, birthVoiceRoutes);
-    app.use('/api/integrations/3cx', authenticateToken, requireTenant, threecxRoutes);
-    app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
-    app.use('/api/bitrix', authenticateToken, requireTenant, bitrixRoutes);
-    app.use('/api/team', authenticateToken, requireTenant, teamRoutes);
-    app.use('/api/auth-extra', authenticateToken, requireTenant, authExtraRoutes);
-    app.use('/api/agent', requireTenant, agentRoutes);
-    app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
-    app.use('/api/calendar/booking-links', privateBookingRouter);
-    app.use('/api/calendar/book', publicBookingRouter);
-    app.use('/api/market-intelligence', authenticateToken, requireTenant, marketIntelligenceRoutes);
-    // Rotas de inteligência de conta (/accounts/...) — router separado, com sua própria checagem
-    // de papel (requireRole dentro do próprio router). Ver comentário em marketIntelligence.routes.ts.
-    app.use('/api/market-intelligence', authenticateToken, requireTenant, accountIntelligenceRoutes);
+  app.use('/api/automations', authenticateToken, requireTenant, automationRoutes);
+  // ADMIN-only: consumo/custo de IA da organização. A Sidebar (src/components/layout/Sidebar.tsx)
+  // já trata este item como admin-only na navegação — este era o lado que faltava (rota
+  // administrativa sem autorização real por cargo, achado da Onda 1/Roadmap v2, Agente 02).
+  app.use('/api/usage', authenticateToken, requireTenant, requireRole(['ADMIN']), usageRoutes);
+  app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
+  app.use('/api/integrations/birth-voice', authenticateToken, requireTenant, birthVoiceRoutes);
+  app.use('/api/integrations/3cx', authenticateToken, requireTenant, threecxRoutes);
+  app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
+  app.use('/api/bitrix', authenticateToken, requireTenant, bitrixRoutes);
+  app.use('/api/team', authenticateToken, requireTenant, teamRoutes);
+  app.use('/api/auth-extra', authenticateToken, requireTenant, authExtraRoutes);
+  app.use('/api/agent', requireTenant, agentRoutes);
+  app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
+  app.use('/api/calendar/booking-links', privateBookingRouter);
+  app.use('/api/calendar/book', publicBookingRouter);
+  app.use('/api/market-intelligence', authenticateToken, requireTenant, marketIntelligenceRoutes);
+  // Rotas de inteligência de conta (/accounts/...) — router separado, com sua própria checagem
+  // de papel (requireRole dentro do próprio router). Ver comentário em marketIntelligence.routes.ts.
+  app.use('/api/market-intelligence', authenticateToken, requireTenant, accountIntelligenceRoutes);
 
-    // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
-    // cair no fallback do Vite/SPA (mountFrontend, em frontend.ts): em dev, `vite.middlewares`
-    // reprocessa requisições sem arquivo correspondente e isso re-executa toda a cadeia de
-    // middlewares (incluindo o apiLimiter) repetidamente para a mesma requisição,
-    // estourando o rate limit em segundos com uma única chamada a um endpoint
-    // inexistente (ex.: /api/analytics/overview, que nunca teve rota registrada).
-    app.use('/api', (_req, res) => {
-        res.status(404).json({ success: false, error: 'Not found' });
-    });
+  // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
+  // cair no fallback do Vite/SPA (mountFrontend, em frontend.ts): em dev, `vite.middlewares`
+  // reprocessa requisições sem arquivo correspondente e isso re-executa toda a cadeia de
+  // middlewares (incluindo o apiLimiter) repetidamente para a mesma requisição,
+  // estourando o rate limit em segundos com uma única chamada a um endpoint
+  // inexistente (ex.: /api/analytics/overview, que nunca teve rota registrada).
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ success: false, error: 'Not found' });
+  });
 }

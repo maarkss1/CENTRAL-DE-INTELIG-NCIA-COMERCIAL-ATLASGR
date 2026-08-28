@@ -12,26 +12,26 @@ import { useEffect, useState } from 'react';
  * em falso durante hidratação.
  */
 export function useOnlineStatus(): boolean {
-    const [isOnline, setIsOnline] = useState(
-        () => typeof navigator === 'undefined' || navigator.onLine
-    );
+  const [isOnline, setIsOnline] = useState(
+    () => typeof navigator === 'undefined' || navigator.onLine,
+  );
 
-    useEffect(() => {
-        const handleOnline = () => setIsOnline(true);
-        const handleOffline = () => setIsOnline(false);
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
-        // Reconfere no mount: o listener sozinho não cobre o caso em que a conectividade mudou
-        // entre o render inicial (SSR/primeira pintura) e o efeito montar.
-        setIsOnline(navigator.onLine);
+    // Reconfere no mount: o listener sozinho não cobre o caso em que a conectividade mudou
+    // entre o render inicial (SSR/primeira pintura) e o efeito montar.
+    setIsOnline(navigator.onLine);
 
-        return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-        };
-    }, []);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
-    return isOnline;
+  return isOnline;
 }

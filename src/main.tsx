@@ -1,5 +1,5 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import './styles/globals.css';
@@ -20,7 +20,7 @@ const playClickSound = () => {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (AudioContextClass) audioCtx = new AudioContextClass();
   }
-  
+
   if (!audioCtx) return;
 
   if (audioCtx.state === 'suspended') {
@@ -46,8 +46,12 @@ const playClickSound = () => {
 
 document.addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
-  if (target.closest('button') || target.closest('a') || target.closest('[role="button"]') || target.closest('input[type="submit"]')) {
+  if (
+    target.closest('button') ||
+    target.closest('a') ||
+    target.closest('[role="button"]') ||
+    target.closest('input[type="submit"]')
+  ) {
     playClickSound();
   }
 });
-

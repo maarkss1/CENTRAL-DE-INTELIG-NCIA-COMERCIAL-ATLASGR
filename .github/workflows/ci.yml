@@ -105,6 +105,13 @@ jobs:
       - name: Run Lint
         run: npm run lint:ci
 
+      - name: Run Prettier check
+        # Correção da ANALISE-DIVIDA-TECNICA-ROBUSTA.md original (2026-08-28): Prettier já estava
+        # configurado (.prettierrc) mas sem script format:check nem gate de CI — rodado
+        # `npm run format` uma vez para zerar os 925 arquivos fora do padrão antes de tornar isto
+        # bloqueante, para o gate nascer já limpo em vez de falhar o primeiro PR de qualquer um.
+        run: npm run format:check
+
       - name: Verificar working tree limpa após os gates de verificação
         # Nenhum gate de CI (lint, geração do Prisma Client, etc.) deve alterar
         # arquivos versionados. Autofix é um comando local explícito

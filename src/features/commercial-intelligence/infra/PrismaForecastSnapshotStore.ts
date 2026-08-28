@@ -8,63 +8,66 @@
  * tabela não tem UNIQUE por (organizationId, period) de propósito, para preservar o histórico de
  * revisões quando o snapshot semanal roda mais de uma vez no mesmo período.
  */
-import type { ForecastSnapshotRecord, ForecastSnapshotStore } from '../domain/CommercialIntelligence';
+import type {
+  ForecastSnapshotRecord,
+  ForecastSnapshotStore,
+} from '../domain/CommercialIntelligence';
 import { prisma } from '../../../lib/prisma.js';
 
 function toRecord(row: {
-    id: string;
-    organizationId: string;
-    period: string;
-    snapshotAt: Date;
-    rulesVersion: string;
-    commitAmount: { toString(): string };
-    bestCaseAmount: { toString(): string };
-    forecastAmount: { toString(): string };
-    currency: string;
+  id: string;
+  organizationId: string;
+  period: string;
+  snapshotAt: Date;
+  rulesVersion: string;
+  commitAmount: { toString(): string };
+  bestCaseAmount: { toString(): string };
+  forecastAmount: { toString(): string };
+  currency: string;
 }): ForecastSnapshotRecord {
-    return {
-        id: row.id,
-        organizationId: row.organizationId,
-        period: row.period,
-        snapshotAt: row.snapshotAt.toISOString(),
-        rulesVersion: row.rulesVersion,
-        commitAmount: Number(row.commitAmount),
-        bestCaseAmount: Number(row.bestCaseAmount),
-        forecastAmount: Number(row.forecastAmount),
-        currency: row.currency,
-    };
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    period: row.period,
+    snapshotAt: row.snapshotAt.toISOString(),
+    rulesVersion: row.rulesVersion,
+    commitAmount: Number(row.commitAmount),
+    bestCaseAmount: Number(row.bestCaseAmount),
+    forecastAmount: Number(row.forecastAmount),
+    currency: row.currency,
+  };
 }
 
 export class PrismaForecastSnapshotStore implements ForecastSnapshotStore {
-    async save(record: ForecastSnapshotRecord): Promise<void> {
-        await prisma.forecastSnapshot.create({
-            data: {
-                id: record.id,
-                organizationId: record.organizationId,
-                period: record.period,
-                snapshotAt: new Date(record.snapshotAt),
-                rulesVersion: record.rulesVersion,
-                commitAmount: record.commitAmount,
-                bestCaseAmount: record.bestCaseAmount,
-                forecastAmount: record.forecastAmount,
-                currency: record.currency,
-            },
-        });
-    }
+  async save(record: ForecastSnapshotRecord): Promise<void> {
+    await prisma.forecastSnapshot.create({
+      data: {
+        id: record.id,
+        organizationId: record.organizationId,
+        period: record.period,
+        snapshotAt: new Date(record.snapshotAt),
+        rulesVersion: record.rulesVersion,
+        commitAmount: record.commitAmount,
+        bestCaseAmount: record.bestCaseAmount,
+        forecastAmount: record.forecastAmount,
+        currency: record.currency,
+      },
+    });
+  }
 
-    async findByPeriod(organizationId: string, period: string): Promise<ForecastSnapshotRecord[]> {
-        const rows = await prisma.forecastSnapshot.findMany({
-            where: { organizationId, period },
-            orderBy: { snapshotAt: 'asc' },
-        });
-        return rows.map(toRecord);
-    }
+  async findByPeriod(organizationId: string, period: string): Promise<ForecastSnapshotRecord[]> {
+    const rows = await prisma.forecastSnapshot.findMany({
+      where: { organizationId, period },
+      orderBy: { snapshotAt: 'asc' },
+    });
+    return rows.map(toRecord);
+  }
 
-    async findAll(organizationId: string): Promise<ForecastSnapshotRecord[]> {
-        const rows = await prisma.forecastSnapshot.findMany({
-            where: { organizationId },
-            orderBy: { snapshotAt: 'asc' },
-        });
-        return rows.map(toRecord);
-    }
+  async findAll(organizationId: string): Promise<ForecastSnapshotRecord[]> {
+    const rows = await prisma.forecastSnapshot.findMany({
+      where: { organizationId },
+      orderBy: { snapshotAt: 'asc' },
+    });
+    return rows.map(toRecord);
+  }
 }

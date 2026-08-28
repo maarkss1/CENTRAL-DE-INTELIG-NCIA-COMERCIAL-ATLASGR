@@ -17,7 +17,9 @@ export class EventPublisher {
     await this.eventBus.publish(event);
   }
 
-  public async publishAll<TEvent extends IDomainEvent>(events: ReadonlyArray<TEvent>): Promise<void> {
+  public async publishAll<TEvent extends IDomainEvent>(
+    events: ReadonlyArray<TEvent>,
+  ): Promise<void> {
     await this.eventBus.publishMany(events);
   }
 }

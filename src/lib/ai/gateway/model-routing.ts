@@ -13,25 +13,25 @@ export const LOCAL_MODEL = 'local-llama3';
 // O app usa nomes lógicos para não acoplar cada ferramenta a um provedor específico.
 // O LiteLLM/Ollama resolve esses nomes conforme litellm-config.yaml / modelo instalado.
 const MODEL_ALIASES: Record<string, string> = {
-    'qwen-2.5-coder': 'qwen-coder',
-    'deepseek-coder-v2': 'deepseek-coder',
+  'qwen-2.5-coder': 'qwen-coder',
+  'deepseek-coder-v2': 'deepseek-coder',
 };
 
 const GROQ_MODEL_ALIASES: Record<string, string> = {
-    'local-llama3': 'openai/gpt-oss-120b',
-    'local-llama3-fast': 'openai/gpt-oss-20b',
-    'gpt-4o': 'openai/gpt-oss-120b',
-    'gpt-4o-mini': 'openai/gpt-oss-20b',
-    'claude-sonnet': 'openai/gpt-oss-120b',
+  'local-llama3': 'openai/gpt-oss-120b',
+  'local-llama3-fast': 'openai/gpt-oss-20b',
+  'gpt-4o': 'openai/gpt-oss-120b',
+  'gpt-4o-mini': 'openai/gpt-oss-20b',
+  'claude-sonnet': 'openai/gpt-oss-120b',
 };
 
 /** Resolve o nome lógico pedido pelo chamador para o nome canônico usado internamente
  * (independente de provedor) — ex.: `qwen-2.5-coder` → `qwen-coder`. */
 export function resolveModelName(modelName: string): string {
-    return MODEL_ALIASES[modelName] || modelName;
+  return MODEL_ALIASES[modelName] || modelName;
 }
 
 /** Resolve o nome canônico para o nome específico que a API do Groq espera. */
 export function resolveGroqModelName(resolvedModel: string): string {
-    return GROQ_MODEL_ALIASES[resolvedModel] || resolvedModel;
+  return GROQ_MODEL_ALIASES[resolvedModel] || resolvedModel;
 }

@@ -27,11 +27,11 @@ import { UserRole } from '@prisma/client';
 export type Role = UserRole;
 
 export const ROLE_HIERARCHY: Record<Role, number> = {
-    ADMIN: 100,
-    GESTOR: 75,
-    CLOSER: 50,
-    SDR: 40,
-    VISUALIZADOR: 10,
+  ADMIN: 100,
+  GESTOR: 75,
+  CLOSER: 50,
+  SDR: 40,
+  VISUALIZADOR: 10,
 };
 
 export const ASSIGNABLE_ROLES: Role[] = Object.keys(ROLE_HIERARCHY) as Role[];
@@ -50,13 +50,13 @@ export const UNVERIFIED_ROLE = 'UNVERIFIED' as const;
  * Papel desconhecido (fora da hierarquia, dos dois lados) nunca satisfaz uma checagem.
  */
 export function hasRequiredRole(userRole: string, allowedRoles: readonly string[]): boolean {
-    const userLevel = ROLE_HIERARCHY[userRole as Role] ?? 0;
-    const requiredLevel = Math.min(...allowedRoles.map((r) => ROLE_HIERARCHY[r as Role] ?? 999));
-    return userLevel >= requiredLevel;
+  const userLevel = ROLE_HIERARCHY[userRole as Role] ?? 0;
+  const requiredLevel = Math.min(...allowedRoles.map((r) => ROLE_HIERARCHY[r as Role] ?? 999));
+  return userLevel >= requiredLevel;
 }
 
 export function isKnownRole(role: string): role is Role {
-    return Object.prototype.hasOwnProperty.call(ROLE_HIERARCHY, role);
+  return Object.prototype.hasOwnProperty.call(ROLE_HIERARCHY, role);
 }
 
 /**
@@ -82,5 +82,5 @@ export function isKnownRole(role: string): role is Role {
 export const COMMERCIAL_INTELLIGENCE_ROLES: readonly Role[] = ['ADMIN', 'GESTOR'];
 
 export function canAccessCommercialIntelligence(role: string): boolean {
-    return hasRequiredRole(role, COMMERCIAL_INTELLIGENCE_ROLES);
+  return hasRequiredRole(role, COMMERCIAL_INTELLIGENCE_ROLES);
 }

@@ -10,17 +10,19 @@ import { getTenantPrisma } from '../../lib/tenant-prisma.js';
 // em `src/lib/auth/authorization.ts`.
 
 export const requireTenant = (req: Request, res: Response, next: NextFunction): void => {
-    const authReq = req as AuthRequest;
-    if (!authReq.user || !authReq.user.organizationId) {
-        logger.warn({ userId: authReq.user?.id }, 'Access denied: Tenant ID missing');
-        res.status(403).json({ success: false, error: 'User is not associated with any tenant/organization.' });
-        return;
-    }
-    try {
-        authReq.db = getTenantPrisma(authReq.user.organizationId);
-        next();
-    } catch (err) {
-        logger.error({ err }, 'Failed to set db instance');
-        res.status(500).json({ success: false, error: 'Internal Server Error.' });
-    }
+  const authReq = req as AuthRequest;
+  if (!authReq.user || !authReq.user.organizationId) {
+    logger.warn({ userId: authReq.user?.id }, 'Access denied: Tenant ID missing');
+    res
+      .status(403)
+      .json({ success: false, error: 'User is not associated with any tenant/organization.' });
+    return;
+  }
+  try {
+    authReq.db = getTenantPrisma(authReq.user.organizationId);
+    next();
+  } catch (err) {
+    logger.error({ err }, 'Failed to set db instance');
+    res.status(500).json({ success: false, error: 'Internal Server Error.' });
+  }
 };

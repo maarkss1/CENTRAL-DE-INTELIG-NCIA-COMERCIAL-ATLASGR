@@ -64,43 +64,44 @@ const TERMINAL_STATUSES = ['completed', 'completed_partial', 'failed', 'cancelle
 const PURGE_BATCH_SIZE = 500;
 
 interface PurgeCandidate {
-    id: string;
-    filters: unknown;
-    progress: unknown;
+  id: string;
+  filters: unknown;
+  progress: unknown;
 }
 
 interface StoredFilters {
-    search?: string;
-    [key: string]: unknown;
+  search?: string;
+  [key: string]: unknown;
 }
 
 interface StoredProgress {
-    purgedAt?: string;
-    [key: string]: unknown;
+  purgedAt?: string;
+  [key: string]: unknown;
 }
 
 export interface BitrixExtractionPurgeResult {
-    enabled: boolean;
-    purgedCount: number;
-    organizationsProcessed: number;
-    retentionDays: number;
+  enabled: boolean;
+  purgedCount: number;
+  organizationsProcessed: number;
+  retentionDays: number;
 }
 
 function isAlreadyPurged(progress: unknown): boolean {
-    return typeof (progress as StoredProgress | null)?.purgedAt === 'string';
+  return typeof (progress as StoredProgress | null)?.purgedAt === 'string';
 }
 
 /** Remove só o texto livre digitado pelo usuário — o resto do filtro é configuração/estatística, não dado pessoal de um titular. */
 function redactFilters(filters: unknown): Prisma.InputJsonValue {
-    if (!filters || typeof filters !== 'object') return {} as Prisma.InputJsonValue;
-    const { search: _search, ...rest } = filters as StoredFilters;
-    void _search; // descartado de propósito — é o único campo de texto livre desta linha, ver comentário de topo do arquivo.
-    return rest as Prisma.InputJsonValue;
+  if (!filters || typeof filters !== 'object') return {} as Prisma.InputJsonValue;
+  const { search: _search, ...rest } = filters as StoredFilters;
+  void _search; // descartado de propósito — é o único campo de texto livre desta linha, ver comentário de topo do arquivo.
+  return rest as Prisma.InputJsonValue;
 }
 
 function markPurgedProgress(progress: unknown, purgedAt: string): Prisma.InputJsonValue {
-    const base = (progress && typeof progress === 'object') ? (progress as Record<string, unknown>) : {};
-    return { ...base, purgedAt } as Prisma.InputJsonValue;
+  const base =
+    progress && typeof progress === 'object' ? (progress as Record<string, unknown>) : {};
+  return { ...base, purgedAt } as Prisma.InputJsonValue;
 }
 
 /**
@@ -112,129 +113,153 @@ function markPurgedProgress(progress: unknown, purgedAt: string): Prisma.InputJs
  * (mesmo padrão de dois-fatores já documentado em `src/config/env.ts` para estas duas envs).
  */
 export async function runBitrixExtractionPurgeSweep(): Promise<BitrixExtractionPurgeResult> {
-    const retentionDays = env.BITRIX_EXTRACTION_RETENTION_DAYS;
+  const retentionDays = env.BITRIX_EXTRACTION_RETENTION_DAYS;
 
-    if (!env.BITRIX_EXTRACTION_PURGE_ENABLED) {
-        logger.info(
-            { retentionDays },
-            '[bitrix] Expurgo de BitrixExtractionRun DESLIGADO (BITRIX_EXTRACTION_PURGE_ENABLED=false) — nenhuma linha consultada nem alterada.',
-        );
-        return { enabled: false, purgedCount: 0, organizationsProcessed: 0, retentionDays };
-    }
-
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - retentionDays);
-
-    logger.info({ retentionDays, cutoff: cutoff.toISOString() }, '[bitrix] Iniciando expurgo LGPD de BitrixExtractionRun antigos (todas as organizações)');
-
-    // Descoberta cross-tenant sob bypass (Organization está no allowlist, BYPASS_RLS_ALLOWED_MODELS
-    // em src/lib/prisma.ts) — só para listar organizações existentes, nunca para ler/gravar
-    // BitrixExtractionRun diretamente (esse model NÃO está no allowlist, mesmo tratamento de
-    // AgentMemory — ver agentMemoryCleanup.worker.ts). Cada expurgo por linha roda dentro do tenant
-    // real (`requestContext.run({ tenantId })`), nunca sob bypass.
-    const organizations = await requestContext.run({ bypassRls: true }, () =>
-        prisma.organization.findMany({ select: { id: true } }),
+  if (!env.BITRIX_EXTRACTION_PURGE_ENABLED) {
+    logger.info(
+      { retentionDays },
+      '[bitrix] Expurgo de BitrixExtractionRun DESLIGADO (BITRIX_EXTRACTION_PURGE_ENABLED=false) — nenhuma linha consultada nem alterada.',
     );
+    return { enabled: false, purgedCount: 0, organizationsProcessed: 0, retentionDays };
+  }
 
-    let purgedCount = 0;
-    for (const org of organizations) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - retentionDays);
+
+  logger.info(
+    { retentionDays, cutoff: cutoff.toISOString() },
+    '[bitrix] Iniciando expurgo LGPD de BitrixExtractionRun antigos (todas as organizações)',
+  );
+
+  // Descoberta cross-tenant sob bypass (Organization está no allowlist, BYPASS_RLS_ALLOWED_MODELS
+  // em src/lib/prisma.ts) — só para listar organizações existentes, nunca para ler/gravar
+  // BitrixExtractionRun diretamente (esse model NÃO está no allowlist, mesmo tratamento de
+  // AgentMemory — ver agentMemoryCleanup.worker.ts). Cada expurgo por linha roda dentro do tenant
+  // real (`requestContext.run({ tenantId })`), nunca sob bypass.
+  const organizations = await requestContext.run({ bypassRls: true }, () =>
+    prisma.organization.findMany({ select: { id: true } }),
+  );
+
+  let purgedCount = 0;
+  for (const org of organizations) {
+    try {
+      const candidates = (await requestContext.run({ tenantId: org.id }, () =>
+        prisma.bitrixExtractionRun.findMany({
+          where: {
+            organizationId: org.id,
+            createdAt: { lte: cutoff },
+            status: { in: [...TERMINAL_STATUSES] },
+          },
+          select: { id: true, filters: true, progress: true },
+          take: PURGE_BATCH_SIZE,
+        }),
+      )) as PurgeCandidate[];
+
+      for (const candidate of candidates) {
+        // Idempotência: rodar a varredura duas vezes seguidas não reprocessa (nem falha) um
+        // run já expurgado numa rodada anterior.
+        if (isAlreadyPurged(candidate.progress)) continue;
+
         try {
-            const candidates = await requestContext.run({ tenantId: org.id }, () =>
-                prisma.bitrixExtractionRun.findMany({
-                    where: {
-                        organizationId: org.id,
-                        createdAt: { lte: cutoff },
-                        status: { in: [...TERMINAL_STATUSES] },
-                    },
-                    select: { id: true, filters: true, progress: true },
-                    take: PURGE_BATCH_SIZE,
-                }),
-            ) as PurgeCandidate[];
+          const purgedAt = new Date().toISOString();
+          // Arquivo primeiro, linha depois (mesmo motivo/ordem de `deleteExtractionRun`):
+          // nunca deixar a linha marcada como "expurgada" com o arquivo real ainda em
+          // disco caso o processo caia entre as duas operações. `deleteExtractionRunFiles`
+          // é `fs`/disco puro (não usa Prisma), então não precisa de `requestContext`.
+          await deleteExtractionRunFiles(org.id, candidate.id);
 
-            for (const candidate of candidates) {
-                // Idempotência: rodar a varredura duas vezes seguidas não reprocessa (nem falha) um
-                // run já expurgado numa rodada anterior.
-                if (isAlreadyPurged(candidate.progress)) continue;
+          await requestContext.run({ tenantId: org.id }, () =>
+            prisma.bitrixExtractionRun.update({
+              where: { id: candidate.id },
+              data: {
+                files: null as unknown as Prisma.InputJsonValue,
+                filters: redactFilters(candidate.filters),
+                progress: markPurgedProgress(candidate.progress, purgedAt),
+              },
+            }),
+          );
 
-                try {
-                    const purgedAt = new Date().toISOString();
-                    // Arquivo primeiro, linha depois (mesmo motivo/ordem de `deleteExtractionRun`):
-                    // nunca deixar a linha marcada como "expurgada" com o arquivo real ainda em
-                    // disco caso o processo caia entre as duas operações. `deleteExtractionRunFiles`
-                    // é `fs`/disco puro (não usa Prisma), então não precisa de `requestContext`.
-                    await deleteExtractionRunFiles(org.id, candidate.id);
+          await AuditService.log({
+            action: 'UPDATE',
+            entity: 'BitrixExtractionRun',
+            entityId: candidate.id,
+            tenantId: org.id,
+            afterState: { purgedAt, reason: 'lgpd-retention-expired', retentionDays },
+          });
 
-                    await requestContext.run({ tenantId: org.id }, () =>
-                        prisma.bitrixExtractionRun.update({
-                            where: { id: candidate.id },
-                            data: {
-                                files: null as unknown as Prisma.InputJsonValue,
-                                filters: redactFilters(candidate.filters),
-                                progress: markPurgedProgress(candidate.progress, purgedAt),
-                            },
-                        }),
-                    );
-
-                    await AuditService.log({
-                        action: 'UPDATE',
-                        entity: 'BitrixExtractionRun',
-                        entityId: candidate.id,
-                        tenantId: org.id,
-                        afterState: { purgedAt, reason: 'lgpd-retention-expired', retentionDays },
-                    });
-
-                    purgedCount++;
-                } catch (err) {
-                    logger.error({ err, organizationId: org.id, runId: candidate.id }, '[bitrix] Falha ao expurgar uma extração — seguindo com as demais desta organização');
-                }
-            }
+          purgedCount++;
         } catch (err) {
-            logger.error({ err, organizationId: org.id }, '[bitrix] Falha ao buscar extrações expiradas desta organização — seguindo com as demais organizações');
+          logger.error(
+            { err, organizationId: org.id, runId: candidate.id },
+            '[bitrix] Falha ao expurgar uma extração — seguindo com as demais desta organização',
+          );
         }
+      }
+    } catch (err) {
+      logger.error(
+        { err, organizationId: org.id },
+        '[bitrix] Falha ao buscar extrações expiradas desta organização — seguindo com as demais organizações',
+      );
     }
+  }
 
-    logger.info({ purgedCount, organizationsProcessed: organizations.length, retentionDays }, '[bitrix] Expurgo LGPD de BitrixExtractionRun concluído');
-    return { enabled: true, purgedCount, organizationsProcessed: organizations.length, retentionDays };
+  logger.info(
+    { purgedCount, organizationsProcessed: organizations.length, retentionDays },
+    '[bitrix] Expurgo LGPD de BitrixExtractionRun concluído',
+  );
+  return {
+    enabled: true,
+    purgedCount,
+    organizationsProcessed: organizations.length,
+    retentionDays,
+  };
 }
 
 export function createBitrixExtractionPurgeWorker() {
-    const worker = new Worker(BITRIX_EXTRACTION_PURGE_QUEUE_NAME, async (_job) => runBitrixExtractionPurgeSweep(), {
-        connection: connection as any,
-    });
+  const worker = new Worker(
+    BITRIX_EXTRACTION_PURGE_QUEUE_NAME,
+    async (_job) => runBitrixExtractionPurgeSweep(),
+    {
+      connection: connection as any,
+    },
+  );
 
-    worker.on('failed', (job, err) => {
-        logger.error({ err, jobId: job?.id }, 'BitrixExtractionPurge worker job falhou');
-        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
-        void recordDeadLetter({
-            queue: BITRIX_EXTRACTION_PURGE_QUEUE_NAME,
-            jobId: job.id,
-            jobName: job.name,
-            attemptsMade: job.attemptsMade,
-            error: err,
-        });
+  worker.on('failed', (job, err) => {
+    logger.error({ err, jobId: job?.id }, 'BitrixExtractionPurge worker job falhou');
+    if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+    void recordDeadLetter({
+      queue: BITRIX_EXTRACTION_PURGE_QUEUE_NAME,
+      jobId: job.id,
+      jobName: job.name,
+      attemptsMade: job.attemptsMade,
+      error: err,
     });
+  });
 
-    worker.on('error', (err) => {
-        logger.warn({ message: err.message }, 'BitrixExtractionPurge worker error suppressed (Redis offline)');
-    });
+  worker.on('error', (err) => {
+    logger.warn(
+      { message: err.message },
+      'BitrixExtractionPurge worker error suppressed (Redis offline)',
+    );
+  });
 
-    return worker;
+  return worker;
 }
 
 export async function scheduleBitrixExtractionPurgeJob() {
-    if (!connection) return;
-    const queue = new Queue(BITRIX_EXTRACTION_PURGE_QUEUE_NAME, { connection: connection as any });
-    // Roda todo dia às 5h da manhã — fora do horário de auto-anonimização de leads (3h), do
-    // expurgo de AgentMemory (4h) e do follow-up diário (9h). BullMQ v6 removeu `repeat` de
-    // `Queue.add` (viraria um job avulso, nunca mais se repete) — agendamento recorrente exige
-    // `upsertJobScheduler`, idempotente pelo id abaixo. O agendamento em si roda sempre; quem
-    // decide se algo é de fato expurgado é `BITRIX_EXTRACTION_PURGE_ENABLED`, checado dentro de
-    // `runBitrixExtractionPurgeSweep` (fail-safe: flag desligada = job dispara e não faz nada).
-    await queue.upsertJobScheduler(
-        'bitrix-extraction-purge-daily',
-        { pattern: '0 5 * * *' },
-        { name: 'purge-old-bitrix-extraction-runs', data: {} },
-    );
+  if (!connection) return;
+  const queue = new Queue(BITRIX_EXTRACTION_PURGE_QUEUE_NAME, { connection: connection as any });
+  // Roda todo dia às 5h da manhã — fora do horário de auto-anonimização de leads (3h), do
+  // expurgo de AgentMemory (4h) e do follow-up diário (9h). BullMQ v6 removeu `repeat` de
+  // `Queue.add` (viraria um job avulso, nunca mais se repete) — agendamento recorrente exige
+  // `upsertJobScheduler`, idempotente pelo id abaixo. O agendamento em si roda sempre; quem
+  // decide se algo é de fato expurgado é `BITRIX_EXTRACTION_PURGE_ENABLED`, checado dentro de
+  // `runBitrixExtractionPurgeSweep` (fail-safe: flag desligada = job dispara e não faz nada).
+  await queue.upsertJobScheduler(
+    'bitrix-extraction-purge-daily',
+    { pattern: '0 5 * * *' },
+    { name: 'purge-old-bitrix-extraction-runs', data: {} },
+  );
 
-    logger.info('BitrixExtractionPurge job scheduled (cron: 0 5 * * *)');
+  logger.info('BitrixExtractionPurge job scheduled (cron: 0 5 * * *)');
 }

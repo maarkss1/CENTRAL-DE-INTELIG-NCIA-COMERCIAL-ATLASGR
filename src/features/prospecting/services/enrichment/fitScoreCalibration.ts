@@ -52,66 +52,66 @@ export type FitScoreCalibrationQuality = 'INSUFICIENTE' | 'BAIXA' | 'MEDIA' | 'A
 export type FitScoreTier = FitScoreResult['temperature'];
 
 export const FIT_SCORE_TIER_RANGES: Record<FitScoreTier, [number, number]> = {
-    Frio: [0, 44],
-    Morno: [45, 74],
-    Quente: [75, 100],
+  Frio: [0, 44],
+  Morno: [45, 74],
+  Quente: [75, 100],
 };
 
 const TIER_ORDER: FitScoreTier[] = ['Quente', 'Morno', 'Frio'];
 
 function tierForScore(score: number): FitScoreTier {
-    if (score >= 75) return 'Quente';
-    if (score >= 45) return 'Morno';
-    return 'Frio';
+  if (score >= 75) return 'Quente';
+  if (score >= 45) return 'Morno';
+  return 'Frio';
 }
 
 /** Um negócio real, já fechado (ganho ou perdido), com o fit score associado à sua Company. */
 export interface ClosedLeadFitOutcome {
-    leadId: string;
-    /** Fit score 0-100 — ver limitação de proveniência no cabeçalho do módulo: recalculado a
-     * partir da Company atual, nunca lido de `Lead.score`. */
-    score: number;
-    won: boolean;
-    closedAt: Date;
+  leadId: string;
+  /** Fit score 0-100 — ver limitação de proveniência no cabeçalho do módulo: recalculado a
+   * partir da Company atual, nunca lido de `Lead.score`. */
+  score: number;
+  won: boolean;
+  closedAt: Date;
 }
 
 export interface FitScoreTierCalibration {
-    tier: FitScoreTier;
-    scoreRange: [number, number];
-    sampleSize: number;
-    wonCount: number;
-    lostCount: number;
-    /** Meses civis (UTC) distintos com pelo menos um fechamento nesta faixa — evita que 30
-     * fechamentos no mesmo dia/semana pareçam uma amostra robusta (mesmo raciocínio de
-     * `monthsWithClosedSample` em crmEconomicCalibration.ts). */
-    distinctMonthsWithClosedSample: number;
-    /** Taxa de conversão real observada (%), com 1 casa decimal. `null` quando a amostra desta
-     * faixa é INSUFICIENTE — nunca um número fabricado/estimado para preencher a lacuna. */
-    observedWinRatePct: number | null;
-    quality: FitScoreCalibrationQuality;
-    /** Motivos legíveis de por que a faixa não é (ainda) elegível — vazio quando elegível. */
-    blockers: string[];
+  tier: FitScoreTier;
+  scoreRange: [number, number];
+  sampleSize: number;
+  wonCount: number;
+  lostCount: number;
+  /** Meses civis (UTC) distintos com pelo menos um fechamento nesta faixa — evita que 30
+   * fechamentos no mesmo dia/semana pareçam uma amostra robusta (mesmo raciocínio de
+   * `monthsWithClosedSample` em crmEconomicCalibration.ts). */
+  distinctMonthsWithClosedSample: number;
+  /** Taxa de conversão real observada (%), com 1 casa decimal. `null` quando a amostra desta
+   * faixa é INSUFICIENTE — nunca um número fabricado/estimado para preencher a lacuna. */
+  observedWinRatePct: number | null;
+  quality: FitScoreCalibrationQuality;
+  /** Motivos legíveis de por que a faixa não é (ainda) elegível — vazio quando elegível. */
+  blockers: string[];
 }
 
 export interface FitScoreCalibrationResult {
-    totalClosedSample: number;
-    fromClosedAt: string | null;
-    toClosedAt: string | null;
-    tiers: FitScoreTierCalibration[];
+  totalClosedSample: number;
+  fromClosedAt: string | null;
+  toClosedAt: string | null;
+  tiers: FitScoreTierCalibration[];
 }
 
 function monthKey(date: Date): string {
-    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /** Mesmos limiares numéricos de `qualityFor` em crmEconomicCalibration.ts (10/2, 20/3, 50/4) —
  * reaproveitados de propósito para manter um único vocabulário de "amostra suficiente" no
  * produto, em vez de cada calibração inventar seu próprio corte. */
 function qualityForTier(sampleSize: number, distinctMonths: number): FitScoreCalibrationQuality {
-    if (sampleSize < 10 || distinctMonths < 2) return 'INSUFICIENTE';
-    if (sampleSize >= 50 && distinctMonths >= 4) return 'ALTA';
-    if (sampleSize >= 20 && distinctMonths >= 3) return 'MEDIA';
-    return 'BAIXA';
+  if (sampleSize < 10 || distinctMonths < 2) return 'INSUFICIENTE';
+  if (sampleSize >= 50 && distinctMonths >= 4) return 'ALTA';
+  if (sampleSize >= 20 && distinctMonths >= 3) return 'MEDIA';
+  return 'BAIXA';
 }
 
 /**
@@ -120,50 +120,59 @@ function qualityForTier(sampleSize: number, distinctMonths: number): FitScoreCal
  * Função pura (sem Prisma) — testável sem banco. `fetchClosedLeadFitOutcomes`/
  * `calibrateFitScoreForOrganization`, abaixo, buscam os dados reais e chamam esta função.
  */
-export function calibrateFitScoreFromClosedLeads(samples: ClosedLeadFitOutcome[]): FitScoreCalibrationResult {
-    const ordered = [...samples].sort((a, b) => a.closedAt.getTime() - b.closedAt.getTime());
+export function calibrateFitScoreFromClosedLeads(
+  samples: ClosedLeadFitOutcome[],
+): FitScoreCalibrationResult {
+  const ordered = [...samples].sort((a, b) => a.closedAt.getTime() - b.closedAt.getTime());
 
-    const byTier = new Map<FitScoreTier, ClosedLeadFitOutcome[]>(TIER_ORDER.map((tier) => [tier, []]));
-    for (const sample of ordered) {
-        byTier.get(tierForScore(sample.score))!.push(sample);
+  const byTier = new Map<FitScoreTier, ClosedLeadFitOutcome[]>(
+    TIER_ORDER.map((tier) => [tier, []]),
+  );
+  for (const sample of ordered) {
+    byTier.get(tierForScore(sample.score))!.push(sample);
+  }
+
+  const tiers: FitScoreTierCalibration[] = TIER_ORDER.map((tier) => {
+    const points = byTier.get(tier) ?? [];
+    const sampleSize = points.length;
+    const wonCount = points.filter((p) => p.won).length;
+    const lostCount = sampleSize - wonCount;
+    const distinctMonths = new Set(points.map((p) => monthKey(p.closedAt))).size;
+    const quality = qualityForTier(sampleSize, distinctMonths);
+    const eligible = quality !== 'INSUFICIENTE';
+
+    const blockers: string[] = [];
+    if (sampleSize < 10) {
+      blockers.push(
+        `Amostra insuficiente na faixa ${tier}: são necessários ao menos 10 negócios fechados (há ${sampleSize}).`,
+      );
+    }
+    if (distinctMonths < 2) {
+      blockers.push(
+        `Cobertura temporal insuficiente na faixa ${tier}: são necessários ao menos 2 meses distintos com fechamento (há ${distinctMonths}).`,
+      );
     }
 
-    const tiers: FitScoreTierCalibration[] = TIER_ORDER.map((tier) => {
-        const points = byTier.get(tier) ?? [];
-        const sampleSize = points.length;
-        const wonCount = points.filter((p) => p.won).length;
-        const lostCount = sampleSize - wonCount;
-        const distinctMonths = new Set(points.map((p) => monthKey(p.closedAt))).size;
-        const quality = qualityForTier(sampleSize, distinctMonths);
-        const eligible = quality !== 'INSUFICIENTE';
-
-        const blockers: string[] = [];
-        if (sampleSize < 10) {
-            blockers.push(`Amostra insuficiente na faixa ${tier}: são necessários ao menos 10 negócios fechados (há ${sampleSize}).`);
-        }
-        if (distinctMonths < 2) {
-            blockers.push(`Cobertura temporal insuficiente na faixa ${tier}: são necessários ao menos 2 meses distintos com fechamento (há ${distinctMonths}).`);
-        }
-
-        return {
-            tier,
-            scoreRange: FIT_SCORE_TIER_RANGES[tier],
-            sampleSize,
-            wonCount,
-            lostCount,
-            distinctMonthsWithClosedSample: distinctMonths,
-            observedWinRatePct: eligible && sampleSize > 0 ? Math.round((wonCount / sampleSize) * 1000) / 10 : null,
-            quality,
-            blockers,
-        };
-    });
-
     return {
-        totalClosedSample: ordered.length,
-        fromClosedAt: ordered.at(0)?.closedAt.toISOString() ?? null,
-        toClosedAt: ordered.at(-1)?.closedAt.toISOString() ?? null,
-        tiers,
+      tier,
+      scoreRange: FIT_SCORE_TIER_RANGES[tier],
+      sampleSize,
+      wonCount,
+      lostCount,
+      distinctMonthsWithClosedSample: distinctMonths,
+      observedWinRatePct:
+        eligible && sampleSize > 0 ? Math.round((wonCount / sampleSize) * 1000) / 10 : null,
+      quality,
+      blockers,
     };
+  });
+
+  return {
+    totalClosedSample: ordered.length,
+    fromClosedAt: ordered.at(0)?.closedAt.toISOString() ?? null,
+    toClosedAt: ordered.at(-1)?.closedAt.toISOString() ?? null,
+    tiers,
+  };
 }
 
 /**
@@ -176,60 +185,64 @@ export function calibrateFitScoreFromClosedLeads(samples: ClosedLeadFitOutcome[]
  * lookalike-scoring.service.ts). O filtro explícito de `organizationId` fica como defesa em
  * profundidade, não como único mecanismo de isolamento.
  */
-export async function fetchClosedLeadFitOutcomes(organizationId: string): Promise<ClosedLeadFitOutcome[]> {
-    if (!organizationId) return [];
+export async function fetchClosedLeadFitOutcomes(
+  organizationId: string,
+): Promise<ClosedLeadFitOutcome[]> {
+  if (!organizationId) return [];
 
-    const leads = await prisma.lead.findMany({
-        where: {
-            organizationId,
-            deletedAt: null,
-            companyId: { not: null },
-            closedAt: { not: null },
-            status: { in: ['Negocios_Ganhos', 'Negocios_Perdidos'] },
-        },
+  const leads = await prisma.lead.findMany({
+    where: {
+      organizationId,
+      deletedAt: null,
+      companyId: { not: null },
+      closedAt: { not: null },
+      status: { in: ['Negocios_Ganhos', 'Negocios_Perdidos'] },
+    },
+    select: {
+      id: true,
+      status: true,
+      closedAt: true,
+      company: {
         select: {
-            id: true,
-            status: true,
-            closedAt: true,
-            company: {
-                select: {
-                    situacaoCadastral: true,
-                    capitalSocial: true,
-                    employeeCount: true,
-                    segment: true,
-                    city: true,
-                    state: true,
-                    technologies: true,
-                },
-            },
+          situacaoCadastral: true,
+          capitalSocial: true,
+          employeeCount: true,
+          segment: true,
+          city: true,
+          state: true,
+          technologies: true,
         },
-    });
+      },
+    },
+  });
 
-    const outcomes: ClosedLeadFitOutcome[] = [];
-    for (const lead of leads) {
-        if (!lead.company || !lead.closedAt) continue;
-        const fit = computeFitScore({
-            situacaoCadastral: lead.company.situacaoCadastral,
-            capitalSocial: lead.company.capitalSocial,
-            employeeCountEstimate: lead.company.employeeCount,
-            segment: lead.company.segment,
-            city: lead.company.city,
-            state: lead.company.state,
-            technologies: lead.company.technologies,
-        });
-        outcomes.push({
-            leadId: lead.id,
-            score: fit.score,
-            won: lead.status === 'Negocios_Ganhos',
-            closedAt: lead.closedAt,
-        });
-    }
-    return outcomes;
+  const outcomes: ClosedLeadFitOutcome[] = [];
+  for (const lead of leads) {
+    if (!lead.company || !lead.closedAt) continue;
+    const fit = computeFitScore({
+      situacaoCadastral: lead.company.situacaoCadastral,
+      capitalSocial: lead.company.capitalSocial,
+      employeeCountEstimate: lead.company.employeeCount,
+      segment: lead.company.segment,
+      city: lead.company.city,
+      state: lead.company.state,
+      technologies: lead.company.technologies,
+    });
+    outcomes.push({
+      leadId: lead.id,
+      score: fit.score,
+      won: lead.status === 'Negocios_Ganhos',
+      closedAt: lead.closedAt,
+    });
+  }
+  return outcomes;
 }
 
 /** Atalho de conveniência: busca + calibra, para os consumidores (rota/relatório) que só
  * precisam do resultado final por organização. */
-export async function calibrateFitScoreForOrganization(organizationId: string): Promise<FitScoreCalibrationResult> {
-    const outcomes = await fetchClosedLeadFitOutcomes(organizationId);
-    return calibrateFitScoreFromClosedLeads(outcomes);
+export async function calibrateFitScoreForOrganization(
+  organizationId: string,
+): Promise<FitScoreCalibrationResult> {
+  const outcomes = await fetchClosedLeadFitOutcomes(organizationId);
+  return calibrateFitScoreFromClosedLeads(outcomes);
 }

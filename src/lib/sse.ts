@@ -1,6 +1,6 @@
 export interface SseEvent {
-    event: string;
-    data: string;
+  event: string;
+  data: string;
 }
 
 /**
@@ -9,17 +9,17 @@ export interface SseEvent {
  * Bearer do localStorage) já usado em `src/lib/api.ts` e em `SwarmDashboard.tsx`.
  */
 export function sseRequestInit(body: unknown, signal?: AbortSignal): RequestInit {
-    const token = localStorage.getItem('token');
-    return {
-        method: 'POST',
-        credentials: 'include',
-        signal,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(body),
-    };
+  const token = localStorage.getItem('token');
+  return {
+    method: 'POST',
+    credentials: 'include',
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  };
 }
 
 /**
@@ -28,36 +28,39 @@ export function sseRequestInit(body: unknown, signal?: AbortSignal): RequestInit
  * Extraído do parser que já existia inline em `SwarmDashboard.tsx` para não duplicar pela
  * terceira vez (Chatbook e Relatórios IA são os outros dois consumidores).
  */
-export async function readSseStream(response: Response, onEvent: (event: SseEvent) => void): Promise<void> {
-    if (!response.ok) {
-        throw new Error(`Falha ao iniciar streaming (HTTP ${response.status}).`);
+export async function readSseStream(
+  response: Response,
+  onEvent: (event: SseEvent) => void,
+): Promise<void> {
+  if (!response.ok) {
+    throw new Error(`Falha ao iniciar streaming (HTTP ${response.status}).`);
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('Streaming não suportado neste navegador.');
+
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split('\n\n');
+    buffer = frames.pop() || '';
+
+    for (const frame of frames) {
+      if (!frame.trim()) continue;
+
+      let eventName = 'message';
+      let dataStr = '';
+      for (const line of frame.split('\n')) {
+        if (line.startsWith('event: ')) eventName = line.slice(7).trim();
+        else if (line.startsWith('data: ')) dataStr += line.slice(6);
+      }
+      if (!dataStr) continue;
+      onEvent({ event: eventName, data: dataStr });
     }
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('Streaming não suportado neste navegador.');
-
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
-
-    while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        if (!value) continue;
-
-        buffer += decoder.decode(value, { stream: true });
-        const frames = buffer.split('\n\n');
-        buffer = frames.pop() || '';
-
-        for (const frame of frames) {
-            if (!frame.trim()) continue;
-
-            let eventName = 'message';
-            let dataStr = '';
-            for (const line of frame.split('\n')) {
-                if (line.startsWith('event: ')) eventName = line.slice(7).trim();
-                else if (line.startsWith('data: ')) dataStr += line.slice(6);
-            }
-            if (!dataStr) continue;
-            onEvent({ event: eventName, data: dataStr });
-        }
-    }
+  }
 }

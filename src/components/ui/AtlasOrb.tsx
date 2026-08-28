@@ -4,7 +4,6 @@ import { Float, Sparkles, Sphere, MeshDistortMaterial } from '@react-three/drei'
 import { useReducedMotion } from 'framer-motion';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
 
-
 function OrbCore() {
   const { isAtlas } = useBrandAccent();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,7 +19,11 @@ function OrbCore() {
   const emissive = isAtlas ? '#ff8c61' : '#93DBF2';
 
   return (
-    <Float speed={reduceMotion ? 0 : 2} rotationIntensity={reduceMotion ? 0 : 1.5} floatIntensity={reduceMotion ? 0 : 2}>
+    <Float
+      speed={reduceMotion ? 0 : 2}
+      rotationIntensity={reduceMotion ? 0 : 1.5}
+      floatIntensity={reduceMotion ? 0 : 2}
+    >
       <Sphere args={[1, 64, 64]} scale={1.2}>
         <MeshDistortMaterial
           ref={materialRef}

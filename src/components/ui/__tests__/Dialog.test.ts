@@ -22,13 +22,17 @@ describe('Dialog', () => {
   it('does not override the native hidden state while closed', () => {
     const content = React.createElement('p', null, 'Dialog content');
     // createElement's component overload requires the mandatory Dialog prop in this object.
-    // eslint-disable-next-line react/no-children-prop
-    render(React.createElement(Dialog, {
-      isOpen: false,
-      onClose: vi.fn(),
-      title: 'Example',
-      children: content,
-    }));
+    render(
+      // A regra reporta na linha onde a CHAMADA a React.createElement começa, não na linha da
+      // prop `children` — o disable precisa ficar imediatamente aqui, não antes de `render(`.
+      // eslint-disable-next-line react/no-children-prop
+      React.createElement(Dialog, {
+        isOpen: false,
+        onClose: vi.fn(),
+        title: 'Example',
+        children: content,
+      }),
+    );
 
     const dialog = screen.getByRole('dialog', { hidden: true });
 

@@ -14,9 +14,12 @@ import type { BitrixUserOption } from './deals.js';
  */
 
 /** Devolve o ASSIGNED_BY_ID (Bitrix) do usuário logado neste portal, ou `null` se o e-mail dele não bater com nenhum usuário do Bitrix. */
-export function resolveOwnBitrixUserId(bitrixUsers: BitrixUserOption[], userEmail: string): string | null {
-    const normalized = userEmail.trim().toLowerCase();
-    return bitrixUsers.find((u) => u.email === normalized)?.id ?? null;
+export function resolveOwnBitrixUserId(
+  bitrixUsers: BitrixUserOption[],
+  userEmail: string,
+): string | null {
+  const normalized = userEmail.trim().toLowerCase();
+  return bitrixUsers.find((u) => u.email === normalized)?.id ?? null;
 }
 
 /**
@@ -32,13 +35,16 @@ export function resolveOwnBitrixUserId(bitrixUsers: BitrixUserOption[], userEmai
  * porque é reexportada como parte da API pública deste módulo (`bitrix.service.ts`) e pode ter
  * consumidores futuros que precisem do nome para exibição — não porque ainda alimenta `Lead.owner`.
  */
-export async function resolveAtlasUserNameByEmail(organizationId: string, bitrixEmail: string | null): Promise<string | null> {
-    if (!bitrixEmail) return null;
-    const user = await prisma.user.findFirst({
-        where: { organizationId, email: { equals: bitrixEmail, mode: 'insensitive' } },
-        select: { name: true },
-    });
-    return user?.name ?? null;
+export async function resolveAtlasUserNameByEmail(
+  organizationId: string,
+  bitrixEmail: string | null,
+): Promise<string | null> {
+  if (!bitrixEmail) return null;
+  const user = await prisma.user.findFirst({
+    where: { organizationId, email: { equals: bitrixEmail, mode: 'insensitive' } },
+    select: { name: true },
+  });
+  return user?.name ?? null;
 }
 
 /**
@@ -48,11 +54,14 @@ export async function resolveAtlasUserNameByEmail(organizationId: string, bitrix
  * mesma convenção usada por leads criados dentro do app. `null` quando não há usuário Atlas com
  * esse e-mail (o registro ainda é importado, só fica sem responsável — nunca fabrica um vínculo).
  */
-export async function resolveAtlasUserIdByEmail(organizationId: string, bitrixEmail: string | null): Promise<string | null> {
-    if (!bitrixEmail) return null;
-    const user = await prisma.user.findFirst({
-        where: { organizationId, email: { equals: bitrixEmail, mode: 'insensitive' } },
-        select: { id: true },
-    });
-    return user?.id ?? null;
+export async function resolveAtlasUserIdByEmail(
+  organizationId: string,
+  bitrixEmail: string | null,
+): Promise<string | null> {
+  if (!bitrixEmail) return null;
+  const user = await prisma.user.findFirst({
+    where: { organizationId, email: { equals: bitrixEmail, mode: 'insensitive' } },
+    select: { id: true },
+  });
+  return user?.id ?? null;
 }

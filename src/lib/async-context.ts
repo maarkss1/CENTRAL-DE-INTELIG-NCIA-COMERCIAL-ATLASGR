@@ -1,19 +1,19 @@
 import { AsyncLocalStorage } from 'async_hooks';
 
 interface RequestContext {
-    tenantId?: string;
-    userId?: string;
-    role?: string;
-    // Só usado para as rotas do Better Auth (/api/auth/*, ver server.ts) e para a checagem de
-    // sessão em authenticateToken.ts: antes de uma sessão existir não há tenantId conhecido, mas
-    // o Better Auth ainda precisa localizar o usuário por e-mail (login), criar a Organization
-    // inicial (signup) e ler/gravar Session — todas essas tabelas têm FORCE ROW LEVEL SECURITY
-    // (prisma/migrations/20260722020322_enable_rls). Sem este bypass explícito,
-    // current_setting('app.current_tenant_id') nunca bate com nada e as policies de RLS bloqueiam
-    // até as próprias queries internas do Better Auth. O efeito do bypass, na camada do Prisma
-    // (src/lib/prisma.ts), é restrito a um allowlist de models de identidade — nunca vale para
-    // Company/Lead/etc.
-    bypassRls?: boolean;
+  tenantId?: string;
+  userId?: string;
+  role?: string;
+  // Só usado para as rotas do Better Auth (/api/auth/*, ver server.ts) e para a checagem de
+  // sessão em authenticateToken.ts: antes de uma sessão existir não há tenantId conhecido, mas
+  // o Better Auth ainda precisa localizar o usuário por e-mail (login), criar a Organization
+  // inicial (signup) e ler/gravar Session — todas essas tabelas têm FORCE ROW LEVEL SECURITY
+  // (prisma/migrations/20260722020322_enable_rls). Sem este bypass explícito,
+  // current_setting('app.current_tenant_id') nunca bate com nada e as policies de RLS bloqueiam
+  // até as próprias queries internas do Better Auth. O efeito do bypass, na camada do Prisma
+  // (src/lib/prisma.ts), é restrito a um allowlist de models de identidade — nunca vale para
+  // Company/Lead/etc.
+  bypassRls?: boolean;
 }
 
 // IMPORTANTE (Onda 9, bug crítico de RLS — ver .agents/runs/onda-9.md e os handoffs
@@ -56,25 +56,29 @@ interface RequestContext {
 // retornar. Chamadas cujo callback não devolve uma promise continuam idênticas (sem overhead
 // extra de microtask).
 class TenantAwareAsyncLocalStorage extends AsyncLocalStorage<RequestContext> {
-    run<R, TArgs extends unknown[]>(store: RequestContext, callback: (...args: TArgs) => R, ...args: TArgs): R {
-        return super.run(store, ((): R => {
-            const result = callback(...args);
-            if (result && typeof (result as { then?: unknown }).then === 'function') {
-                // Ancora a store durante a execução real da promise/thenable lazy, mesmo que quem
-                // chamou `run()` só dê `await` no valor de retorno DEPOIS que `run()` já retornou.
-                return (async () => await (result as unknown as Promise<unknown>))() as unknown as R;
-            }
-            return result;
-        }) as unknown as (...args: TArgs) => R);
-    }
+  run<R, TArgs extends unknown[]>(
+    store: RequestContext,
+    callback: (...args: TArgs) => R,
+    ...args: TArgs
+  ): R {
+    return super.run(store, ((): R => {
+      const result = callback(...args);
+      if (result && typeof (result as { then?: unknown }).then === 'function') {
+        // Ancora a store durante a execução real da promise/thenable lazy, mesmo que quem
+        // chamou `run()` só dê `await` no valor de retorno DEPOIS que `run()` já retornou.
+        return (async () => await (result as unknown as Promise<unknown>))() as unknown as R;
+      }
+      return result;
+    }) as unknown as (...args: TArgs) => R);
+  }
 }
 
 export const requestContext = new TenantAwareAsyncLocalStorage();
 
 export const getTenantId = (): string | undefined => {
-    return requestContext.getStore()?.tenantId;
+  return requestContext.getStore()?.tenantId;
 };
 
 export const getUserId = (): string | undefined => {
-    return requestContext.getStore()?.userId;
+  return requestContext.getStore()?.userId;
 };

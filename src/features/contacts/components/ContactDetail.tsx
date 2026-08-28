@@ -1,3 +1,3 @@
 export function ContactDetail() {
-    return <div />;
+  return <div />;
 }

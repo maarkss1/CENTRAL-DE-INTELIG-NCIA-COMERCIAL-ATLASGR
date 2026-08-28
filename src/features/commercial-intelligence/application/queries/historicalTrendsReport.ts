@@ -6,35 +6,40 @@
  * mês (nunca interpolado).
  */
 
-import type { CommercialIntelligenceFilter, CommercialIntelligenceRepository, HistoricalTrendPoint, HistoricalTrendsReport } from '../../domain/CommercialIntelligence';
+import type {
+  CommercialIntelligenceFilter,
+  CommercialIntelligenceRepository,
+  HistoricalTrendPoint,
+  HistoricalTrendsReport,
+} from '../../domain/CommercialIntelligence';
 import { monthLabelPt, shiftMonth } from '../executiveCalendar';
 import { buildPerformance } from './performanceReport';
 import { buildPipelineCreation } from './pipelineCreationReport';
 
 export async function buildHistoricalTrends(
-    repository: CommercialIntelligenceRepository,
-    organizationId: string,
-    filter: CommercialIntelligenceFilter,
-    now: Date
+  repository: CommercialIntelligenceRepository,
+  organizationId: string,
+  filter: CommercialIntelligenceFilter,
+  now: Date,
 ): Promise<HistoricalTrendsReport> {
-    const months = Array.from({ length: 6 }, (_, i) => shiftMonth(filter.month, i - 5));
-    const points: HistoricalTrendPoint[] = await Promise.all(
-        months.map(async (period) => {
-            const monthFilter: CommercialIntelligenceFilter = { ...filter, month: period };
-            const [perf, creation] = await Promise.all([
-                buildPerformance(repository, organizationId, monthFilter, now),
-                buildPipelineCreation(repository, organizationId, monthFilter, now),
-            ]);
-            return {
-                period,
-                label: monthLabelPt(period),
-                winRate: perf.winRate,
-                salesCycleMeanDays: perf.salesCycle.meanDays,
-                averageTicketWon: perf.averageTicket.won,
-                pipelineCreatedAmount: creation.amount,
-                closedSampleSize: perf.wonCount + perf.lostCount,
-            };
-        })
-    );
-    return { points };
+  const months = Array.from({ length: 6 }, (_, i) => shiftMonth(filter.month, i - 5));
+  const points: HistoricalTrendPoint[] = await Promise.all(
+    months.map(async (period) => {
+      const monthFilter: CommercialIntelligenceFilter = { ...filter, month: period };
+      const [perf, creation] = await Promise.all([
+        buildPerformance(repository, organizationId, monthFilter, now),
+        buildPipelineCreation(repository, organizationId, monthFilter, now),
+      ]);
+      return {
+        period,
+        label: monthLabelPt(period),
+        winRate: perf.winRate,
+        salesCycleMeanDays: perf.salesCycle.meanDays,
+        averageTicketWon: perf.averageTicket.won,
+        pipelineCreatedAmount: creation.amount,
+        closedSampleSize: perf.wonCount + perf.lostCount,
+      };
+    }),
+  );
+  return { points };
 }

@@ -19,7 +19,7 @@ const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS
 vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
 
 vi.mock('../../../../lib/logger.js', () => ({
-    logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const { requestContext } = await import('../../../../lib/async-context');
@@ -28,63 +28,60 @@ const { CRMAgent } = await import('../crm.agent');
 const { PiiConsentRequiredError } = await import('../../services/guardrails.service');
 
 afterEach(() => {
-    mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
-    vi.restoreAllMocks();
+  mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
+  vi.restoreAllMocks();
 });
 
 describe('BaseAgent — trava de consentimento LGPD (BDR/Closer/CRM)', () => {
-    it('BDRAgent.run (caminho runWithTools) bloqueia sem base legal registrada, sem montar nenhum modelo de IA', async () => {
-        const fallbackUtil = await import('../fallback.util.js');
-        const buildSpy = vi.spyOn(fallbackUtil, 'buildModelWithFallback');
-        const agent = new BDRAgent();
+  it('BDRAgent.run (caminho runWithTools) bloqueia sem base legal registrada, sem montar nenhum modelo de IA', async () => {
+    const fallbackUtil = await import('../fallback.util.js');
+    const buildSpy = vi.spyOn(fallbackUtil, 'buildModelWithFallback');
+    const agent = new BDRAgent();
 
-        const result = await requestContext.run(
-            { tenantId: 'org-sem-consentimento' },
-            () => agent.run('Dados do lead/empresa para prospecção outbound.'),
-        );
+    const result = await requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
+      agent.run('Dados do lead/empresa para prospecção outbound.'),
+    );
 
-        expect(result.error).toContain('org-sem-consentimento');
-        expect(new PiiConsentRequiredError('org-sem-consentimento').message).toBe(result.error);
-        expect(buildSpy).not.toHaveBeenCalled();
-    }, 15_000);
+    expect(result.error).toContain('org-sem-consentimento');
+    expect(new PiiConsentRequiredError('org-sem-consentimento').message).toBe(result.error);
+    expect(buildSpy).not.toHaveBeenCalled();
+  }, 15_000);
 
-    it('CRMAgent.run (caminho run/StateGraph) bloqueia sem base legal registrada, sem montar nenhum modelo de IA', async () => {
-        const gateway = await import('../../../../lib/ai/gateway.js');
-        const getModelSpy = vi.spyOn(gateway, 'getAiModel');
-        const agent = new CRMAgent();
+  it('CRMAgent.run (caminho run/StateGraph) bloqueia sem base legal registrada, sem montar nenhum modelo de IA', async () => {
+    const gateway = await import('../../../../lib/ai/gateway.js');
+    const getModelSpy = vi.spyOn(gateway, 'getAiModel');
+    const agent = new CRMAgent();
 
-        const result = await requestContext.run(
-            { tenantId: 'org-sem-consentimento' },
-            () => agent.run('Estado atual do deal para diagnóstico.'),
-        );
+    const result = await requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
+      agent.run('Estado atual do deal para diagnóstico.'),
+    );
 
-        expect(result.error).toContain('org-sem-consentimento');
-        expect(getModelSpy).not.toHaveBeenCalled();
-    }, 15_000);
+    expect(result.error).toContain('org-sem-consentimento');
+    expect(getModelSpy).not.toHaveBeenCalled();
+  }, 15_000);
 
-    it('sem organizationId no contexto (fora de requisição autenticada), também bloqueia', async () => {
-        const agent = new BDRAgent();
+  it('sem organizationId no contexto (fora de requisição autenticada), também bloqueia', async () => {
+    const agent = new BDRAgent();
 
-        const result = await agent.run('Dados do lead/empresa para prospecção outbound.');
+    const result = await agent.run('Dados do lead/empresa para prospecção outbound.');
 
-        expect(result.error).toBeDefined();
+    expect(result.error).toBeDefined();
+  });
+
+  it('a trava grava a falha em AgentMemory (status Failed), para o mesmo padrão de auditoria já usado por SDR/Ops', async () => {
+    const agentMemoryStore = await import('../agentMemory.store.js');
+    const recordSpy = vi.spyOn(agentMemoryStore, 'recordAgentFailure').mockResolvedValue(undefined);
+    const agent = new CRMAgent();
+
+    await requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
+      agent.run('Estado atual do deal para diagnóstico.', 'session-consent-audit'),
+    );
+
+    expect(recordSpy).toHaveBeenCalledWith({
+      sessionId: 'session-consent-audit',
+      agentType: 'CRM',
+      organizationId: 'org-sem-consentimento',
+      errorMessage: expect.stringContaining('org-sem-consentimento'),
     });
-
-    it('a trava grava a falha em AgentMemory (status Failed), para o mesmo padrão de auditoria já usado por SDR/Ops', async () => {
-        const agentMemoryStore = await import('../agentMemory.store.js');
-        const recordSpy = vi.spyOn(agentMemoryStore, 'recordAgentFailure').mockResolvedValue(undefined);
-        const agent = new CRMAgent();
-
-        await requestContext.run(
-            { tenantId: 'org-sem-consentimento' },
-            () => agent.run('Estado atual do deal para diagnóstico.', 'session-consent-audit'),
-        );
-
-        expect(recordSpy).toHaveBeenCalledWith({
-            sessionId: 'session-consent-audit',
-            agentType: 'CRM',
-            organizationId: 'org-sem-consentimento',
-            errorMessage: expect.stringContaining('org-sem-consentimento'),
-        });
-    }, 15_000);
+  }, 15_000);
 });

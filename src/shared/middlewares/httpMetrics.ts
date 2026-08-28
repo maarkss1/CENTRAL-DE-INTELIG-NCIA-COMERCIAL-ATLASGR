@@ -17,10 +17,10 @@ import client from 'prom-client';
  * pipeline de exportação (OTLP → otel-collector → `:9464`) só para esta série.
  */
 export const httpServerDurationMs = new client.Histogram({
-    name: 'http_server_duration_milliseconds',
-    help: 'Duração de requisições HTTP em milissegundos, por método, rota e status code.',
-    labelNames: ['method', 'route', 'http_status_code'] as const,
-    buckets: [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
+  name: 'http_server_duration_milliseconds',
+  help: 'Duração de requisições HTTP em milissegundos, por método, rota e status code.',
+  labelNames: ['method', 'route', 'http_status_code'] as const,
+  buckets: [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
 });
 
 /**
@@ -29,26 +29,26 @@ export const httpServerDurationMs = new client.Histogram({
  * ainda não resolveu a rota (404, erro antes do roteamento), cai para `'unmatched'`.
  */
 function resolveRouteLabel(req: Request): string {
-    const mountPath = typeof req.baseUrl === 'string' ? req.baseUrl : '';
-    const routePath = (req.route as { path?: string } | undefined)?.path;
-    if (!routePath) return 'unmatched';
-    return `${mountPath}${routePath}` || 'unmatched';
+  const mountPath = typeof req.baseUrl === 'string' ? req.baseUrl : '';
+  const routePath = (req.route as { path?: string } | undefined)?.path;
+  if (!routePath) return 'unmatched';
+  return `${mountPath}${routePath}` || 'unmatched';
 }
 
 export const httpMetricsMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-    const start = process.hrtime.bigint();
+  const start = process.hrtime.bigint();
 
-    res.on('finish', () => {
-        const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
-        httpServerDurationMs.observe(
-            {
-                method: req.method,
-                route: resolveRouteLabel(req),
-                http_status_code: String(res.statusCode),
-            },
-            durationMs,
-        );
-    });
+  res.on('finish', () => {
+    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+    httpServerDurationMs.observe(
+      {
+        method: req.method,
+        route: resolveRouteLabel(req),
+        http_status_code: String(res.statusCode),
+      },
+      durationMs,
+    );
+  });
 
-    next();
+  next();
 };

@@ -8,10 +8,10 @@ import { executeAndRecord, type ExecutionResult } from './aiPendingAction.servic
 type Db = typeof prisma | ReturnType<typeof getTenantPrisma>;
 
 export async function listPendingActions(db: Db, organizationId: string) {
-    return db.aIPendingAction.findMany({
-        where: { approved: false, discardedAt: null, organizationId },
-        orderBy: { createdAt: 'desc' },
-    });
+  return db.aIPendingAction.findMany({
+    where: { approved: false, discardedAt: null, organizationId },
+    orderBy: { createdAt: 'desc' },
+  });
 }
 
 /**
@@ -19,32 +19,45 @@ export async function listPendingActions(db: Db, organizationId: string) {
  * banco e nada consumia isso depois. `execution.sent` diz pro chamador se realmente foi enviado;
  * quando não (`not_configured`/`send_failed`), a tela ainda pode cair no fallback manual.
  */
-export async function approvePendingAction(db: Db, organizationId: string, id: string, actorId: string): Promise<{ action: Awaited<ReturnType<typeof db.aIPendingAction.update>>; execution: ExecutionResult } | null> {
-    const pendingAction = await db.aIPendingAction.findFirst({
-        where: { id, organizationId, approved: false, discardedAt: null },
-    });
-    if (!pendingAction) {
-        return null;
-    }
-    const action = await db.aIPendingAction.update({
-        where: { id },
-        data: { approved: true, approvedAt: new Date(), approvedBy: actorId },
-    });
-    const execution = await executeAndRecord(action);
-    return { action, execution };
+export async function approvePendingAction(
+  db: Db,
+  organizationId: string,
+  id: string,
+  actorId: string,
+): Promise<{
+  action: Awaited<ReturnType<typeof db.aIPendingAction.update>>;
+  execution: ExecutionResult;
+} | null> {
+  const pendingAction = await db.aIPendingAction.findFirst({
+    where: { id, organizationId, approved: false, discardedAt: null },
+  });
+  if (!pendingAction) {
+    return null;
+  }
+  const action = await db.aIPendingAction.update({
+    where: { id },
+    data: { approved: true, approvedAt: new Date(), approvedBy: actorId },
+  });
+  const execution = await executeAndRecord(action);
+  return { action, execution };
 }
 
-export async function discardPendingAction(db: Db, organizationId: string, id: string, actorId: string) {
-    const pendingAction = await db.aIPendingAction.findFirst({
-        where: { id, organizationId, approved: false, discardedAt: null },
-    });
-    if (!pendingAction) {
-        return false;
-    }
-    // Preserva a decisão para auditoria e aprendizado; descartar não deve apagar o rastro da IA.
-    await db.aIPendingAction.update({
-        where: { id: pendingAction.id },
-        data: { discardedAt: new Date(), discardedBy: actorId },
-    });
-    return true;
+export async function discardPendingAction(
+  db: Db,
+  organizationId: string,
+  id: string,
+  actorId: string,
+) {
+  const pendingAction = await db.aIPendingAction.findFirst({
+    where: { id, organizationId, approved: false, discardedAt: null },
+  });
+  if (!pendingAction) {
+    return false;
+  }
+  // Preserva a decisão para auditoria e aprendizado; descartar não deve apagar o rastro da IA.
+  await db.aIPendingAction.update({
+    where: { id: pendingAction.id },
+    data: { discardedAt: new Date(), discardedBy: actorId },
+  });
+  return true;
 }

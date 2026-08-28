@@ -4,18 +4,18 @@
  * bate com esse formato (nunca inventa um número novo) para montar um link direto de WhatsApp.
  */
 export function findLikelyWhatsapp(phones: string[] | undefined | null): string | null {
-    for (const phone of phones || []) {
-        const digits = phone.replace(/\D/g, '').replace(/^55(?=\d{11}$)/, '');
-        if (digits.length === 11 && digits[2] === '9') return phone;
-    }
-    return null;
+  for (const phone of phones || []) {
+    const digits = phone.replace(/\D/g, '').replace(/^55(?=\d{11}$)/, '');
+    if (digits.length === 11 && digits[2] === '9') return phone;
+  }
+  return null;
 }
 
 /** Monta o link wa.me a partir de um telefone brasileiro já no formato de celular. */
 export function whatsappLink(phone: string): string {
-    const digits = phone.replace(/\D/g, '');
-    const withCountry = digits.startsWith('55') ? digits : `55${digits}`;
-    return `https://wa.me/${withCountry}`;
+  const digits = phone.replace(/\D/g, '');
+  const withCountry = digits.startsWith('55') ? digits : `55${digits}`;
+  return `https://wa.me/${withCountry}`;
 }
 
 /**
@@ -27,17 +27,17 @@ export function whatsappLink(phone: string): string {
  * tem 10 dígitos, então é DDD 55 + número local, e não código do país + número de 8 dígitos.
  */
 export function toE164BR(phone: string | null | undefined): string | null {
-    if (!phone) return null;
+  if (!phone) return null;
 
-    // O prefixo de discagem interurbana (0xx) não faz parte do número.
-    const digits = phone.replace(/\D/g, '').replace(/^0+/, '');
+  // O prefixo de discagem interurbana (0xx) não faz parte do número.
+  const digits = phone.replace(/\D/g, '').replace(/^0+/, '');
 
-    if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
-        return `+${digits}`;
-    }
-    // 10 dígitos = fixo (DDD + 8), 11 = celular (DDD + 9).
-    if (digits.length === 10 || digits.length === 11) {
-        return `+55${digits}`;
-    }
-    return null;
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    return `+${digits}`;
+  }
+  // 10 dígitos = fixo (DDD + 8), 11 = celular (DDD + 9).
+  if (digits.length === 10 || digits.length === 11) {
+    return `+55${digits}`;
+  }
+  return null;
 }

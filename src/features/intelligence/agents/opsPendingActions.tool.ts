@@ -32,20 +32,22 @@ import type { NotificationKind } from '../../notifications/notification.service.
 const IDEMPOTENCY_BUCKET_MS = 30 * 60 * 1000;
 
 function idempotencyBucket(now: number = Date.now()): number {
-    return Math.floor(now / IDEMPOTENCY_BUCKET_MS);
+  return Math.floor(now / IDEMPOTENCY_BUCKET_MS);
 }
 
 /** `P2002` = violação da unique constraint `(organizationId, idempotencyKey)` — outra chamada
  * (retentativa do próprio LLM dentro da mesma janela) já criou a proposta primeiro. Não é uma
  * falha real: a proposta já existe e já está na fila de aprovação. */
 function isUniqueConstraintViolation(error: unknown): boolean {
-    return typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002';
+  return (
+    typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002'
+  );
 }
 
 async function findExistingByIdempotencyKey(organizationId: string, idempotencyKey: string) {
-    return prisma.aIPendingAction.findUnique({
-        where: { organizationId_idempotencyKey: { organizationId, idempotencyKey } },
-    });
+  return prisma.aIPendingAction.findUnique({
+    where: { organizationId_idempotencyKey: { organizationId, idempotencyKey } },
+  });
 }
 
 /**
@@ -58,60 +60,83 @@ async function findExistingByIdempotencyKey(organizationId: string, idempotencyK
  * de deixar uma proposta órfã na fila.
  */
 export const createFollowUpTaskTool = tool(
-    async ({ leadId, date, type, observations, owner }: {
-        leadId: string;
-        date: string;
-        type?: (typeof ACTIVITY_TYPE)[number];
-        observations?: string;
-        owner?: string;
-    }) => {
-        const organizationId = getTenantId();
-        if (!organizationId) {
-            return 'Erro: contexto de organização ausente — não é possível propor a tarefa com segurança.';
-        }
+  async ({
+    leadId,
+    date,
+    type,
+    observations,
+    owner,
+  }: {
+    leadId: string;
+    date: string;
+    type?: (typeof ACTIVITY_TYPE)[number];
+    observations?: string;
+    owner?: string;
+  }) => {
+    const organizationId = getTenantId();
+    if (!organizationId) {
+      return 'Erro: contexto de organização ausente — não é possível propor a tarefa com segurança.';
+    }
 
-        const lead = await prisma.lead.findFirst({ where: { id: leadId, organizationId }, select: { id: true } });
-        if (!lead) {
-            return `Erro: Lead ${leadId} não encontrado no CRM — não é possível propor a tarefa.`;
-        }
+    const lead = await prisma.lead.findFirst({
+      where: { id: leadId, organizationId },
+      select: { id: true },
+    });
+    if (!lead) {
+      return `Erro: Lead ${leadId} não encontrado no CRM — não é possível propor a tarefa.`;
+    }
 
-        const idempotencyKey = `ops:create_follow_up:${leadId}:${date}:${type ?? 'Follow-up'}:${idempotencyBucket()}`;
+    const idempotencyKey = `ops:create_follow_up:${leadId}:${date}:${type ?? 'Follow-up'}:${idempotencyBucket()}`;
 
-        try {
-            await prisma.aIPendingAction.create({
-                data: {
-                    entity: 'Lead',
-                    action: 'create_follow_up',
-                    agentRole: 'OPS',
-                    riskLevel: 'low',
-                    idempotencyKey,
-                    organizationId,
-                    payload: { leadId, date, type: type ?? 'Follow-up', observations: observations ?? null, owner: owner ?? null },
-                },
-            });
-        } catch (error) {
-            if (!isUniqueConstraintViolation(error)) {
-                return `Erro ao registrar a proposta de tarefa: ${error instanceof Error ? error.message : String(error)}`;
-            }
-            const existing = await findExistingByIdempotencyKey(organizationId, idempotencyKey);
-            if (!existing) {
-                return `Erro ao registrar a proposta de tarefa: ${error instanceof Error ? error.message : String(error)}`;
-            }
-        }
+    try {
+      await prisma.aIPendingAction.create({
+        data: {
+          entity: 'Lead',
+          action: 'create_follow_up',
+          agentRole: 'OPS',
+          riskLevel: 'low',
+          idempotencyKey,
+          organizationId,
+          payload: {
+            leadId,
+            date,
+            type: type ?? 'Follow-up',
+            observations: observations ?? null,
+            owner: owner ?? null,
+          },
+        },
+      });
+    } catch (error) {
+      if (!isUniqueConstraintViolation(error)) {
+        return `Erro ao registrar a proposta de tarefa: ${error instanceof Error ? error.message : String(error)}`;
+      }
+      const existing = await findExistingByIdempotencyKey(organizationId, idempotencyKey);
+      if (!existing) {
+        return `Erro ao registrar a proposta de tarefa: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    }
 
-        return `Proposta de tarefa "${type ?? 'Follow-up'}" registrada para o lead ${leadId} em ${date}, aguardando aprovação humana antes de ser criada de fato no CRM.`;
-    },
-    {
-        name: 'create_follow_up_task',
-        description: 'Propõe uma tarefa/atividade de follow-up vinculada a um Lead no CRM, para um vendedor humano executar depois. A proposta fica pendente de aprovação humana antes de ser criada de fato — use quando a missão pedir para marcar um próximo contato ou lembrete concreto.',
-        schema: z.object({
-            leadId: z.string().describe('O ID do Lead ao qual a tarefa deve ser vinculada'),
-            date: z.string().describe('Data (e opcionalmente hora) da tarefa, em formato ISO 8601, ex: 2026-08-05T14:00:00.000Z'),
-            type: z.enum(ACTIVITY_TYPE).optional().describe('Tipo da atividade (padrão: Follow-up)'),
-            observations: z.string().optional().describe('Observações/contexto para quem for executar a tarefa'),
-            owner: z.string().optional().describe('Nome do responsável humano pela tarefa, se conhecido'),
-        }),
-    },
+    return `Proposta de tarefa "${type ?? 'Follow-up'}" registrada para o lead ${leadId} em ${date}, aguardando aprovação humana antes de ser criada de fato no CRM.`;
+  },
+  {
+    name: 'create_follow_up_task',
+    description:
+      'Propõe uma tarefa/atividade de follow-up vinculada a um Lead no CRM, para um vendedor humano executar depois. A proposta fica pendente de aprovação humana antes de ser criada de fato — use quando a missão pedir para marcar um próximo contato ou lembrete concreto.',
+    schema: z.object({
+      leadId: z.string().describe('O ID do Lead ao qual a tarefa deve ser vinculada'),
+      date: z
+        .string()
+        .describe(
+          'Data (e opcionalmente hora) da tarefa, em formato ISO 8601, ex: 2026-08-05T14:00:00.000Z',
+        ),
+      type: z.enum(ACTIVITY_TYPE).optional().describe('Tipo da atividade (padrão: Follow-up)'),
+      observations: z
+        .string()
+        .optional()
+        .describe('Observações/contexto para quem for executar a tarefa'),
+      owner: z.string().optional().describe('Nome do responsável humano pela tarefa, se conhecido'),
+    }),
+  },
 );
 
 /**
@@ -120,51 +145,60 @@ export const createFollowUpTaskTool = tool(
  * aprovação humana).
  */
 export const notifyTeamTool = tool(
-    async ({ title, body, kind, leadId }: {
-        title: string;
-        body?: string;
-        kind?: NotificationKind;
-        leadId?: string;
-    }) => {
-        const organizationId = getTenantId();
-        if (!organizationId) {
-            return 'Erro: contexto de organização ausente — não é possível propor a notificação com segurança.';
-        }
+  async ({
+    title,
+    body,
+    kind,
+    leadId,
+  }: {
+    title: string;
+    body?: string;
+    kind?: NotificationKind;
+    leadId?: string;
+  }) => {
+    const organizationId = getTenantId();
+    if (!organizationId) {
+      return 'Erro: contexto de organização ausente — não é possível propor a notificação com segurança.';
+    }
 
-        const idempotencyKey = `ops:notify_team:${leadId ?? 'org'}:${title}:${idempotencyBucket()}`;
+    const idempotencyKey = `ops:notify_team:${leadId ?? 'org'}:${title}:${idempotencyBucket()}`;
 
-        try {
-            await prisma.aIPendingAction.create({
-                data: {
-                    entity: leadId ? 'Lead' : 'Organization',
-                    action: 'notify_team',
-                    agentRole: 'OPS',
-                    riskLevel: 'medium',
-                    idempotencyKey,
-                    organizationId,
-                    payload: { title, body: body ?? null, kind: kind ?? 'Info', leadId: leadId ?? null },
-                },
-            });
-        } catch (error) {
-            if (!isUniqueConstraintViolation(error)) {
-                return `Erro ao registrar a proposta de notificação: ${error instanceof Error ? error.message : String(error)}`;
-            }
-            const existing = await findExistingByIdempotencyKey(organizationId, idempotencyKey);
-            if (!existing) {
-                return `Erro ao registrar a proposta de notificação: ${error instanceof Error ? error.message : String(error)}`;
-            }
-        }
+    try {
+      await prisma.aIPendingAction.create({
+        data: {
+          entity: leadId ? 'Lead' : 'Organization',
+          action: 'notify_team',
+          agentRole: 'OPS',
+          riskLevel: 'medium',
+          idempotencyKey,
+          organizationId,
+          payload: { title, body: body ?? null, kind: kind ?? 'Info', leadId: leadId ?? null },
+        },
+      });
+    } catch (error) {
+      if (!isUniqueConstraintViolation(error)) {
+        return `Erro ao registrar a proposta de notificação: ${error instanceof Error ? error.message : String(error)}`;
+      }
+      const existing = await findExistingByIdempotencyKey(organizationId, idempotencyKey);
+      if (!existing) {
+        return `Erro ao registrar a proposta de notificação: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    }
 
-        return `Proposta de notificação "${title}" registrada, aguardando aprovação humana antes de ser enviada de fato à equipe.`;
-    },
-    {
-        name: 'notify_team',
-        description: 'Propõe uma notificação interna para a equipe comercial (aparece no sino de notificações do CRM). A proposta fica pendente de aprovação humana antes de ser enviada de fato — use para alertar sobre um risco, oportunidade ou resultado importante da missão que exige atenção humana.',
-        schema: z.object({
-            title: z.string().min(1).max(160).describe('Título curto e direto da notificação'),
-            body: z.string().max(1000).optional().describe('Detalhe opcional da notificação'),
-            kind: z.enum(['Info', 'Sucesso', 'Alerta', 'Erro']).optional().describe('Severidade da notificação (padrão: Info)'),
-            leadId: z.string().optional().describe('ID do Lead relacionado, se houver'),
-        }),
-    },
+    return `Proposta de notificação "${title}" registrada, aguardando aprovação humana antes de ser enviada de fato à equipe.`;
+  },
+  {
+    name: 'notify_team',
+    description:
+      'Propõe uma notificação interna para a equipe comercial (aparece no sino de notificações do CRM). A proposta fica pendente de aprovação humana antes de ser enviada de fato — use para alertar sobre um risco, oportunidade ou resultado importante da missão que exige atenção humana.',
+    schema: z.object({
+      title: z.string().min(1).max(160).describe('Título curto e direto da notificação'),
+      body: z.string().max(1000).optional().describe('Detalhe opcional da notificação'),
+      kind: z
+        .enum(['Info', 'Sucesso', 'Alerta', 'Erro'])
+        .optional()
+        .describe('Severidade da notificação (padrão: Info)'),
+      leadId: z.string().optional().describe('ID do Lead relacionado, se houver'),
+    }),
+  },
 );

@@ -22,16 +22,20 @@ router.use(requireRole([...COMMERCIAL_INTELLIGENCE_ROLES]));
 // chamadas por troca de aba; colocar o limite de IA (bem mais baixo) no router inteiro derrubaria
 // a navegação normal do cockpit bem antes de qualquer chamada de IA de verdade.
 const aiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: env.AI_RATE_LIMIT_MAX,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) => (req as AuthRequest).user?.organizationId || ipKeyGenerator(req.ip || 'unknown'),
-    message: { success: false, error: 'Muitas chamadas de IA para esta organização — tente novamente em alguns minutos.' },
+  windowMs: 15 * 60 * 1000,
+  max: env.AI_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) =>
+    (req as AuthRequest).user?.organizationId || ipKeyGenerator(req.ip || 'unknown'),
+  message: {
+    success: false,
+    error: 'Muitas chamadas de IA para esta organização — tente novamente em alguns minutos.',
+  },
 });
 
 function resolve(): CommercialIntelligenceController {
-    return container.resolve<CommercialIntelligenceController>('CommercialIntelligenceController');
+  return container.resolve<CommercialIntelligenceController>('CommercialIntelligenceController');
 }
 
 router.get('/overview', (req, res, next) => resolve().getOverview(req, res, next));
@@ -39,11 +43,15 @@ router.get('/pipeline-creation', (req, res, next) => resolve().getPipelineCreati
 router.get('/performance', (req, res, next) => resolve().getPerformance(req, res, next));
 router.get('/aging', (req, res, next) => resolve().getAging(req, res, next));
 router.get('/losses', (req, res, next) => resolve().getLosses(req, res, next));
-router.get('/leading-indicators', (req, res, next) => resolve().getLeadingIndicators(req, res, next));
+router.get('/leading-indicators', (req, res, next) =>
+  resolve().getLeadingIndicators(req, res, next),
+);
 router.get('/alerts', (req, res, next) => resolve().getAlerts(req, res, next));
 router.get('/crm-quality', (req, res, next) => resolve().getCrmQuality(req, res, next));
 router.get('/deals', (req, res, next) => resolve().getDeals(req, res, next));
-router.get('/deals/:leadId/forecast', (req, res, next) => resolve().getForecastExplain(req, res, next));
+router.get('/deals/:leadId/forecast', (req, res, next) =>
+  resolve().getForecastExplain(req, res, next),
+);
 router.get('/metrics-dictionary', (req, res) => resolve().getMetricsDictionary(req, res));
 // Exportação HTML/CSV/JSON do Relatório Executivo — devolve conteúdo cru (não o envelope
 // {success,data} do resto do router), ver comentário em `CommercialIntelligenceController.getExport`.
@@ -59,10 +67,16 @@ router.put('/goals', (req, res, next) => resolve().putGoal(req, res, next));
 // POST (não GET) de propósito: dispara uma chamada de IA de verdade (custo, latência, efeito
 // colateral de notificação em caso crítico) — não é uma leitura idempotente sem custo como as
 // rotas GET acima.
-router.post('/ai/executive-summary', aiLimiter, (req, res, next) => resolve().postAiExecutiveSummary(req, res, next));
-router.post('/ai/bitrix-note', aiLimiter, (req, res, next) => resolve().postAiBitrixNote(req, res, next));
+router.post('/ai/executive-summary', aiLimiter, (req, res, next) =>
+  resolve().postAiExecutiveSummary(req, res, next),
+);
+router.post('/ai/bitrix-note', aiLimiter, (req, res, next) =>
+  resolve().postAiBitrixNote(req, res, next),
+);
 // Mentor Comercial — playbook de recomendações priorizadas (mesmo desenho de custo/efeito
 // colateral dos 2 endpoints de IA acima: `aiLimiter` dedicado, nunca disparado sem clique explícito).
-router.post('/ai/mentor-playbook', aiLimiter, (req, res, next) => resolve().postAiMentorPlaybook(req, res, next));
+router.post('/ai/mentor-playbook', aiLimiter, (req, res, next) =>
+  resolve().postAiMentorPlaybook(req, res, next),
+);
 
 export const commercialIntelligenceRoutes = router;

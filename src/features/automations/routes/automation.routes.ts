@@ -13,36 +13,50 @@ const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
 
 /** Opções que a tela usa para montar os selects, para o frontend não duplicar os enums. */
-router.get('/options', (req, res) => container.resolve<AutomationController>('AutomationController').getOptions(req, res));
+router.get('/options', (req, res) =>
+  container.resolve<AutomationController>('AutomationController').getOptions(req, res),
+);
 
-router.get('/', (req, res, next) => container.resolve<AutomationController>('AutomationController').getAutomations(req, res, next));
+router.get('/', (req, res, next) =>
+  container.resolve<AutomationController>('AutomationController').getAutomations(req, res, next),
+);
 
-router.post('/', managementRoles, validateRequest(automationSchema), (req, res, next) => container.resolve<AutomationController>('AutomationController').createAutomation(req, res, next));
+router.post('/', managementRoles, validateRequest(automationSchema), (req, res, next) =>
+  container.resolve<AutomationController>('AutomationController').createAutomation(req, res, next),
+);
 
-router.put('/:id', managementRoles, validateRequest(automationSchema.partial()), (req, res, next) => container.resolve<AutomationController>('AutomationController').updateAutomation(req, res, next));
+router.put('/:id', managementRoles, validateRequest(automationSchema.partial()), (req, res, next) =>
+  container.resolve<AutomationController>('AutomationController').updateAutomation(req, res, next),
+);
 
-router.delete('/:id', managementRoles, (req, res, next) => container.resolve<AutomationController>('AutomationController').deleteAutomation(req, res, next));
+router.delete('/:id', managementRoles, (req, res, next) =>
+  container.resolve<AutomationController>('AutomationController').deleteAutomation(req, res, next),
+);
 
 // Histórico de versões da regra (Onda 42 — dossiê CPI DEC-14, opção A) e simulação/preview
 // ("dry-run") antes de ativar — mesmo nível de restrição das outras rotas de gestão de automação
 // (ADMIN/GESTOR): a primeira revela histórico de configuração comercial, a segunda lê uma amostra
 // de leads/atividades reais da organização.
-router.get('/:id/versions', managementRoles, (req, res, next) => container.resolve<AutomationController>('AutomationController').getVersions(req, res, next));
+router.get('/:id/versions', managementRoles, (req, res, next) =>
+  container.resolve<AutomationController>('AutomationController').getVersions(req, res, next),
+);
 
-router.post('/:id/dry-run', managementRoles, (req, res, next) => container.resolve<AutomationController>('AutomationController').dryRunAutomation(req, res, next));
+router.post('/:id/dry-run', managementRoles, (req, res, next) =>
+  container.resolve<AutomationController>('AutomationController').dryRunAutomation(req, res, next),
+);
 
 // Dispara a varredura de estagnação (regras "Lead mudou de status" com condição
 // `daysSinceLastInteraction`, ver stagnation-scanner.service.ts) imediatamente em vez de esperar o
 // cron diário. Roda para TODAS as organizações (mesmo padrão de `runColdLeadsScan`/`/win-loss-
 // analysis`), então fica restrito a ADMIN — não é uma leitura escopada ao tenant de quem chama.
 router.post('/stagnation-scan', requireRole(['ADMIN']), async (req, res, next) => {
-    try {
-        const result = await runStagnationScan();
-        res.json({ success: true, data: result });
-    } catch (error) {
-        logger.error({ err: error }, 'Falha ao disparar a varredura de estagnação manualmente');
-        next(error);
-    }
+  try {
+    const result = await runStagnationScan();
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error({ err: error }, 'Falha ao disparar a varredura de estagnação manualmente');
+    next(error);
+  }
 });
 
 export const automationRoutes = router;

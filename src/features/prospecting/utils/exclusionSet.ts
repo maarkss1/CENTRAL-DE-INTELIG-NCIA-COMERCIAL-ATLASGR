@@ -1,18 +1,18 @@
 function normalizeDomain(website: string | null | undefined): string | null {
-    if (!website) return null;
-    const trimmed = website.trim();
-    if (!trimmed) return null;
-    try {
-        const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-        const host = new URL(withProtocol).hostname.replace(/^www\./i, '').toLowerCase();
-        return host || null;
-    } catch {
-        return null;
-    }
+  if (!website) return null;
+  const trimmed = website.trim();
+  if (!trimmed) return null;
+  try {
+    const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    const host = new URL(withProtocol).hostname.replace(/^www\./i, '').toLowerCase();
+    return host || null;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeName(name: string): string {
-    return name.trim().toLowerCase();
+  return name.trim().toLowerCase();
 }
 
 /**
@@ -24,22 +24,22 @@ function normalizeName(name: string): string {
  * futuras.
  */
 export class ExclusionSet {
-    private readonly domains = new Set<string>();
-    private readonly names = new Set<string>();
+  private readonly domains = new Set<string>();
+  private readonly names = new Set<string>();
 
-    has(name: string, website?: string | null): boolean {
-        const domain = normalizeDomain(website);
-        if (domain && this.domains.has(domain)) return true;
-        return this.names.has(normalizeName(name));
-    }
+  has(name: string, website?: string | null): boolean {
+    const domain = normalizeDomain(website);
+    if (domain && this.domains.has(domain)) return true;
+    return this.names.has(normalizeName(name));
+  }
 
-    add(name: string, website?: string | null): void {
-        const domain = normalizeDomain(website);
-        if (domain) this.domains.add(domain);
-        this.names.add(normalizeName(name));
-    }
+  add(name: string, website?: string | null): void {
+    const domain = normalizeDomain(website);
+    if (domain) this.domains.add(domain);
+    this.names.add(normalizeName(name));
+  }
 
-    get size(): number {
-        return this.names.size;
-    }
+  get size(): number {
+    return this.names.size;
+  }
 }

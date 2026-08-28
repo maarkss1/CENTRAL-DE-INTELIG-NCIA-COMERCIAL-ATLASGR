@@ -7,20 +7,22 @@ import type { CrmCommercialDocumentVersionDTO } from '../crm360.types';
  * domínio do backend para o bundle do frontend por uma função de ~5 linhas.
  */
 export interface ProposalVersionDiff {
-    totalChanged: boolean;
-    previousTotal: number | null;
-    newTotal: number;
-    itemCountChanged: boolean;
+  totalChanged: boolean;
+  previousTotal: number | null;
+  newTotal: number;
+  itemCountChanged: boolean;
 }
 
 export function diffProposalVersions(
-    previous: CrmCommercialDocumentVersionDTO | null,
-    next: CrmCommercialDocumentVersionDTO,
+  previous: CrmCommercialDocumentVersionDTO | null,
+  next: CrmCommercialDocumentVersionDTO,
 ): ProposalVersionDiff {
-    return {
-        totalChanged: previous ? previous.snapshot.total !== next.snapshot.total : true,
-        previousTotal: previous?.snapshot.total ?? null,
-        newTotal: next.snapshot.total,
-        itemCountChanged: previous ? previous.snapshot.lineItems.length !== next.snapshot.lineItems.length : true,
-    };
+  return {
+    totalChanged: previous ? previous.snapshot.total !== next.snapshot.total : true,
+    previousTotal: previous?.snapshot.total ?? null,
+    newTotal: next.snapshot.total,
+    itemCountChanged: previous
+      ? previous.snapshot.lineItems.length !== next.snapshot.lineItems.length
+      : true,
+  };
 }

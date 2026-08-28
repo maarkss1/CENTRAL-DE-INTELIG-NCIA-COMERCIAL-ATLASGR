@@ -9,7 +9,11 @@ import { CRMAgent } from './crm.agent.js';
 import { OpsAgent } from './ops.agent.js';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
+import {
+  SWARM_IDENTITY,
+  SWARM_OUTPUT_CONTRACT,
+  SWARM_UNTRUSTED_CONTENT_GUARD,
+} from './swarm.constants.js';
 import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
 import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 
@@ -25,10 +29,10 @@ import { buildModelWithFallback } from './fallback.util.js';
 
 let cachedSupervisorLlm: any = null;
 function getSupervisorLlm() {
-    if (cachedSupervisorLlm) return cachedSupervisorLlm;
+  if (cachedSupervisorLlm) return cachedSupervisorLlm;
 
-    cachedSupervisorLlm = buildModelWithFallback('openai/gpt-oss-20b');
-    return cachedSupervisorLlm;
+  cachedSupervisorLlm = buildModelWithFallback('openai/gpt-oss-20b');
+  return cachedSupervisorLlm;
 }
 
 export type SwarmAgentKey = 'sdr' | 'bdr' | 'closer' | 'crm' | 'ops';
@@ -36,110 +40,133 @@ export type SwarmRoute = SwarmAgentKey | 'finish';
 export type SwarmEventType = 'routing' | 'agent_result' | 'agent_error' | 'final';
 
 export interface SwarmEvent {
-    type: SwarmEventType;
-    agent: 'supervisor' | SwarmAgentKey;
-    content: string;
-    step: number;
-    reasoning?: string;
-    /** Presente apenas em eventos 'routing': qual especialista está prestes a ser acionado. */
-    nextAgent?: SwarmAgentKey;
+  type: SwarmEventType;
+  agent: 'supervisor' | SwarmAgentKey;
+  content: string;
+  step: number;
+  reasoning?: string;
+  /** Presente apenas em eventos 'routing': qual especialista está prestes a ser acionado. */
+  nextAgent?: SwarmAgentKey;
 }
 
 // Limite de saltos entre especialistas antes de forçar a síntese final (evita loops infinitos).
 const MAX_STEPS = 5;
 
-const AGENT_INFO: Record<SwarmAgentKey, { label: string; description: string; chooseWhen: string }> = {
-    sdr: {
-        label: 'SDR Autônomo',
-        description: 'Qualifica um lead JÁ CADASTRADO no CRM (fit logístico, porte de frota/faturamento, situação cadastral) e atualiza o status de qualificação.',
-        chooseWhen: 'A missão pede para qualificar/analisar um lead específico que já existe no CRM. Exige um Lead ID real — nunca escolha sem um.',
-    },
-    bdr: {
-        label: 'BDR (Outbound)',
-        description: 'Avalia o fit outbound de um lead/empresa a partir de um resumo em texto (não precisa de cadastro no CRM) e sugere a linha de abordagem para o primeiro contato frio.',
-        chooseWhen: 'A missão é sobre um lead/empresa NOVO, ainda sem contato feito, ou pede uma sugestão de abertura/primeira mensagem de prospecção.',
-    },
-    closer: {
-        label: 'Closer Autônomo',
-        description: 'Conduz estratégia de negociação para oportunidades qualificadas: objeções, prova de valor, compromisso de decisão e proteção de margem.',
-        chooseWhen: 'A missão envolve oportunidade qualificada, proposta enviada, reunião comercial, piloto, negociação, objeção, decisão ou fechamento. Não use para primeiro contato frio.',
-    },
-    crm: {
-        label: 'Gestor de CRM',
-        description: 'Resume o risco de perda de negócios/deals JÁ EM ANDAMENTO e recomenda a próxima ação concreta de tratativa.',
-        chooseWhen: 'A missão é sobre uma negociação/deal que já está em andamento (não um lead novo) — risco de estagnação ou perda, próximos passos comerciais.',
-    },
-    ops: {
-        label: 'Agente de Operações',
-        description: 'Executa ações concretas nas demais ferramentas do sistema: agenda tarefas de follow-up no CRM e notifica a equipe comercial.',
-        chooseWhen: 'A missão pede uma AÇÃO CONCRETA a ser executada agora (agendar, notificar, criar tarefa) — não escolha só para produzir mais uma análise ou opinião.',
-    },
+const AGENT_INFO: Record<
+  SwarmAgentKey,
+  { label: string; description: string; chooseWhen: string }
+> = {
+  sdr: {
+    label: 'SDR Autônomo',
+    description:
+      'Qualifica um lead JÁ CADASTRADO no CRM (fit logístico, porte de frota/faturamento, situação cadastral) e atualiza o status de qualificação.',
+    chooseWhen:
+      'A missão pede para qualificar/analisar um lead específico que já existe no CRM. Exige um Lead ID real — nunca escolha sem um.',
+  },
+  bdr: {
+    label: 'BDR (Outbound)',
+    description:
+      'Avalia o fit outbound de um lead/empresa a partir de um resumo em texto (não precisa de cadastro no CRM) e sugere a linha de abordagem para o primeiro contato frio.',
+    chooseWhen:
+      'A missão é sobre um lead/empresa NOVO, ainda sem contato feito, ou pede uma sugestão de abertura/primeira mensagem de prospecção.',
+  },
+  closer: {
+    label: 'Closer Autônomo',
+    description:
+      'Conduz estratégia de negociação para oportunidades qualificadas: objeções, prova de valor, compromisso de decisão e proteção de margem.',
+    chooseWhen:
+      'A missão envolve oportunidade qualificada, proposta enviada, reunião comercial, piloto, negociação, objeção, decisão ou fechamento. Não use para primeiro contato frio.',
+  },
+  crm: {
+    label: 'Gestor de CRM',
+    description:
+      'Resume o risco de perda de negócios/deals JÁ EM ANDAMENTO e recomenda a próxima ação concreta de tratativa.',
+    chooseWhen:
+      'A missão é sobre uma negociação/deal que já está em andamento (não um lead novo) — risco de estagnação ou perda, próximos passos comerciais.',
+  },
+  ops: {
+    label: 'Agente de Operações',
+    description:
+      'Executa ações concretas nas demais ferramentas do sistema: agenda tarefas de follow-up no CRM e notifica a equipe comercial.',
+    chooseWhen:
+      'A missão pede uma AÇÃO CONCRETA a ser executada agora (agendar, notificar, criar tarefa) — não escolha só para produzir mais uma análise ou opinião.',
+  },
 };
 
 const SwarmState = Annotation.Root({
-    messages: Annotation<BaseMessage[]>({
-        reducer: (left, right) => left.concat(right),
-        default: () => [],
-    }),
-    mission: Annotation<string>({
-        reducer: (left, right) => right ?? left,
-        default: () => '',
-    }),
-    instruction: Annotation<string>({
-        reducer: (left, right) => right ?? left,
-        default: () => '',
-    }),
-    // ID real de Lead do CRM, opcional — ver sdrNode: sem isto, SDRQualificationAgent.run() recebia
-    // o texto livre da missão/instrução no lugar de um ID de lead de verdade e a ferramenta de
-    // contexto sempre falhava com "lead não encontrado" (IA-003).
-    leadId: Annotation<string>({
-        reducer: (left, right) => right ?? left,
-        default: () => '',
-    }),
-    next: Annotation<SwarmRoute>({
-        reducer: (left, right) => right ?? left,
-        default: () => 'sdr',
-    }),
-    completed: Annotation<SwarmAgentKey[]>({
-        reducer: (left, right) => [...left, ...right],
-        default: () => [],
-    }),
-    results: Annotation<Partial<Record<SwarmAgentKey, string>>>({
-        reducer: (left, right) => ({ ...left, ...right }),
-        default: () => ({}),
-    }),
-    step: Annotation<number>({
-        reducer: (left, right) => right ?? left,
-        default: () => 0,
-    }),
+  messages: Annotation<BaseMessage[]>({
+    reducer: (left, right) => left.concat(right),
+    default: () => [],
+  }),
+  mission: Annotation<string>({
+    reducer: (left, right) => right ?? left,
+    default: () => '',
+  }),
+  instruction: Annotation<string>({
+    reducer: (left, right) => right ?? left,
+    default: () => '',
+  }),
+  // ID real de Lead do CRM, opcional — ver sdrNode: sem isto, SDRQualificationAgent.run() recebia
+  // o texto livre da missão/instrução no lugar de um ID de lead de verdade e a ferramenta de
+  // contexto sempre falhava com "lead não encontrado" (IA-003).
+  leadId: Annotation<string>({
+    reducer: (left, right) => right ?? left,
+    default: () => '',
+  }),
+  next: Annotation<SwarmRoute>({
+    reducer: (left, right) => right ?? left,
+    default: () => 'sdr',
+  }),
+  completed: Annotation<SwarmAgentKey[]>({
+    reducer: (left, right) => [...left, ...right],
+    default: () => [],
+  }),
+  results: Annotation<Partial<Record<SwarmAgentKey, string>>>({
+    reducer: (left, right) => ({ ...left, ...right }),
+    default: () => ({}),
+  }),
+  step: Annotation<number>({
+    reducer: (left, right) => right ?? left,
+    default: () => 0,
+  }),
 });
 
 type SwarmStateType = typeof SwarmState.State;
 
 function buildEvent(
-    type: SwarmEventType,
-    agent: SwarmEvent['agent'],
-    content: string,
-    step: number,
-    reasoning?: string,
-    nextAgent?: SwarmAgentKey,
+  type: SwarmEventType,
+  agent: SwarmEvent['agent'],
+  content: string,
+  step: number,
+  reasoning?: string,
+  nextAgent?: SwarmAgentKey,
 ): SwarmEvent {
-    return { type, agent, content, step, reasoning, nextAgent };
+  return { type, agent, content, step, reasoning, nextAgent };
 }
 
 function toAiMessage(event: SwarmEvent): AIMessage {
-    return new AIMessage({ content: event.content, additional_kwargs: { swarmEvent: event } });
+  return new AIMessage({ content: event.content, additional_kwargs: { swarmEvent: event } });
 }
 
 // Exportado só para teste unitário direto da validação de forma da decisão do supervisor.
 export const supervisorDecisionSchema = z.object({
-    action: z.enum(['sdr', 'bdr', 'closer', 'crm', 'ops', 'finish']).describe(
-        'Qual especialista deve atuar a seguir, ou "finish" se a missão já foi suficientemente atendida.',
+  action: z
+    .enum(['sdr', 'bdr', 'closer', 'crm', 'ops', 'finish'])
+    .describe(
+      'Qual especialista deve atuar a seguir, ou "finish" se a missão já foi suficientemente atendida.',
     ),
-    instruction: z.string().default('').describe(
-        'Instrução objetiva e ESPECÍFICA em português para o especialista escolhido: diga exatamente o que analisar/fazer e com base em que dado da missão. String vazia se action for "finish".',
+  instruction: z
+    .string()
+    .default('')
+    .describe(
+      'Instrução objetiva e ESPECÍFICA em português para o especialista escolhido: diga exatamente o que analisar/fazer e com base em que dado da missão. String vazia se action for "finish".',
     ),
-    reasoning: z.string().default('').describe('Uma frase curta explicando por que este especialista (e não outro) foi escolhido agora.'),
+  reasoning: z
+    .string()
+    .default('')
+    .describe(
+      'Uma frase curta explicando por que este especialista (e não outro) foi escolhido agora.',
+    ),
 });
 
 type SupervisorDecision = z.infer<typeof supervisorDecisionSchema>;
@@ -149,22 +176,33 @@ type SupervisorDecision = z.infer<typeof supervisorDecisionSchema>;
 // interceptou) mandava um texto fixo e genérico pro especialista ("produza um resultado
 // objetivo"), descartando o pedido real do usuário justamente nos casos em que o roteamento por
 // IA não pôde ser confiado.
-export function fallbackDecision(completed: SwarmAgentKey[], hasLeadId: boolean, mission: string = ''): SupervisorDecision {
-    // Sem leadId o especialista 'sdr' sempre falharia (depende de um lead real do CRM) — nem
-    // oferece ele como opção de contingência, senão o enxame queima uma rodada inteira só para
-    // descobrir isso (ver enforceLeadGuard, que cobre o mesmo caso quando é o LLM que erra).
-    const order: SwarmAgentKey[] = hasLeadId
-        ? ['sdr', 'bdr', 'closer', 'crm', 'ops']
-        : ['bdr', 'closer', 'crm', 'ops'];
-    const pending = order.find((agent) => !completed.includes(agent));
-    if (!pending) {
-        return { action: 'finish', instruction: '', reasoning: 'Todos os especialistas relevantes já atuaram.' };
-    }
+export function fallbackDecision(
+  completed: SwarmAgentKey[],
+  hasLeadId: boolean,
+  mission: string = '',
+): SupervisorDecision {
+  // Sem leadId o especialista 'sdr' sempre falharia (depende de um lead real do CRM) — nem
+  // oferece ele como opção de contingência, senão o enxame queima uma rodada inteira só para
+  // descobrir isso (ver enforceLeadGuard, que cobre o mesmo caso quando é o LLM que erra).
+  const order: SwarmAgentKey[] = hasLeadId
+    ? ['sdr', 'bdr', 'closer', 'crm', 'ops']
+    : ['bdr', 'closer', 'crm', 'ops'];
+  const pending = order.find((agent) => !completed.includes(agent));
+  if (!pending) {
     return {
-        action: pending,
-        instruction: mission.trim() || 'Analise a missão do usuário com os dados disponíveis e produza um resultado objetivo.',
-        reasoning: 'Roteamento sequencial de contingência (resposta do supervisor não pôde ser interpretada).',
+      action: 'finish',
+      instruction: '',
+      reasoning: 'Todos os especialistas relevantes já atuaram.',
     };
+  }
+  return {
+    action: pending,
+    instruction:
+      mission.trim() ||
+      'Analise a missão do usuário com os dados disponíveis e produza um resultado objetivo.',
+    reasoning:
+      'Roteamento sequencial de contingência (resposta do supervisor não pôde ser interpretada).',
+  };
 }
 
 // Trava determinística: nunca aciona o Agente SDR sem um leadId real, mesmo que o LLM do
@@ -172,52 +210,73 @@ export function fallbackDecision(completed: SwarmAgentKey[], hasLeadId: boolean,
 // dependeria de get_lead_context com um ID que não existe e queimaria uma rodada inteira do
 // enxame só para produzir o mesmo erro que dava pra prever aqui. Exportado para teste unitário.
 export function enforceLeadGuard(
-    decision: SupervisorDecision,
-    context: Pick<SwarmStateType, 'leadId' | 'completed' | 'mission'>,
+  decision: SupervisorDecision,
+  context: Pick<SwarmStateType, 'leadId' | 'completed' | 'mission'>,
 ): SupervisorDecision {
-    if (decision.action !== 'sdr' || context.leadId) {
-        return decision;
-    }
-    const rerouted = fallbackDecision(context.completed, false, context.mission);
-    const note = 'SDR não pode ser acionado: nenhum leadId foi informado para esta missão.';
-    return {
-        ...rerouted,
-        reasoning: rerouted.reasoning ? `${note} ${rerouted.reasoning}` : note,
-    };
+  if (decision.action !== 'sdr' || context.leadId) {
+    return decision;
+  }
+  const rerouted = fallbackDecision(context.completed, false, context.mission);
+  const note = 'SDR não pode ser acionado: nenhum leadId foi informado para esta missão.';
+  return {
+    ...rerouted,
+    reasoning: rerouted.reasoning ? `${note} ${rerouted.reasoning}` : note,
+  };
 }
 
 async function supervisorNode(state: SwarmStateType) {
-    const step = state.step + 1;
+  const step = state.step + 1;
 
-    if (step > MAX_STEPS) {
-        const reasoning = `Limite de ${MAX_STEPS} etapas do enxame atingido.`;
-        return {
+  if (step > MAX_STEPS) {
+    const reasoning = `Limite de ${MAX_STEPS} etapas do enxame atingido.`;
+    return {
+      step,
+      next: 'finish' as const,
+      instruction: '',
+      messages: [
+        toAiMessage(
+          buildEvent(
+            'routing',
+            'supervisor',
+            `Encerrando o roteamento: ${reasoning} Preparando síntese final.`,
             step,
-            next: 'finish' as const,
-            instruction: '',
-            messages: [toAiMessage(buildEvent('routing', 'supervisor', `Encerrando o roteamento: ${reasoning} Preparando síntese final.`, step, reasoning, undefined))],
-        };
-    }
+            reasoning,
+            undefined,
+          ),
+        ),
+      ],
+    };
+  }
 
-    const completedList = state.completed.length > 0
-        ? state.completed.map((agent) => AGENT_INFO[agent].label).join(', ')
-        : 'nenhum ainda';
-    const resultsSummary = (Object.entries(state.results) as [SwarmAgentKey, string][])
-        .map(([agent, content]) => `- ${AGENT_INFO[agent].label}: ${content.slice(0, 400)}`)
-        .join('\n') || 'Nenhum resultado produzido até agora.';
+  const completedList =
+    state.completed.length > 0
+      ? state.completed.map((agent) => AGENT_INFO[agent].label).join(', ')
+      : 'nenhum ainda';
+  const resultsSummary =
+    (Object.entries(state.results) as [SwarmAgentKey, string][])
+      .map(([agent, content]) => `- ${AGENT_INFO[agent].label}: ${content.slice(0, 400)}`)
+      .join('\n') || 'Nenhum resultado produzido até agora.';
 
-    // Derivado de AGENT_INFO (não hardcoded) — um especialista novo adicionado ali aparece aqui
-    // automaticamente.
-    const agentKeys = Object.keys(AGENT_INFO) as SwarmAgentKey[];
+  // Derivado de AGENT_INFO (não hardcoded) — um especialista novo adicionado ali aparece aqui
+  // automaticamente.
+  const agentKeys = Object.keys(AGENT_INFO) as SwarmAgentKey[];
 
-    const leadContextLine = state.leadId
-        ? `Lead ID disponível para esta missão: ${state.leadId} (o especialista 'sdr' pode usá-lo).`
-        : `Nenhum Lead ID foi informado para esta missão — NÃO escolha 'sdr' enquanto isso não mudar, pois ele depende de um lead real do CRM e sempre falharia sem um ID.`;
+  const leadContextLine = state.leadId
+    ? `Lead ID disponível para esta missão: ${state.leadId} (o especialista 'sdr' pode usá-lo).`
+    : `Nenhum Lead ID foi informado para esta missão — NÃO escolha 'sdr' enquanto isso não mudar, pois ele depende de um lead real do CRM e sempre falharia sem um ID.`;
 
-    const systemPrompt = `${SWARM_IDENTITY} Você é o Supervisor: coordena ${agentKeys.length} especialistas e decide, a cada rodada, qual deve atuar a seguir (ou se a missão está concluída):
-${(Object.entries(AGENT_INFO) as [SwarmAgentKey, { label: string; description: string; chooseWhen: string }][])
-    .map(([key, info]) => `- '${key}' (${info.label}): ${info.description}\n  Escolha quando: ${info.chooseWhen}`)
-    .join('\n')}
+  const systemPrompt = `${SWARM_IDENTITY} Você é o Supervisor: coordena ${agentKeys.length} especialistas e decide, a cada rodada, qual deve atuar a seguir (ou se a missão está concluída):
+${(
+  Object.entries(AGENT_INFO) as [
+    SwarmAgentKey,
+    { label: string; description: string; chooseWhen: string },
+  ][]
+)
+  .map(
+    ([key, info]) =>
+      `- '${key}' (${info.label}): ${info.description}\n  Escolha quando: ${info.chooseWhen}`,
+  )
+  .join('\n')}
 
 Missão original do usuário:
 """${state.mission}"""
@@ -234,69 +293,77 @@ Se a missão já foi suficientemente atendida pelos especialistas já acionados,
 
 ${SWARM_UNTRUSTED_CONTENT_GUARD}`;
 
-    let decision: SupervisorDecision;
-    const startTime = Date.now();
-    try {
-        // withStructuredOutput usa tool-calling nativo do provedor em vez de pedir JSON em texto
-        // livre e extrair na mão — antes, uma resposta do modelo com qualquer chave extra ou texto
-        // fora do JSON (comum em modelos pequenos como o gpt-oss-20b usado aqui) quebrava
-        // o regex de extração e o roteamento sempre caía no fallback heurístico, mesmo quando o
-        // modelo tinha decidido corretamente.
-        const structuredModel = getSupervisorLlm()
-            .withStructuredOutput(supervisorDecisionSchema, { name: 'route_decision', includeRaw: true });
+  let decision: SupervisorDecision;
+  const startTime = Date.now();
+  try {
+    // withStructuredOutput usa tool-calling nativo do provedor em vez de pedir JSON em texto
+    // livre e extrair na mão — antes, uma resposta do modelo com qualquer chave extra ou texto
+    // fora do JSON (comum em modelos pequenos como o gpt-oss-20b usado aqui) quebrava
+    // o regex de extração e o roteamento sempre caía no fallback heurístico, mesmo quando o
+    // modelo tinha decidido corretamente.
+    const structuredModel = getSupervisorLlm().withStructuredOutput(supervisorDecisionSchema, {
+      name: 'route_decision',
+      includeRaw: true,
+    });
 
-        const result = await structuredModel.invoke([
-            new SystemMessage(systemPrompt),
-            new HumanMessage('Qual é o próximo passo?'),
-        ]);
-        const raw = result.raw as AIMessage;
+    const result = await structuredModel.invoke([
+      new SystemMessage(systemPrompt),
+      new HumanMessage('Qual é o próximo passo?'),
+    ]);
+    const raw = result.raw as AIMessage;
 
-        const usage = raw?.usage_metadata;
-        if (usage) {
-            await logAiUsage({
-                model: (raw.response_metadata?.model_name as string | undefined)
-                    || (raw.response_metadata?.model as string | undefined)
-                    || 'local-llama3-fast',
-                usage: {
-                    totalTokens: usage.total_tokens,
-                    promptTokens: usage.input_tokens,
-                    completionTokens: usage.output_tokens,
-                },
-                latencyMs: Date.now() - startTime,
-            });
-        }
-
-        if (!result.parsed) {
-            throw new Error('Supervisor não retornou uma decisão estruturada válida.');
-        }
-        // Reaplica o schema: o tipo inferido do tool-calling trata os campos com .default() como
-        // opcionais (a volta por JSON Schema perde essa informação), então isto garante em runtime
-        // que instruction/reasoning nunca ficam undefined mesmo se o modelo omitir a chave.
-        decision = supervisorDecisionSchema.parse(result.parsed);
-    } catch (error) {
-        logger.error({ err: error }, 'Swarm supervisor routing failed, using fallback heuristic');
-        decision = fallbackDecision(state.completed, Boolean(state.leadId), state.mission);
+    const usage = raw?.usage_metadata;
+    if (usage) {
+      await logAiUsage({
+        model:
+          (raw.response_metadata?.model_name as string | undefined) ||
+          (raw.response_metadata?.model as string | undefined) ||
+          'local-llama3-fast',
+        usage: {
+          totalTokens: usage.total_tokens,
+          promptTokens: usage.input_tokens,
+          completionTokens: usage.output_tokens,
+        },
+        latencyMs: Date.now() - startTime,
+      });
     }
-    // Backstop determinístico: mesmo se o LLM ignorar a linha acima e escolher 'sdr' sem leadId.
-    decision = enforceLeadGuard(decision, state);
 
-    const content = decision.action === 'finish'
-        ? `Missão avaliada como concluída. ${decision.reasoning}`.trim()
-        : `Encaminhando para ${AGENT_INFO[decision.action as SwarmAgentKey].label}: ${decision.instruction}`;
+    if (!result.parsed) {
+      throw new Error('Supervisor não retornou uma decisão estruturada válida.');
+    }
+    // Reaplica o schema: o tipo inferido do tool-calling trata os campos com .default() como
+    // opcionais (a volta por JSON Schema perde essa informação), então isto garante em runtime
+    // que instruction/reasoning nunca ficam undefined mesmo se o modelo omitir a chave.
+    decision = supervisorDecisionSchema.parse(result.parsed);
+  } catch (error) {
+    logger.error({ err: error }, 'Swarm supervisor routing failed, using fallback heuristic');
+    decision = fallbackDecision(state.completed, Boolean(state.leadId), state.mission);
+  }
+  // Backstop determinístico: mesmo se o LLM ignorar a linha acima e escolher 'sdr' sem leadId.
+  decision = enforceLeadGuard(decision, state);
 
-    return {
-        step,
-        next: decision.action,
-        instruction: decision.instruction,
-        messages: [toAiMessage(buildEvent(
-            'routing',
-            'supervisor',
-            content,
-            step,
-            decision.reasoning,
-            decision.action === 'finish' ? undefined : decision.action,
-        ))],
-    };
+  const content =
+    decision.action === 'finish'
+      ? `Missão avaliada como concluída. ${decision.reasoning}`.trim()
+      : `Encaminhando para ${AGENT_INFO[decision.action as SwarmAgentKey].label}: ${decision.instruction}`;
+
+  return {
+    step,
+    next: decision.action,
+    instruction: decision.instruction,
+    messages: [
+      toAiMessage(
+        buildEvent(
+          'routing',
+          'supervisor',
+          content,
+          step,
+          decision.reasoning,
+          decision.action === 'finish' ? undefined : decision.action,
+        ),
+      ),
+    ],
+  };
 }
 
 // Monta o sessionId (chave de AgentMemory) de cada especialista do enxame incluindo o leadId
@@ -310,167 +377,230 @@ ${SWARM_UNTRUSTED_CONTENT_GUARD}`;
 //    `lead_${leadId}` no sessionId dá uma correlação recuperável por string enquanto essa migração
 //    (proposta em .agents/handoffs/onda-6/01A-para-07-agentmemory-sem-vinculo-titular.md) não é
 //    aplicada pelo Agente 01A.
-function swarmSessionId(role: 'sdr' | 'bdr' | 'closer' | 'crm' | 'ops', state: SwarmStateType): string {
-    return state.leadId ? `swarm-${role}-lead_${state.leadId}-${state.step}` : `swarm-${role}-${state.step}`;
+function swarmSessionId(
+  role: 'sdr' | 'bdr' | 'closer' | 'crm' | 'ops',
+  state: SwarmStateType,
+): string {
+  return state.leadId
+    ? `swarm-${role}-lead_${state.leadId}-${state.step}`
+    : `swarm-${role}-${state.step}`;
 }
 
 // Adapters que executam os sub-agentes com a instrução lapidada pelo supervisor (não mais o texto cru do roteamento).
 async function sdrNode(state: SwarmStateType) {
-    // SDRQualificationAgent.run() espera um ID real de Lead do CRM (usa a ferramenta get_lead_context,
-    // que faz um lookup exato por id) — nunca texto livre. Antes desta correção, este node passava
-    // state.instruction (a instrução em português lapidada pelo supervisor) no lugar do leadId, e a
-    // qualificação sempre falhava com "Lead não encontrado no CRM" (IA-003).
-    if (!state.leadId) {
-        const content = 'Não foi possível qualificar: nenhum lead foi informado para esta missão. Informe o ID do lead relacionado para que o Agente SDR busque o contexto real no CRM.';
-        return {
-            completed: ['sdr'] as SwarmAgentKey[],
-            results: { sdr: content },
-            messages: [toAiMessage(buildEvent('agent_error', 'sdr', content, state.step))],
-        };
+  // SDRQualificationAgent.run() espera um ID real de Lead do CRM (usa a ferramenta get_lead_context,
+  // que faz um lookup exato por id) — nunca texto livre. Antes desta correção, este node passava
+  // state.instruction (a instrução em português lapidada pelo supervisor) no lugar do leadId, e a
+  // qualificação sempre falhava com "Lead não encontrado no CRM" (IA-003).
+  if (!state.leadId) {
+    const content =
+      'Não foi possível qualificar: nenhum lead foi informado para esta missão. Informe o ID do lead relacionado para que o Agente SDR busque o contexto real no CRM.';
+    return {
+      completed: ['sdr'] as SwarmAgentKey[],
+      results: { sdr: content },
+      messages: [toAiMessage(buildEvent('agent_error', 'sdr', content, state.step))],
+    };
+  }
+  try {
+    const agent = new SDRQualificationAgent();
+    const result = await agent.run(
+      state.leadId,
+      swarmSessionId('sdr', state),
+      state.instruction || undefined,
+    );
+    // Sem isto, uma falha real (ex: trava de consentimento LGPD, erro do grafo) — que
+    // SDRQualificationAgent.run() já reporta como `{ success: false, error }` — caía no
+    // fallback de baixo e o enxame relatava "Análise concluída sem detalhamento textual." como
+    // se tivesse dado certo. mesmo padrão de checagem já usado em bdrNode/closerNode/crmNode/opsNode.
+    if (result.error) {
+      throw new Error(result.error);
     }
-    try {
-        const agent = new SDRQualificationAgent();
-        const result = await agent.run(state.leadId, swarmSessionId('sdr', state), state.instruction || undefined);
-        // Sem isto, uma falha real (ex: trava de consentimento LGPD, erro do grafo) — que
-        // SDRQualificationAgent.run() já reporta como `{ success: false, error }` — caía no
-        // fallback de baixo e o enxame relatava "Análise concluída sem detalhamento textual." como
-        // se tivesse dado certo. mesmo padrão de checagem já usado em bdrNode/closerNode/crmNode/opsNode.
-        if (result.error) {
-            throw new Error(result.error);
-        }
-        const content = ('detailedLog' in result && result.detailedLog) ? result.detailedLog : 'Análise concluída sem detalhamento textual.';
-        return {
-            completed: ['sdr'] as SwarmAgentKey[],
-            results: { sdr: content },
-            messages: [toAiMessage(buildEvent('agent_result', 'sdr', content, state.step))],
-        };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente SDR.';
-        logger.error({ err: error }, 'Swarm SDR node failed');
-        return {
-            completed: ['sdr'] as SwarmAgentKey[],
-            results: { sdr: `Erro: ${message}` },
-            messages: [toAiMessage(buildEvent('agent_error', 'sdr', `O Agente SDR encontrou um problema: ${message}`, state.step))],
-        };
-    }
+    const content =
+      'detailedLog' in result && result.detailedLog
+        ? result.detailedLog
+        : 'Análise concluída sem detalhamento textual.';
+    return {
+      completed: ['sdr'] as SwarmAgentKey[],
+      results: { sdr: content },
+      messages: [toAiMessage(buildEvent('agent_result', 'sdr', content, state.step))],
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente SDR.';
+    logger.error({ err: error }, 'Swarm SDR node failed');
+    return {
+      completed: ['sdr'] as SwarmAgentKey[],
+      results: { sdr: `Erro: ${message}` },
+      messages: [
+        toAiMessage(
+          buildEvent(
+            'agent_error',
+            'sdr',
+            `O Agente SDR encontrou um problema: ${message}`,
+            state.step,
+          ),
+        ),
+      ],
+    };
+  }
 }
 
 async function bdrNode(state: SwarmStateType) {
-    const instruction = state.instruction || state.mission;
-    try {
-        const agent = new BDRAgent();
-        const result = await agent.run(instruction, swarmSessionId('bdr', state));
-        if (result.error) {
-            throw new Error(result.error);
-        }
-        const content = result.qualification || 'Análise concluída sem detalhamento textual.';
-        return {
-            completed: ['bdr'] as SwarmAgentKey[],
-            results: { bdr: content },
-            messages: [toAiMessage(buildEvent('agent_result', 'bdr', content, state.step))],
-        };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente BDR.';
-        logger.error({ err: error }, 'Swarm BDR node failed');
-        return {
-            completed: ['bdr'] as SwarmAgentKey[],
-            results: { bdr: `Erro: ${message}` },
-            messages: [toAiMessage(buildEvent('agent_error', 'bdr', `O Agente BDR encontrou um problema: ${message}`, state.step))],
-        };
+  const instruction = state.instruction || state.mission;
+  try {
+    const agent = new BDRAgent();
+    const result = await agent.run(instruction, swarmSessionId('bdr', state));
+    if (result.error) {
+      throw new Error(result.error);
     }
+    const content = result.qualification || 'Análise concluída sem detalhamento textual.';
+    return {
+      completed: ['bdr'] as SwarmAgentKey[],
+      results: { bdr: content },
+      messages: [toAiMessage(buildEvent('agent_result', 'bdr', content, state.step))],
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente BDR.';
+    logger.error({ err: error }, 'Swarm BDR node failed');
+    return {
+      completed: ['bdr'] as SwarmAgentKey[],
+      results: { bdr: `Erro: ${message}` },
+      messages: [
+        toAiMessage(
+          buildEvent(
+            'agent_error',
+            'bdr',
+            `O Agente BDR encontrou um problema: ${message}`,
+            state.step,
+          ),
+        ),
+      ],
+    };
+  }
 }
 
 async function closerNode(state: SwarmStateType) {
-    const instruction = state.instruction || state.mission;
-    try {
-        const agent = new CloserAgent();
-        const result = await agent.run(instruction, swarmSessionId('closer', state));
-        if (result.error) {
-            throw new Error(result.error);
-        }
-        const content = result.closePlan || 'Plano de fechamento concluído sem detalhamento textual.';
-        return {
-            completed: ['closer'] as SwarmAgentKey[],
-            results: { closer: content },
-            messages: [toAiMessage(buildEvent('agent_result', 'closer', content, state.step))],
-        };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Falha desconhecida no Closer.';
-        logger.error({ err: error }, 'Swarm Closer node failed');
-        return {
-            completed: ['closer'] as SwarmAgentKey[],
-            results: { closer: `Erro: ${message}` },
-            messages: [toAiMessage(buildEvent('agent_error', 'closer', `O Closer encontrou um problema: ${message}`, state.step))],
-        };
+  const instruction = state.instruction || state.mission;
+  try {
+    const agent = new CloserAgent();
+    const result = await agent.run(instruction, swarmSessionId('closer', state));
+    if (result.error) {
+      throw new Error(result.error);
     }
+    const content = result.closePlan || 'Plano de fechamento concluído sem detalhamento textual.';
+    return {
+      completed: ['closer'] as SwarmAgentKey[],
+      results: { closer: content },
+      messages: [toAiMessage(buildEvent('agent_result', 'closer', content, state.step))],
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Falha desconhecida no Closer.';
+    logger.error({ err: error }, 'Swarm Closer node failed');
+    return {
+      completed: ['closer'] as SwarmAgentKey[],
+      results: { closer: `Erro: ${message}` },
+      messages: [
+        toAiMessage(
+          buildEvent(
+            'agent_error',
+            'closer',
+            `O Closer encontrou um problema: ${message}`,
+            state.step,
+          ),
+        ),
+      ],
+    };
+  }
 }
 
 async function crmNode(state: SwarmStateType) {
-    const instruction = state.instruction || state.mission;
-    try {
-        const agent = new CRMAgent();
-        const result = await agent.run(instruction, swarmSessionId('crm', state));
-        if (result.error) {
-            throw new Error(result.error);
-        }
-        const content = result.action || 'Análise concluída sem detalhamento textual.';
-        return {
-            completed: ['crm'] as SwarmAgentKey[],
-            results: { crm: content },
-            messages: [toAiMessage(buildEvent('agent_result', 'crm', content, state.step))],
-        };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente de CRM.';
-        logger.error({ err: error }, 'Swarm CRM node failed');
-        return {
-            completed: ['crm'] as SwarmAgentKey[],
-            results: { crm: `Erro: ${message}` },
-            messages: [toAiMessage(buildEvent('agent_error', 'crm', `O Agente de CRM encontrou um problema: ${message}`, state.step))],
-        };
+  const instruction = state.instruction || state.mission;
+  try {
+    const agent = new CRMAgent();
+    const result = await agent.run(instruction, swarmSessionId('crm', state));
+    if (result.error) {
+      throw new Error(result.error);
     }
+    const content = result.action || 'Análise concluída sem detalhamento textual.';
+    return {
+      completed: ['crm'] as SwarmAgentKey[],
+      results: { crm: content },
+      messages: [toAiMessage(buildEvent('agent_result', 'crm', content, state.step))],
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente de CRM.';
+    logger.error({ err: error }, 'Swarm CRM node failed');
+    return {
+      completed: ['crm'] as SwarmAgentKey[],
+      results: { crm: `Erro: ${message}` },
+      messages: [
+        toAiMessage(
+          buildEvent(
+            'agent_error',
+            'crm',
+            `O Agente de CRM encontrou um problema: ${message}`,
+            state.step,
+          ),
+        ),
+      ],
+    };
+  }
 }
 
 async function opsNode(state: SwarmStateType) {
-    const instruction = state.instruction || state.mission;
-    try {
-        const agent = new OpsAgent();
-        const result = await agent.run(instruction, swarmSessionId('ops', state), state.leadId || undefined);
-        if (result.error) {
-            throw new Error(result.error);
-        }
-        const content = result.output || 'Ação concluída sem detalhamento textual.';
-        return {
-            completed: ['ops'] as SwarmAgentKey[],
-            results: { ops: content },
-            messages: [toAiMessage(buildEvent('agent_result', 'ops', content, state.step))],
-        };
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente de Operações.';
-        logger.error({ err: error }, 'Swarm Ops node failed');
-        return {
-            completed: ['ops'] as SwarmAgentKey[],
-            results: { ops: `Erro: ${message}` },
-            messages: [toAiMessage(buildEvent('agent_error', 'ops', `O Agente de Operações encontrou um problema: ${message}`, state.step))],
-        };
+  const instruction = state.instruction || state.mission;
+  try {
+    const agent = new OpsAgent();
+    const result = await agent.run(
+      instruction,
+      swarmSessionId('ops', state),
+      state.leadId || undefined,
+    );
+    if (result.error) {
+      throw new Error(result.error);
     }
+    const content = result.output || 'Ação concluída sem detalhamento textual.';
+    return {
+      completed: ['ops'] as SwarmAgentKey[],
+      results: { ops: content },
+      messages: [toAiMessage(buildEvent('agent_result', 'ops', content, state.step))],
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Falha desconhecida no Agente de Operações.';
+    logger.error({ err: error }, 'Swarm Ops node failed');
+    return {
+      completed: ['ops'] as SwarmAgentKey[],
+      results: { ops: `Erro: ${message}` },
+      messages: [
+        toAiMessage(
+          buildEvent(
+            'agent_error',
+            'ops',
+            `O Agente de Operações encontrou um problema: ${message}`,
+            state.step,
+          ),
+        ),
+      ],
+    };
+  }
 }
 
 async function finishNode(state: SwarmStateType) {
-    const resultsSummary = (Object.entries(state.results) as [SwarmAgentKey, string][])
-        .map(([agent, content]) => `${AGENT_INFO[agent].label}:\n${content}`)
-        .join('\n\n');
+  const resultsSummary = (Object.entries(state.results) as [SwarmAgentKey, string][])
+    .map(([agent, content]) => `${AGENT_INFO[agent].label}:\n${content}`)
+    .join('\n\n');
 
-    if (!resultsSummary) {
-        const content = 'Nenhum especialista precisou ser acionado para esta missão.';
-        return { messages: [toAiMessage(buildEvent('final', 'supervisor', content, state.step))] };
-    }
+  if (!resultsSummary) {
+    const content = 'Nenhum especialista precisou ser acionado para esta missão.';
+    return { messages: [toAiMessage(buildEvent('final', 'supervisor', content, state.step))] };
+  }
 
-    let synthesis: string;
-    try {
-        const model = getAiModel('local-llama3-fast', 0.2, 'supervisor-synthesis');
-        const response = await model.invoke([
-            new SystemMessage(
-                `${SWARM_IDENTITY} Você é o Supervisor de Operações (RevOps) encerrando a missão. Com base na missão do usuário e nos resultados retornados pelo seu esquadrão de especialistas de elite, escreva uma Síntese Executiva brutalmente honesta e visualmente deslumbrante.
+  let synthesis: string;
+  try {
+    const model = getAiModel('local-llama3-fast', 0.2, 'supervisor-synthesis');
+    const response = await model.invoke([
+      new SystemMessage(
+        `${SWARM_IDENTITY} Você é o Supervisor de Operações (RevOps) encerrando a missão. Com base na missão do usuário e nos resultados retornados pelo seu esquadrão de especialistas de elite, escreva uma Síntese Executiva brutalmente honesta e visualmente deslumbrante.
 
 REGRAS DE FORMATAÇÃO:
 1. Nunca comece com "Aqui está o resumo...". Vá direto ao ponto.
@@ -497,109 +627,130 @@ REGRAS DE FORMATAÇÃO:
 
 ${SWARM_OUTPUT_CONTRACT}
 
-${SWARM_UNTRUSTED_CONTENT_GUARD}`
-            ),
-            new HumanMessage(`Missão original: ${state.mission}\n\nIntel recebida dos especialistas:\n${resultsSummary}`),
-        ]);
-        synthesis = response.content.trim() || resultsSummary;
-    } catch (error) {
-        logger.error({ err: error }, 'Swarm synthesis failed, falling back to raw results');
-        synthesis = resultsSummary;
-    }
+${SWARM_UNTRUSTED_CONTENT_GUARD}`,
+      ),
+      new HumanMessage(
+        `Missão original: ${state.mission}\n\nIntel recebida dos especialistas:\n${resultsSummary}`,
+      ),
+    ]);
+    synthesis = response.content.trim() || resultsSummary;
+  } catch (error) {
+    logger.error({ err: error }, 'Swarm synthesis failed, falling back to raw results');
+    synthesis = resultsSummary;
+  }
 
-    return {
-        messages: [toAiMessage(buildEvent('final', 'supervisor', synthesis, state.step))],
-    };
+  return {
+    messages: [toAiMessage(buildEvent('final', 'supervisor', synthesis, state.step))],
+  };
 }
 
 function routerCondition(state: SwarmStateType): SwarmRoute {
-    return state.next;
+  return state.next;
 }
 
 const workflow = new StateGraph(SwarmState)
-    .addNode('supervisor', supervisorNode)
-    .addNode('sdr', sdrNode)
-    .addNode('bdr', bdrNode)
-    .addNode('closer', closerNode)
-    .addNode('crm', crmNode)
-    .addNode('ops', opsNode)
-    .addNode('finish', finishNode)
-    .addEdge('__start__', 'supervisor')
-    .addConditionalEdges('supervisor', routerCondition, {
-        sdr: 'sdr',
-        bdr: 'bdr',
-        closer: 'closer',
-        crm: 'crm',
-        ops: 'ops',
-        finish: 'finish',
-    })
-    .addEdge('sdr', 'supervisor')
-    .addEdge('bdr', 'supervisor')
-    .addEdge('closer', 'supervisor')
-    .addEdge('crm', 'supervisor')
-    .addEdge('ops', 'supervisor')
-    .addEdge('finish', '__end__');
+  .addNode('supervisor', supervisorNode)
+  .addNode('sdr', sdrNode)
+  .addNode('bdr', bdrNode)
+  .addNode('closer', closerNode)
+  .addNode('crm', crmNode)
+  .addNode('ops', opsNode)
+  .addNode('finish', finishNode)
+  .addEdge('__start__', 'supervisor')
+  .addConditionalEdges('supervisor', routerCondition, {
+    sdr: 'sdr',
+    bdr: 'bdr',
+    closer: 'closer',
+    crm: 'crm',
+    ops: 'ops',
+    finish: 'finish',
+  })
+  .addEdge('sdr', 'supervisor')
+  .addEdge('bdr', 'supervisor')
+  .addEdge('closer', 'supervisor')
+  .addEdge('crm', 'supervisor')
+  .addEdge('ops', 'supervisor')
+  .addEdge('finish', '__end__');
 
 // AI-002 (onda 32): checkpointer real (Postgres, compartilhado — src/lib/ai/checkpointer.ts).
 const swarmApp = workflow.compile({ checkpointer });
 
 export class SwarmOrchestrator {
-    async executeMission(mission: string, sessionId?: string, leadId?: string) {
-        const sid = sessionId || `swarm-mission-${Date.now()}`;
-        // thread_id prefixado pelo tenant (AI-002, onda 20). `sessionId` chega cru do corpo da
-        // requisição HTTP (POST /swarm/mission) — sem o prefixo, duas organizações que
-        // (coincidentemente ou não) mandassem o mesmo sessionId reaproveitariam o checkpoint uma
-        // da outra, já que o checkpointer deste grafo é compartilhado por todo o processo.
-        const config = { configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` }, recursionLimit: 25 };
+  async executeMission(mission: string, sessionId?: string, leadId?: string) {
+    const sid = sessionId || `swarm-mission-${Date.now()}`;
+    // thread_id prefixado pelo tenant (AI-002, onda 20). `sessionId` chega cru do corpo da
+    // requisição HTTP (POST /swarm/mission) — sem o prefixo, duas organizações que
+    // (coincidentemente ou não) mandassem o mesmo sessionId reaproveitariam o checkpoint uma
+    // da outra, já que o checkpointer deste grafo é compartilhado por todo o processo.
+    const config = {
+      configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` },
+      recursionLimit: 25,
+    };
 
-        try {
-            // AI-007 (parte 3): mesmo gate fail-closed já em vigor em base.agent.ts/
-            // sdrQualification.agent.ts/ops.agent.ts — até esta correção, o próprio Supervisor
-            // (supervisorNode/finishNode, abaixo) enviava `mission` em texto livre (que chega cru do
-            // corpo de POST /swarm/mission, digitado por um operador humano, e pode conter PII de um
-            // titular real) direto a um provedor de IA externo (getSupervisorLlm/getAiModel), sem
-            // passar pela mesma checagem de base legal LGPD que os especialistas do enxame (sdrNode
-            // etc.) já aplicam individualmente. Checado uma vez aqui, antes do grafo começar a rodar
-            // — os nodes dos especialistas mantêm suas próprias checagens (defesa em profundidade,
-            // e cobrem o caminho em que são chamados fora deste orquestrador).
-            assertPiiExternalConsent(getTenantId());
-            // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da
-            // primeira invocação real deste processo — memoizado.
-            await ensureCheckpointerReady();
-            const finalState = await swarmApp.invoke({ messages: [new HumanMessage(mission)], mission, leadId: leadId || '' }, config);
-            return finalState.messages as BaseMessage[];
-        } catch (error) {
-            logger.error({ err: error, sessionId: sid }, 'Swarm execution failed');
-            throw error;
-        }
+    try {
+      // AI-007 (parte 3): mesmo gate fail-closed já em vigor em base.agent.ts/
+      // sdrQualification.agent.ts/ops.agent.ts — até esta correção, o próprio Supervisor
+      // (supervisorNode/finishNode, abaixo) enviava `mission` em texto livre (que chega cru do
+      // corpo de POST /swarm/mission, digitado por um operador humano, e pode conter PII de um
+      // titular real) direto a um provedor de IA externo (getSupervisorLlm/getAiModel), sem
+      // passar pela mesma checagem de base legal LGPD que os especialistas do enxame (sdrNode
+      // etc.) já aplicam individualmente. Checado uma vez aqui, antes do grafo começar a rodar
+      // — os nodes dos especialistas mantêm suas próprias checagens (defesa em profundidade,
+      // e cobrem o caminho em que são chamados fora deste orquestrador).
+      assertPiiExternalConsent(getTenantId());
+      // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da
+      // primeira invocação real deste processo — memoizado.
+      await ensureCheckpointerReady();
+      const finalState = await swarmApp.invoke(
+        { messages: [new HumanMessage(mission)], mission, leadId: leadId || '' },
+        config,
+      );
+      return finalState.messages as BaseMessage[];
+    } catch (error) {
+      logger.error({ err: error, sessionId: sid }, 'Swarm execution failed');
+      throw error;
     }
+  }
 
-    async executeMissionStream(mission: string, sessionId: string, onChunk: (event: SwarmEvent) => void, leadId?: string) {
-        const sid = sessionId || `swarm-mission-${Date.now()}`;
-        // Mesmo motivo do prefixo em executeMission acima.
-        const config = { configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` }, recursionLimit: 25 };
+  async executeMissionStream(
+    mission: string,
+    sessionId: string,
+    onChunk: (event: SwarmEvent) => void,
+    leadId?: string,
+  ) {
+    const sid = sessionId || `swarm-mission-${Date.now()}`;
+    // Mesmo motivo do prefixo em executeMission acima.
+    const config = {
+      configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` },
+      recursionLimit: 25,
+    };
 
-        try {
-            // Mesmo gate de executeMission acima — a variante em streaming passa pelo mesmo
-            // supervisorNode/finishNode e precisa da mesma checagem antes de começar a emitir chunks.
-            assertPiiExternalConsent(getTenantId());
-            await ensureCheckpointerReady();
-            const stream = await swarmApp.stream({ messages: [new HumanMessage(mission)], mission, leadId: leadId || '' }, config);
+    try {
+      // Mesmo gate de executeMission acima — a variante em streaming passa pelo mesmo
+      // supervisorNode/finishNode e precisa da mesma checagem antes de começar a emitir chunks.
+      assertPiiExternalConsent(getTenantId());
+      await ensureCheckpointerReady();
+      const stream = await swarmApp.stream(
+        { messages: [new HumanMessage(mission)], mission, leadId: leadId || '' },
+        config,
+      );
 
-            for await (const chunk of stream) {
-                const nodeName = Object.keys(chunk)[0];
-                const nodeData = chunk[nodeName as keyof typeof chunk] as { messages?: BaseMessage[] } | undefined;
-                const msgs = nodeData?.messages;
-                if (msgs && msgs.length > 0) {
-                    const lastMsg = msgs[msgs.length - 1] as AIMessage;
-                    const event = (lastMsg.additional_kwargs?.swarmEvent as SwarmEvent | undefined)
-                        ?? buildEvent('agent_result', 'supervisor', String(lastMsg.content ?? ''), 0);
-                    onChunk(event);
-                }
-            }
-        } catch (error) {
-            logger.error({ err: error, sessionId: sid }, 'Swarm stream execution failed');
-            throw error;
+      for await (const chunk of stream) {
+        const nodeName = Object.keys(chunk)[0];
+        const nodeData = chunk[nodeName as keyof typeof chunk] as
+          { messages?: BaseMessage[] } | undefined;
+        const msgs = nodeData?.messages;
+        if (msgs && msgs.length > 0) {
+          const lastMsg = msgs[msgs.length - 1] as AIMessage;
+          const event =
+            (lastMsg.additional_kwargs?.swarmEvent as SwarmEvent | undefined) ??
+            buildEvent('agent_result', 'supervisor', String(lastMsg.content ?? ''), 0);
+          onChunk(event);
         }
+      }
+    } catch (error) {
+      logger.error({ err: error, sessionId: sid }, 'Swarm stream execution failed');
+      throw error;
     }
+  }
 }

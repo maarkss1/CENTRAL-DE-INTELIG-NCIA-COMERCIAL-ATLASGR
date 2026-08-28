@@ -16,7 +16,10 @@ export class ValidationBehavior<TRequest, TValue> implements PipelineBehavior<TR
   private readonly rules: ReadonlyArray<ValidationRule<TRequest>>;
   private readonly createError: ValidationErrorFactory;
 
-  public constructor(rules: ReadonlyArray<ValidationRule<TRequest>>, createError: ValidationErrorFactory) {
+  public constructor(
+    rules: ReadonlyArray<ValidationRule<TRequest>>,
+    createError: ValidationErrorFactory,
+  ) {
     this.rules = rules;
     this.createError = createError;
   }

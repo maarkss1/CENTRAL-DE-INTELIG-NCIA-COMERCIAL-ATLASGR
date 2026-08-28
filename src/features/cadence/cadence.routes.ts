@@ -9,7 +9,14 @@ import { prisma } from '../../lib/prisma.js';
 import { prismaOptOutRepository } from './infra/PrismaOptOutRepository.js';
 import { prismaCadenceRunRepository } from './infra/PrismaCadenceRunRepository.js';
 import { parseCadenceSequenceDefinition } from './jobs/cadenceRun.worker.js';
-import { startCadenceRun, validateSequence, pauseCadenceRun, resumeCadenceRun, stopCadenceManually, type CadenceRunStatus } from './domain/cadence.js';
+import {
+  startCadenceRun,
+  validateSequence,
+  pauseCadenceRun,
+  resumeCadenceRun,
+  stopCadenceManually,
+  type CadenceRunStatus,
+} from './domain/cadence.js';
 import { scheduleVerifiedMeeting } from './application/scheduleMeeting.js';
 import { prismaMeetingConfirmationNotePort } from './infra/PrismaMeetingConfirmationNotePort.js';
 import { prismaCalendarSchedulerPort } from './infra/PrismaCalendarSchedulerPort.js';
@@ -33,183 +40,221 @@ const router = Router();
 const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 const cadenceTouchSchema = z.object({
-    order: z.number().int().min(1),
-    channel: z.enum(['email', 'whatsapp', 'voice']),
-    delayHoursFromPrevious: z.number().int().min(0).max(24 * 30),
-    maxAttempts: z.number().int().min(1).max(5).optional(),
-    // Sem sistema de template ainda (ver docs/CADENCE-CYCLE-AUDIT.md) — este campo é o conteúdo
-    // final da mensagem em si, não uma referência a template resolvido em outro lugar.
-    templateRef: z.string().trim().min(1).max(4_000).optional(),
+  order: z.number().int().min(1),
+  channel: z.enum(['email', 'whatsapp', 'voice']),
+  delayHoursFromPrevious: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 30),
+  maxAttempts: z.number().int().min(1).max(5).optional(),
+  // Sem sistema de template ainda (ver docs/CADENCE-CYCLE-AUDIT.md) — este campo é o conteúdo
+  // final da mensagem em si, não uma referência a template resolvido em outro lugar.
+  templateRef: z.string().trim().min(1).max(4_000).optional(),
 });
 
 const createSequenceSchema = z.object({
-    name: z.string().trim().min(1, 'Nome da sequência é obrigatório.').max(160),
-    touches: z.array(cadenceTouchSchema).min(1, 'A sequência precisa de pelo menos um toque.').max(10),
+  name: z.string().trim().min(1, 'Nome da sequência é obrigatório.').max(160),
+  touches: z
+    .array(cadenceTouchSchema)
+    .min(1, 'A sequência precisa de pelo menos um toque.')
+    .max(10),
 });
 
 const startRunSchema = z.object({
-    leadId: z.string().trim().min(1, 'leadId é obrigatório.'),
-    sequenceId: z.string().trim().min(1, 'sequenceId é obrigatório.'),
+  leadId: z.string().trim().min(1, 'leadId é obrigatório.'),
+  sequenceId: z.string().trim().min(1, 'sequenceId é obrigatório.'),
 });
 
 const scheduleMeetingSchema = z.object({
-    proposedStart: z.string().datetime({ message: 'proposedStart deve ser uma data/hora ISO 8601.' }),
-    proposedEnd: z.string().datetime({ message: 'proposedEnd deve ser uma data/hora ISO 8601.' }),
+  proposedStart: z.string().datetime({ message: 'proposedStart deve ser uma data/hora ISO 8601.' }),
+  proposedEnd: z.string().datetime({ message: 'proposedEnd deve ser uma data/hora ISO 8601.' }),
 });
 
 /** Enum Postgres (PascalCase) aceito na query `?status=Active,Paused` — mesma casing de `CadenceRunStatus` no schema, para não obrigar quem chama a API a conhecer a convenção lowercase do domínio interno. */
 const STATUS_QUERY_TO_DOMAIN: Record<string, CadenceRunStatus> = {
-    Active: 'active',
-    Paused: 'paused',
-    Stopped: 'stopped',
-    Completed: 'completed',
-    Failed: 'failed',
+  Active: 'active',
+  Paused: 'paused',
+  Stopped: 'stopped',
+  Completed: 'completed',
+  Failed: 'failed',
 };
 
 function parseStatusFilter(raw: unknown): CadenceRunStatus[] | undefined {
-    if (typeof raw !== 'string' || raw.trim().length === 0) return undefined;
-    const values = raw.split(',').map((v) => v.trim()).filter(Boolean);
-    const parsed = values.map((v) => {
-        const mapped = STATUS_QUERY_TO_DOMAIN[v];
-        if (!mapped) {
-            throw new AppError(`Status de cadência inválido: '${v}'. Use Active, Paused, Stopped, Completed e/ou Failed.`, 400);
-        }
-        return mapped;
-    });
-    return parsed.length > 0 ? parsed : undefined;
+  if (typeof raw !== 'string' || raw.trim().length === 0) return undefined;
+  const values = raw
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+  const parsed = values.map((v) => {
+    const mapped = STATUS_QUERY_TO_DOMAIN[v];
+    if (!mapped) {
+      throw new AppError(
+        `Status de cadência inválido: '${v}'. Use Active, Paused, Stopped, Completed e/ou Failed.`,
+        400,
+      );
+    }
+    return mapped;
+  });
+  return parsed.length > 0 ? parsed : undefined;
 }
 
 router.get('/opt-outs', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-        const { organizationId } = (req as AuthRequest).user;
-        const records = await prismaOptOutRepository.list(organizationId);
-        res.json({ success: true, data: records });
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const { organizationId } = (req as AuthRequest).user;
+    const records = await prismaOptOutRepository.list(organizationId);
+    res.json({ success: true, data: records });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get('/runs', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-        const { organizationId } = (req as AuthRequest).user;
-        const status = parseStatusFilter(req.query.status);
-        const runs = await prismaCadenceRunRepository.listByOrganization(organizationId, status ? { status } : undefined);
-        res.json({ success: true, data: runs });
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const { organizationId } = (req as AuthRequest).user;
+    const status = parseStatusFilter(req.query.status);
+    const runs = await prismaCadenceRunRepository.listByOrganization(
+      organizationId,
+      status ? { status } : undefined,
+    );
+    res.json({ success: true, data: runs });
+  } catch (error) {
+    next(error);
+  }
 });
 
 import { CADENCE_JOURNEY_TEMPLATES } from './domain/cadenceTemplates.js';
 
 router.get('/templates', (_req: Request, res: Response): void => {
-    res.json({ success: true, data: CADENCE_JOURNEY_TEMPLATES });
+  res.json({ success: true, data: CADENCE_JOURNEY_TEMPLATES });
 });
 
-router.post('/sequences/from-template/:templateId', writeRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post(
+  '/sequences/from-template/:templateId',
+  writeRoles,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { organizationId, id: userId } = (req as AuthRequest).user;
-        const template = CADENCE_JOURNEY_TEMPLATES.find((t) => t.id === req.params.templateId);
-        if (!template) {
-            throw new AppError('Modelo de jornada não encontrado.', 404);
-        }
+      const { organizationId, id: userId } = (req as AuthRequest).user;
+      const template = CADENCE_JOURNEY_TEMPLATES.find((t) => t.id === req.params.templateId);
+      if (!template) {
+        throw new AppError('Modelo de jornada não encontrado.', 404);
+      }
 
-        const sequence = await prisma.cadenceSequence.create({
-            data: {
-                organizationId,
-                name: template.name,
-                touches: template.touches.map((t) => ({
-                    order: t.order,
-                    channel: t.channel,
-                    delayHoursFromPrevious: t.delayHoursFromPrevious,
-                    templateRef: t.templateRef,
-                    maxAttempts: t.maxAttempts || 1,
-                })),
-                createdBy: userId,
-            },
-        });
-        res.status(201).json({ success: true, data: sequence });
+      const sequence = await prisma.cadenceSequence.create({
+        data: {
+          organizationId,
+          name: template.name,
+          touches: template.touches.map((t) => ({
+            order: t.order,
+            channel: t.channel,
+            delayHoursFromPrevious: t.delayHoursFromPrevious,
+            templateRef: t.templateRef,
+            maxAttempts: t.maxAttempts || 1,
+          })),
+          createdBy: userId,
+        },
+      });
+      res.status(201).json({ success: true, data: sequence });
     } catch (error) {
-        next(error);
+      next(error);
     }
-});
+  },
+);
 
 router.get('/sequences', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-        const { organizationId } = (req as AuthRequest).user;
-        const sequences = await prisma.cadenceSequence.findMany({
-            where: { organizationId, active: true, deletedAt: null },
-            orderBy: { createdAt: 'desc' },
-            take: 200,
-        });
-        res.json({ success: true, data: sequences });
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const { organizationId } = (req as AuthRequest).user;
+    const sequences = await prisma.cadenceSequence.findMany({
+      where: { organizationId, active: true, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    res.json({ success: true, data: sequences });
+  } catch (error) {
+    next(error);
+  }
 });
 
-router.post('/sequences', writeRoles, validateRequest(createSequenceSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post(
+  '/sequences',
+  writeRoles,
+  validateRequest(createSequenceSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { organizationId, id: userId } = (req as AuthRequest).user;
-        const { name, touches } = req.body as z.infer<typeof createSequenceSchema>;
+      const { organizationId, id: userId } = (req as AuthRequest).user;
+      const { name, touches } = req.body as z.infer<typeof createSequenceSchema>;
 
-        const errors = validateSequence({ id: 'draft', name, touches });
-        if (errors.length > 0) {
-            throw new AppError(`Sequência inválida: ${errors.join('; ')}`, 400);
+      const errors = validateSequence({ id: 'draft', name, touches });
+      if (errors.length > 0) {
+        throw new AppError(`Sequência inválida: ${errors.join('; ')}`, 400);
+      }
+
+      const sequence = await prisma.cadenceSequence.create({
+        data: { organizationId, name, touches, createdBy: userId },
+      });
+      res.status(201).json({ success: true, data: sequence });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  '/runs',
+  writeRoles,
+  validateRequest(startRunSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { organizationId, id: userId } = (req as AuthRequest).user;
+      const { leadId, sequenceId } = req.body as z.infer<typeof startRunSchema>;
+
+      const lead = await prisma.lead.findFirst({
+        where: { id: leadId, organizationId },
+        select: { id: true },
+      });
+      if (!lead) throw new AppError('Lead não encontrado nesta organização.', 404);
+
+      const sequenceRow = await prisma.cadenceSequence.findFirst({
+        where: { id: sequenceId, organizationId, active: true, deletedAt: null },
+        select: { id: true, name: true, touches: true },
+      });
+      if (!sequenceRow)
+        throw new AppError('Sequência não encontrada ou inativa nesta organização.', 404);
+
+      const sequence = parseCadenceSequenceDefinition(sequenceRow);
+      if (!sequence)
+        throw new AppError(
+          'Sequência com dados inválidos — não é possível iniciar um run a partir dela.',
+          422,
+        );
+
+      const run = startCadenceRun({
+        id: randomUUID(),
+        organizationId,
+        leadId,
+        sequenceId,
+        startedAt: new Date(),
+        createdBy: userId,
+      });
+
+      try {
+        await prismaCadenceRunRepository.save(run);
+      } catch (err) {
+        // `CadenceRun_leadId_active_unique` (índice único parcial, status=Active) — este lead já
+        // tem uma cadência em andamento. Não é um erro de verdade, é uma regra de negócio real:
+        // devolve 409 em vez de deixar o erro de banco cru subir.
+        if ((err as { code?: string })?.code === 'P2002') {
+          throw new AppError('Este lead já tem uma cadência ativa em andamento.', 409);
         }
+        throw err;
+      }
 
-        const sequence = await prisma.cadenceSequence.create({
-            data: { organizationId, name, touches, createdBy: userId },
-        });
-        res.status(201).json({ success: true, data: sequence });
+      res.status(201).json({ success: true, data: { ...run, sequenceName: sequence.name } });
     } catch (error) {
-        next(error);
+      next(error);
     }
-});
-
-router.post('/runs', writeRoles, validateRequest(startRunSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-        const { organizationId, id: userId } = (req as AuthRequest).user;
-        const { leadId, sequenceId } = req.body as z.infer<typeof startRunSchema>;
-
-        const lead = await prisma.lead.findFirst({ where: { id: leadId, organizationId }, select: { id: true } });
-        if (!lead) throw new AppError('Lead não encontrado nesta organização.', 404);
-
-        const sequenceRow = await prisma.cadenceSequence.findFirst({
-            where: { id: sequenceId, organizationId, active: true, deletedAt: null },
-            select: { id: true, name: true, touches: true },
-        });
-        if (!sequenceRow) throw new AppError('Sequência não encontrada ou inativa nesta organização.', 404);
-
-        const sequence = parseCadenceSequenceDefinition(sequenceRow);
-        if (!sequence) throw new AppError('Sequência com dados inválidos — não é possível iniciar um run a partir dela.', 422);
-
-        const run = startCadenceRun({
-            id: randomUUID(),
-            organizationId,
-            leadId,
-            sequenceId,
-            startedAt: new Date(),
-            createdBy: userId,
-        });
-
-        try {
-            await prismaCadenceRunRepository.save(run);
-        } catch (err) {
-            // `CadenceRun_leadId_active_unique` (índice único parcial, status=Active) — este lead já
-            // tem uma cadência em andamento. Não é um erro de verdade, é uma regra de negócio real:
-            // devolve 409 em vez de deixar o erro de banco cru subir.
-            if ((err as { code?: string })?.code === 'P2002') {
-                throw new AppError('Este lead já tem uma cadência ativa em andamento.', 409);
-            }
-            throw err;
-        }
-
-        res.status(201).json({ success: true, data: { ...run, sequenceName: sequence.name } });
-    } catch (error) {
-        next(error);
-    }
-});
+  },
+);
 
 /**
  * CYC-009 (onda 29) — pausar/retomar/parar um run em andamento, o único gap real que restava
@@ -220,87 +265,107 @@ router.post('/runs', writeRoles, validateRequest(startRunSchema), async (req: Re
  * se o run existe, nunca reimplementa essa regra.
  */
 async function loadOwnRun(organizationId: string, id: string) {
-    const run = await prismaCadenceRunRepository.findById(organizationId, id);
-    if (!run) throw new AppError('Execução de cadência não encontrada nesta organização.', 404);
-    return run;
+  const run = await prismaCadenceRunRepository.findById(organizationId, id);
+  if (!run) throw new AppError('Execução de cadência não encontrada nesta organização.', 404);
+  return run;
 }
 
-router.post('/runs/:id/pause', writeRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post(
+  '/runs/:id/pause',
+  writeRoles,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { organizationId } = (req as AuthRequest).user;
-        const run = await loadOwnRun(organizationId, req.params.id);
-        const updated = pauseCadenceRun(run, new Date());
-        await prismaCadenceRunRepository.save(updated);
-        res.json({ success: true, data: updated });
+      const { organizationId } = (req as AuthRequest).user;
+      const run = await loadOwnRun(organizationId, req.params.id);
+      const updated = pauseCadenceRun(run, new Date());
+      await prismaCadenceRunRepository.save(updated);
+      res.json({ success: true, data: updated });
     } catch (error) {
-        next(error);
+      next(error);
     }
-});
+  },
+);
 
-router.post('/runs/:id/resume', writeRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post(
+  '/runs/:id/resume',
+  writeRoles,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { organizationId } = (req as AuthRequest).user;
-        const run = await loadOwnRun(organizationId, req.params.id);
-        const updated = resumeCadenceRun(run);
-        await prismaCadenceRunRepository.save(updated);
-        res.json({ success: true, data: updated });
+      const { organizationId } = (req as AuthRequest).user;
+      const run = await loadOwnRun(organizationId, req.params.id);
+      const updated = resumeCadenceRun(run);
+      await prismaCadenceRunRepository.save(updated);
+      res.json({ success: true, data: updated });
     } catch (error) {
-        next(error);
+      next(error);
     }
-});
+  },
+);
 
-router.post('/runs/:id/stop', writeRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post(
+  '/runs/:id/stop',
+  writeRoles,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { organizationId } = (req as AuthRequest).user;
-        const run = await loadOwnRun(organizationId, req.params.id);
-        const updated = stopCadenceManually(run, new Date());
-        await prismaCadenceRunRepository.save(updated);
-        res.json({ success: true, data: updated });
+      const { organizationId } = (req as AuthRequest).user;
+      const run = await loadOwnRun(organizationId, req.params.id);
+      const updated = stopCadenceManually(run, new Date());
+      await prismaCadenceRunRepository.save(updated);
+      res.json({ success: true, data: updated });
     } catch (error) {
-        next(error);
+      next(error);
     }
-});
+  },
+);
 
 // CYC-004 (onda 27) — agendamento de reunião com confirmação verificável (ver
 // `domain/scheduling.ts` e `application/scheduleMeeting.ts`). Só aceita `evidenceType:
 // 'manual-verified'` (vendedor confirmando após contato ao vivo) — os outros dois tipos de
 // evidência do domínio (réplica de calendário por e-mail, clique em link de agendamento
 // self-service) exigem um transporte que ainda não existe neste produto.
-router.post('/leads/:leadId/schedule-meeting', writeRoles, validateRequest(scheduleMeetingSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post(
+  '/leads/:leadId/schedule-meeting',
+  writeRoles,
+  validateRequest(scheduleMeetingSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { organizationId, id: actorUserId, email: actorEmail } = (req as AuthRequest).user;
-        const { leadId } = req.params;
-        const { proposedStart, proposedEnd } = req.body as z.infer<typeof scheduleMeetingSchema>;
+      const { organizationId, id: actorUserId, email: actorEmail } = (req as AuthRequest).user;
+      const { leadId } = req.params;
+      const { proposedStart, proposedEnd } = req.body as z.infer<typeof scheduleMeetingSchema>;
 
-        const lead = await prisma.lead.findFirst({
-            where: { id: leadId, organizationId },
-            select: { id: true, title: true, contact: { select: { email: true } } },
-        });
-        if (!lead) throw new AppError('Lead não encontrado nesta organização.', 404);
+      const lead = await prisma.lead.findFirst({
+        where: { id: leadId, organizationId },
+        select: { id: true, title: true, contact: { select: { email: true } } },
+      });
+      if (!lead) throw new AppError('Lead não encontrado nesta organização.', 404);
 
-        const result = await scheduleVerifiedMeeting(
-            { notes: prismaMeetingConfirmationNotePort, scheduler: prismaCalendarSchedulerPort },
-            {
-                organizationId,
-                leadId,
-                actorUserId,
-                proposedStart: new Date(proposedStart),
-                proposedEnd: new Date(proposedEnd),
-                leadTitle: lead.title || 'Lead sem título',
-                leadEmail: lead.contact?.email || '',
-                ownerEmail: actorEmail,
-            },
-            new Date(),
+      const result = await scheduleVerifiedMeeting(
+        { notes: prismaMeetingConfirmationNotePort, scheduler: prismaCalendarSchedulerPort },
+        {
+          organizationId,
+          leadId,
+          actorUserId,
+          proposedStart: new Date(proposedStart),
+          proposedEnd: new Date(proposedEnd),
+          leadTitle: lead.title || 'Lead sem título',
+          leadEmail: lead.contact?.email || '',
+          ownerEmail: actorEmail,
+        },
+        new Date(),
+      );
+
+      if (!result.scheduled) {
+        throw new AppError(
+          'Confirmação de horário não é verificável — informe um horário futuro válido (fim depois do início).',
+          422,
         );
+      }
 
-        if (!result.scheduled) {
-            throw new AppError('Confirmação de horário não é verificável — informe um horário futuro válido (fim depois do início).', 422);
-        }
-
-        res.status(201).json({ success: true, data: result });
+      res.status(201).json({ success: true, data: result });
     } catch (error) {
-        next(error);
+      next(error);
     }
-});
+  },
+);
 
 export const cadenceRoutes = router;

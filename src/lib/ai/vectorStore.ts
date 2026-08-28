@@ -3,17 +3,17 @@ import { getTenantId } from '../async-context.js';
 import { searchService } from '../../features/knowledge/search.service.js';
 
 export interface SearchResult {
-    id: string;
-    content: string;
-    documentId: string;
-    /** Título do documento de origem — obrigatório para toda resposta de RAG citar a fonte real. */
-    documentTitle: string;
-    /** Posição do trecho dentro do documento (0-based) — permite citar "trecho N de <título>". */
-    chunkIndex: number;
-    /** `null` quando o trecho só bateu por palavra-chave (sem embedding ou match semântico). */
-    similarity: number | null;
-    /** De onde veio o resultado: só semântico, só palavra-chave, ou ambos. */
-    matchedBy: Array<'semantic' | 'keyword'>;
+  id: string;
+  content: string;
+  documentId: string;
+  /** Título do documento de origem — obrigatório para toda resposta de RAG citar a fonte real. */
+  documentTitle: string;
+  /** Posição do trecho dentro do documento (0-based) — permite citar "trecho N de <título>". */
+  chunkIndex: number;
+  /** `null` quando o trecho só bateu por palavra-chave (sem embedding ou match semântico). */
+  similarity: number | null;
+  /** De onde veio o resultado: só semântico, só palavra-chave, ou ambos. */
+  matchedBy: Array<'semantic' | 'keyword'>;
 }
 
 /**
@@ -42,49 +42,51 @@ export interface SearchResult {
  * sempre citar a fonte real, nunca afirmar ter encontrado algo que não existe.
  */
 export const vectorStore = {
-    /**
-     * @deprecated Sem chamador no código (RAG-001), assim como estava antes desta correção. Ingestão
-     * real é `ingestionService.ingestText` (`src/features/knowledge/ingestion.service.ts`), que grava
-     * em "Document"/"DocumentChunk" com RLS, chunking e citação de origem. Mantido só para não
-     * quebrar um import externo eventual — não usar.
-     */
-    async addDocumentChunk(): Promise<void> {
-        throw new Error(
-            'vectorStore.addDocumentChunk está desativado (RAG-001): use ingestionService.ingestText '
-            + '(src/features/knowledge/ingestion.service.ts) para indexar na Base de Conhecimento real.',
-        );
-    },
+  /**
+   * @deprecated Sem chamador no código (RAG-001), assim como estava antes desta correção. Ingestão
+   * real é `ingestionService.ingestText` (`src/features/knowledge/ingestion.service.ts`), que grava
+   * em "Document"/"DocumentChunk" com RLS, chunking e citação de origem. Mantido só para não
+   * quebrar um import externo eventual — não usar.
+   */
+  async addDocumentChunk(): Promise<void> {
+    throw new Error(
+      'vectorStore.addDocumentChunk está desativado (RAG-001): use ingestionService.ingestText ' +
+        '(src/features/knowledge/ingestion.service.ts) para indexar na Base de Conhecimento real.',
+    );
+  },
 
-    /**
-     * Busca híbrida (RAG-001) restrita ao tenant do `requestContext` atual — necessário porque as
-     * ferramentas de IA que chamam isto (`search_playbook`) rodam fora de uma rota HTTP direta, sem
-     * acesso a `req.user`.
-     *
-     * Sem tenant conhecido no contexto (ex.: chamada fora de uma requisição autenticada ou de um job
-     * sem `requestContext.run`), retorna vazio em vez de arriscar rodar sem nenhum filtro de
-     * organização — nunca teria como citar uma fonte legítima de qualquer forma.
-     */
-    async similaritySearch(query: string, limit: number = 3): Promise<SearchResult[]> {
-        const organizationId = getTenantId();
-        if (!organizationId) {
-            logger.warn('vectorStore.similaritySearch chamado sem tenant no requestContext; retornando vazio.');
-            return [];
-        }
+  /**
+   * Busca híbrida (RAG-001) restrita ao tenant do `requestContext` atual — necessário porque as
+   * ferramentas de IA que chamam isto (`search_playbook`) rodam fora de uma rota HTTP direta, sem
+   * acesso a `req.user`.
+   *
+   * Sem tenant conhecido no contexto (ex.: chamada fora de uma requisição autenticada ou de um job
+   * sem `requestContext.run`), retorna vazio em vez de arriscar rodar sem nenhum filtro de
+   * organização — nunca teria como citar uma fonte legítima de qualquer forma.
+   */
+  async similaritySearch(query: string, limit: number = 3): Promise<SearchResult[]> {
+    const organizationId = getTenantId();
+    if (!organizationId) {
+      logger.warn(
+        'vectorStore.similaritySearch chamado sem tenant no requestContext; retornando vazio.',
+      );
+      return [];
+    }
 
-        try {
-            const response = await searchService.hybridSearch(organizationId, query, limit);
-            return response.hits.map((hit) => ({
-                id: hit.chunkId,
-                content: hit.content,
-                documentId: hit.documentId,
-                documentTitle: hit.documentTitle,
-                chunkIndex: hit.chunkIndex,
-                similarity: hit.similarity,
-                matchedBy: hit.matchedBy,
-            }));
-        } catch (error) {
-            logger.error({ err: error, query }, 'Falha na busca híbrida do playbook (vectorStore)');
-            return [];
-        }
-    },
+    try {
+      const response = await searchService.hybridSearch(organizationId, query, limit);
+      return response.hits.map((hit) => ({
+        id: hit.chunkId,
+        content: hit.content,
+        documentId: hit.documentId,
+        documentTitle: hit.documentTitle,
+        chunkIndex: hit.chunkIndex,
+        similarity: hit.similarity,
+        matchedBy: hit.matchedBy,
+      }));
+    } catch (error) {
+      logger.error({ err: error, query }, 'Falha na busca híbrida do playbook (vectorStore)');
+      return [];
+    }
+  },
 };

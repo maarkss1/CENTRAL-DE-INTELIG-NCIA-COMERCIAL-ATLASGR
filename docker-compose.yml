@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     build:
@@ -12,12 +10,15 @@ services:
       # vector e o papel restrito abaixo). A aplicação NUNCA deve conectar como este usuário
       # (ver N1 em docs/auditoria-divida-tecnica/08-PLANO-DE-SEGURANCA.md: RLS nunca se aplica a
       # superusuário, então conectar como ele torna toda política RLS decorativa).
-      POSTGRES_USER: prospector
-      POSTGRES_PASSWORD: prospector_pass
-      POSTGRES_DB: prospectordb
+      POSTGRES_USER: ${POSTGRES_USER:-prospector}
+      # Valores literais abaixo são só o fallback de desenvolvimento (`${VAR:-default}`) — em
+      # qualquer ambiente que não seja a máquina local, defina POSTGRES_PASSWORD/APP_DB_PASSWORD
+      # num .env não versionado para sobrescrever o default.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prospector_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-prospectordb}
       # Senha do papel NOSUPERUSER que a aplicação de fato usa (DATABASE_URL). Dev-only — troque
       # em qualquer ambiente que não seja a sua máquina local.
-      APP_DB_PASSWORD: prospector_app_pass
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-prospector_app_pass}
     ports:
       - "5434:5432"
     # Padrão do Docker (64MB) é insuficiente para VACUUM/hash join paralelos em tabelas
@@ -35,11 +36,16 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-prospector} -d ${POSTGRES_DB:-prospectordb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: atlas_redis
-    command: redis-server --requirepass prospector_redis_pass
+    command: redis-server --requirepass ${REDIS_PASSWORD:-prospector_redis_pass}
     ports:
       - "6379:6379"
     volumes:
@@ -47,12 +53,17 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-prospector_redis_pass} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   meilisearch:
     image: getmeili/meilisearch:v1.6
     container_name: atlas_meilisearch
     environment:
-      - MEILI_MASTER_KEY=atlasgr_meili_master_key
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-atlasgr_meili_master_key}
       - MEILI_ENV=development
     ports:
       - "7700:7700"
@@ -61,16 +72,23 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Storage S3 local. Substitui a dependência de Supabase Storage durante o desenvolvimento.
-  # As credenciais abaixo são exclusivamente de desenvolvimento e ficam restritas ao Docker local.
+  # Os defaults abaixo (via ${VAR:-default}) são exclusivamente de desenvolvimento — sobrescreva
+  # MINIO_ROOT_USER/MINIO_ROOT_PASSWORD num .env não versionado fora da máquina local. TLS não é
+  # configurado aqui de propósito (uso local/dev); não reusar este compose como está para produção.
   minio:
     image: minio/minio:latest
     container_name: atlas_minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: atlasgr
-      MINIO_ROOT_PASSWORD: atlasgr_minio_dev_only
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-atlasgr}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-atlasgr_minio_dev_only}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -79,16 +97,22 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Cria o bucket esperado pela aplicação de forma idempotente após o MinIO responder.
   minio-init:
     image: minio/mc:latest
     container_name: atlas_minio_init
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      until mc alias set local http://minio:9000 atlasgr atlasgr_minio_dev_only; do sleep 2; done;
+      until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-atlasgr} ${MINIO_ROOT_PASSWORD:-atlasgr_minio_dev_only}; do sleep 2; done;
       mc mb --ignore-existing local/prospector-assets;
       exit 0;
       "
@@ -111,6 +135,12 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health/liveliness"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   ollama:
     image: ollama/ollama:latest
@@ -122,6 +152,12 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     # Descomente abaixo para habilitar GPU Nvidia na nuvem / host Linux:
     # deploy:
     #   resources:

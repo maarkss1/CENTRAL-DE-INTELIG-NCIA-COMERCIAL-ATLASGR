@@ -3,45 +3,45 @@ import { cleanAndParseJson, getAiModel, logAiUsage } from '../../../lib/ai/gatew
 import { logger } from '../../../lib/logger.js';
 
 export interface RoleplayPersona {
-    name: string;
-    role: string;
-    companyProfile: string;
-    difficulty: 'Fácil' | 'Médio' | 'Difícil' | 'Extremo';
-    mainObjection: string;
-    personality: string;
+  name: string;
+  role: string;
+  companyProfile: string;
+  difficulty: 'Fácil' | 'Médio' | 'Difícil' | 'Extremo';
+  mainObjection: string;
+  personality: string;
 }
 
 export interface RoleplayTurnInput {
-    persona: RoleplayPersona;
-    history: Array<{ sender: 'user' | 'persona'; text: string }>;
-    userMessage: string;
+  persona: RoleplayPersona;
+  history: Array<{ sender: 'user' | 'persona'; text: string }>;
+  userMessage: string;
 }
 
 export interface RoleplayTurnOutput {
-    personaReply: string;
-    currentLeadInterest: number; // 0 a 100
-    objectionRaised?: string;
-    coachingTip?: string;
-    isDealClosed: boolean;
-    isDealLost: boolean;
+  personaReply: string;
+  currentLeadInterest: number; // 0 a 100
+  objectionRaised?: string;
+  coachingTip?: string;
+  isDealClosed: boolean;
+  isDealLost: boolean;
 }
 
 export interface RoleplayEvaluationResult {
-    overallScore: number; // 0 a 100
-    strengths: string[];
-    weaknesses: string[];
-    objectionHandlingScore: number;
-    clarityScore: number;
-    closingAttemptScore: number;
-    actionableFeedback: string;
+  overallScore: number; // 0 a 100
+  strengths: string[];
+  weaknesses: string[];
+  objectionHandlingScore: number;
+  clarityScore: number;
+  closingAttemptScore: number;
+  actionableFeedback: string;
 }
 
 export class RoleplayAiService {
-    async simulateCustomerResponse(input: RoleplayTurnInput): Promise<RoleplayTurnOutput> {
-        const model = getAiModel('local-llama3', 0.7, 'roleplay-sim');
-        const startTime = Date.now();
+  async simulateCustomerResponse(input: RoleplayTurnInput): Promise<RoleplayTurnOutput> {
+    const model = getAiModel('local-llama3', 0.7, 'roleplay-sim');
+    const startTime = Date.now();
 
-        const systemPrompt = `Você é um ator de IA simulando um cliente real em um treinamento de vendas (Roleplay B2B).
+    const systemPrompt = `Você é um ator de IA simulando um cliente real em um treinamento de vendas (Roleplay B2B).
 Sua Persona:
 - Nome: ${input.persona.name}
 - Cargo: ${input.persona.role}
@@ -66,41 +66,48 @@ Retorne SEMPRE e APENAS um JSON válido no formato:
   "isDealLost": false
 }`;
 
-        try {
-            const formattedHistory = input.history.map(h => `${h.sender === 'user' ? 'Vendedor' : input.persona.name}: ${h.text}`).join('\n');
-            const response = await model.invoke([
-                new SystemMessage(systemPrompt),
-                new HumanMessage(`Histórico da conversa até agora:\n${formattedHistory}\n\nVendedor acabou de falar: "${input.userMessage}"`),
-            ]);
+    try {
+      const formattedHistory = input.history
+        .map((h) => `${h.sender === 'user' ? 'Vendedor' : input.persona.name}: ${h.text}`)
+        .join('\n');
+      const response = await model.invoke([
+        new SystemMessage(systemPrompt),
+        new HumanMessage(
+          `Histórico da conversa até agora:\n${formattedHistory}\n\nVendedor acabou de falar: "${input.userMessage}"`,
+        ),
+      ]);
 
-            await logAiUsage({
-                model: response.response_metadata.model,
-                usage: response.response_metadata.tokenUsage,
-                latencyMs: Date.now() - startTime,
-                promptId: 'roleplay-turn',
-            });
+      await logAiUsage({
+        model: response.response_metadata.model,
+        usage: response.response_metadata.tokenUsage,
+        latencyMs: Date.now() - startTime,
+        promptId: 'roleplay-turn',
+      });
 
-            return cleanAndParseJson<RoleplayTurnOutput>(response.content);
-        } catch (error) {
-            // roleplay/AGENTS.md: "Simulação nunca deve afirmar que executou ação real" e "estados
-            // de simulação e falhas de IA são explícitos e testados". Antes, uma falha do provedor
-            // (timeout, JSON inválido) devolvia uma réplica de persona genérica fixa com
-            // `currentLeadInterest: 50` e `success: true` na rota — o vendedor treinando via
-            // /api/intelligence/suite/roleplay/turn via a simulação "responder" normalmente sem
-            // nenhum sinal de que a IA não rodou de fato. Propaga o erro (mesmo padrão já usado por
-            // `studio/generators/roleplay.ts`, o gerador real usado pela tela principal de roleplay)
-            // para a rota devolver `success: false` e o consumidor tratar como falha explícita, não
-            // como um turno de simulação válido.
-            logger.error({ err: error }, 'Erro no turno de roleplay');
-            throw error;
-        }
+      return cleanAndParseJson<RoleplayTurnOutput>(response.content);
+    } catch (error) {
+      // roleplay/AGENTS.md: "Simulação nunca deve afirmar que executou ação real" e "estados
+      // de simulação e falhas de IA são explícitos e testados". Antes, uma falha do provedor
+      // (timeout, JSON inválido) devolvia uma réplica de persona genérica fixa com
+      // `currentLeadInterest: 50` e `success: true` na rota — o vendedor treinando via
+      // /api/intelligence/suite/roleplay/turn via a simulação "responder" normalmente sem
+      // nenhum sinal de que a IA não rodou de fato. Propaga o erro (mesmo padrão já usado por
+      // `studio/generators/roleplay.ts`, o gerador real usado pela tela principal de roleplay)
+      // para a rota devolver `success: false` e o consumidor tratar como falha explícita, não
+      // como um turno de simulação válido.
+      logger.error({ err: error }, 'Erro no turno de roleplay');
+      throw error;
     }
+  }
 
-    async evaluateSession(persona: RoleplayPersona, history: Array<{ sender: 'user' | 'persona'; text: string }>): Promise<RoleplayEvaluationResult> {
-        const model = getAiModel('local-llama3-fast', 0.2, 'roleplay-eval');
-        const startTime = Date.now();
+  async evaluateSession(
+    persona: RoleplayPersona,
+    history: Array<{ sender: 'user' | 'persona'; text: string }>,
+  ): Promise<RoleplayEvaluationResult> {
+    const model = getAiModel('local-llama3-fast', 0.2, 'roleplay-eval');
+    const startTime = Date.now();
 
-        const systemPrompt = `Você é um Diretor Comercial e Coach de Vendas B2B de Elite.
+    const systemPrompt = `Você é um Diretor Comercial e Coach de Vendas B2B de Elite.
 Avalie o desempenho completo do vendedor no roleplay simulado contra a seguinte persona:
 Persona: ${persona.name} (${persona.role}) - Dificuldade: ${persona.difficulty}
 
@@ -121,28 +128,30 @@ Retorne SEMPRE e APENAS um JSON válido no formato:
   "actionableFeedback": "Parágrafo detalhado com o plano de ação prático de melhoria para o vendedor."
 }`;
 
-        try {
-            const formattedHistory = history.map(h => `${h.sender === 'user' ? 'Vendedor' : persona.name}: ${h.text}`).join('\n');
-            const response = await model.invoke([
-                new SystemMessage(systemPrompt),
-                new HumanMessage(`Transcrição Completa do Treinamento:\n${formattedHistory}`),
-            ]);
+    try {
+      const formattedHistory = history
+        .map((h) => `${h.sender === 'user' ? 'Vendedor' : persona.name}: ${h.text}`)
+        .join('\n');
+      const response = await model.invoke([
+        new SystemMessage(systemPrompt),
+        new HumanMessage(`Transcrição Completa do Treinamento:\n${formattedHistory}`),
+      ]);
 
-            await logAiUsage({
-                model: response.response_metadata.model,
-                usage: response.response_metadata.tokenUsage,
-                latencyMs: Date.now() - startTime,
-                promptId: 'roleplay-eval',
-            });
+      await logAiUsage({
+        model: response.response_metadata.model,
+        usage: response.response_metadata.tokenUsage,
+        latencyMs: Date.now() - startTime,
+        promptId: 'roleplay-eval',
+      });
 
-            return cleanAndParseJson<RoleplayEvaluationResult>(response.content);
-        } catch (error) {
-            // Mesmo raciocínio de simulateCustomerResponse acima: uma avaliação fabricada
-            // (overallScore: 75 fixo, elogios genéricos) quando a IA falhou é pior que nenhuma
-            // avaliação — o vendedor recebe uma nota e feedback que nunca vieram de uma leitura real
-            // da própria sessão. Propaga o erro para o chamador tratar como falha explícita.
-            logger.error({ err: error }, 'Erro ao avaliar sessão de roleplay');
-            throw error;
-        }
+      return cleanAndParseJson<RoleplayEvaluationResult>(response.content);
+    } catch (error) {
+      // Mesmo raciocínio de simulateCustomerResponse acima: uma avaliação fabricada
+      // (overallScore: 75 fixo, elogios genéricos) quando a IA falhou é pior que nenhuma
+      // avaliação — o vendedor recebe uma nota e feedback que nunca vieram de uma leitura real
+      // da própria sessão. Propaga o erro para o chamador tratar como falha explícita.
+      logger.error({ err: error }, 'Erro ao avaliar sessão de roleplay');
+      throw error;
     }
+  }
 }

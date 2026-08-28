@@ -7,9 +7,9 @@ import { prisma } from './prisma.js';
 // "Unknown argument organizationId" assim que é consultado via `req.db` (o client tenant-scoped),
 // mesmo que o model nunca devesse ser filtrado por tenant.
 const MODELS_WITH_ORGANIZATION_ID = new Set(
-    Prisma.dmmf.datamodel.models
-        .filter((m) => m.fields.some((f) => f.name === 'organizationId'))
-        .map((m) => m.name),
+  Prisma.dmmf.datamodel.models
+    .filter((m) => m.fields.some((f) => f.name === 'organizationId'))
+    .map((m) => m.name),
 );
 
 /**
@@ -21,58 +21,58 @@ const MODELS_WITH_ORGANIZATION_ID = new Set(
  * @param organizationId - ID do locatário atual
  */
 export function getTenantPrisma(organizationId: string) {
-    if (!organizationId) {
-        throw new Error('Tenant Prisma initialization requires a valid organizationId');
-    }
+  if (!organizationId) {
+    throw new Error('Tenant Prisma initialization requires a valid organizationId');
+  }
 
-    return prisma.$extends({
-        query: {
-            $allModels: {
-                async $allOperations({ model, operation, args, query }) {
-                    if (!MODELS_WITH_ORGANIZATION_ID.has(model)) {
-                        return query(args);
-                    }
+  return prisma.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          if (!MODELS_WITH_ORGANIZATION_ID.has(model)) {
+            return query(args);
+          }
 
-                    // Se a operação for find/update/delete, precisamos forçar o organizationId no where
-                    if (
-                        operation === 'findUnique' ||
-                        operation === 'findUniqueOrThrow' ||
-                        operation === 'findFirst' ||
-                        operation === 'findFirstOrThrow' ||
-                        operation === 'findMany' ||
-                        operation === 'count' ||
-                        operation === 'update' ||
-                        operation === 'updateMany' ||
-                        operation === 'delete' ||
-                        operation === 'deleteMany'
-                    ) {
-                        args.where = {
-                            ...(args.where || {}),
-                            organizationId,
-                        };
-                    }
+          // Se a operação for find/update/delete, precisamos forçar o organizationId no where
+          if (
+            operation === 'findUnique' ||
+            operation === 'findUniqueOrThrow' ||
+            operation === 'findFirst' ||
+            operation === 'findFirstOrThrow' ||
+            operation === 'findMany' ||
+            operation === 'count' ||
+            operation === 'update' ||
+            operation === 'updateMany' ||
+            operation === 'delete' ||
+            operation === 'deleteMany'
+          ) {
+            args.where = {
+              ...(args.where || {}),
+              organizationId,
+            };
+          }
 
-                    // Se a operação for de criação (create), precisamos forçar a injeção do organizationId nos dados
-                    if (operation === 'create') {
-                        const createData = args.data as Record<string, unknown>;
-                        args.data = {
-                            ...createData,
-                            organizationId,
-                        } as typeof args.data;
-                    }
+          // Se a operação for de criação (create), precisamos forçar a injeção do organizationId nos dados
+          if (operation === 'create') {
+            const createData = args.data as Record<string, unknown>;
+            args.data = {
+              ...createData,
+              organizationId,
+            } as typeof args.data;
+          }
 
-                    // Se for createMany, iterar para garantir o organizationId
-                    if (operation === 'createMany' && Array.isArray(args.data)) {
-                        const createManyData = args.data as Array<Record<string, unknown>>;
-                        args.data = createManyData.map(item => ({
-                            ...item,
-                            organizationId,
-                        })) as typeof args.data;
-                    }
+          // Se for createMany, iterar para garantir o organizationId
+          if (operation === 'createMany' && Array.isArray(args.data)) {
+            const createManyData = args.data as Array<Record<string, unknown>>;
+            args.data = createManyData.map((item) => ({
+              ...item,
+              organizationId,
+            })) as typeof args.data;
+          }
 
-                    return query(args);
-                },
-            },
+          return query(args);
         },
-    });
+      },
+    },
+  });
 }

@@ -43,7 +43,9 @@ export function ResetPasswordScreen() {
     setIsSubmitting(false);
 
     if (result.error) {
-      setError(result.error.message || 'Não foi possível redefinir a senha. O link pode ter expirado.');
+      setError(
+        result.error.message || 'Não foi possível redefinir a senha. O link pode ter expirado.',
+      );
       return;
     }
 
@@ -92,7 +94,10 @@ export function ResetPasswordScreen() {
             <div className="space-y-5 text-center">
               <div className="bg-danger/10 border border-danger/30 text-danger-active dark:text-danger p-3.5 rounded-2xl text-xs flex items-start gap-2.5 text-left">
                 <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                <p>Este link de redefinição de senha é inválido ou já expirou. Solicite um novo na tela de login.</p>
+                <p>
+                  Este link de redefinição de senha é inválido ou já expirou. Solicite um novo na
+                  tela de login.
+                </p>
               </div>
               <Link
                 to="/login"
@@ -129,7 +134,12 @@ export function ResetPasswordScreen() {
               )}
 
               <div>
-                <label htmlFor="reset-new-password" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Nova Senha</label>
+                <label
+                  htmlFor="reset-new-password"
+                  className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1"
+                >
+                  Nova Senha
+                </label>
                 <input
                   id="reset-new-password"
                   type="password"
@@ -144,7 +154,12 @@ export function ResetPasswordScreen() {
               </div>
 
               <div>
-                <label htmlFor="reset-confirm-password" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Confirmar Nova Senha</label>
+                <label
+                  htmlFor="reset-confirm-password"
+                  className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1"
+                >
+                  Confirmar Nova Senha
+                </label>
                 <input
                   id="reset-confirm-password"
                   type="password"
@@ -162,7 +177,13 @@ export function ResetPasswordScreen() {
                 disabled={isSubmitting || !newPassword || !confirmPassword}
                 className="w-full mt-2 bg-gradient-to-r from-brand to-brand-2 text-white py-3.5 rounded-2xl font-extrabold text-xs shadow-lg shadow-brand/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <>Redefinir Senha <ArrowRight size={16} /></>}
+                {isSubmitting ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <>
+                    Redefinir Senha <ArrowRight size={16} />
+                  </>
+                )}
               </button>
             </form>
           )}

@@ -1,13 +1,13 @@
 import { logger } from '../../../lib/logger.js';
 import {
-    anyRecordBlocksChannel,
-    hasAnyIdentifier,
-    normalizeOptOutSubject,
-    type CadenceChannel,
-    type OptOutRecord,
-    type OptOutRepository,
-    type OptOutSubject,
-    type RecordOptOutInput,
+  anyRecordBlocksChannel,
+  hasAnyIdentifier,
+  normalizeOptOutSubject,
+  type CadenceChannel,
+  type OptOutRecord,
+  type OptOutRepository,
+  type OptOutSubject,
+  type RecordOptOutInput,
 } from '../domain/optOut.js';
 
 /**
@@ -19,10 +19,10 @@ import {
 
 /** Lançado por `assertNotOptedOut` — o chamador decide como tratar (registrar tentativa 'skipped', nunca lançar direto ao usuário). */
 export class OptOutBlockedError extends Error {
-    constructor(public readonly channel: CadenceChannel) {
-        super(`Contato bloqueado por opt-out no canal '${channel}'.`);
-        this.name = 'OptOutBlockedError';
-    }
+  constructor(public readonly channel: CadenceChannel) {
+    super(`Contato bloqueado por opt-out no canal '${channel}'.`);
+    this.name = 'OptOutBlockedError';
+  }
 }
 
 /**
@@ -31,42 +31,45 @@ export class OptOutBlockedError extends Error {
  * `callSuppression.service.ts`: melhor logar e não gravar do que gravar um registro inerte que
  * nunca vai casar com nada.
  */
-export async function recordOptOut(repo: OptOutRepository, input: RecordOptOutInput): Promise<OptOutRecord | null> {
-    const normalized = normalizeOptOutSubject(input.subject);
-    if (!hasAnyIdentifier(normalized)) {
-        logger.warn(
-            { organizationId: input.organizationId, originChannel: input.originChannel },
-            'Pedido de opt-out sem identificador aproveitável (sem leadId, e-mail ou telefone válido) — nada foi bloqueado.',
-        );
-        return null;
-    }
-
-    const record = await repo.create({
-        organizationId: input.organizationId,
-        scope: input.scope,
-        leadId: normalized.leadId,
-        email: normalized.email,
-        phoneE164: normalized.phoneE164,
-        originChannel: input.originChannel,
-        reason: input.reason ?? null,
-        evidence: input.evidence ?? null,
-        requestedBy: input.requestedBy ?? null,
-    });
-
-    logger.info(
-        {
-            organizationId: input.organizationId,
-            scope: input.scope,
-            originChannel: input.originChannel,
-            leadId: normalized.leadId,
-            // Nunca logar e-mail/telefone completos em texto puro (mesma disciplina de PII de cold-email.service.ts).
-            hasEmail: normalized.email !== null,
-            hasPhone: normalized.phoneE164 !== null,
-        },
-        'Opt-out registrado.',
+export async function recordOptOut(
+  repo: OptOutRepository,
+  input: RecordOptOutInput,
+): Promise<OptOutRecord | null> {
+  const normalized = normalizeOptOutSubject(input.subject);
+  if (!hasAnyIdentifier(normalized)) {
+    logger.warn(
+      { organizationId: input.organizationId, originChannel: input.originChannel },
+      'Pedido de opt-out sem identificador aproveitável (sem leadId, e-mail ou telefone válido) — nada foi bloqueado.',
     );
+    return null;
+  }
 
-    return record;
+  const record = await repo.create({
+    organizationId: input.organizationId,
+    scope: input.scope,
+    leadId: normalized.leadId,
+    email: normalized.email,
+    phoneE164: normalized.phoneE164,
+    originChannel: input.originChannel,
+    reason: input.reason ?? null,
+    evidence: input.evidence ?? null,
+    requestedBy: input.requestedBy ?? null,
+  });
+
+  logger.info(
+    {
+      organizationId: input.organizationId,
+      scope: input.scope,
+      originChannel: input.originChannel,
+      leadId: normalized.leadId,
+      // Nunca logar e-mail/telefone completos em texto puro (mesma disciplina de PII de cold-email.service.ts).
+      hasEmail: normalized.email !== null,
+      hasPhone: normalized.phoneE164 !== null,
+    },
+    'Opt-out registrado.',
+  );
+
+  return record;
 }
 
 /**
@@ -75,28 +78,28 @@ export async function recordOptOut(repo: OptOutRepository, input: RecordOptOutIn
  * canal chamador já precisaria de pelo menos um identificador para saber para quem enviar.
  */
 export async function isOptedOut(
-    repo: OptOutRepository,
-    organizationId: string,
-    subject: OptOutSubject,
-    channel: CadenceChannel,
+  repo: OptOutRepository,
+  organizationId: string,
+  subject: OptOutSubject,
+  channel: CadenceChannel,
 ): Promise<boolean> {
-    const normalized = normalizeOptOutSubject(subject);
-    if (!hasAnyIdentifier(normalized)) return false;
+  const normalized = normalizeOptOutSubject(subject);
+  if (!hasAnyIdentifier(normalized)) return false;
 
-    const matches = await repo.findMatches(organizationId, normalized);
-    return anyRecordBlocksChannel(matches, channel);
+  const matches = await repo.findMatches(organizationId, normalized);
+  return anyRecordBlocksChannel(matches, channel);
 }
 
 /** Mesma checagem de `isOptedOut`, mas lança em vez de devolver booleano — para caminhos que preferem short-circuit por exceção. */
 export async function assertNotOptedOut(
-    repo: OptOutRepository,
-    organizationId: string,
-    subject: OptOutSubject,
-    channel: CadenceChannel,
+  repo: OptOutRepository,
+  organizationId: string,
+  subject: OptOutSubject,
+  channel: CadenceChannel,
 ): Promise<void> {
-    if (await isOptedOut(repo, organizationId, subject, channel)) {
-        throw new OptOutBlockedError(channel);
-    }
+  if (await isOptedOut(repo, organizationId, subject, channel)) {
+    throw new OptOutBlockedError(channel);
+  }
 }
 
 export { normalizeOptOutSubject };

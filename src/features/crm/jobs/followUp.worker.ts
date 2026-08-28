@@ -32,95 +32,108 @@ export const FOLLOWUP_QUEUE_NAME = 'whatsapp-followup-queue';
  * bypass) — `Lead` segue sendo a única leitura cross-tenant sob bypass, exatamente como antes.
  */
 export async function runDailyFollowUpScan(): Promise<{ eligible: number; sentCount: number }> {
-    logger.info('Iniciando job de follow-up diário do WhatsApp');
+  logger.info('Iniciando job de follow-up diário do WhatsApp');
 
-    const oneDayAgo = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000);
+  const oneDayAgo = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000);
 
-    const leadsToFollowUp = await requestContext.run({ bypassRls: true }, () => prisma.lead.findMany({
-        where: {
-            status: { in: ['Lead_Recebido', 'Qualificacao_SDR'] },
-            lastInteraction: {
-                lte: oneDayAgo
-            }
+  const leadsToFollowUp = await requestContext.run({ bypassRls: true }, () =>
+    prisma.lead.findMany({
+      where: {
+        status: { in: ['Lead_Recebido', 'Qualificacao_SDR'] },
+        lastInteraction: {
+          lte: oneDayAgo,
         },
-    }));
+      },
+    }),
+  );
 
-    let sentCount = 0;
-    for (const lead of leadsToFollowUp) {
-        const customFields = (lead.customFields as Record<string, unknown>) || {};
-        if (customFields.optOutWhatsApp) continue;
-        if (!lead.contactId || !lead.organizationId) continue;
+  let sentCount = 0;
+  for (const lead of leadsToFollowUp) {
+    const customFields = (lead.customFields as Record<string, unknown>) || {};
+    if (customFields.optOutWhatsApp) continue;
+    if (!lead.contactId || !lead.organizationId) continue;
 
-        try {
-            await requestContext.run({ tenantId: lead.organizationId }, async () => {
-                const contact = await prisma.contact.findUnique({ where: { id: lead.contactId! } });
-                const phone = contact?.whatsapp || contact?.phone;
-                if (!phone) return;
+    try {
+      await requestContext.run({ tenantId: lead.organizationId }, async () => {
+        const contact = await prisma.contact.findUnique({ where: { id: lead.contactId! } });
+        const phone = contact?.whatsapp || contact?.phone;
+        if (!phone) return;
 
-                await sendWhatsAppMessage(
-                    lead.organizationId!,
-                    phone,
-                    `Olá! Tudo bem? Estou passando para dar continuidade ao nosso contato de alguns dias atrás. Faz sentido falarmos sobre a proposta essa semana?`,
-                    ['Sim, tenho interesse', 'Agora não']
-                );
+        await sendWhatsAppMessage(
+          lead.organizationId!,
+          phone,
+          `Olá! Tudo bem? Estou passando para dar continuidade ao nosso contato de alguns dias atrás. Faz sentido falarmos sobre a proposta essa semana?`,
+          ['Sim, tenho interesse', 'Agora não'],
+        );
 
-                await prisma.lead.update({
-                    where: { id: lead.id },
-                    data: {
-                        lastInteraction: new Date()
-                    }
-                });
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: {
+            lastInteraction: new Date(),
+          },
+        });
 
-                sentCount++;
-            });
-        } catch (err) {
-            logger.warn({ err, leadId: lead.id }, 'Falha ao enviar follow-up de WhatsApp');
-        }
+        sentCount++;
+      });
+    } catch (err) {
+      logger.warn({ err, leadId: lead.id }, 'Falha ao enviar follow-up de WhatsApp');
     }
+  }
 
-    logger.info({ eligible: leadsToFollowUp.length, sentCount }, 'Follow-up diário do WhatsApp concluído.');
-    return { eligible: leadsToFollowUp.length, sentCount };
+  logger.info(
+    { eligible: leadsToFollowUp.length, sentCount },
+    'Follow-up diário do WhatsApp concluído.',
+  );
+  return { eligible: leadsToFollowUp.length, sentCount };
 }
 
 export function createFollowUpWorker() {
-    const followUpWorker = new Worker(FOLLOWUP_QUEUE_NAME, async () => {
-        await runDailyFollowUpScan();
-    }, {
-        connection: connection as any,
-        concurrency: 1
-    });
+  const followUpWorker = new Worker(
+    FOLLOWUP_QUEUE_NAME,
+    async () => {
+      await runDailyFollowUpScan();
+    },
+    {
+      connection: connection as any,
+      concurrency: 1,
+    },
+  );
 
-    followUpWorker.on('failed', (job, err) => {
-        logger.error({ err, jobId: job?.id }, 'Follow-up worker job falhou');
-        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
-        void recordDeadLetter({
-            queue: FOLLOWUP_QUEUE_NAME,
-            jobId: job.id,
-            jobName: job.name,
-            attemptsMade: job.attemptsMade,
-            error: err,
-        });
+  followUpWorker.on('failed', (job, err) => {
+    logger.error({ err, jobId: job?.id }, 'Follow-up worker job falhou');
+    if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+    void recordDeadLetter({
+      queue: FOLLOWUP_QUEUE_NAME,
+      jobId: job.id,
+      jobName: job.name,
+      attemptsMade: job.attemptsMade,
+      error: err,
     });
+  });
 
-    followUpWorker.on('error', (err) => {
-        logger.warn({ err }, 'FollowUp worker error suppressed (Redis offline)');
-    });
+  followUpWorker.on('error', (err) => {
+    logger.warn({ err }, 'FollowUp worker error suppressed (Redis offline)');
+  });
 
-    return followUpWorker;
+  return followUpWorker;
 }
 
 export async function scheduleFollowUpJobs() {
-    const queue = new Queue(FOLLOWUP_QUEUE_NAME, {
-        connection: connection as any
-    });
-    
-    // Roda todo dia as 09:00.
-    // BullMQ v6 removeu `repeat` de `Queue.add` (viraria um job avulso, nunca mais se repete) —
-    // agendamento recorrente agora exige `upsertJobScheduler`, idempotente pelo id abaixo.
-    await queue.upsertJobScheduler('daily-followups', { pattern: '0 9 * * *' }, {
-        name: 'daily-followups',
-        data: {},
-    });
-    
-    logger.info('Follow-up jobs scheduled (cron: 0 9 * * *)');
+  const queue = new Queue(FOLLOWUP_QUEUE_NAME, {
+    connection: connection as any,
+  });
+
+  // Roda todo dia as 09:00.
+  // BullMQ v6 removeu `repeat` de `Queue.add` (viraria um job avulso, nunca mais se repete) —
+  // agendamento recorrente agora exige `upsertJobScheduler`, idempotente pelo id abaixo.
+  await queue.upsertJobScheduler(
+    'daily-followups',
+    { pattern: '0 9 * * *' },
+    {
+      name: 'daily-followups',
+      data: {},
+    },
+  );
+
+  logger.info('Follow-up jobs scheduled (cron: 0 9 * * *)');
 }

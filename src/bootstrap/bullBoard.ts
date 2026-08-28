@@ -25,25 +25,25 @@ import { requirePlatformOperator } from '../shared/middlewares/requirePlatformOp
  * padrão mesmo para um ADMIN de verdade.
  */
 export function mountBullBoard(app: Express): void {
-    const serverAdapter = new ExpressAdapter();
-    serverAdapter.setBasePath('/admin/queues');
-    if (queuesEnabled && leadsQueue && searchQueue && agentQueue) {
-        createBullBoard({
-            queues: [
-                new BullMQAdapter(leadsQueue),
-                new BullMQAdapter(searchQueue),
-                new BullMQAdapter(agentQueue)
-            ],
-            serverAdapter,
-        });
-    }
+  const serverAdapter = new ExpressAdapter();
+  serverAdapter.setBasePath('/admin/queues');
+  if (queuesEnabled && leadsQueue && searchQueue && agentQueue) {
+    createBullBoard({
+      queues: [
+        new BullMQAdapter(leadsQueue),
+        new BullMQAdapter(searchQueue),
+        new BullMQAdapter(agentQueue),
+      ],
+      serverAdapter,
+    });
+  }
 
-    app.use(
-        '/admin/queues',
-        authenticateToken,
-        requireTenant,
-        requireRole(['ADMIN']),
-        requirePlatformOperator,
-        serverAdapter.getRouter()
-    );
+  app.use(
+    '/admin/queues',
+    authenticateToken,
+    requireTenant,
+    requireRole(['ADMIN']),
+    requirePlatformOperator,
+    serverAdapter.getRouter(),
+  );
 }

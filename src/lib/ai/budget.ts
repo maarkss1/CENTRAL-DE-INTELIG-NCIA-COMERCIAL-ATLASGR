@@ -25,26 +25,26 @@ const CACHE_KEY = 'ai-gateway:budget:month-cost-usd';
 const CACHE_TTL_SECONDS = 60;
 
 interface LocalCacheState {
-    value: number;
-    expiresAt: number;
+  value: number;
+  expiresAt: number;
 }
 let localCacheFallback: LocalCacheState | null = null;
 
 /** Só para testes: limpa o cache do custo mensal (Redis e o fallback local) entre casos. */
 export async function __resetAiBudgetCacheForTests(): Promise<void> {
-    localCacheFallback = null;
-    try {
-        await cacheConnection.del(CACHE_KEY);
-    } catch {
-        // Redis indisponível — só o fallback local importava mesmo, e já foi limpo acima.
-    }
+  localCacheFallback = null;
+  try {
+    await cacheConnection.del(CACHE_KEY);
+  } catch {
+    // Redis indisponível — só o fallback local importava mesmo, e já foi limpo acima.
+  }
 }
 
 function currentMonthStart(): Date {
-    const d = new Date();
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
+  const d = new Date();
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 /**
@@ -54,13 +54,13 @@ function currentMonthStart(): Date {
  * Postgres estiver indisponível — quem chama decide como reagir a isso.
  */
 async function computeMonthCostUsd(): Promise<number> {
-    const result = await requestContext.run({ bypassRls: true }, () =>
-        prisma.aILog.aggregate({
-            where: { createdAt: { gte: currentMonthStart() } },
-            _sum: { cost: true },
-        }),
-    );
-    return result._sum.cost ?? 0;
+  const result = await requestContext.run({ bypassRls: true }, () =>
+    prisma.aILog.aggregate({
+      where: { createdAt: { gte: currentMonthStart() } },
+      _sum: { cost: true },
+    }),
+  );
+  return result._sum.cost ?? 0;
 }
 
 /**
@@ -75,42 +75,54 @@ async function computeMonthCostUsd(): Promise<number> {
  * de IA do produto) do que o problema que este circuit breaker existe para prevenir.
  */
 export async function getMonthCostUsd(): Promise<number> {
-    try {
-        const cached = await cacheConnection.get(CACHE_KEY);
-        if (cached !== null) return Number(cached);
-    } catch (err) {
-        logger.warn({ err }, '[AI Budget] Redis indisponível ao ler cache, recalculando direto do Postgres');
-    }
+  try {
+    const cached = await cacheConnection.get(CACHE_KEY);
+    if (cached !== null) return Number(cached);
+  } catch (err) {
+    logger.warn(
+      { err },
+      '[AI Budget] Redis indisponível ao ler cache, recalculando direto do Postgres',
+    );
+  }
 
-    const now = Date.now();
-    if (localCacheFallback && localCacheFallback.expiresAt > now) return localCacheFallback.value;
+  const now = Date.now();
+  if (localCacheFallback && localCacheFallback.expiresAt > now) return localCacheFallback.value;
 
-    let fresh: number;
-    try {
-        fresh = await computeMonthCostUsd();
-    } catch (err) {
-        logger.warn({ err }, '[AI Budget] Falha ao calcular custo do mês (Postgres indisponível) — tratando como custo desconhecido, não como orçamento excedido');
-        return 0;
-    }
+  let fresh: number;
+  try {
+    fresh = await computeMonthCostUsd();
+  } catch (err) {
+    logger.warn(
+      { err },
+      '[AI Budget] Falha ao calcular custo do mês (Postgres indisponível) — tratando como custo desconhecido, não como orçamento excedido',
+    );
+    return 0;
+  }
 
-    localCacheFallback = { value: fresh, expiresAt: now + CACHE_TTL_SECONDS * 1000 };
-    try {
-        await cacheConnection.set(CACHE_KEY, fresh.toString(), 'EX', CACHE_TTL_SECONDS);
-    } catch (err) {
-        logger.warn({ err }, '[AI Budget] Redis indisponível ao gravar cache — fallback em memória local já cobre a janela');
-    }
-    return fresh;
+  localCacheFallback = { value: fresh, expiresAt: now + CACHE_TTL_SECONDS * 1000 };
+  try {
+    await cacheConnection.set(CACHE_KEY, fresh.toString(), 'EX', CACHE_TTL_SECONDS);
+  } catch (err) {
+    logger.warn(
+      { err },
+      '[AI Budget] Redis indisponível ao gravar cache — fallback em memória local já cobre a janela',
+    );
+  }
+  return fresh;
 }
 
 export class AiBudgetExceededError extends Error {
-    constructor(public readonly monthCostUsd: number, public readonly budgetUsd: number) {
-        super(
-            `Orçamento mensal de IA excedido (US$ ${monthCostUsd.toFixed(2)} de US$ ${budgetUsd.toFixed(2)}). ` +
-            'Novas chamadas de IA estão bloqueadas até o início do próximo mês ou até o teto ' +
-            '(AI_MONTHLY_BUDGET_USD) ser aumentado.',
-        );
-        this.name = 'AiBudgetExceededError';
-    }
+  constructor(
+    public readonly monthCostUsd: number,
+    public readonly budgetUsd: number,
+  ) {
+    super(
+      `Orçamento mensal de IA excedido (US$ ${monthCostUsd.toFixed(2)} de US$ ${budgetUsd.toFixed(2)}). ` +
+        'Novas chamadas de IA estão bloqueadas até o início do próximo mês ou até o teto ' +
+        '(AI_MONTHLY_BUDGET_USD) ser aumentado.',
+    );
+    this.name = 'AiBudgetExceededError';
+  }
 }
 
 // ─── Orçamento por organização (DEC-09, onda 42) ───────────────────────────────────────────────
@@ -128,18 +140,18 @@ const ORG_CACHE_KEY_PREFIX = 'ai-gateway:budget:org:';
 const ORG_CACHE_TTL_SECONDS = 60;
 
 interface LocalOrgCacheState {
-    value: number;
-    expiresAt: number;
+  value: number;
+  expiresAt: number;
 }
 const localOrgCostCache = new Map<string, LocalOrgCacheState>();
 
 /** Só para testes: limpa o fallback em memória por organização entre casos. */
 export function __resetOrgAiBudgetCacheForTests(): void {
-    localOrgCostCache.clear();
+  localOrgCostCache.clear();
 }
 
 function currentMonthKey(date: Date = new Date()): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 /**
@@ -149,11 +161,11 @@ function currentMonthKey(date: Date = new Date()): string {
  * corrente` (nunca herda custo de um mês anterior).
  */
 async function computeOrgMonthCostUsd(organizationId: string): Promise<number> {
-    const result = await prisma.aILog.aggregate({
-        where: { organizationId, createdAt: { gte: currentMonthStart() } },
-        _sum: { cost: true },
-    });
-    return result._sum.cost ?? 0;
+  const result = await prisma.aILog.aggregate({
+    where: { organizationId, createdAt: { gte: currentMonthStart() } },
+    _sum: { cost: true },
+  });
+  return result._sum.cost ?? 0;
 }
 
 /**
@@ -163,65 +175,77 @@ async function computeOrgMonthCostUsd(organizationId: string): Promise<number> {
  * total antigo com o novo: o primeiro check do mês novo simplesmente recalcula do zero.
  */
 async function getOrgMonthCostUsd(organizationId: string): Promise<number> {
-    const cacheKey = `${ORG_CACHE_KEY_PREFIX}${organizationId}:${currentMonthKey()}`;
-    try {
-        const cached = await cacheConnection.get(cacheKey);
-        if (cached !== null) return Number(cached);
-    } catch (err) {
-        logger.warn({ err, organizationId }, '[AI Budget] Redis indisponível ao ler cache por organização, recalculando direto do Postgres');
-    }
+  const cacheKey = `${ORG_CACHE_KEY_PREFIX}${organizationId}:${currentMonthKey()}`;
+  try {
+    const cached = await cacheConnection.get(cacheKey);
+    if (cached !== null) return Number(cached);
+  } catch (err) {
+    logger.warn(
+      { err, organizationId },
+      '[AI Budget] Redis indisponível ao ler cache por organização, recalculando direto do Postgres',
+    );
+  }
 
-    const now = Date.now();
-    const local = localOrgCostCache.get(cacheKey);
-    if (local && local.expiresAt > now) return local.value;
+  const now = Date.now();
+  const local = localOrgCostCache.get(cacheKey);
+  if (local && local.expiresAt > now) return local.value;
 
-    let fresh: number;
-    try {
-        fresh = await computeOrgMonthCostUsd(organizationId);
-    } catch (err) {
-        logger.warn({ err, organizationId }, '[AI Budget] Falha ao calcular custo do mês da organização (Postgres indisponível) — tratando como custo desconhecido, não como orçamento excedido');
-        return 0;
-    }
+  let fresh: number;
+  try {
+    fresh = await computeOrgMonthCostUsd(organizationId);
+  } catch (err) {
+    logger.warn(
+      { err, organizationId },
+      '[AI Budget] Falha ao calcular custo do mês da organização (Postgres indisponível) — tratando como custo desconhecido, não como orçamento excedido',
+    );
+    return 0;
+  }
 
-    localOrgCostCache.set(cacheKey, { value: fresh, expiresAt: now + ORG_CACHE_TTL_SECONDS * 1000 });
-    try {
-        await cacheConnection.set(cacheKey, fresh.toString(), 'EX', ORG_CACHE_TTL_SECONDS);
-    } catch (err) {
-        logger.warn({ err, organizationId }, '[AI Budget] Redis indisponível ao gravar cache por organização — fallback em memória local já cobre a janela');
-    }
-    return fresh;
+  localOrgCostCache.set(cacheKey, { value: fresh, expiresAt: now + ORG_CACHE_TTL_SECONDS * 1000 });
+  try {
+    await cacheConnection.set(cacheKey, fresh.toString(), 'EX', ORG_CACHE_TTL_SECONDS);
+  } catch (err) {
+    logger.warn(
+      { err, organizationId },
+      '[AI Budget] Redis indisponível ao gravar cache por organização — fallback em memória local já cobre a janela',
+    );
+  }
+  return fresh;
 }
 
 /**
  * Teto mensal de IA configurado para UMA organização. `null`/ausente = sem teto (nunca bloqueia).
  */
 async function getOrgAiBudgetUsd(organizationId: string): Promise<number | null> {
-    try {
-        const org = await prisma.organization.findUnique({
-            where: { id: organizationId },
-            select: { monthlyAiBudgetUsd: true },
-        });
-        return org?.monthlyAiBudgetUsd ?? null;
-    } catch (err) {
-        logger.warn({ err, organizationId }, '[AI Budget] Falha ao ler o teto mensal de IA da organização — tratando como sem teto configurado');
-        return null;
-    }
+  try {
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { monthlyAiBudgetUsd: true },
+    });
+    return org?.monthlyAiBudgetUsd ?? null;
+  } catch (err) {
+    logger.warn(
+      { err, organizationId },
+      '[AI Budget] Falha ao ler o teto mensal de IA da organização — tratando como sem teto configurado',
+    );
+    return null;
+  }
 }
 
 export class AiOrgBudgetExceededError extends AppError {
-    constructor(
-        public readonly organizationId: string,
-        public readonly monthCostUsd: number,
-        public readonly budgetUsd: number,
-    ) {
-        super(
-            `Orçamento mensal de IA desta organização foi atingido (US$ ${monthCostUsd.toFixed(2)} de US$ ${budgetUsd.toFixed(2)}). ` +
-            'Novas chamadas de IA estão bloqueadas para esta organização até o início do próximo mês ou até o teto ' +
-            'mensal de IA da organização ser aumentado.',
-            429,
-        );
-        this.name = 'AiOrgBudgetExceededError';
-    }
+  constructor(
+    public readonly organizationId: string,
+    public readonly monthCostUsd: number,
+    public readonly budgetUsd: number,
+  ) {
+    super(
+      `Orçamento mensal de IA desta organização foi atingido (US$ ${monthCostUsd.toFixed(2)} de US$ ${budgetUsd.toFixed(2)}). ` +
+        'Novas chamadas de IA estão bloqueadas para esta organização até o início do próximo mês ou até o teto ' +
+        'mensal de IA da organização ser aumentado.',
+      429,
+    );
+    this.name = 'AiOrgBudgetExceededError';
+  }
 }
 
 /**
@@ -240,17 +264,17 @@ export class AiOrgBudgetExceededError extends AppError {
  * confirmação.
  */
 async function assertOrgAiBudgetNotExceeded(): Promise<void> {
-    const organizationId = requestContext.getStore()?.tenantId;
-    if (!organizationId) return;
+  const organizationId = requestContext.getStore()?.tenantId;
+  if (!organizationId) return;
 
-    const budgetUsd = await getOrgAiBudgetUsd(organizationId);
-    if (budgetUsd === null) return;
+  const budgetUsd = await getOrgAiBudgetUsd(organizationId);
+  if (budgetUsd === null) return;
 
-    const monthCostUsd = await getOrgMonthCostUsd(organizationId);
-    if (monthCostUsd >= budgetUsd) {
-        recordOrgAiBudgetBlocked(organizationId);
-        throw new AiOrgBudgetExceededError(organizationId, monthCostUsd, budgetUsd);
-    }
+  const monthCostUsd = await getOrgMonthCostUsd(organizationId);
+  if (monthCostUsd >= budgetUsd) {
+    recordOrgAiBudgetBlocked(organizationId);
+    throw new AiOrgBudgetExceededError(organizationId, monthCostUsd, budgetUsd);
+  }
 }
 
 /**
@@ -262,12 +286,12 @@ async function assertOrgAiBudgetNotExceeded(): Promise<void> {
  * comportamento "sem teto" que a métrica passiva já tinha, não inventa um teto implícito.
  */
 export async function assertAiBudgetNotExceeded(): Promise<void> {
-    await assertOrgAiBudgetNotExceeded();
+  await assertOrgAiBudgetNotExceeded();
 
-    if (env.AI_MONTHLY_BUDGET_USD === undefined) return;
-    const monthCostUsd = await getMonthCostUsd();
-    if (monthCostUsd >= env.AI_MONTHLY_BUDGET_USD) {
-        recordAiBudgetBlocked();
-        throw new AiBudgetExceededError(monthCostUsd, env.AI_MONTHLY_BUDGET_USD);
-    }
+  if (env.AI_MONTHLY_BUDGET_USD === undefined) return;
+  const monthCostUsd = await getMonthCostUsd();
+  if (monthCostUsd >= env.AI_MONTHLY_BUDGET_USD) {
+    recordAiBudgetBlocked();
+    throw new AiBudgetExceededError(monthCostUsd, env.AI_MONTHLY_BUDGET_USD);
+  }
 }

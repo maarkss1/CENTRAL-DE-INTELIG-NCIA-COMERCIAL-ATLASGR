@@ -15,7 +15,7 @@ import type { DealRow } from '../domain/CommercialIntelligence';
 export const STAGE_AGING_CRITICAL_DAYS = 45;
 
 export function isDealOpen(deal: DealRow): boolean {
-    return !deal.stageIsWon && !deal.stageIsLost && deal.closedAt == null;
+  return !deal.stageIsWon && !deal.stageIsLost && deal.closedAt == null;
 }
 
 /**
@@ -24,15 +24,19 @@ export function isDealOpen(deal: DealRow): boolean {
  * aproximação quando não há histórico (registro anterior à migration que criou a tabela) — nunca
  * finge ter uma medição exata que não existe.
  */
-export function agingInStageDays(deal: DealRow, now: Date, measuredDaysInStage: number | null): number {
-    if (measuredDaysInStage != null) return measuredDaysInStage;
-    const reference = deal.updatedAt ?? deal.createdAt;
-    return Math.max(0, Math.round((now.getTime() - reference.getTime()) / (24 * 60 * 60 * 1000)));
+export function agingInStageDays(
+  deal: DealRow,
+  now: Date,
+  measuredDaysInStage: number | null,
+): number {
+  if (measuredDaysInStage != null) return measuredDaysInStage;
+  const reference = deal.updatedAt ?? deal.createdAt;
+  return Math.max(0, Math.round((now.getTime() - reference.getTime()) / (24 * 60 * 60 * 1000)));
 }
 
 export interface EligibilityCheck {
-    eligible: boolean;
-    reasons: string[];
+  eligible: boolean;
+  reasons: string[];
 }
 
 /**
@@ -44,15 +48,20 @@ export interface EligibilityCheck {
  * 5. Próxima ação preenchida.
  * 6. Não excede o aging crítico da etapa atual.
  */
-export function checkEligibility(deal: DealRow, now: Date, measuredDaysInStage: number | null): EligibilityCheck {
-    const reasons: string[] = [];
-    if (!isDealOpen(deal)) reasons.push('Negócio já fechado');
-    if (!(deal.amount > 0)) reasons.push('Sem valor válido');
-    if (!deal.expectedCloseAt) reasons.push('Sem data prevista de fechamento');
-    if (!deal.owner) reasons.push('Sem responsável');
-    if (!deal.nextAction) reasons.push('Sem próxima ação registrada');
-    const aging = agingInStageDays(deal, now, measuredDaysInStage);
-    if (aging > STAGE_AGING_CRITICAL_DAYS) reasons.push(`Acima do aging crítico da etapa (${aging}d > ${STAGE_AGING_CRITICAL_DAYS}d)`);
+export function checkEligibility(
+  deal: DealRow,
+  now: Date,
+  measuredDaysInStage: number | null,
+): EligibilityCheck {
+  const reasons: string[] = [];
+  if (!isDealOpen(deal)) reasons.push('Negócio já fechado');
+  if (!(deal.amount > 0)) reasons.push('Sem valor válido');
+  if (!deal.expectedCloseAt) reasons.push('Sem data prevista de fechamento');
+  if (!deal.owner) reasons.push('Sem responsável');
+  if (!deal.nextAction) reasons.push('Sem próxima ação registrada');
+  const aging = agingInStageDays(deal, now, measuredDaysInStage);
+  if (aging > STAGE_AGING_CRITICAL_DAYS)
+    reasons.push(`Acima do aging crítico da etapa (${aging}d > ${STAGE_AGING_CRITICAL_DAYS}d)`);
 
-    return { eligible: reasons.length === 0, reasons };
+  return { eligible: reasons.length === 0, reasons };
 }

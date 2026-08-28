@@ -11,21 +11,31 @@
  * 13 responder pedindo um quarto tipo.
  */
 
-export type DealClosureEventType = 'signature_completed' | 'payment_confirmed' | 'manual_crm_confirmation';
+export type DealClosureEventType =
+  'signature_completed' | 'payment_confirmed' | 'manual_crm_confirmation';
 
-const VALID_TYPES = new Set<DealClosureEventType>(['signature_completed', 'payment_confirmed', 'manual_crm_confirmation']);
+const VALID_TYPES = new Set<DealClosureEventType>([
+  'signature_completed',
+  'payment_confirmed',
+  'manual_crm_confirmation',
+]);
 
 /** Marcadores que só existem para o teste provar que texto gerado por modelo nunca passa por aqui — nunca devem aparecer num evento real. */
-const FORBIDDEN_TYPE_MARKERS = new Set(['ai_inferred', 'ai_judgment', 'model_decision', 'assumed_won']);
+const FORBIDDEN_TYPE_MARKERS = new Set([
+  'ai_inferred',
+  'ai_judgment',
+  'model_decision',
+  'assumed_won',
+]);
 
 export interface DealClosureEventInput {
-    organizationId: string;
-    leadId: string;
-    type: DealClosureEventType | string;
-    /** Id de outro registro real que prova o evento (id de CrmDocumentSignatureRequest, id de transação de pagamento, id de Activity/Note de confirmação manual). Nunca um resumo/texto gerado. */
-    evidenceRef: string;
-    /** userId de quem confirmou manualmente, ou 'webhook:<provider>' quando automático — nunca um agente de IA. */
-    triggeredBy: string;
+  organizationId: string;
+  leadId: string;
+  type: DealClosureEventType | string;
+  /** Id de outro registro real que prova o evento (id de CrmDocumentSignatureRequest, id de transação de pagamento, id de Activity/Note de confirmação manual). Nunca um resumo/texto gerado. */
+  evidenceRef: string;
+  /** userId de quem confirmou manualmente, ou 'webhook:<provider>' quando automático — nunca um agente de IA. */
+  triggeredBy: string;
 }
 
 /**
@@ -34,35 +44,39 @@ export interface DealClosureEventInput {
  * "deu erro, mas prossiga mesmo assim".
  */
 export function isDeterministicCloseEvent(event: DealClosureEventInput): boolean {
-    if (FORBIDDEN_TYPE_MARKERS.has(event.type)) return false;
-    if (!VALID_TYPES.has(event.type as DealClosureEventType)) return false;
-    if (!event.evidenceRef || !event.evidenceRef.trim()) return false;
-    if (!event.triggeredBy || !event.triggeredBy.trim()) return false;
-    // O Closer (agente de IA) nunca é um triggeredBy válido — fechamento sempre vem de um humano
-    // (userId) ou de um webhook de provedor real, nunca do próprio enxame se autodeclarando.
-    if (/^(ai|agent|swarm|closer|bot)[:_-]/i.test(event.triggeredBy.trim())) return false;
-    return true;
+  if (FORBIDDEN_TYPE_MARKERS.has(event.type)) return false;
+  if (!VALID_TYPES.has(event.type as DealClosureEventType)) return false;
+  if (!event.evidenceRef || !event.evidenceRef.trim()) return false;
+  if (!event.triggeredBy || !event.triggeredBy.trim()) return false;
+  // O Closer (agente de IA) nunca é um triggeredBy válido — fechamento sempre vem de um humano
+  // (userId) ou de um webhook de provedor real, nunca do próprio enxame se autodeclarando.
+  if (/^(ai|agent|swarm|closer|bot)[:_-]/i.test(event.triggeredBy.trim())) return false;
+  return true;
 }
 
 export interface DealClosureEvent extends DealClosureEventInput {
-    id: string;
-    type: DealClosureEventType;
-    occurredAt: Date;
+  id: string;
+  type: DealClosureEventType;
+  occurredAt: Date;
 }
 
 export interface DealClosureResult {
-    accepted: boolean;
-    event: DealClosureEvent | null;
-    /** Quando `accepted` é `false`, explica por que — para log/observabilidade, nunca para decidir mover o Lead mesmo assim. */
-    rejectedReason: 'invalid-type' | 'missing-evidence' | 'untrusted-trigger' | null;
+  accepted: boolean;
+  event: DealClosureEvent | null;
+  /** Quando `accepted` é `false`, explica por que — para log/observabilidade, nunca para decidir mover o Lead mesmo assim. */
+  rejectedReason: 'invalid-type' | 'missing-evidence' | 'untrusted-trigger' | null;
 }
 
 function rejectionReason(event: DealClosureEventInput): DealClosureResult['rejectedReason'] {
-    if (!event.evidenceRef || !event.evidenceRef.trim()) return 'missing-evidence';
-    if (!event.triggeredBy || !event.triggeredBy.trim() || /^(ai|agent|swarm|closer|bot)[:_-]/i.test(event.triggeredBy.trim())) {
-        return 'untrusted-trigger';
-    }
-    return 'invalid-type';
+  if (!event.evidenceRef || !event.evidenceRef.trim()) return 'missing-evidence';
+  if (
+    !event.triggeredBy ||
+    !event.triggeredBy.trim() ||
+    /^(ai|agent|swarm|closer|bot)[:_-]/i.test(event.triggeredBy.trim())
+  ) {
+    return 'untrusted-trigger';
+  }
+  return 'invalid-type';
 }
 
 /**
@@ -72,16 +86,16 @@ function rejectionReason(event: DealClosureEventInput): DealClosureResult['rejec
  * (`src/features/crm/**`), já que `Lead` não é meu arquivo.
  */
 export function evaluateDealClosure(
-    event: DealClosureEventInput,
-    idFactory: () => string,
-    now: Date,
+  event: DealClosureEventInput,
+  idFactory: () => string,
+  now: Date,
 ): DealClosureResult {
-    if (!isDeterministicCloseEvent(event)) {
-        return { accepted: false, event: null, rejectedReason: rejectionReason(event) };
-    }
-    return {
-        accepted: true,
-        event: { ...event, type: event.type as DealClosureEventType, id: idFactory(), occurredAt: now },
-        rejectedReason: null,
-    };
+  if (!isDeterministicCloseEvent(event)) {
+    return { accepted: false, event: null, rejectedReason: rejectionReason(event) };
+  }
+  return {
+    accepted: true,
+    event: { ...event, type: event.type as DealClosureEventType, id: idFactory(), occurredAt: now },
+    rejectedReason: null,
+  };
 }

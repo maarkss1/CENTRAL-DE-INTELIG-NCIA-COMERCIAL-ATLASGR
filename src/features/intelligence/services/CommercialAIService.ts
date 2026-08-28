@@ -8,22 +8,34 @@ function describeLead(lead: IEnrichedLead): string {
     lead.cnaeMain && `CNAE principal: ${lead.cnaeMain}`,
     lead.size && `Porte: ${lead.size}`,
     lead.cadastralSituation && `Situação cadastral: ${lead.cadastralSituation}`,
-    (lead.city || lead.state) && `Localização: ${[lead.city, lead.state].filter(Boolean).join(', ')}`,
+    (lead.city || lead.state) &&
+      `Localização: ${[lead.city, lead.state].filter(Boolean).join(', ')}`,
     lead.employeesCount && `Funcionários: ${lead.employeesCount}`,
     lead.estimatedRevenue && `Faturamento estimado: ${lead.estimatedRevenue}`,
-    lead.technologies?.length && `Tecnologias detectadas: ${lead.technologies.slice(0, 8).join(', ')}`,
+    lead.technologies?.length &&
+      `Tecnologias detectadas: ${lead.technologies.slice(0, 8).join(', ')}`,
     lead.description && `Descrição: ${lead.description}`,
   ].filter(Boolean);
-  return parts.length > 0 ? parts.join(' | ') : 'Sem dados de enriquecimento disponíveis para este lead.';
+  return parts.length > 0
+    ? parts.join(' | ')
+    : 'Sem dados de enriquecimento disponíveis para este lead.';
 }
 
 /** Chama o gateway pedindo uma resposta em JSON e faz o parse com um fallback seguro em caso de
  * falha (rede fora do ar, JSON malformado) — nunca deixa a UI comercial quebrar por causa da IA. */
-async function askJson<T>(systemPrompt: string, userPrompt: string, agentContext: string, fallback: T): Promise<T> {
+async function askJson<T>(
+  systemPrompt: string,
+  userPrompt: string,
+  agentContext: string,
+  fallback: T,
+): Promise<T> {
   const model = getAiModel('local-llama3-fast', 0.3, agentContext);
   const startTime = Date.now();
   try {
-    const response = await model.invoke([new SystemMessage(systemPrompt), new HumanMessage(userPrompt)]);
+    const response = await model.invoke([
+      new SystemMessage(systemPrompt),
+      new HumanMessage(userPrompt),
+    ]);
     await logAiUsage({
       model: response.response_metadata.model,
       usage: response.response_metadata.tokenUsage,
@@ -67,8 +79,18 @@ export class CommercialAIService {
    */
   async generateQualifications(lead: IEnrichedLead): Promise<Record<string, unknown>> {
     const fallback = {
-      bant: { budget: 'Não identificado', authority: 'Não identificado', need: 'Não identificado', timeframe: 'Não identificado' },
-      gpct: { goals: 'Não identificado', plans: 'Não identificado', challenges: 'Não identificado', timeline: 'Não identificado' },
+      bant: {
+        budget: 'Não identificado',
+        authority: 'Não identificado',
+        need: 'Não identificado',
+        timeframe: 'Não identificado',
+      },
+      gpct: {
+        goals: 'Não identificado',
+        plans: 'Não identificado',
+        challenges: 'Não identificado',
+        timeline: 'Não identificado',
+      },
     };
     return askJson<Record<string, unknown>>(
       'Você preenche matrizes de qualificação de vendas B2B (BANT e GPCT) para um lead de logística, com base ESTRITAMENTE nos dados fornecidos. Quando um campo não puder ser inferido com segurança pelos dados, use exatamente "Não identificado" em vez de inventar. Responda SOMENTE com JSON válido, sem markdown, no formato exato: {"bant": {"budget": string, "authority": string, "need": string, "timeframe": string}, "gpct": {"goals": string, "plans": string, "challenges": string, "timeline": string}}.',

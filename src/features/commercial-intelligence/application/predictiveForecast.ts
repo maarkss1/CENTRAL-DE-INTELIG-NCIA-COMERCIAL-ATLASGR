@@ -10,14 +10,21 @@
  * deste módulo ("não fabricar KPI") e o comentário de topo de `forecastEngine.ts` sobre nunca
  * chamar de IA algo determinístico.
  */
-import type { ExecutiveOverview, ForecastRange, ForecastScenario, HistoricalTrendsReport, TrendMomentum } from '../domain/CommercialIntelligence';
+import type {
+  ExecutiveOverview,
+  ForecastRange,
+  ForecastScenario,
+  HistoricalTrendsReport,
+  TrendMomentum,
+} from '../domain/CommercialIntelligence';
 
 /** Limiar de variação (pontos percentuais de Win Rate) para classificar momentum — política, não medição. */
 export const TREND_MOMENTUM_THRESHOLD_PP = 3;
 
 function scenario(label: string, amount: number, goalAmount: number | null): ForecastScenario {
-    const gapToGoal = goalAmount == null ? null : Math.max(0, Math.round((goalAmount - amount) * 100) / 100);
-    return { label, amount, gapToGoal };
+  const gapToGoal =
+    goalAmount == null ? null : Math.max(0, Math.round((goalAmount - amount) * 100) / 100);
+  return { label, amount, gapToGoal };
 }
 
 /**
@@ -35,18 +42,18 @@ function scenario(label: string, amount: number, goalAmount: number | null): For
  *   não a base certa para "e se tudo em aberto fechasse").
  */
 export function buildForecastRange(overview: ExecutiveOverview): ForecastRange {
-    const goalAmount = overview.goal?.amount ?? null;
-    const currency = overview.goal?.currency ?? 'BRL';
+  const goalAmount = overview.goal?.amount ?? null;
+  const currency = overview.goal?.currency ?? 'BRL';
 
-    const conservativeAmount = overview.closedAmount + overview.commitAmount;
-    const optimisticAmount = overview.closedAmount + overview.pipelineTotal;
+  const conservativeAmount = overview.closedAmount + overview.commitAmount;
+  const optimisticAmount = overview.closedAmount + overview.pipelineTotal;
 
-    return {
-        conservative: scenario('Conservador', conservativeAmount, goalAmount),
-        likely: scenario('Provável', overview.forecastAmount, goalAmount),
-        optimistic: scenario('Otimista', optimisticAmount, goalAmount),
-        currency,
-    };
+  return {
+    conservative: scenario('Conservador', conservativeAmount, goalAmount),
+    likely: scenario('Provável', overview.forecastAmount, goalAmount),
+    optimistic: scenario('Otimista', optimisticAmount, goalAmount),
+    currency,
+  };
 }
 
 /**
@@ -55,24 +62,25 @@ export function buildForecastRange(overview: ExecutiveOverview): ForecastRange {
  * nunca infere tendência de uma amostra insuficiente.
  */
 export function computeTrendMomentum(trends: HistoricalTrendsReport): TrendMomentum | null {
-    const withSample = trends.points.filter((p) => p.closedSampleSize > 0 && p.winRate != null);
-    if (withSample.length < 2) return null;
+  const withSample = trends.points.filter((p) => p.closedSampleSize > 0 && p.winRate != null);
+  if (withSample.length < 2) return null;
 
-    const latest = withSample[withSample.length - 1];
-    const previous = withSample.slice(0, -1);
-    const previousAverageWinRate = previous.reduce((sum, p) => sum + (p.winRate as number), 0) / previous.length;
-    const latestWinRate = latest.winRate as number;
-    const delta = Math.round((latestWinRate - previousAverageWinRate) * 100) / 100;
+  const latest = withSample[withSample.length - 1];
+  const previous = withSample.slice(0, -1);
+  const previousAverageWinRate =
+    previous.reduce((sum, p) => sum + (p.winRate as number), 0) / previous.length;
+  const latestWinRate = latest.winRate as number;
+  const delta = Math.round((latestWinRate - previousAverageWinRate) * 100) / 100;
 
-    let direction: TrendMomentum['direction'];
-    if (delta >= TREND_MOMENTUM_THRESHOLD_PP) direction = 'melhorando';
-    else if (delta <= -TREND_MOMENTUM_THRESHOLD_PP) direction = 'piorando';
-    else direction = 'estavel';
+  let direction: TrendMomentum['direction'];
+  if (delta >= TREND_MOMENTUM_THRESHOLD_PP) direction = 'melhorando';
+  else if (delta <= -TREND_MOMENTUM_THRESHOLD_PP) direction = 'piorando';
+  else direction = 'estavel';
 
-    return {
-        direction,
-        latestWinRate,
-        previousAverageWinRate: Math.round(previousAverageWinRate * 100) / 100,
-        deltaPercentagePoints: delta,
-    };
+  return {
+    direction,
+    latestWinRate,
+    previousAverageWinRate: Math.round(previousAverageWinRate * 100) / 100,
+    deltaPercentagePoints: delta,
+  };
 }

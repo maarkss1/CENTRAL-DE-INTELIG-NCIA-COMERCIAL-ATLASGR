@@ -6,7 +6,17 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Users, TrendingUp, Activity, Wifi, WifiOff, Loader2, RotateCw, AlertTriangle } from 'lucide-react';
+import {
+  Building2,
+  Users,
+  TrendingUp,
+  Activity,
+  Wifi,
+  WifiOff,
+  Loader2,
+  RotateCw,
+  AlertTriangle,
+} from 'lucide-react';
 import { analyticsDB } from '../../lib/db';
 
 import { Badge } from './Badge';
@@ -42,7 +52,9 @@ export function LiveStatsWidget() {
     } catch (error) {
       setStats(null);
       setConnected(false);
-      setErrorMessage(error instanceof Error ? error.message : 'Falha ao carregar dados executivos.');
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Falha ao carregar dados executivos.',
+      );
     } finally {
       setLoading(false);
     }
@@ -96,13 +108,18 @@ export function LiveStatsWidget() {
           <div>
             <h3 className="text-sm font-black text-ink">Visão Geral da Plataforma</h3>
             <p className="text-[11px] text-ink-2 font-medium">
-              {connected ? 'Dados em tempo real do banco de dados PostgreSQL' : 'Dados indisponíveis: nenhum valor demonstrativo será exibido'}
+              {connected
+                ? 'Dados em tempo real do banco de dados PostgreSQL'
+                : 'Dados indisponíveis: nenhum valor demonstrativo será exibido'}
             </p>
           </div>
 
           {/* Database Connection Badge */}
           <div className="flex items-center gap-2">
-            <Badge variant={connected ? 'success' : 'warning'} className={`flex items-center gap-2 px-3.5 py-1.5 ${connected ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+            <Badge
+              variant={connected ? 'success' : 'warning'}
+              className={`flex items-center gap-2 px-3.5 py-1.5 ${connected ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}
+            >
               {loading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : connected ? (
@@ -110,7 +127,9 @@ export function LiveStatsWidget() {
               ) : (
                 <WifiOff className="w-3.5 h-3.5" />
               )}
-              <span>{loading ? 'Conectando...' : connected ? 'PostgreSQL Conectado' : 'Modo Offline'}</span>
+              <span>
+                {loading ? 'Conectando...' : connected ? 'PostgreSQL Conectado' : 'Modo Offline'}
+              </span>
             </Badge>
             {!loading && !connected && (
               <button
@@ -127,13 +146,17 @@ export function LiveStatsWidget() {
         </div>
 
         {!loading && !connected && (
-          <div className="mb-4 p-4 rounded-card border border-amber-500/30 bg-amber-500/10 flex items-start justify-between gap-3" role="status">
+          <div
+            className="mb-4 p-4 rounded-card border border-amber-500/30 bg-amber-500/10 flex items-start justify-between gap-3"
+            role="status"
+          >
             <div className="flex items-start gap-2.5 text-sm text-amber-100">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-300" />
               <div>
                 <p className="font-bold">Métricas executivas offline.</p>
                 <p className="text-xs text-amber-100/80">
-                  Não há conexão confirmada com o backend; os cards abaixo mostram travessões, não zeros reais.
+                  Não há conexão confirmada com o backend; os cards abaixo mostram travessões, não
+                  zeros reais.
                   {errorMessage ? ` Detalhe técnico: ${errorMessage}` : ''}
                 </p>
               </div>

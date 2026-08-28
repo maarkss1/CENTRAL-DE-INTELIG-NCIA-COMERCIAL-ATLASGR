@@ -9,26 +9,51 @@ type Navigator = (tab: TabType) => void;
 let activeNavigator: Navigator | null = null;
 
 export const navigationBus = {
-    registerNavigator(fn: Navigator | null) {
-        activeNavigator = fn;
-    },
+  registerNavigator(fn: Navigator | null) {
+    activeNavigator = fn;
+  },
 
-    requestNavigation(tab: string): boolean {
-        if (!isKnownTab(tab) || !activeNavigator) return false;
-        activeNavigator(tab);
-        return true;
-    },
+  requestNavigation(tab: string): boolean {
+    if (!isKnownTab(tab) || !activeNavigator) return false;
+    activeNavigator(tab);
+    return true;
+  },
 };
 
 function isKnownTab(tab: string): tab is TabType {
-    return Object.prototype.hasOwnProperty.call(TAB_ROUTE_SET, tab);
+  return Object.prototype.hasOwnProperty.call(TAB_ROUTE_SET, tab);
 }
 
 const TAB_ROUTE_SET: Record<TabType, true> = {
-    dashboard: true, companies: true, contacts: true, crm: true, activities: true, cadence: true, prospect: true,
-    intelligence: true, 'market-intelligence': true, chatbook: true, roleplay: true,
-    qualification_matrix: true, objections_matrix: true, topic_training: true, bitrix: true,
-    reports: true, integrations: true, knowledge: true, analytics: true, winloss: true, calendar: true,
-    notifications: true, automations: true, usage: true, editor: true, team: true, settings: true,
-    commercial_intelligence: true, crm360: true, propostas: true, 'mesa-tratamento': true,
+  dashboard: true,
+  companies: true,
+  contacts: true,
+  crm: true,
+  activities: true,
+  cadence: true,
+  prospect: true,
+  intelligence: true,
+  'market-intelligence': true,
+  chatbook: true,
+  roleplay: true,
+  qualification_matrix: true,
+  objections_matrix: true,
+  topic_training: true,
+  bitrix: true,
+  reports: true,
+  integrations: true,
+  knowledge: true,
+  analytics: true,
+  winloss: true,
+  calendar: true,
+  notifications: true,
+  automations: true,
+  usage: true,
+  editor: true,
+  team: true,
+  settings: true,
+  commercial_intelligence: true,
+  crm360: true,
+  propostas: true,
+  'mesa-tratamento': true,
 };

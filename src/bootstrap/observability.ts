@@ -14,9 +14,9 @@ import { requirePlatformOperator } from '../shared/middlewares/requirePlatformOp
  * requisição, só quando EXPOSE_METRICS está ligado (mesmo opt-in do endpoint /metrics abaixo).
  */
 export function applyHttpMetricsMiddleware(app: Express): void {
-    if (env.EXPOSE_METRICS) {
-        app.use(httpMetricsMiddleware);
-    }
+  if (env.EXPOSE_METRICS) {
+    app.use(httpMetricsMiddleware);
+  }
 }
 
 /**
@@ -24,21 +24,21 @@ export function applyHttpMetricsMiddleware(app: Express): void {
  * sempre montado publicamente (sem autenticação), independentemente da flag.
  */
 export function mountMetricsEndpoint(app: Express): void {
-    if (!env.EXPOSE_METRICS) return;
+  if (!env.EXPOSE_METRICS) return;
 
-    client.collectDefaultMetrics();
-    // SEC-002 (Sprint 01/Onda 13): quando habilitado, /metrics não tem conceito de sessão de
-    // usuário (é um endpoint de scraping, tipicamente chamado pelo Prometheus, não por um
-    // navegador logado) — a trava aqui é só o token de operador de plataforma, configurado no
-    // scraper como header `x-platform-operator-token` ou query `?operator_token=`.
-    app.get('/metrics', requirePlatformOperator, async (_req, res) => {
-        try {
-            res.set('Content-Type', client.register.contentType);
-            res.end(await client.register.metrics());
-        } catch (ex) {
-            res.status(500).end(ex);
-        }
-    });
+  client.collectDefaultMetrics();
+  // SEC-002 (Sprint 01/Onda 13): quando habilitado, /metrics não tem conceito de sessão de
+  // usuário (é um endpoint de scraping, tipicamente chamado pelo Prometheus, não por um
+  // navegador logado) — a trava aqui é só o token de operador de plataforma, configurado no
+  // scraper como header `x-platform-operator-token` ou query `?operator_token=`.
+  app.get('/metrics', requirePlatformOperator, async (_req, res) => {
+    try {
+      res.set('Content-Type', client.register.contentType);
+      res.end(await client.register.metrics());
+    } catch (ex) {
+      res.status(500).end(ex);
+    }
+  });
 }
 
 /**
@@ -47,5 +47,5 @@ export function mountMetricsEndpoint(app: Express): void {
  * de toda rota de feature, mesma posição do server.ts original.
  */
 export function applyRequestObservability(app: Express): void {
-    app.use(observabilityMiddleware);
+  app.use(observabilityMiddleware);
 }

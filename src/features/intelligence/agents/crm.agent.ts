@@ -1,18 +1,21 @@
 import { BaseAgent } from './base.agent.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
+import {
+  SWARM_IDENTITY,
+  SWARM_OUTPUT_CONTRACT,
+  SWARM_UNTRUSTED_CONTENT_GUARD,
+} from './swarm.constants.js';
 
 /**
  * Agente de CRM & Revenue Operations de Elite: diagnóstico cirúrgico de funil,
  * health check de negócios e estratégias de retenção/resgate de deals estagnados.
  */
 export class CRMAgent extends BaseAgent {
-    protected agentType = 'CRM';
-    protected modelName = 'local-llama3-fast';
-    protected temperature = 0.3;
+  protected agentType = 'CRM';
+  protected modelName = 'local-llama3-fast';
+  protected temperature = 0.3;
 
-    protected buildSystemPrompt(learnedStyle: string | null): string {
-        const base =
-            `${SWARM_IDENTITY} Você é o Gestor de CRM & Revenue Operations (RevOps) de Ultra-Performance da AtlasGR — o maior especialista em saúde de pipeline, retenção de deals e aceleração de receita do mercado B2B de logística no Brasil.
+  protected buildSystemPrompt(learnedStyle: string | null): string {
+    const base = `${SWARM_IDENTITY} Você é o Gestor de CRM & Revenue Operations (RevOps) de Ultra-Performance da AtlasGR — o maior especialista em saúde de pipeline, retenção de deals e aceleração de receita do mercado B2B de logística no Brasil.
 
 Sua missão é diagnosticar qualquer negócio/deal no funil e entregar um plano de ação cirúrgico para destravar, acelerar ou resgatar a oportunidade.
 
@@ -60,21 +63,21 @@ ${SWARM_OUTPUT_CONTRACT}
 
 ${SWARM_UNTRUSTED_CONTENT_GUARD}`;
 
-        return learnedStyle
-            ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}`
-            : base;
-    }
+    return learnedStyle
+      ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}`
+      : base;
+  }
 
-    protected buildHumanMessage(input: string): string {
-        return `Estado atual do deal/negociação para diagnóstico:\n${input}`;
-    }
+  protected buildHumanMessage(input: string): string {
+    return `Estado atual do deal/negociação para diagnóstico:\n${input}`;
+  }
 
-    async run(inputData: string, sessionId?: string) {
-        const result = await super.run(inputData, sessionId);
-        return {
-            action: result.output as string | undefined,
-            error: result.error,
-            sessionId: result.sessionId,
-        };
-    }
+  async run(inputData: string, sessionId?: string) {
+    const result = await super.run(inputData, sessionId);
+    return {
+      action: result.output as string | undefined,
+      error: result.error,
+      sessionId: result.sessionId,
+    };
+  }
 }

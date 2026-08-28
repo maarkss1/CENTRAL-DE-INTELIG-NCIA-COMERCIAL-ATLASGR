@@ -14,9 +14,9 @@ import { env } from '../../config/env.js';
  */
 
 export const aiUsageCostUsdTotal = new client.Counter({
-    name: 'ai_usage_cost_usd_total',
-    help: 'Custo estimado acumulado (USD) de chamadas de IA via src/lib/ai/gateway.ts, por provedor e tenant.',
-    labelNames: ['provider', 'tenant'] as const,
+  name: 'ai_usage_cost_usd_total',
+  help: 'Custo estimado acumulado (USD) de chamadas de IA via src/lib/ai/gateway.ts, por provedor e tenant.',
+  labelNames: ['provider', 'tenant'] as const,
 });
 
 /**
@@ -28,9 +28,16 @@ export const aiUsageCostUsdTotal = new client.Counter({
  * `tenant` cai para 'unattributed' fora de uma requisição HTTP (scripts, workers sem
  * requestContext) — mesmo tratamento que `logAiUsage` já dá a `organizationId: null` no AILog.
  */
-export function recordAiUsageCost(provider: string, tenant: string | null | undefined, costUsd: number): void {
-    if (!Number.isFinite(costUsd) || costUsd < 0) return;
-    aiUsageCostUsdTotal.inc({ provider: provider || 'unknown', tenant: tenant || 'unattributed' }, costUsd);
+export function recordAiUsageCost(
+  provider: string,
+  tenant: string | null | undefined,
+  costUsd: number,
+): void {
+  if (!Number.isFinite(costUsd) || costUsd < 0) return;
+  aiUsageCostUsdTotal.inc(
+    { provider: provider || 'unknown', tenant: tenant || 'unattributed' },
+    costUsd,
+  );
 }
 
 /**
@@ -41,12 +48,12 @@ export function recordAiUsageCost(provider: string, tenant: string | null | unde
  * silenciosamente não teria nenhuma métrica própria para alertar sobre isso.
  */
 export const aiBudgetBlockedTotal = new client.Counter({
-    name: 'ai_budget_blocked_total',
-    help: 'Chamadas de IA bloqueadas pelo circuit breaker de orçamento mensal (AI-011) por excederem AI_MONTHLY_BUDGET_USD.',
+  name: 'ai_budget_blocked_total',
+  help: 'Chamadas de IA bloqueadas pelo circuit breaker de orçamento mensal (AI-011) por excederem AI_MONTHLY_BUDGET_USD.',
 });
 
 export function recordAiBudgetBlocked(): void {
-    aiBudgetBlockedTotal.inc();
+  aiBudgetBlockedTotal.inc();
 }
 
 /**
@@ -57,13 +64,13 @@ export function recordAiBudgetBlocked(): void {
  * por tenant sem precisar somar contadores sem rótulo nenhum.
  */
 export const aiOrgBudgetBlockedTotal = new client.Counter({
-    name: 'ai_org_budget_blocked_total',
-    help: 'Chamadas de IA bloqueadas pelo teto mensal de orçamento por organização (DEC-09, Organization.monthlyAiBudgetUsd), por organização.',
-    labelNames: ['organization'] as const,
+  name: 'ai_org_budget_blocked_total',
+  help: 'Chamadas de IA bloqueadas pelo teto mensal de orçamento por organização (DEC-09, Organization.monthlyAiBudgetUsd), por organização.',
+  labelNames: ['organization'] as const,
 });
 
 export function recordOrgAiBudgetBlocked(organizationId: string): void {
-    aiOrgBudgetBlockedTotal.inc({ organization: organizationId });
+  aiOrgBudgetBlockedTotal.inc({ organization: organizationId });
 }
 
 // Gauge de orçamento só é registrado (e, portanto, só aparece em /metrics) quando
@@ -71,9 +78,9 @@ export function recordOrgAiBudgetBlocked(organizationId: string): void {
 // — não fabricamos um "0" que faria `ai_usage_cost_usd_total / ai_usage_budget_usd_total` virar
 // +Inf a qualquer custo real (falso positivo no alerta AIBudgetOverrun).
 if (env.AI_MONTHLY_BUDGET_USD !== undefined) {
-    const aiUsageBudgetUsdTotal = new client.Gauge({
-        name: 'ai_usage_budget_usd_total',
-        help: 'Orçamento mensal de IA configurado (USD) via AI_MONTHLY_BUDGET_USD (AI-011: excedê-lo bloqueia novas chamadas de IA, ver src/lib/ai/budget.ts). Este gauge é só o valor de referência para o alerta AIBudgetOverrun, não o próprio bloqueio.',
-    });
-    aiUsageBudgetUsdTotal.set(env.AI_MONTHLY_BUDGET_USD);
+  const aiUsageBudgetUsdTotal = new client.Gauge({
+    name: 'ai_usage_budget_usd_total',
+    help: 'Orçamento mensal de IA configurado (USD) via AI_MONTHLY_BUDGET_USD (AI-011: excedê-lo bloqueia novas chamadas de IA, ver src/lib/ai/budget.ts). Este gauge é só o valor de referência para o alerta AIBudgetOverrun, não o próprio bloqueio.',
+  });
+  aiUsageBudgetUsdTotal.set(env.AI_MONTHLY_BUDGET_USD);
 }

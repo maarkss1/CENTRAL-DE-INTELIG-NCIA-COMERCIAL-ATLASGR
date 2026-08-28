@@ -1,10 +1,10 @@
 import type { CadenceChannel } from '../domain/optOut.js';
 import {
-    DEFAULT_RATE_LIMIT_POLICY,
-    decideRateLimitBlock,
-    extractEmailDomain,
-    type CadenceRateLimitPolicy,
-    type RateLimitBlockReason,
+  DEFAULT_RATE_LIMIT_POLICY,
+  decideRateLimitBlock,
+  extractEmailDomain,
+  type CadenceRateLimitPolicy,
+  type RateLimitBlockReason,
 } from '../domain/rateLimit.js';
 
 /**
@@ -18,36 +18,41 @@ import {
  * mesmas `CadenceRunState` já seedadas em `InMemoryCadenceRunRepository`).
  */
 export interface CadenceRateLimitPort {
-    /** Quantos toques com `result: 'sent'` este contato recebeu, em QUALQUER canal e QUALQUER cadência/run, dentro de `[since, until]`. */
-    countSentTouchesForContact(organizationId: string, leadId: string, since: Date, until: Date): Promise<number>;
-    /**
-     * Quantos contatos DISTINTOS cujo e-mail termina em `@${emailDomain}` já receberam um toque de
-     * e-mail `sent` dentro de `[since, until]`, e se `leadId` já está entre eles (nesse caso ele não
-     * é um destinatário NOVO — ver `isDomainRateLimited`).
-     */
-    countDistinctEmailRecipientsForDomain(
-        organizationId: string,
-        emailDomain: string,
-        since: Date,
-        until: Date,
-        leadId: string,
-    ): Promise<{ distinctRecipientsToday: number; currentLeadAlreadyCounted: boolean }>;
+  /** Quantos toques com `result: 'sent'` este contato recebeu, em QUALQUER canal e QUALQUER cadência/run, dentro de `[since, until]`. */
+  countSentTouchesForContact(
+    organizationId: string,
+    leadId: string,
+    since: Date,
+    until: Date,
+  ): Promise<number>;
+  /**
+   * Quantos contatos DISTINTOS cujo e-mail termina em `@${emailDomain}` já receberam um toque de
+   * e-mail `sent` dentro de `[since, until]`, e se `leadId` já está entre eles (nesse caso ele não
+   * é um destinatário NOVO — ver `isDomainRateLimited`).
+   */
+  countDistinctEmailRecipientsForDomain(
+    organizationId: string,
+    emailDomain: string,
+    since: Date,
+    until: Date,
+    leadId: string,
+  ): Promise<{ distinctRecipientsToday: number; currentLeadAlreadyCounted: boolean }>;
 }
 
 export interface EvaluateRateLimitInput {
-    organizationId: string;
-    leadId: string;
-    /** E-mail do contato já resolvido pelo chamador (mesmo `LeadSubjectResolver` usado para opt-out) — evita resolver duas vezes. */
-    email: string | null;
-    channel: CadenceChannel;
-    now: Date;
-    policy?: CadenceRateLimitPolicy;
+  organizationId: string;
+  leadId: string;
+  /** E-mail do contato já resolvido pelo chamador (mesmo `LeadSubjectResolver` usado para opt-out) — evita resolver duas vezes. */
+  email: string | null;
+  channel: CadenceChannel;
+  now: Date;
+  policy?: CadenceRateLimitPolicy;
 }
 
 function startOfDay(date: Date): Date {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d;
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 /**
@@ -61,27 +66,33 @@ function startOfDay(date: Date): Date {
  * `CadenceDecisionContext.rateLimitBlock`.
  */
 export async function evaluateRateLimitForUpcomingTouch(
-    port: CadenceRateLimitPort,
-    input: EvaluateRateLimitInput,
+  port: CadenceRateLimitPort,
+  input: EvaluateRateLimitInput,
 ): Promise<RateLimitBlockReason | null> {
-    const policy = input.policy ?? DEFAULT_RATE_LIMIT_POLICY;
+  const policy = input.policy ?? DEFAULT_RATE_LIMIT_POLICY;
 
-    const contactWindowStart = new Date(input.now.getTime() - policy.contactWindowHours * 3_600_000);
-    const sentTouchesInWindow = await port.countSentTouchesForContact(input.organizationId, input.leadId, contactWindowStart, input.now);
+  const contactWindowStart = new Date(input.now.getTime() - policy.contactWindowHours * 3_600_000);
+  const sentTouchesInWindow = await port.countSentTouchesForContact(
+    input.organizationId,
+    input.leadId,
+    contactWindowStart,
+    input.now,
+  );
 
-    let domainCheck: { distinctRecipientsToday: number; currentLeadAlreadyCounted: boolean } | null = null;
-    if (input.channel === 'email') {
-        const domain = extractEmailDomain(input.email);
-        if (domain) {
-            domainCheck = await port.countDistinctEmailRecipientsForDomain(
-                input.organizationId,
-                domain,
-                startOfDay(input.now),
-                input.now,
-                input.leadId,
-            );
-        }
+  let domainCheck: { distinctRecipientsToday: number; currentLeadAlreadyCounted: boolean } | null =
+    null;
+  if (input.channel === 'email') {
+    const domain = extractEmailDomain(input.email);
+    if (domain) {
+      domainCheck = await port.countDistinctEmailRecipientsForDomain(
+        input.organizationId,
+        domain,
+        startOfDay(input.now),
+        input.now,
+        input.leadId,
+      );
     }
+  }
 
-    return decideRateLimitBlock({ channel: input.channel, sentTouchesInWindow, domainCheck, policy });
+  return decideRateLimitBlock({ channel: input.channel, sentTouchesInWindow, domainCheck, policy });
 }

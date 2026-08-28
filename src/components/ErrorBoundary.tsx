@@ -1,5 +1,5 @@
-import { Component, ErrorInfo, ReactNode } from "react";
-import { clientLogger } from "../lib/clientLogger";
+import { Component, ErrorInfo, ReactNode } from 'react';
+import { clientLogger } from '../lib/clientLogger';
 
 interface Props {
   children?: ReactNode;
@@ -13,7 +13,7 @@ interface State {
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
-    error: null
+    error: null,
   };
 
   public static getDerivedStateFromError(error: Error): State {
@@ -21,7 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    clientLogger.error({ err: error, errorInfo }, "Uncaught error");
+    clientLogger.error({ err: error, errorInfo }, 'Uncaught error');
   }
 
   public render() {

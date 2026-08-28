@@ -23,129 +23,131 @@ import { traceAiGeneration } from './telemetry.js';
 import type { AiStreamChunk, AiStreamResult, ChatCompletionResponse } from './types.js';
 
 export async function* streamChatCompletion(
-    messages: BaseMessage[],
-    modelName: string,
-    temperature: number,
-    agentContext: string,
+  messages: BaseMessage[],
+  modelName: string,
+  temperature: number,
+  agentContext: string,
 ): AsyncGenerator<AiStreamChunk, AiStreamResult> {
-    await assertAiBudgetNotExceeded();
+  await assertAiBudgetNotExceeded();
 
-    if (!process.env.GROQ_API_KEY) {
-        throw new Error('Streaming de IA requer GROQ_API_KEY configurada.');
-    }
-    if (await isCircuitOpen('groq')) {
-        throw new Error('Provedor "groq" temporariamente desativado após falhas recentes (nova tentativa em breve).');
-    }
-
-    const resolvedModel = resolveModelName(modelName);
-    const groqModel = resolveGroqModelName(resolvedModel);
-    const requestMessages = toChatCompletionMessages(messages);
-    const timeoutMs = resolveFallbackTimeoutMs();
-    const startedAt = Date.now();
-
-    let response: Response;
-    try {
-        response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-            },
-            body: JSON.stringify({
-                model: groqModel,
-                messages: requestMessages,
-                temperature: normalizeTemperature(temperature),
-                stream: true,
-                stream_options: { include_usage: true },
-            }),
-            signal: AbortSignal.timeout(timeoutMs),
-        });
-    } catch (error) {
-        await recordCircuitFailure('groq');
-        throw error;
-    }
-
-    if (!response.ok || !response.body) {
-        await recordCircuitFailure('groq');
-        throw new Error(`HTTP ${response.status}: ${await readProviderError(response)}`);
-    }
-
-    interface StreamChunkPayload {
-        model?: string;
-        choices?: Array<{ delta?: { content?: string } }>;
-        usage?: ChatCompletionResponse['usage'];
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let lineBuffer = '';
-    let fullContent = '';
-    let usage: ChatCompletionResponse['usage'];
-    let modelUsed = groqModel;
-
-    try {
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            lineBuffer += decoder.decode(value, { stream: true });
-            const lines = lineBuffer.split('\n');
-            lineBuffer = lines.pop() || '';
-
-            for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed.startsWith('data:')) continue;
-                const dataStr = trimmed.slice(5).trim();
-                if (!dataStr || dataStr === '[DONE]') continue;
-
-                let parsed: StreamChunkPayload;
-                try {
-                    parsed = JSON.parse(dataStr) as StreamChunkPayload;
-                } catch {
-                    continue;
-                }
-                if (parsed.model) modelUsed = parsed.model;
-                if (parsed.usage) usage = parsed.usage;
-                const delta = parsed.choices?.[0]?.delta?.content;
-                if (delta) {
-                    fullContent += delta;
-                    yield { delta };
-                }
-            }
-        }
-    } catch (error) {
-        await recordCircuitFailure('groq');
-        throw error;
-    }
-
-    await recordCircuitSuccess('groq');
-
-    recordAiUsageCost(
-        'groq',
-        requestContext.getStore()?.tenantId,
-        estimateCostUsd(modelUsed, {
-            totalTokens: usage?.total_tokens ?? 0,
-            promptTokens: usage?.prompt_tokens ?? 0,
-            completionTokens: usage?.completion_tokens ?? 0,
-        }),
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error('Streaming de IA requer GROQ_API_KEY configurada.');
+  }
+  if (await isCircuitOpen('groq')) {
+    throw new Error(
+      'Provedor "groq" temporariamente desativado após falhas recentes (nova tentativa em breve).',
     );
+  }
 
-    traceAiGeneration({
-        provider: 'groq',
-        model: modelUsed,
-        agentContext,
-        temperature,
-        input: requestMessages,
-        output: fullContent,
-        usage,
-        startedAt,
+  const resolvedModel = resolveModelName(modelName);
+  const groqModel = resolveGroqModelName(resolvedModel);
+  const requestMessages = toChatCompletionMessages(messages);
+  const timeoutMs = resolveFallbackTimeoutMs();
+  const startedAt = Date.now();
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: groqModel,
+        messages: requestMessages,
+        temperature: normalizeTemperature(temperature),
+        stream: true,
+        stream_options: { include_usage: true },
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
     });
+  } catch (error) {
+    await recordCircuitFailure('groq');
+    throw error;
+  }
 
-    return {
-        model: modelUsed,
-        usage: {
-            totalTokens: usage?.total_tokens ?? 0,
-            promptTokens: usage?.prompt_tokens ?? 0,
-            completionTokens: usage?.completion_tokens ?? 0,
-        },
-    };
+  if (!response.ok || !response.body) {
+    await recordCircuitFailure('groq');
+    throw new Error(`HTTP ${response.status}: ${await readProviderError(response)}`);
+  }
+
+  interface StreamChunkPayload {
+    model?: string;
+    choices?: Array<{ delta?: { content?: string } }>;
+    usage?: ChatCompletionResponse['usage'];
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let lineBuffer = '';
+  let fullContent = '';
+  let usage: ChatCompletionResponse['usage'];
+  let modelUsed = groqModel;
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      lineBuffer += decoder.decode(value, { stream: true });
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const dataStr = trimmed.slice(5).trim();
+        if (!dataStr || dataStr === '[DONE]') continue;
+
+        let parsed: StreamChunkPayload;
+        try {
+          parsed = JSON.parse(dataStr) as StreamChunkPayload;
+        } catch {
+          continue;
+        }
+        if (parsed.model) modelUsed = parsed.model;
+        if (parsed.usage) usage = parsed.usage;
+        const delta = parsed.choices?.[0]?.delta?.content;
+        if (delta) {
+          fullContent += delta;
+          yield { delta };
+        }
+      }
+    }
+  } catch (error) {
+    await recordCircuitFailure('groq');
+    throw error;
+  }
+
+  await recordCircuitSuccess('groq');
+
+  recordAiUsageCost(
+    'groq',
+    requestContext.getStore()?.tenantId,
+    estimateCostUsd(modelUsed, {
+      totalTokens: usage?.total_tokens ?? 0,
+      promptTokens: usage?.prompt_tokens ?? 0,
+      completionTokens: usage?.completion_tokens ?? 0,
+    }),
+  );
+
+  traceAiGeneration({
+    provider: 'groq',
+    model: modelUsed,
+    agentContext,
+    temperature,
+    input: requestMessages,
+    output: fullContent,
+    usage,
+    startedAt,
+  });
+
+  return {
+    model: modelUsed,
+    usage: {
+      totalTokens: usage?.total_tokens ?? 0,
+      promptTokens: usage?.prompt_tokens ?? 0,
+      completionTokens: usage?.completion_tokens ?? 0,
+    },
+  };
 }

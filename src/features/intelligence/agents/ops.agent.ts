@@ -11,7 +11,11 @@ import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
+import {
+  SWARM_IDENTITY,
+  SWARM_OUTPUT_CONTRACT,
+  SWARM_UNTRUSTED_CONTENT_GUARD,
+} from './swarm.constants.js';
 import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
 import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
@@ -25,7 +29,13 @@ import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpoin
 // executam o efeito real diretamente. Antes desta correção o Ops era o único agente do enxame
 // (SDR/BDR/Closer/CRM já usam o ledger) que contornava a aprovação — ver o comentário
 // `OPS_NO_LEDGER_NOTE` em `services/swarmScheduler.service.ts`, que documentava essa lacuna.
-const tools = [searchLeadsTool, getLeadContextTool, searchPlaybookTool, createFollowUpTaskTool, notifyTeamTool];
+const tools = [
+  searchLeadsTool,
+  getLeadContextTool,
+  searchPlaybookTool,
+  createFollowUpTaskTool,
+  notifyTeamTool,
+];
 const toolNode = new ToolNode(tools);
 
 import { buildModelWithFallbackAndTools } from './fallback.util.js';
@@ -37,21 +47,21 @@ import { buildModelWithFallbackAndTools } from './fallback.util.js';
 // travando o enxame inteiro por vários segundos a cada etapa. Groq é rápido e não tem esse gargalo.
 let cachedModelWithTools: any = null;
 function getModelWithTools() {
-    if (cachedModelWithTools) return cachedModelWithTools;
+  if (cachedModelWithTools) return cachedModelWithTools;
 
-    cachedModelWithTools = buildModelWithFallbackAndTools('openai/gpt-oss-20b', tools);
-    return cachedModelWithTools;
+  cachedModelWithTools = buildModelWithFallbackAndTools('openai/gpt-oss-20b', tools);
+  return cachedModelWithTools;
 }
 
 interface SerializedMessage {
-    role: string;
-    content: string;
-    toolCalls?: string;
+  role: string;
+  content: string;
+  toolCalls?: string;
 }
 
 async function callModel(state: typeof MessagesAnnotation.State) {
-    const systemPrompt = new SystemMessage(
-        `${SWARM_IDENTITY} Você é o Agente de Operações (Ops): PROPÕE ações concretas nas ferramentas do sistema a partir de uma instrução, nunca apenas descreve o que deveria ser feito — mas, assim como os demais agentes do enxame (SDR/BDR/Closer/CRM), toda ação com efeito real fica pendente de aprovação humana antes de ser executada de fato; você mesmo nunca envia/cria nada diretamente.
+  const systemPrompt = new SystemMessage(
+    `${SWARM_IDENTITY} Você é o Agente de Operações (Ops): PROPÕE ações concretas nas ferramentas do sistema a partir de uma instrução, nunca apenas descreve o que deveria ser feito — mas, assim como os demais agentes do enxame (SDR/BDR/Closer/CRM), toda ação com efeito real fica pendente de aprovação humana antes de ser executada de fato; você mesmo nunca envia/cria nada diretamente.
 
 DIRETRIZES DE EXECUÇÃO:
 1. Se a instrução já vier com um Lead ID (informado explicitamente na mensagem), use 'get_lead_context' para confirmar os dados reais antes de agir — nunca invente nome de empresa, contato ou histórico.
@@ -62,132 +72,146 @@ DIRETRIZES DE EXECUÇÃO:
 6. Encerre sempre com uma síntese clara da ação PROPOSTA (ex: tarefa/notificação registrada e aguardando aprovação humana), detalhando responsável, prazo e objetivo — nunca diga que a ação já foi executada/enviada/criada. ${SWARM_OUTPUT_CONTRACT}
 
 ${SWARM_UNTRUSTED_CONTENT_GUARD}`,
-    );
+  );
 
-    const startTime = Date.now();
-    const response = await getModelWithTools().invoke([systemPrompt, ...state.messages]);
+  const startTime = Date.now();
+  const response = await getModelWithTools().invoke([systemPrompt, ...state.messages]);
 
-    if (response.usage_metadata) {
-        await logAiUsage({
-            model: response.response_metadata?.model_name
-                || (response.response_metadata?.model as string | undefined)
-                || 'local-llama3-fast',
-            usage: {
-                totalTokens: response.usage_metadata.total_tokens,
-                promptTokens: response.usage_metadata.input_tokens,
-                completionTokens: response.usage_metadata.output_tokens,
-            },
-            latencyMs: Date.now() - startTime,
-        });
-    }
+  if (response.usage_metadata) {
+    await logAiUsage({
+      model:
+        response.response_metadata?.model_name ||
+        (response.response_metadata?.model as string | undefined) ||
+        'local-llama3-fast',
+      usage: {
+        totalTokens: response.usage_metadata.total_tokens,
+        promptTokens: response.usage_metadata.input_tokens,
+        completionTokens: response.usage_metadata.output_tokens,
+      },
+      latencyMs: Date.now() - startTime,
+    });
+  }
 
-    return { messages: [response] };
+  return { messages: [response] };
 }
 
 function shouldContinue(state: typeof MessagesAnnotation.State) {
-    const messages = state.messages;
-    const lastMessage = messages[messages.length - 1];
+  const messages = state.messages;
+  const lastMessage = messages[messages.length - 1];
 
-    if (
-        !lastMessage
-        || typeof (lastMessage as BaseMessage & { tool_calls?: unknown[] }).tool_calls === 'undefined'
-        || ((lastMessage as BaseMessage & { tool_calls?: unknown[] }).tool_calls?.length ?? 0) === 0
-    ) {
-        return 'END';
-    }
-    return 'tools';
+  if (
+    !lastMessage ||
+    typeof (lastMessage as BaseMessage & { tool_calls?: unknown[] }).tool_calls === 'undefined' ||
+    ((lastMessage as BaseMessage & { tool_calls?: unknown[] }).tool_calls?.length ?? 0) === 0
+  ) {
+    return 'END';
+  }
+  return 'tools';
 }
 
 const workflow = new StateGraph(MessagesAnnotation)
-    .addNode('agent', callModel)
-    .addNode('tools', toolNode)
-    .addEdge('__start__', 'agent')
-    .addConditionalEdges('agent', shouldContinue, {
-        tools: 'tools',
-        END: '__end__',
-    })
-    .addEdge('tools', 'agent');
+  .addNode('agent', callModel)
+  .addNode('tools', toolNode)
+  .addEdge('__start__', 'agent')
+  .addConditionalEdges('agent', shouldContinue, {
+    tools: 'tools',
+    END: '__end__',
+  })
+  .addEdge('tools', 'agent');
 
 // AI-002 (onda 32): checkpointer real (Postgres, compartilhado — src/lib/ai/checkpointer.ts).
 const app = workflow.compile({ checkpointer });
 
 export class OpsAgent {
-    async run(instruction: string, sessionId?: string, leadId?: string) {
-        const sid = sessionId || `session-ops-${Date.now()}`;
-        const organizationId = getTenantId();
+  async run(instruction: string, sessionId?: string, leadId?: string) {
+    const sid = sessionId || `session-ops-${Date.now()}`;
+    const organizationId = getTenantId();
 
-        // Só verifica base legal quando há um leadId real: é o caso em que get_lead_context pode
-        // trazer o Contact real do lead para dentro do loop de tool-calling com o provedor de IA
-        // externo. Sem leadId, a instrução é texto livre sem titular associado — ver
-        // guardrails.service.ts:assertPiiExternalConsent.
-        if (leadId) {
-            try {
-                assertPiiExternalConsent(organizationId);
-            } catch (error) {
-                const message = (error as Error).message;
-                logger.warn({ err: error, leadId, organizationId }, 'Ops Agent bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.');
-                await recordAgentFailure({ sessionId: sid, agentType: 'OPS', organizationId, errorMessage: message });
-                return { success: false, error: message };
-            }
-        }
-
-        const humanContent = leadId
-            ? `Instrução: ${instruction}\n\nLead ID relacionado a esta missão (use-o com get_lead_context/create_follow_up_task/notify_team quando fizer sentido; não busque nem invente outro): ${leadId}`
-            : `Instrução: ${instruction}\n\nNenhum Lead ID foi informado para esta missão.`;
-
-        const inputs = { messages: [new HumanMessage(humanContent)] };
-        // thread_id prefixado pelo tenant — o checkpointer é compartilhado por todas as
-        // organizações do processo.
-        const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
-        let finalState;
-
-        try {
-            // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da
-            // primeira invocação real deste processo — memoizado.
-            await ensureCheckpointerReady();
-            finalState = await app.invoke(inputs, config);
-        } catch (error) {
-            logger.error({ err: error, sessionId }, 'Ops Agent run failed');
-            await recordAgentFailure({
-                sessionId: sid,
-                agentType: 'OPS',
-                organizationId,
-                errorMessage: 'Falha na execução do agente (grafo LangGraph).',
-            });
-            return { success: false, error: 'Agent execution failed' };
-        }
-
-        const messages = finalState.messages as BaseMessage[];
-        const serializedMessages = messages.map((m: BaseMessage): SerializedMessage => {
-            const toolCalls = (m as BaseMessage & { tool_calls?: unknown[] }).tool_calls;
-            return {
-                role: m.type,
-                content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-                toolCalls: toolCalls ? JSON.stringify(toolCalls) : undefined,
-            };
+    // Só verifica base legal quando há um leadId real: é o caso em que get_lead_context pode
+    // trazer o Contact real do lead para dentro do loop de tool-calling com o provedor de IA
+    // externo. Sem leadId, a instrução é texto livre sem titular associado — ver
+    // guardrails.service.ts:assertPiiExternalConsent.
+    if (leadId) {
+      try {
+        assertPiiExternalConsent(organizationId);
+      } catch (error) {
+        const message = (error as Error).message;
+        logger.warn(
+          { err: error, leadId, organizationId },
+          'Ops Agent bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.',
+        );
+        await recordAgentFailure({
+          sessionId: sid,
+          agentType: 'OPS',
+          organizationId,
+          errorMessage: message,
         });
-
-        try {
-            await this.updateMemory(sid, serializedMessages);
-        } catch (error) {
-            logger.error({ err: error, sessionId: sid }, 'Failed to persist Ops agent memory after successful run');
-            return { success: false, error: 'Ação concluída, mas falha ao persistir o resultado.' };
-        }
-
-        const lastMessage = messages[messages.length - 1];
-        const output = lastMessage?.content ? lastMessage.content.toString() : 'Ação concluída silenciosamente.';
-
-        return { success: true, sessionId: sid, output };
+        return { success: false, error: message };
+      }
     }
 
-    // AI-003: delega para o upsert atômico compartilhado — não engole mais erro.
-    private async updateMemory(sessionId: string, messages: SerializedMessage[]) {
-        await saveAgentMemory({
-            sessionId,
-            agentType: 'OPS',
-            organizationId: getTenantId(),
-            messages,
-            status: 'Completed',
-        });
+    const humanContent = leadId
+      ? `Instrução: ${instruction}\n\nLead ID relacionado a esta missão (use-o com get_lead_context/create_follow_up_task/notify_team quando fizer sentido; não busque nem invente outro): ${leadId}`
+      : `Instrução: ${instruction}\n\nNenhum Lead ID foi informado para esta missão.`;
+
+    const inputs = { messages: [new HumanMessage(humanContent)] };
+    // thread_id prefixado pelo tenant — o checkpointer é compartilhado por todas as
+    // organizações do processo.
+    const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
+    let finalState;
+
+    try {
+      // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da
+      // primeira invocação real deste processo — memoizado.
+      await ensureCheckpointerReady();
+      finalState = await app.invoke(inputs, config);
+    } catch (error) {
+      logger.error({ err: error, sessionId }, 'Ops Agent run failed');
+      await recordAgentFailure({
+        sessionId: sid,
+        agentType: 'OPS',
+        organizationId,
+        errorMessage: 'Falha na execução do agente (grafo LangGraph).',
+      });
+      return { success: false, error: 'Agent execution failed' };
     }
+
+    const messages = finalState.messages as BaseMessage[];
+    const serializedMessages = messages.map((m: BaseMessage): SerializedMessage => {
+      const toolCalls = (m as BaseMessage & { tool_calls?: unknown[] }).tool_calls;
+      return {
+        role: m.type,
+        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+        toolCalls: toolCalls ? JSON.stringify(toolCalls) : undefined,
+      };
+    });
+
+    try {
+      await this.updateMemory(sid, serializedMessages);
+    } catch (error) {
+      logger.error(
+        { err: error, sessionId: sid },
+        'Failed to persist Ops agent memory after successful run',
+      );
+      return { success: false, error: 'Ação concluída, mas falha ao persistir o resultado.' };
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    const output = lastMessage?.content
+      ? lastMessage.content.toString()
+      : 'Ação concluída silenciosamente.';
+
+    return { success: true, sessionId: sid, output };
+  }
+
+  // AI-003: delega para o upsert atômico compartilhado — não engole mais erro.
+  private async updateMemory(sessionId: string, messages: SerializedMessage[]) {
+    await saveAgentMemory({
+      sessionId,
+      agentType: 'OPS',
+      organizationId: getTenantId(),
+      messages,
+      status: 'Completed',
+    });
+  }
 }

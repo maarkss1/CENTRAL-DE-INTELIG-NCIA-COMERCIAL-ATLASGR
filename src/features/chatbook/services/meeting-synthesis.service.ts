@@ -3,34 +3,34 @@ import { cleanAndParseJson, getAiModel, logAiUsage } from '../../../lib/ai/gatew
 import { logger } from '../../../lib/logger.js';
 
 export interface MeetingTranscriptInput {
-    meetingTitle: string;
-    participants: string[];
-    rawTranscript: string;
-    dealName?: string;
+  meetingTitle: string;
+  participants: string[];
+  rawTranscript: string;
+  dealName?: string;
 }
 
 export interface MeetingActionItem {
-    assignee: string;
-    description: string;
-    deadlineDays?: number;
+  assignee: string;
+  description: string;
+  deadlineDays?: number;
 }
 
 export interface MeetingSynthesisOutput {
-    executiveSummary: string;
-    keyPainsIdentified: string[];
-    agreedPoints: string[];
-    unresolvedObjections: string[];
-    actionItems: MeetingActionItem[];
-    dealStageRecommendation?: string;
-    sentimentScore: 'Muito Positivo' | 'Positivo' | 'Neutro / Cauteloso' | 'Negativo';
+  executiveSummary: string;
+  keyPainsIdentified: string[];
+  agreedPoints: string[];
+  unresolvedObjections: string[];
+  actionItems: MeetingActionItem[];
+  dealStageRecommendation?: string;
+  sentimentScore: 'Muito Positivo' | 'Positivo' | 'Neutro / Cauteloso' | 'Negativo';
 }
 
 export class MeetingSynthesisService {
-    async synthesizeMeeting(input: MeetingTranscriptInput): Promise<MeetingSynthesisOutput> {
-        const model = getAiModel('local-llama3-fast', 0.2, 'meeting-synthesis');
-        const startTime = Date.now();
+  async synthesizeMeeting(input: MeetingTranscriptInput): Promise<MeetingSynthesisOutput> {
+    const model = getAiModel('local-llama3-fast', 0.2, 'meeting-synthesis');
+    const startTime = Date.now();
 
-        const systemPrompt = `Você é um Analista Executivo de Inteligência Comercial e Secretário de Reuniões de Alto Nível.
+    const systemPrompt = `Você é um Analista Executivo de Inteligência Comercial e Secretário de Reuniões de Alto Nível.
 Analise a transcrição de uma reunião de vendas/alinhamento com cliente B2B e gere uma Ata Executiva Estruturada e Acionável.
 Destaque:
 1. Resumo Executivo em 2-3 parágrafos concisos.
@@ -57,30 +57,34 @@ Retorne SEMPRE e APENAS um JSON válido no formato:
   "sentimentScore": "Positivo"
 }`;
 
-        try {
-            const response = await model.invoke([
-                new SystemMessage(systemPrompt),
-                new HumanMessage(`Título: ${input.meetingTitle}\nParticipantes: ${input.participants.join(', ')}\n\nTranscrição Bruta:\n${input.rawTranscript}`),
-            ]);
+    try {
+      const response = await model.invoke([
+        new SystemMessage(systemPrompt),
+        new HumanMessage(
+          `Título: ${input.meetingTitle}\nParticipantes: ${input.participants.join(', ')}\n\nTranscrição Bruta:\n${input.rawTranscript}`,
+        ),
+      ]);
 
-            await logAiUsage({
-                model: response.response_metadata.model,
-                usage: response.response_metadata.tokenUsage,
-                latencyMs: Date.now() - startTime,
-                promptId: 'meeting-synthesis',
-            });
+      await logAiUsage({
+        model: response.response_metadata.model,
+        usage: response.response_metadata.tokenUsage,
+        latencyMs: Date.now() - startTime,
+        promptId: 'meeting-synthesis',
+      });
 
-            return cleanAndParseJson<MeetingSynthesisOutput>(response.content);
-        } catch (error) {
-            logger.error({ err: error }, 'Erro ao sintetizar reunião');
-            return {
-                executiveSummary: 'Reunião realizada com o cliente para alinhamento de oportunidades.',
-                keyPainsIdentified: [],
-                agreedPoints: [],
-                unresolvedObjections: [],
-                actionItems: [{ assignee: 'Equipe Comercial', description: 'Realizar follow-up pós-reunião' }],
-                sentimentScore: 'Neutro / Cauteloso',
-            };
-        }
+      return cleanAndParseJson<MeetingSynthesisOutput>(response.content);
+    } catch (error) {
+      logger.error({ err: error }, 'Erro ao sintetizar reunião');
+      return {
+        executiveSummary: 'Reunião realizada com o cliente para alinhamento de oportunidades.',
+        keyPainsIdentified: [],
+        agreedPoints: [],
+        unresolvedObjections: [],
+        actionItems: [
+          { assignee: 'Equipe Comercial', description: 'Realizar follow-up pós-reunião' },
+        ],
+        sentimentScore: 'Neutro / Cauteloso',
+      };
     }
+  }
 }

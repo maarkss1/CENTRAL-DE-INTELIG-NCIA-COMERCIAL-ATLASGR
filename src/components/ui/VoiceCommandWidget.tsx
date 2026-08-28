@@ -28,7 +28,7 @@ export function VoiceCommandWidget() {
         const currentText = Array.from(event.results)
           .map((result) => result[0].transcript)
           .join('');
-        
+
         setTranscript(currentText);
 
         // Processamento de Comandos de Voz em Português. `navigateOrReportFailure` só anuncia
@@ -39,7 +39,11 @@ export function VoiceCommandWidget() {
 
         const navigateOrReportFailure = (tab: string, successLabel: string) => {
           const navigated = navigationBus.requestNavigation(tab);
-          setLastAction(navigated ? successLabel : 'Não consegui navegar até aqui agora — tente de novo em instantes.');
+          setLastAction(
+            navigated
+              ? successLabel
+              : 'Não consegui navegar até aqui agora — tente de novo em instantes.',
+          );
           stopListening();
         };
 
@@ -61,11 +65,16 @@ export function VoiceCommandWidget() {
           navigateOrReportFailure('contacts', 'Navegou para Lista de Contatos');
         } else if (textLower.includes('empresa') || textLower.includes('empresas')) {
           navigateOrReportFailure('companies', 'Navegou para Lista de Empresas');
-        } else if (currentText.trim().length > 0 && event.results[event.results.length - 1]?.isFinal) {
+        } else if (
+          currentText.trim().length > 0 &&
+          event.results[event.results.length - 1]?.isFinal
+        ) {
           // Só reporta "não entendi" quando o reconhecimento terminou de processar a frase
           // (isFinal) — resultados interinos (enquanto a pessoa ainda está falando) não devem
           // disparar esse aviso a cada palavra parcial reconhecida.
-          setLastAction('Não entendi o comando. Tente: CRM, Prospector, Contatos, Empresas ou Inteligência.');
+          setLastAction(
+            'Não entendi o comando. Tente: CRM, Prospector, Contatos, Empresas ou Inteligência.',
+          );
           stopListening();
         }
       };
@@ -154,15 +163,28 @@ export function VoiceCommandWidget() {
               <span className="font-extrabold text-brand flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-brand animate-pulse" /> Assistente de Voz B2B
               </span>
-              <button type="button" onClick={() => { setTranscript(''); setLastAction(null); }} className="text-[10px] text-ink-2 hover:text-ink">
+              <button
+                type="button"
+                onClick={() => {
+                  setTranscript('');
+                  setLastAction(null);
+                }}
+                className="text-[10px] text-ink-2 hover:text-ink"
+              >
                 Limpar
               </button>
             </div>
 
             {isListening && (
               <div className="space-y-1 text-center py-2">
-                <p className="text-ink-2 italic animate-pulse">&quot;Diga: CRM, Prospector, Total Trac, Atlas...&quot;</p>
-                {transcript && <p className="text-ink font-bold bg-surface-2 p-2 rounded-xl border border-line">{transcript}</p>}
+                <p className="text-ink-2 italic animate-pulse">
+                  &quot;Diga: CRM, Prospector, Total Trac, Atlas...&quot;
+                </p>
+                {transcript && (
+                  <p className="text-ink font-bold bg-surface-2 p-2 rounded-xl border border-line">
+                    {transcript}
+                  </p>
+                )}
               </div>
             )}
 

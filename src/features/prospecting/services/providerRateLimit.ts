@@ -19,8 +19,8 @@
 export type ProspectingRateLimitedProvider = 'apollo' | 'hunter';
 
 interface TokenBucket {
-    tokens: number;
-    lastRefillMs: number;
+  tokens: number;
+  lastRefillMs: number;
 }
 
 const buckets = new Map<ProspectingRateLimitedProvider, TokenBucket>();
@@ -33,33 +33,33 @@ const buckets = new Map<ProspectingRateLimitedProvider, TokenBucket>();
  * para o teto real contratado do tenant.
  */
 export const DEFAULT_RATE_LIMIT_PER_MINUTE: Record<ProspectingRateLimitedProvider, number> = {
-    // Apollo: planos pagos básicos costumam suportar ~50-60 req/min por endpoint na prática
-    // (não há um número único documentado publicamente para todos os planos/endpoints).
-    apollo: 50,
-    // Hunter.io: o teto real do plano é por cota MENSAL, não por minuto — este número é só uma
-    // proteção contra rajada local, bem abaixo de qualquer teto de burst documentado.
-    hunter: 30,
+  // Apollo: planos pagos básicos costumam suportar ~50-60 req/min por endpoint na prática
+  // (não há um número único documentado publicamente para todos os planos/endpoints).
+  apollo: 50,
+  // Hunter.io: o teto real do plano é por cota MENSAL, não por minuto — este número é só uma
+  // proteção contra rajada local, bem abaixo de qualquer teto de burst documentado.
+  hunter: 30,
 };
 
 function envVarNameFor(provider: ProspectingRateLimitedProvider): string {
-    return provider === 'apollo' ? 'APOLLO_RATE_LIMIT_PER_MINUTE' : 'HUNTER_RATE_LIMIT_PER_MINUTE';
+  return provider === 'apollo' ? 'APOLLO_RATE_LIMIT_PER_MINUTE' : 'HUNTER_RATE_LIMIT_PER_MINUTE';
 }
 
 /** Lê o limite configurado (env) para o provider, com fallback ao default documentado acima. */
 export function getRateLimitPerMinute(
-    provider: ProspectingRateLimitedProvider,
-    environment: NodeJS.ProcessEnv = process.env
+  provider: ProspectingRateLimitedProvider,
+  environment: NodeJS.ProcessEnv = process.env,
 ): number {
-    const raw = environment[envVarNameFor(provider)];
-    const parsed = raw != null ? Number(raw) : NaN;
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
-    return DEFAULT_RATE_LIMIT_PER_MINUTE[provider];
+  const raw = environment[envVarNameFor(provider)];
+  const parsed = raw != null ? Number(raw) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  return DEFAULT_RATE_LIMIT_PER_MINUTE[provider];
 }
 
 export interface TokenBucketResult {
-    allowed: boolean;
-    /** Só preenchido quando `allowed` é false — quanto falta (ms) até haver um token disponível. */
-    retryAfterMs: number;
+  allowed: boolean;
+  /** Só preenchido quando `allowed` é false — quanto falta (ms) até haver um token disponível. */
+  retryAfterMs: number;
 }
 
 /**
@@ -71,39 +71,42 @@ export interface TokenBucketResult {
  * var mal configurada derrubar 100% das chamadas a um provider.
  */
 export function tryConsumeToken(
-    bucket: TokenBucket | undefined,
-    limitPerMinute: number,
-    now: number
+  bucket: TokenBucket | undefined,
+  limitPerMinute: number,
+  now: number,
 ): { bucket: TokenBucket; result: TokenBucketResult } {
-    if (!Number.isFinite(limitPerMinute) || limitPerMinute <= 0) {
-        return { bucket: bucket ?? { tokens: 0, lastRefillMs: now }, result: { allowed: true, retryAfterMs: 0 } };
-    }
+  if (!Number.isFinite(limitPerMinute) || limitPerMinute <= 0) {
+    return {
+      bucket: bucket ?? { tokens: 0, lastRefillMs: now },
+      result: { allowed: true, retryAfterMs: 0 },
+    };
+  }
 
-    const capacity = limitPerMinute;
-    const refillPerMs = limitPerMinute / 60_000;
+  const capacity = limitPerMinute;
+  const refillPerMs = limitPerMinute / 60_000;
 
-    const current: TokenBucket = bucket ?? { tokens: capacity, lastRefillMs: now };
-    const elapsedMs = Math.max(0, now - current.lastRefillMs);
-    current.tokens = Math.min(capacity, current.tokens + elapsedMs * refillPerMs);
-    current.lastRefillMs = now;
+  const current: TokenBucket = bucket ?? { tokens: capacity, lastRefillMs: now };
+  const elapsedMs = Math.max(0, now - current.lastRefillMs);
+  current.tokens = Math.min(capacity, current.tokens + elapsedMs * refillPerMs);
+  current.lastRefillMs = now;
 
-    if (current.tokens >= 1) {
-        current.tokens -= 1;
-        return { bucket: current, result: { allowed: true, retryAfterMs: 0 } };
-    }
+  if (current.tokens >= 1) {
+    current.tokens -= 1;
+    return { bucket: current, result: { allowed: true, retryAfterMs: 0 } };
+  }
 
-    const missingTokens = 1 - current.tokens;
-    const retryAfterMs = Math.ceil(missingTokens / refillPerMs);
-    return { bucket: current, result: { allowed: false, retryAfterMs } };
+  const missingTokens = 1 - current.tokens;
+  const retryAfterMs = Math.ceil(missingTokens / refillPerMs);
+  return { bucket: current, result: { allowed: false, retryAfterMs } };
 }
 
 export interface ProviderRateLimitCheck {
-    allowed: boolean;
-    retryAfterMs: number;
-    /** Mensagem pronta para devolver como `error` no mesmo formato que os services de
-     * Apollo/Hunter já usam para qualquer outra falha de provider — nunca lança/derruba o
-     * chamador, só sinaliza "não chame agora". */
-    message?: string;
+  allowed: boolean;
+  retryAfterMs: number;
+  /** Mensagem pronta para devolver como `error` no mesmo formato que os services de
+   * Apollo/Hunter já usam para qualquer outra falha de provider — nunca lança/derruba o
+   * chamador, só sinaliza "não chame agora". */
+  message?: string;
 }
 
 /**
@@ -112,26 +115,26 @@ export interface ProviderRateLimitCheck {
  * antes de `fetchWithProviderRetry` — nunca depois.
  */
 export function checkProviderRateLimit(
-    provider: ProspectingRateLimitedProvider,
-    now: number = Date.now(),
-    environment: NodeJS.ProcessEnv = process.env
+  provider: ProspectingRateLimitedProvider,
+  now: number = Date.now(),
+  environment: NodeJS.ProcessEnv = process.env,
 ): ProviderRateLimitCheck {
-    const limitPerMinute = getRateLimitPerMinute(provider, environment);
-    const existing = buckets.get(provider);
-    const { bucket, result } = tryConsumeToken(existing, limitPerMinute, now);
-    buckets.set(provider, bucket);
+  const limitPerMinute = getRateLimitPerMinute(provider, environment);
+  const existing = buckets.get(provider);
+  const { bucket, result } = tryConsumeToken(existing, limitPerMinute, now);
+  buckets.set(provider, bucket);
 
-    if (result.allowed) return { allowed: true, retryAfterMs: 0 };
+  if (result.allowed) return { allowed: true, retryAfterMs: 0 };
 
-    const seconds = Math.max(1, Math.ceil(result.retryAfterMs / 1000));
-    return {
-        allowed: false,
-        retryAfterMs: result.retryAfterMs,
-        message: `Rate limit interno do provider ${provider} excedido (${limitPerMinute}/min) — tente novamente em ~${seconds}s.`,
-    };
+  const seconds = Math.max(1, Math.ceil(result.retryAfterMs / 1000));
+  return {
+    allowed: false,
+    retryAfterMs: result.retryAfterMs,
+    message: `Rate limit interno do provider ${provider} excedido (${limitPerMinute}/min) — tente novamente em ~${seconds}s.`,
+  };
 }
 
 /** Só para testes: limpa todos os buckets em memória (evita vazamento de estado entre casos). */
 export function resetProviderRateLimitersForTests(): void {
-    buckets.clear();
+  buckets.clear();
 }

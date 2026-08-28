@@ -20,30 +20,30 @@
  * frase ("acho que ele topou").
  */
 export type ConfirmationEvidenceType =
-    /** Lead respondeu (e-mail/WhatsApp) confirmando explicitamente um horário específico já proposto. */
-    | 'lead-calendar-reply'
-    /** Lead escolheu um horário num link de agendamento self-service (ex.: página de slots). */
-    | 'lead-scheduling-link-click'
-    /** Vendedor confirmou manualmente após contato ao vivo (ligação/reunião) — ainda assim exige nota, não é "confiança geral". */
-    | 'manual-verified';
+  /** Lead respondeu (e-mail/WhatsApp) confirmando explicitamente um horário específico já proposto. */
+  | 'lead-calendar-reply'
+  /** Lead escolheu um horário num link de agendamento self-service (ex.: página de slots). */
+  | 'lead-scheduling-link-click'
+  /** Vendedor confirmou manualmente após contato ao vivo (ligação/reunião) — ainda assim exige nota, não é "confiança geral". */
+  | 'manual-verified';
 
 /** Tipos explicitamente proibidos — existem só para o teste provar que são rejeitados, nunca devem aparecer num evento real. */
 const FORBIDDEN_EVIDENCE_MARKERS = new Set(['ai-inferred', 'model-judgment', 'assumed', 'likely']);
 
 export interface AvailabilityConfirmation {
-    organizationId: string;
-    leadId: string;
-    evidenceType: ConfirmationEvidenceType | string;
-    /** Id do registro que prova a confirmação (id de mensagem, id de clique no link de agendamento, id de nota do vendedor). Nunca um resumo gerado por IA. */
-    evidenceRef: string;
-    proposedStart: Date;
-    proposedEnd: Date;
+  organizationId: string;
+  leadId: string;
+  evidenceType: ConfirmationEvidenceType | string;
+  /** Id do registro que prova a confirmação (id de mensagem, id de clique no link de agendamento, id de nota do vendedor). Nunca um resumo gerado por IA. */
+  evidenceRef: string;
+  proposedStart: Date;
+  proposedEnd: Date;
 }
 
 const VALID_EVIDENCE_TYPES = new Set<ConfirmationEvidenceType>([
-    'lead-calendar-reply',
-    'lead-scheduling-link-click',
-    'manual-verified',
+  'lead-calendar-reply',
+  'lead-scheduling-link-click',
+  'manual-verified',
 ]);
 
 /**
@@ -51,25 +51,29 @@ const VALID_EVIDENCE_TYPES = new Set<ConfirmationEvidenceType>([
  * referência não é vazia/genérica, e o horário proposto é no futuro (não faz sentido "confirmar"
  * um slot que já passou).
  */
-export function isVerifiableConfirmation(confirmation: AvailabilityConfirmation, now: Date): boolean {
-    if (!VALID_EVIDENCE_TYPES.has(confirmation.evidenceType as ConfirmationEvidenceType)) return false;
-    if (FORBIDDEN_EVIDENCE_MARKERS.has(confirmation.evidenceRef.trim().toLowerCase())) return false;
-    if (!confirmation.evidenceRef || !confirmation.evidenceRef.trim()) return false;
-    if (confirmation.proposedEnd.getTime() <= confirmation.proposedStart.getTime()) return false;
-    if (confirmation.proposedStart.getTime() <= now.getTime()) return false;
-    return true;
+export function isVerifiableConfirmation(
+  confirmation: AvailabilityConfirmation,
+  now: Date,
+): boolean {
+  if (!VALID_EVIDENCE_TYPES.has(confirmation.evidenceType as ConfirmationEvidenceType))
+    return false;
+  if (FORBIDDEN_EVIDENCE_MARKERS.has(confirmation.evidenceRef.trim().toLowerCase())) return false;
+  if (!confirmation.evidenceRef || !confirmation.evidenceRef.trim()) return false;
+  if (confirmation.proposedEnd.getTime() <= confirmation.proposedStart.getTime()) return false;
+  if (confirmation.proposedStart.getTime() <= now.getTime()) return false;
+  return true;
 }
 
 export interface CalendarEventDraft {
-    organizationId: string;
-    leadId: string;
-    start: Date;
-    end: Date;
-    attendeeEmails: string[];
-    ownerUserId: string;
-    title: string;
-    confirmationEvidenceType: ConfirmationEvidenceType;
-    confirmationEvidenceRef: string;
+  organizationId: string;
+  leadId: string;
+  start: Date;
+  end: Date;
+  attendeeEmails: string[];
+  ownerUserId: string;
+  title: string;
+  confirmationEvidenceType: ConfirmationEvidenceType;
+  confirmationEvidenceRef: string;
 }
 
 /**
@@ -78,31 +82,31 @@ export interface CalendarEventDraft {
  * chamador explodir por esquecer a checagem a este módulo silenciosamente aceitar qualquer coisa).
  */
 export function buildCalendarEventDraft(
-    confirmation: AvailabilityConfirmation,
-    context: { leadTitle: string; leadEmail: string; ownerEmail: string; ownerUserId: string },
+  confirmation: AvailabilityConfirmation,
+  context: { leadTitle: string; leadEmail: string; ownerEmail: string; ownerUserId: string },
 ): CalendarEventDraft {
-    return {
-        organizationId: confirmation.organizationId,
-        leadId: confirmation.leadId,
-        start: confirmation.proposedStart,
-        end: confirmation.proposedEnd,
-        attendeeEmails: [context.leadEmail, context.ownerEmail].filter((e) => e && e.trim()),
-        ownerUserId: context.ownerUserId,
-        title: `Reunião comercial — ${context.leadTitle}`,
-        confirmationEvidenceType: confirmation.evidenceType as ConfirmationEvidenceType,
-        confirmationEvidenceRef: confirmation.evidenceRef,
-    };
+  return {
+    organizationId: confirmation.organizationId,
+    leadId: confirmation.leadId,
+    start: confirmation.proposedStart,
+    end: confirmation.proposedEnd,
+    attendeeEmails: [context.leadEmail, context.ownerEmail].filter((e) => e && e.trim()),
+    ownerUserId: context.ownerUserId,
+    title: `Reunião comercial — ${context.leadTitle}`,
+    confirmationEvidenceType: confirmation.evidenceType as ConfirmationEvidenceType,
+    confirmationEvidenceRef: confirmation.evidenceRef,
+  };
 }
 
 /** Porta implementada por quem tem acesso real ao Google Calendar (`google.service.ts`, 06) — cria o evento e devolve o id real do Google. */
 export interface CalendarSchedulerPort {
-    createEvent(draft: CalendarEventDraft): Promise<{ googleEventId: string }>;
+  createEvent(draft: CalendarEventDraft): Promise<{ googleEventId: string }>;
 }
 
 export interface ScheduleMeetingResult {
-    scheduled: boolean;
-    googleEventId: string | null;
-    rejectedReason: 'not-verifiable' | null;
+  scheduled: boolean;
+  googleEventId: string | null;
+  rejectedReason: 'not-verifiable' | null;
 }
 
 /**
@@ -111,16 +115,16 @@ export interface ScheduleMeetingResult {
  * comunicar isso (nunca deveria ser tratado como sucesso silencioso).
  */
 export async function scheduleMeetingIfConfirmed(
-    confirmation: AvailabilityConfirmation,
-    context: { leadTitle: string; leadEmail: string; ownerEmail: string; ownerUserId: string },
-    scheduler: CalendarSchedulerPort,
-    now: Date,
+  confirmation: AvailabilityConfirmation,
+  context: { leadTitle: string; leadEmail: string; ownerEmail: string; ownerUserId: string },
+  scheduler: CalendarSchedulerPort,
+  now: Date,
 ): Promise<ScheduleMeetingResult> {
-    if (!isVerifiableConfirmation(confirmation, now)) {
-        return { scheduled: false, googleEventId: null, rejectedReason: 'not-verifiable' };
-    }
+  if (!isVerifiableConfirmation(confirmation, now)) {
+    return { scheduled: false, googleEventId: null, rejectedReason: 'not-verifiable' };
+  }
 
-    const draft = buildCalendarEventDraft(confirmation, context);
-    const { googleEventId } = await scheduler.createEvent(draft);
-    return { scheduled: true, googleEventId, rejectedReason: null };
+  const draft = buildCalendarEventDraft(confirmation, context);
+  const { googleEventId } = await scheduler.createEvent(draft);
+  return { scheduled: true, googleEventId, rejectedReason: null };
 }

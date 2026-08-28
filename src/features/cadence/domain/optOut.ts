@@ -35,49 +35,49 @@ export type OptOutOriginChannel = CadenceChannel | 'manual' | 'import';
  * obrigatório (ver `normalizeOptOutSubject`).
  */
 export interface OptOutSubject {
-    leadId?: string | null;
-    email?: string | null;
-    phoneE164?: string | null;
+  leadId?: string | null;
+  email?: string | null;
+  phoneE164?: string | null;
 }
 
 /** Forma normalizada de `OptOutSubject`, já sem nenhum identificador vazio/inválido. */
 export interface NormalizedOptOutSubject {
-    leadId: string | null;
-    email: string | null;
-    phoneE164: string | null;
+  leadId: string | null;
+  email: string | null;
+  phoneE164: string | null;
 }
 
 export interface RecordOptOutInput {
-    organizationId: string;
-    scope: OptOutScope;
-    subject: OptOutSubject;
-    originChannel: OptOutOriginChannel;
-    reason?: string | null;
-    /** Trecho real do pedido (transcrição, mensagem) — nunca inferência, mesma disciplina de evidência de `CallSuppression`. */
-    evidence?: string | null;
-    /** userId de quem registrou manualmente, quando aplicável. */
-    requestedBy?: string | null;
+  organizationId: string;
+  scope: OptOutScope;
+  subject: OptOutSubject;
+  originChannel: OptOutOriginChannel;
+  reason?: string | null;
+  /** Trecho real do pedido (transcrição, mensagem) — nunca inferência, mesma disciplina de evidência de `CallSuppression`. */
+  evidence?: string | null;
+  /** userId de quem registrou manualmente, quando aplicável. */
+  requestedBy?: string | null;
 }
 
 export interface OptOutRecord {
-    id: string;
-    organizationId: string;
-    scope: OptOutScope;
-    leadId: string | null;
-    email: string | null;
-    phoneE164: string | null;
-    originChannel: OptOutOriginChannel;
-    reason: string | null;
-    evidence: string | null;
-    requestedBy: string | null;
-    createdAt: Date;
+  id: string;
+  organizationId: string;
+  scope: OptOutScope;
+  leadId: string | null;
+  email: string | null;
+  phoneE164: string | null;
+  originChannel: OptOutOriginChannel;
+  reason: string | null;
+  evidence: string | null;
+  requestedBy: string | null;
+  createdAt: Date;
 }
 
 /** E-mail normalizado (minúsculo, sem espaço nas pontas) — mesma chave de comparação sempre. */
 function normalizeEmail(email: string | null | undefined): string | null {
-    if (!email) return null;
-    const trimmed = email.trim().toLowerCase();
-    return trimmed.length > 0 && trimmed.includes('@') ? trimmed : null;
+  if (!email) return null;
+  const trimmed = email.trim().toLowerCase();
+  return trimmed.length > 0 && trimmed.includes('@') ? trimmed : null;
 }
 
 /**
@@ -87,16 +87,16 @@ function normalizeEmail(email: string | null | undefined): string | null {
  * inválido do que criar um registro que nunca vai casar com nada.
  */
 export function normalizeOptOutSubject(subject: OptOutSubject): NormalizedOptOutSubject {
-    return {
-        leadId: subject.leadId?.trim() || null,
-        email: normalizeEmail(subject.email),
-        phoneE164: toE164BR(subject.phoneE164 ?? undefined),
-    };
+  return {
+    leadId: subject.leadId?.trim() || null,
+    email: normalizeEmail(subject.email),
+    phoneE164: toE164BR(subject.phoneE164 ?? undefined),
+  };
 }
 
 /** Um sujeito sem nenhum identificador válido não é bloqueável nem consultável — não há o que gravar/comparar. */
 export function hasAnyIdentifier(subject: NormalizedOptOutSubject): boolean {
-    return subject.leadId !== null || subject.email !== null || subject.phoneE164 !== null;
+  return subject.leadId !== null || subject.email !== null || subject.phoneE164 !== null;
 }
 
 /**
@@ -105,16 +105,19 @@ export function hasAnyIdentifier(subject: NormalizedOptOutSubject): boolean {
  * lead sem exigir uma tabela de resolução de identidade separada: o chamador (contrato em
  * `17-para-05-06-12-contrato-optout.md`) já passa leadId + email + phoneE164 quando os tiver.
  */
-export function subjectsMatch(record: NormalizedOptOutSubject, query: NormalizedOptOutSubject): boolean {
-    if (record.leadId !== null && record.leadId === query.leadId) return true;
-    if (record.email !== null && record.email === query.email) return true;
-    if (record.phoneE164 !== null && record.phoneE164 === query.phoneE164) return true;
-    return false;
+export function subjectsMatch(
+  record: NormalizedOptOutSubject,
+  query: NormalizedOptOutSubject,
+): boolean {
+  if (record.leadId !== null && record.leadId === query.leadId) return true;
+  if (record.email !== null && record.email === query.email) return true;
+  if (record.phoneE164 !== null && record.phoneE164 === query.phoneE164) return true;
+  return false;
 }
 
 /** Se um registro de opt-out bloqueia especificamente este canal (o registro casou; falta checar o escopo). */
 export function scopeBlocksChannel(scope: OptOutScope, channel: CadenceChannel): boolean {
-    return scope === 'global' || scope === channel;
+  return scope === 'global' || scope === channel;
 }
 
 /**
@@ -123,7 +126,7 @@ export function scopeBlocksChannel(scope: OptOutScope, channel: CadenceChannel):
  * sem depender de nenhuma implementação de porta.
  */
 export function anyRecordBlocksChannel(records: OptOutRecord[], channel: CadenceChannel): boolean {
-    return records.some((r) => scopeBlocksChannel(r.scope, channel));
+  return records.some((r) => scopeBlocksChannel(r.scope, channel));
 }
 
 /**
@@ -132,8 +135,8 @@ export function anyRecordBlocksChannel(records: OptOutRecord[], channel: Cadence
  * adaptador Prisma real é responsabilidade de quem aplicar o schema proposto.
  */
 export interface OptOutRepository {
-    create(record: Omit<OptOutRecord, 'id' | 'createdAt'>): Promise<OptOutRecord>;
-    /** Registros da organização que casam com QUALQUER identificador não nulo do sujeito consultado. */
-    findMatches(organizationId: string, subject: NormalizedOptOutSubject): Promise<OptOutRecord[]>;
-    list(organizationId: string, limit?: number): Promise<OptOutRecord[]>;
+  create(record: Omit<OptOutRecord, 'id' | 'createdAt'>): Promise<OptOutRecord>;
+  /** Registros da organização que casam com QUALQUER identificador não nulo do sujeito consultado. */
+  findMatches(organizationId: string, subject: NormalizedOptOutSubject): Promise<OptOutRecord[]>;
+  list(organizationId: string, limit?: number): Promise<OptOutRecord[]>;
 }

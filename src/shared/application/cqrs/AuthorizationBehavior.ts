@@ -19,7 +19,10 @@ export class AuthorizationBehavior<TRequest, TValue> implements PipelineBehavior
   private readonly policies: ReadonlyArray<AuthorizationPolicy<TRequest>>;
   private readonly createError: AuthorizationErrorFactory;
 
-  public constructor(policies: ReadonlyArray<AuthorizationPolicy<TRequest>>, createError: AuthorizationErrorFactory) {
+  public constructor(
+    policies: ReadonlyArray<AuthorizationPolicy<TRequest>>,
+    createError: AuthorizationErrorFactory,
+  ) {
     this.policies = policies;
     this.createError = createError;
   }

@@ -12,7 +12,14 @@ import type { Company, Contact, Lead, Activity, PaginatedResponse } from '../typ
 // ─────────────────────────────────────────────────────────────────────────────
 export const companiesDB = {
   /** List companies with optional filters */
-  list: (params?: { page?: number; limit?: number; search?: string; status?: string; segment?: string; city?: string }) => {
+  list: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    segment?: string;
+    city?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
@@ -38,7 +45,8 @@ export const companiesDB = {
 
   /** Re-enrich an existing company by ID (Receita Federal + heurísticas de domínio/e-mail) —
    * mesma cadeia lenta do enrich de lead, por isso o timeout maior que o padrão de 15s. */
-  enrich: (id: string) => api.post<Partial<Company>>(`/api/companies/${id}/enrich`, undefined, { timeoutMs: 60_000 }),
+  enrich: (id: string) =>
+    api.post<Partial<Company>>(`/api/companies/${id}/enrich`, undefined, { timeoutMs: 60_000 }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,7 +54,13 @@ export const companiesDB = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const contactsDB = {
   /** List contacts with optional filters */
-  list: (params?: { page?: number; limit?: number; search?: string; companyId?: string; status?: string }) => {
+  list: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    companyId?: string;
+    status?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
@@ -72,7 +86,12 @@ export const contactsDB = {
   /** Re-enriquece o contato (empresa vinculada: Receita Federal + Google Negócios + Apollo), o que
    * inclui checagem real de entregabilidade do e-mail (MX/domínio descartável) como efeito colateral.
    * Mesma cadeia lenta do enrich de lead/empresa, por isso o timeout maior que o padrão de 15s. */
-  enrich: (id: string) => api.post<{ contact: Contact; fit: number; enrichment: unknown }>(`/api/contacts/${id}/enrich`, undefined, { timeoutMs: 60_000 }),
+  enrich: (id: string) =>
+    api.post<{ contact: Contact; fit: number; enrichment: unknown }>(
+      `/api/contacts/${id}/enrich`,
+      undefined,
+      { timeoutMs: 60_000 },
+    ),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,7 +99,13 @@ export const contactsDB = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const leadsDB = {
   /** List leads (CRM Kanban board) */
-  list: (params?: { page?: number; limit?: number; status?: string; companyId?: string; owner?: string }) => {
+  list: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    companyId?: string;
+    owner?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
@@ -115,7 +140,15 @@ export const leadsDB = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const activitiesDB = {
   /** List activities with optional date range and filters */
-  list: (params?: { page?: number; limit?: number; leadId?: string; status?: string; type?: string; from?: string; to?: string }) => {
+  list: (params?: {
+    page?: number;
+    limit?: number;
+    leadId?: string;
+    status?: string;
+    type?: string;
+    from?: string;
+    to?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.page) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
@@ -142,7 +175,8 @@ export const activitiesDB = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const prospectingDB = {
   /** Consulta em tempo real (sem persistir) de um CNPJ na Receita Federal via BrasilAPI */
-  enrichByCnpj: (cnpj: string) => api.post<Partial<Company>>('/api/prospecting/enrich-cnpj', { cnpj }),
+  enrichByCnpj: (cnpj: string) =>
+    api.post<Partial<Company>>('/api/prospecting/enrich-cnpj', { cnpj }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,20 +184,21 @@ export const prospectingDB = {
 // ─────────────────────────────────────────────────────────────────────────────
 export const analyticsDB = {
   /** Platform overview stats for the dashboard */
-  overview: () => api.get<{
-    totalCompanies: number;
-    totalContacts: number;
-    totalLeads: number;
-    totalActivities: number;
-    pendingActivities: number;
-    overdueActivities: number;
-    closedThisMonth: number;
-    lostThisMonth: number;
-    /** `null` porque o modelo Lead não tem campo de valor monetário — a UI exibe "—". */
-    pipelineValue: number | null;
-    conversionRate: number;
-    averageScore: number | null;
-  }>('/api/analytics/overview'),
+  overview: () =>
+    api.get<{
+      totalCompanies: number;
+      totalContacts: number;
+      totalLeads: number;
+      totalActivities: number;
+      pendingActivities: number;
+      overdueActivities: number;
+      closedThisMonth: number;
+      lostThisMonth: number;
+      /** `null` porque o modelo Lead não tem campo de valor monetário — a UI exibe "—". */
+      pipelineValue: number | null;
+      conversionRate: number;
+      averageScore: number | null;
+    }>('/api/analytics/overview'),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -182,7 +217,14 @@ export const aiToolsStore = {
 
   save: (tool: { name: string; category: string; prompt: string }) => {
     const tools = aiToolsStore.list();
-    const newTool = { ...tool, id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(), createdAt: new Date().toISOString() };
+    const newTool = {
+      ...tool,
+      id:
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : Date.now().toString(),
+      createdAt: new Date().toISOString(),
+    };
     tools.unshift(newTool);
     localStorage.setItem(aiToolsStore.STORAGE_KEY, JSON.stringify(tools));
     return newTool;

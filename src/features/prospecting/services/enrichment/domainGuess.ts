@@ -1,23 +1,23 @@
 import { checkEmailDeliverability } from '../email-verification.service';
 
 function slugify(name: string): string {
-    return (name || '')
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .toLowerCase()
-        .replace(/(ltda|me|eireli|s\/a|sa|epp)\b/g, '')
-        .replace(/[^a-z0-9\s]/g, '')
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .join('');
+  return (name || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/(ltda|me|eireli|s\/a|sa|epp)\b/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('');
 }
 
 export interface DomainGuess {
-    domain: string;
-    verified: boolean;
-    emails: string[];
+  domain: string;
+  verified: boolean;
+  emails: string[];
 }
 
 /**
@@ -27,11 +27,11 @@ export interface DomainGuess {
  * e-mail sem domínio de e-mail válido vira "invalid" em vez de entrar como se fosse confiável.
  */
 export async function resolveEmailStatus(email: string | null): Promise<string | null> {
-    if (!email) return null;
-    const result = await checkEmailDeliverability(email);
-    if (result.status === 'verified') return 'verified';
-    if (result.status === 'invalid') return 'invalid';
-    return 'guessed';
+  if (!email) return null;
+  const result = await checkEmailDeliverability(email);
+  if (result.status === 'verified') return 'verified';
+  if (result.status === 'invalid') return 'invalid';
+  return 'guessed';
 }
 
 /**
@@ -40,21 +40,21 @@ export async function resolveEmailStatus(email: string | null): Promise<string |
  * reaproveitamos o mesmo telefone já coletado (Apollo/Hunter) quando o formato indica celular.
  */
 export function guessWhatsappFromPhone(phone: string | null | undefined): string | null {
-    if (!phone) return null;
-    const digits = phone.replace(/\D/g, '').replace(/^55(?=\d{11}$)/, '');
-    if (digits.length === 11 && digits[2] === '9') return phone;
-    return null;
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, '').replace(/^55(?=\d{11}$)/, '');
+  if (digits.length === 11 && digits[2] === '9') return phone;
+  return null;
 }
 
 /** Extrai o hostname (sem "www.") de uma URL de site já conhecida — usado para preferir um domínio real a uma heurística. */
 export function extractDomainFromWebsite(website?: string | null): string | null {
-    if (!website) return null;
-    try {
-        const url = new URL(website.startsWith('http') ? website : `https://${website}`);
-        return url.hostname.replace(/^www\./, '') || null;
-    } catch {
-        return null;
-    }
+  if (!website) return null;
+  try {
+    const url = new URL(website.startsWith('http') ? website : `https://${website}`);
+    return url.hostname.replace(/^www\./, '') || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -63,25 +63,25 @@ export function extractDomainFromWebsite(website?: string | null): string | null
  * Se o domínio responder, marcamos como "verificado"; caso contrário é só uma sugestão.
  */
 export async function guessDomainAndEmails(companyName: string): Promise<DomainGuess> {
-    const slug = slugify(companyName);
-    const domain = slug ? `${slug}.com.br` : '';
-    let verified = false;
+  const slug = slugify(companyName);
+  const domain = slug ? `${slug}.com.br` : '';
+  let verified = false;
 
-    if (domain) {
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 3500);
-            const res = await fetch(`https://${domain}`, { method: 'HEAD', signal: controller.signal });
-            clearTimeout(timeout);
-            verified = res.ok || (res.status >= 300 && res.status < 500);
-        } catch {
-            verified = false;
-        }
+  if (domain) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(`https://${domain}`, { method: 'HEAD', signal: controller.signal });
+      clearTimeout(timeout);
+      verified = res.ok || (res.status >= 300 && res.status < 500);
+    } catch {
+      verified = false;
     }
+  }
 
-    const emails = domain
-        ? [`contato@${domain}`, `comercial@${domain}`, `atendimento@${domain}`]
-        : [];
+  const emails = domain
+    ? [`contato@${domain}`, `comercial@${domain}`, `atendimento@${domain}`]
+    : [];
 
-    return { domain, verified, emails };
+  return { domain, verified, emails };
 }

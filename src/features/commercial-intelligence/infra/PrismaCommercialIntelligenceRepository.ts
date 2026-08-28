@@ -1,11 +1,11 @@
 import { LeadFunnel, LeadStatus } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import type {
-    CommercialIntelligenceRepository,
-    DealRow,
-    StageDefinition,
-    CommercialGoalDTO,
-    GoalMetric,
+  CommercialIntelligenceRepository,
+  DealRow,
+  StageDefinition,
+  CommercialGoalDTO,
+  GoalMetric,
 } from '../domain/CommercialIntelligence';
 
 /**
@@ -20,220 +20,304 @@ import type {
  */
 const FALLBACK_WON_STATUSES = new Set<LeadStatus>([LeadStatus.Negocios_Ganhos]);
 const FALLBACK_LOST_STATUSES = new Set<LeadStatus>([
-    LeadStatus.Negocios_Perdidos,
-    LeadStatus.Piloto_Atlas_Profile_Cancelado,
-    LeadStatus.Piloto_Logistico_Cancelado,
+  LeadStatus.Negocios_Perdidos,
+  LeadStatus.Piloto_Atlas_Profile_Cancelado,
+  LeadStatus.Piloto_Logistico_Cancelado,
 ]);
 
 export class PrismaCommercialIntelligenceRepository implements CommercialIntelligenceRepository {
-    async findDeals(organizationId: string): Promise<DealRow[]> {
-        const leads = await prisma.lead.findMany({
-            where: { organizationId, funnel: LeadFunnel.Negocio },
-            include: {
-                company: { select: { id: true, tradeName: true, legalName: true, cnpj: true } },
-                pipelineStage: { select: { id: true, name: true, sortOrder: true, probability: true, isWon: true, isLost: true } },
-                dealItems: { select: { sku: true, product: { select: { sku: true } } } },
-            },
-            orderBy: { updatedAt: 'desc' },
-        });
+  async findDeals(organizationId: string): Promise<DealRow[]> {
+    const leads = await prisma.lead.findMany({
+      where: { organizationId, funnel: LeadFunnel.Negocio },
+      include: {
+        company: { select: { id: true, tradeName: true, legalName: true, cnpj: true } },
+        pipelineStage: {
+          select: {
+            id: true,
+            name: true,
+            sortOrder: true,
+            probability: true,
+            isWon: true,
+            isLost: true,
+          },
+        },
+        dealItems: { select: { sku: true, product: { select: { sku: true } } } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
 
-        return leads.map((lead) => {
-            const stage = lead.pipelineStage;
-            const stageIsWon = stage ? stage.isWon : FALLBACK_WON_STATUSES.has(lead.status);
-            const stageIsLost = stage ? stage.isLost : FALLBACK_LOST_STATUSES.has(lead.status);
+    return leads.map((lead) => {
+      const stage = lead.pipelineStage;
+      const stageIsWon = stage ? stage.isWon : FALLBACK_WON_STATUSES.has(lead.status);
+      const stageIsLost = stage ? stage.isLost : FALLBACK_LOST_STATUSES.has(lead.status);
 
-            return {
-                id: lead.id,
-                title: lead.title,
-                amount: lead.amount ?? 0,
-                owner: lead.owner,
-                source: lead.source,
-                companyId: lead.companyId,
-                companyName: lead.company?.tradeName || lead.company?.legalName || null,
-                companyCnpj: lead.company?.cnpj ?? null,
-                contactId: lead.contactId,
-                createdAt: lead.createdAt,
-                updatedAt: lead.updatedAt,
-                closedAt: lead.closedAt,
-                expectedCloseAt: lead.expectedCloseAt,
-                lastInteraction: lead.lastInteraction,
-                nextAction: lead.nextAction,
-                lossReason: lead.lossReason,
-                // Não há coluna dedicada de "observação da perda" separada de lossReason hoje —
-                // lossReason já é o único campo que o Bitrix/CRM preenche para isso (ver
-                // comentário no schema). Mantido igual de propósito, não uma inconsistência.
-                lossObservation: lead.lossReason,
-                status: lead.status,
-                bitrixLeadId: lead.bitrixLeadId,
-                bitrixDealId: lead.bitrixDealId,
-                bitrixSyncStatus: lead.bitrixSyncStatus,
-                bitrixSyncError: lead.bitrixSyncError,
-                bitrixSyncedAt: lead.bitrixSyncedAt,
-                pipelineId: lead.pipelineId,
-                pipelineStageId: lead.pipelineStageId,
-                stageName: stage?.name ?? null,
-                stageSortOrder: stage?.sortOrder ?? null,
-                stageProbability: stage?.probability ?? lead.probability ?? null,
-                stageIsWon,
-                stageIsLost,
-                icp: lead.pic,
-                productSkus: lead.dealItems.flatMap(i => i.sku || i.product?.sku ? [i.sku || i.product?.sku] : []).filter(Boolean) as string[],
-            };
-        });
+      return {
+        id: lead.id,
+        title: lead.title,
+        amount: lead.amount ?? 0,
+        owner: lead.owner,
+        source: lead.source,
+        companyId: lead.companyId,
+        companyName: lead.company?.tradeName || lead.company?.legalName || null,
+        companyCnpj: lead.company?.cnpj ?? null,
+        contactId: lead.contactId,
+        createdAt: lead.createdAt,
+        updatedAt: lead.updatedAt,
+        closedAt: lead.closedAt,
+        expectedCloseAt: lead.expectedCloseAt,
+        lastInteraction: lead.lastInteraction,
+        nextAction: lead.nextAction,
+        lossReason: lead.lossReason,
+        // Não há coluna dedicada de "observação da perda" separada de lossReason hoje —
+        // lossReason já é o único campo que o Bitrix/CRM preenche para isso (ver
+        // comentário no schema). Mantido igual de propósito, não uma inconsistência.
+        lossObservation: lead.lossReason,
+        status: lead.status,
+        bitrixLeadId: lead.bitrixLeadId,
+        bitrixDealId: lead.bitrixDealId,
+        bitrixSyncStatus: lead.bitrixSyncStatus,
+        bitrixSyncError: lead.bitrixSyncError,
+        bitrixSyncedAt: lead.bitrixSyncedAt,
+        pipelineId: lead.pipelineId,
+        pipelineStageId: lead.pipelineStageId,
+        stageName: stage?.name ?? null,
+        stageSortOrder: stage?.sortOrder ?? null,
+        stageProbability: stage?.probability ?? lead.probability ?? null,
+        stageIsWon,
+        stageIsLost,
+        icp: lead.pic,
+        productSkus: lead.dealItems
+          .flatMap((i) => (i.sku || i.product?.sku ? [i.sku || i.product?.sku] : []))
+          .filter(Boolean) as string[],
+      };
+    });
+  }
+
+  async findDealPipelineStages(organizationId: string): Promise<StageDefinition[]> {
+    const stages = await prisma.crmPipelineStage.findMany({
+      where: { pipeline: { organizationId, entity: 'Negocio', active: true } },
+      orderBy: { sortOrder: 'asc' },
+    });
+    return stages.map((stage) => ({
+      id: stage.id,
+      name: stage.name,
+      code: stage.code,
+      sortOrder: stage.sortOrder,
+      probability: stage.probability,
+      isWon: stage.isWon,
+      isLost: stage.isLost,
+    }));
+  }
+
+  async countCompletedMeetings(organizationId: string, from: Date, to: Date): Promise<number> {
+    return prisma.activity.count({
+      where: { organizationId, type: 'Reuniao', status: 'Concluida', date: { gte: from, lt: to } },
+    });
+  }
+
+  async countTimelineEventsByType(
+    organizationId: string,
+    type: string,
+    from: Date,
+    to: Date,
+  ): Promise<number> {
+    return prisma.timelineEvent.count({
+      where: {
+        type,
+        createdAt: { gte: from, lt: to },
+        lead: { organizationId, funnel: LeadFunnel.Negocio },
+      },
+    });
+  }
+
+  async findStageHistory(organizationId: string, leadIds?: string[]) {
+    const rows = await prisma.leadStageHistory.findMany({
+      where: { organizationId, ...(leadIds ? { leadId: { in: leadIds } } : {}) },
+      select: {
+        leadId: true,
+        stageId: true,
+        stageName: true,
+        enteredAt: true,
+        exitedAt: true,
+        createdAt: true,
+      },
+      orderBy: { enteredAt: 'asc' },
+    });
+    return rows;
+  }
+
+  async countDuplicateCompanyGroupsAmongOpenDeals(organizationId: string): Promise<number> {
+    const grouped = await prisma.lead.groupBy({
+      by: ['companyId'],
+      where: {
+        organizationId,
+        funnel: LeadFunnel.Negocio,
+        companyId: { not: null },
+        status: { notIn: [...FALLBACK_WON_STATUSES, ...FALLBACK_LOST_STATUSES] },
+      },
+      _count: { _all: true },
+    });
+    return grouped.filter((g) => g._count._all > 1).length;
+  }
+
+  async hasBitrixConnection(organizationId: string): Promise<boolean> {
+    const count = await prisma.bitrixConnection.count({ where: { organizationId } });
+    return count > 0;
+  }
+
+  async getBitrixSyncActivity(
+    organizationId: string,
+    since: Date,
+  ): Promise<{ lastSyncAt: Date | null; syncedCount: number; failedCount: number }> {
+    const [lastConnection, syncedCount, failedCount] = await Promise.all([
+      prisma.bitrixConnection.findFirst({
+        where: { organizationId, lastImportedAt: { not: null } },
+        orderBy: { lastImportedAt: 'desc' },
+        select: { lastImportedAt: true },
+      }),
+      prisma.bitrixSyncLog.count({
+        where: { organizationId, status: 'success', createdAt: { gte: since } },
+      }),
+      prisma.bitrixSyncLog.count({
+        where: { organizationId, status: 'failed', createdAt: { gte: since } },
+      }),
+    ]);
+    return { lastSyncAt: lastConnection?.lastImportedAt ?? null, syncedCount, failedCount };
+  }
+
+  async getFilterOptions(organizationId: string): Promise<{
+    owners: string[];
+    products: string[];
+    sources: string[];
+    icps: string[];
+    companies: string[];
+  }> {
+    const [owners, sources, icps, dealItems, companies] = await Promise.all([
+      prisma.lead.findMany({
+        where: { organizationId, funnel: LeadFunnel.Negocio, owner: { not: null } },
+        distinct: ['owner'],
+        select: { owner: true },
+      }),
+      prisma.lead.findMany({
+        where: { organizationId, funnel: LeadFunnel.Negocio, source: { not: null } },
+        distinct: ['source'],
+        select: { source: true },
+      }),
+      prisma.lead.findMany({
+        where: { organizationId, funnel: LeadFunnel.Negocio, pic: { not: null } },
+        distinct: ['pic'],
+        select: { pic: true },
+      }),
+      prisma.crmDealItem.findMany({
+        where: { organizationId, lead: { funnel: LeadFunnel.Negocio } },
+        select: { sku: true, product: { select: { sku: true } } },
+      }),
+      prisma.lead.findMany({
+        where: { organizationId, funnel: LeadFunnel.Negocio, companyId: { not: null } },
+        distinct: ['companyId'],
+        select: { company: { select: { tradeName: true, legalName: true } } },
+      }),
+    ]);
+
+    const products = new Set<string>();
+    for (const item of dealItems) {
+      const sku = item.sku || item.product?.sku;
+      if (sku) products.add(sku);
     }
 
-    async findDealPipelineStages(organizationId: string): Promise<StageDefinition[]> {
-        const stages = await prisma.crmPipelineStage.findMany({
-            where: { pipeline: { organizationId, entity: 'Negocio', active: true } },
-            orderBy: { sortOrder: 'asc' },
-        });
-        return stages.map((stage) => ({
-            id: stage.id,
-            name: stage.name,
-            code: stage.code,
-            sortOrder: stage.sortOrder,
-            probability: stage.probability,
-            isWon: stage.isWon,
-            isLost: stage.isLost,
-        }));
-    }
+    return {
+      owners: owners
+        .map((l) => l.owner)
+        .filter((v): v is string => !!v)
+        .sort(),
+      sources: sources
+        .map((l) => l.source)
+        .filter((v): v is string => !!v)
+        .sort(),
+      icps: icps
+        .map((l) => l.pic)
+        .filter((v): v is string => !!v)
+        .sort(),
+      products: [...products].sort(),
+      companies: [
+        ...new Set(
+          companies
+            .map((l) => l.company?.tradeName || l.company?.legalName)
+            .filter((v): v is string => !!v),
+        ),
+      ].sort(),
+    };
+  }
 
-    async countCompletedMeetings(organizationId: string, from: Date, to: Date): Promise<number> {
-        return prisma.activity.count({
-            where: { organizationId, type: 'Reuniao', status: 'Concluida', date: { gte: from, lt: to } },
-        });
-    }
+  async getGoal(
+    organizationId: string,
+    period: string,
+    metric: GoalMetric,
+  ): Promise<CommercialGoalDTO | null> {
+    const goal = await prisma.commercialGoal.findUnique({
+      where: { organizationId_period_metric: { organizationId, period, metric } },
+    });
+    if (!goal) return null;
+    return {
+      period: goal.period,
+      metric: goal.metric as GoalMetric,
+      amount: goal.amount,
+      currency: goal.currency,
+      updatedAt: goal.updatedAt.toISOString(),
+      createdBy: goal.createdBy,
+    };
+  }
 
-    async countTimelineEventsByType(organizationId: string, type: string, from: Date, to: Date): Promise<number> {
-        return prisma.timelineEvent.count({
-            where: { type, createdAt: { gte: from, lt: to }, lead: { organizationId, funnel: LeadFunnel.Negocio } },
-        });
-    }
+  // N+1 (onda 42, auditoria de listagens): buildExecutiveOverview precisa da meta de até 4
+  // períodos (mês do filtro + Proteção 90 dias) — antes desta correção, cada período além do
+  // primeiro disparava um `getGoal` (findUnique) sequencial dentro de um loop. `period` não é
+  // @unique sozinho (só a composta organizationId_period_metric é), então o batch usa `in` em
+  // vez de `findMany({ where: { period } })` — continua respeitando `organizationId` no `where`,
+  // mesmo isolamento de tenant de `getGoal`.
+  async getGoals(
+    organizationId: string,
+    periods: string[],
+    metric: GoalMetric,
+  ): Promise<Map<string, CommercialGoalDTO>> {
+    if (periods.length === 0) return new Map();
+    const goals = await prisma.commercialGoal.findMany({
+      where: { organizationId, metric, period: { in: periods } },
+    });
+    return new Map(
+      goals.map((goal) => [
+        goal.period,
+        {
+          period: goal.period,
+          metric: goal.metric as GoalMetric,
+          amount: goal.amount,
+          currency: goal.currency,
+          updatedAt: goal.updatedAt.toISOString(),
+          createdBy: goal.createdBy,
+        },
+      ]),
+    );
+  }
 
-    async findStageHistory(organizationId: string, leadIds?: string[]) {
-        const rows = await prisma.leadStageHistory.findMany({
-            where: { organizationId, ...(leadIds ? { leadId: { in: leadIds } } : {}) },
-            select: { leadId: true, stageId: true, stageName: true, enteredAt: true, exitedAt: true, createdAt: true },
-            orderBy: { enteredAt: 'asc' },
-        });
-        return rows;
-    }
-
-    async countDuplicateCompanyGroupsAmongOpenDeals(organizationId: string): Promise<number> {
-        const grouped = await prisma.lead.groupBy({
-            by: ['companyId'],
-            where: {
-                organizationId,
-                funnel: LeadFunnel.Negocio,
-                companyId: { not: null },
-                status: { notIn: [...FALLBACK_WON_STATUSES, ...FALLBACK_LOST_STATUSES] },
-            },
-            _count: { _all: true },
-        });
-        return grouped.filter((g) => g._count._all > 1).length;
-    }
-
-    async hasBitrixConnection(organizationId: string): Promise<boolean> {
-        const count = await prisma.bitrixConnection.count({ where: { organizationId } });
-        return count > 0;
-    }
-
-    async getBitrixSyncActivity(organizationId: string, since: Date): Promise<{ lastSyncAt: Date | null; syncedCount: number; failedCount: number }> {
-        const [lastConnection, syncedCount, failedCount] = await Promise.all([
-            prisma.bitrixConnection.findFirst({
-                where: { organizationId, lastImportedAt: { not: null } },
-                orderBy: { lastImportedAt: 'desc' },
-                select: { lastImportedAt: true },
-            }),
-            prisma.bitrixSyncLog.count({ where: { organizationId, status: 'success', createdAt: { gte: since } } }),
-            prisma.bitrixSyncLog.count({ where: { organizationId, status: 'failed', createdAt: { gte: since } } }),
-        ]);
-        return { lastSyncAt: lastConnection?.lastImportedAt ?? null, syncedCount, failedCount };
-    }
-
-    async getFilterOptions(organizationId: string): Promise<{ owners: string[]; products: string[]; sources: string[]; icps: string[]; companies: string[] }> {
-        const [owners, sources, icps, dealItems, companies] = await Promise.all([
-            prisma.lead.findMany({ where: { organizationId, funnel: LeadFunnel.Negocio, owner: { not: null } }, distinct: ['owner'], select: { owner: true } }),
-            prisma.lead.findMany({ where: { organizationId, funnel: LeadFunnel.Negocio, source: { not: null } }, distinct: ['source'], select: { source: true } }),
-            prisma.lead.findMany({ where: { organizationId, funnel: LeadFunnel.Negocio, pic: { not: null } }, distinct: ['pic'], select: { pic: true } }),
-            prisma.crmDealItem.findMany({
-                where: { organizationId, lead: { funnel: LeadFunnel.Negocio } },
-                select: { sku: true, product: { select: { sku: true } } },
-            }),
-            prisma.lead.findMany({
-                where: { organizationId, funnel: LeadFunnel.Negocio, companyId: { not: null } },
-                distinct: ['companyId'],
-                select: { company: { select: { tradeName: true, legalName: true } } },
-            }),
-        ]);
-
-        const products = new Set<string>();
-        for (const item of dealItems) {
-            const sku = item.sku || item.product?.sku;
-            if (sku) products.add(sku);
-        }
-
-        return {
-            owners: owners.map((l) => l.owner).filter((v): v is string => !!v).sort(),
-            sources: sources.map((l) => l.source).filter((v): v is string => !!v).sort(),
-            icps: icps.map((l) => l.pic).filter((v): v is string => !!v).sort(),
-            products: [...products].sort(),
-            companies: [...new Set(companies.map((l) => l.company?.tradeName || l.company?.legalName).filter((v): v is string => !!v))].sort(),
-        };
-    }
-
-    async getGoal(organizationId: string, period: string, metric: GoalMetric): Promise<CommercialGoalDTO | null> {
-        const goal = await prisma.commercialGoal.findUnique({
-            where: { organizationId_period_metric: { organizationId, period, metric } },
-        });
-        if (!goal) return null;
-        return {
-            period: goal.period,
-            metric: goal.metric as GoalMetric,
-            amount: goal.amount,
-            currency: goal.currency,
-            updatedAt: goal.updatedAt.toISOString(),
-            createdBy: goal.createdBy,
-        };
-    }
-
-    // N+1 (onda 42, auditoria de listagens): buildExecutiveOverview precisa da meta de até 4
-    // períodos (mês do filtro + Proteção 90 dias) — antes desta correção, cada período além do
-    // primeiro disparava um `getGoal` (findUnique) sequencial dentro de um loop. `period` não é
-    // @unique sozinho (só a composta organizationId_period_metric é), então o batch usa `in` em
-    // vez de `findMany({ where: { period } })` — continua respeitando `organizationId` no `where`,
-    // mesmo isolamento de tenant de `getGoal`.
-    async getGoals(organizationId: string, periods: string[], metric: GoalMetric): Promise<Map<string, CommercialGoalDTO>> {
-        if (periods.length === 0) return new Map();
-        const goals = await prisma.commercialGoal.findMany({
-            where: { organizationId, metric, period: { in: periods } },
-        });
-        return new Map(goals.map((goal) => [
-            goal.period,
-            {
-                period: goal.period,
-                metric: goal.metric as GoalMetric,
-                amount: goal.amount,
-                currency: goal.currency,
-                updatedAt: goal.updatedAt.toISOString(),
-                createdBy: goal.createdBy,
-            },
-        ]));
-    }
-
-    async upsertGoal(organizationId: string, period: string, metric: GoalMetric, amount: number, currency: string, createdBy: string): Promise<CommercialGoalDTO> {
-        const goal = await prisma.commercialGoal.upsert({
-            where: { organizationId_period_metric: { organizationId, period, metric } },
-            update: { amount, currency, createdBy },
-            create: { organizationId, period, metric, amount, currency, createdBy },
-        });
-        return {
-            period: goal.period,
-            metric: goal.metric as GoalMetric,
-            amount: goal.amount,
-            currency: goal.currency,
-            updatedAt: goal.updatedAt.toISOString(),
-            createdBy: goal.createdBy,
-        };
-    }
+  async upsertGoal(
+    organizationId: string,
+    period: string,
+    metric: GoalMetric,
+    amount: number,
+    currency: string,
+    createdBy: string,
+  ): Promise<CommercialGoalDTO> {
+    const goal = await prisma.commercialGoal.upsert({
+      where: { organizationId_period_metric: { organizationId, period, metric } },
+      update: { amount, currency, createdBy },
+      create: { organizationId, period, metric, amount, currency, createdBy },
+    });
+    return {
+      period: goal.period,
+      metric: goal.metric as GoalMetric,
+      amount: goal.amount,
+      currency: goal.currency,
+      updatedAt: goal.updatedAt.toISOString(),
+      createdBy: goal.createdBy,
+    };
+  }
 }

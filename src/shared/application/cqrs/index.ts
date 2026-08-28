@@ -18,11 +18,7 @@ export {
   CommandHandlerNotFoundError,
   DuplicateCommandHandlerError,
 } from './CommandBus.js';
-export {
-  QueryBus,
-  QueryHandlerNotFoundError,
-  DuplicateQueryHandlerError,
-} from './QueryBus.js';
+export { QueryBus, QueryHandlerNotFoundError, DuplicateQueryHandlerError } from './QueryBus.js';
 export type { PipelineBehavior, PipelineNext } from './PipelineBehavior.js';
 export { LoggingBehavior, type LoggingBehaviorLogger } from './LoggingBehavior.js';
 export {

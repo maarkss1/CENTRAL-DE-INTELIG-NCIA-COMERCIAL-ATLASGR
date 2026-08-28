@@ -19,16 +19,20 @@ import { FORECAST_RULES_VERSION } from './forecastEngine';
  * Nunca escreve sozinho — quem chama decide quando persistir (`ForecastSnapshotStore.save`), o que
  * mantém esta função pura e testável sem I/O.
  */
-export function buildForecastSnapshot(organizationId: string, overview: ExecutiveOverview, now: Date): ForecastSnapshotRecord {
-    return {
-        id: randomUUID(),
-        organizationId,
-        period: overview.period,
-        snapshotAt: now.toISOString(),
-        rulesVersion: FORECAST_RULES_VERSION,
-        commitAmount: overview.commitAmount,
-        bestCaseAmount: overview.bestCaseAmount,
-        forecastAmount: overview.forecastAmount,
-        currency: overview.goal?.currency ?? 'BRL',
-    };
+export function buildForecastSnapshot(
+  organizationId: string,
+  overview: ExecutiveOverview,
+  now: Date,
+): ForecastSnapshotRecord {
+  return {
+    id: randomUUID(),
+    organizationId,
+    period: overview.period,
+    snapshotAt: now.toISOString(),
+    rulesVersion: FORECAST_RULES_VERSION,
+    commitAmount: overview.commitAmount,
+    bestCaseAmount: overview.bestCaseAmount,
+    forecastAmount: overview.forecastAmount,
+    currency: overview.goal?.currency ?? 'BRL',
+  };
 }

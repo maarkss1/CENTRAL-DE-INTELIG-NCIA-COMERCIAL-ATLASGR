@@ -31,8 +31,7 @@ export class UniqueEntityID {
   }
 
   private static ensureIsValid(value: string): void {
-    const uuidPattern =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     if (!uuidPattern.test(value)) {
       throw new Error(`Invalid UniqueEntityID value: "${value}".`);

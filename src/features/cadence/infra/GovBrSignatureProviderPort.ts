@@ -15,12 +15,17 @@ import type { SignatureRequestDraft } from '../domain/signature.js';
  * existente.
  */
 export const govBrSignatureProviderPort: SignatureProviderPort = {
-    async sendForSignature(draft: SignatureRequestDraft) {
-        const providerRequestId = `stub-govbr-request-${randomUUID()}`;
-        logger.info(
-            { organizationId: draft.organizationId, documentId: draft.documentId, provider: draft.provider, providerRequestId },
-            '[CYC-006] Solicitação de assinatura — stub de transporte (provedor gov.br real ainda não plugado, ver GovBrSignatureProviderPort.ts)',
-        );
-        return { providerRequestId };
-    },
+  async sendForSignature(draft: SignatureRequestDraft) {
+    const providerRequestId = `stub-govbr-request-${randomUUID()}`;
+    logger.info(
+      {
+        organizationId: draft.organizationId,
+        documentId: draft.documentId,
+        provider: draft.provider,
+        providerRequestId,
+      },
+      '[CYC-006] Solicitação de assinatura — stub de transporte (provedor gov.br real ainda não plugado, ver GovBrSignatureProviderPort.ts)',
+    );
+    return { providerRequestId };
+  },
 };

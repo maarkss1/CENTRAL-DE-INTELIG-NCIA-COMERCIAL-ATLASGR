@@ -12,9 +12,9 @@ export const INK = { muted: '#898781', grid: '#2c2c2a', axis: '#383835' } as con
 
 /** Estilo do tooltip do recharts, consistente entre os dashboards de analytics e billing. */
 export const tooltipStyle = {
-    backgroundColor: '#0d0d0d',
-    border: '1px solid rgba(255,255,255,0.10)',
-    borderRadius: 12,
-    fontSize: 12,
-    color: '#ffffff',
+  backgroundColor: '#0d0d0d',
+  border: '1px solid rgba(255,255,255,0.10)',
+  borderRadius: 12,
+  fontSize: 12,
+  color: '#ffffff',
 } as const;

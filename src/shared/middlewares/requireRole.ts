@@ -14,26 +14,26 @@ import { hasRequiredRole } from '../../lib/auth/authorization.js';
  *   router.delete('/:id', authenticateToken, requireRole(['ADMIN', 'GESTOR']), handler)
  */
 export function requireRole(allowedRoles: string[]) {
-    return (req: Request, res: Response, next: NextFunction): void => {
-        const authReq = req as AuthRequest;
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const authReq = req as AuthRequest;
 
-        // authenticateToken deve ter sido chamado antes deste middleware
-        if (!authReq.user) {
-            res.status(401).json({
-                success: false,
-                error: 'Authentication required.',
-            });
-            return;
-        }
+    // authenticateToken deve ter sido chamado antes deste middleware
+    if (!authReq.user) {
+      res.status(401).json({
+        success: false,
+        error: 'Authentication required.',
+      });
+      return;
+    }
 
-        if (!hasRequiredRole(authReq.user.role, allowedRoles)) {
-            res.status(403).json({
-                success: false,
-                error: `Insufficient permissions. Required: ${allowedRoles.join(' or ')}. Your role: ${authReq.user.role}.`,
-            });
-            return;
-        }
+    if (!hasRequiredRole(authReq.user.role, allowedRoles)) {
+      res.status(403).json({
+        success: false,
+        error: `Insufficient permissions. Required: ${allowedRoles.join(' or ')}. Your role: ${authReq.user.role}.`,
+      });
+      return;
+    }
 
-        next();
-    };
+    next();
+  };
 }

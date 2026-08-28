@@ -23,7 +23,13 @@ export type DomainEventHandler<TEvent extends IDomainEvent = IDomainEvent> = (
 export interface IDomainEventDispatcher {
   dispatch<TEvent extends IDomainEvent>(event: TEvent): Promise<void>;
   dispatchAll<TEvent extends IDomainEvent>(events: ReadonlyArray<TEvent>): Promise<void>;
-  register<TEvent extends IDomainEvent>(eventName: string, handler: DomainEventHandler<TEvent>): void;
-  unregister<TEvent extends IDomainEvent>(eventName: string, handler: DomainEventHandler<TEvent>): void;
+  register<TEvent extends IDomainEvent>(
+    eventName: string,
+    handler: DomainEventHandler<TEvent>,
+  ): void;
+  unregister<TEvent extends IDomainEvent>(
+    eventName: string,
+    handler: DomainEventHandler<TEvent>,
+  ): void;
   clearHandlers(eventName?: string): void;
 }

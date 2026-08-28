@@ -7,19 +7,19 @@
 import type { ChatCompletionMessage, ChatCompletionResponse, ProviderName } from '../types.js';
 
 export interface ProviderChatParams {
-    messages: ChatCompletionMessage[];
-    temperature: number;
-    agentContext: string;
-    /** Nome de modelo já resolvido pelo model-routing (independente de provedor). Cada adapter
-     * decide se usa esse valor direto ou o remapeia para o nome específico do provedor. */
-    resolvedModel: string;
-    timeoutMs: number;
+  messages: ChatCompletionMessage[];
+  temperature: number;
+  agentContext: string;
+  /** Nome de modelo já resolvido pelo model-routing (independente de provedor). Cada adapter
+   * decide se usa esse valor direto ou o remapeia para o nome específico do provedor. */
+  resolvedModel: string;
+  timeoutMs: number;
 }
 
 export interface ProviderAdapter {
-    readonly name: ProviderName;
-    /** Indica se o provedor tem as credenciais/URL necessárias configuradas via env. Falso não é
-     * erro — só significa "pular esta camada da cadeia de fallback". */
-    isConfigured(): boolean;
-    chatCompletion(params: ProviderChatParams): Promise<ChatCompletionResponse>;
+  readonly name: ProviderName;
+  /** Indica se o provedor tem as credenciais/URL necessárias configuradas via env. Falso não é
+   * erro — só significa "pular esta camada da cadeia de fallback". */
+  isConfigured(): boolean;
+  chatCompletion(params: ProviderChatParams): Promise<ChatCompletionResponse>;
 }

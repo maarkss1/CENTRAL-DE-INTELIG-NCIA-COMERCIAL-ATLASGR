@@ -42,7 +42,7 @@ class SoundEngine {
       this.initCtx();
       if (!this.ctx) return;
       const now = this.ctx.currentTime;
-      
+
       // Chime note 1
       const osc1 = this.ctx.createOscillator();
       const gain1 = this.ctx.createGain();

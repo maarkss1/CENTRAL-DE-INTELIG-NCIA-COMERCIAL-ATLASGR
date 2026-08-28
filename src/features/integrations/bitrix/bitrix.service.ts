@@ -16,30 +16,78 @@
 // bitrix.routes.ts, prospecting.service.ts, bitrixSync.worker.ts e LeadUseCases.ts (import
 // dinâmico) sem exigir nenhuma mudança neles.
 
-export { normalizeWebhookUrl, testWebhook, hostnameOf, getConnectionWebhookUrl, callBitrix, getStatusLabels } from './service/client.js';
+export {
+  normalizeWebhookUrl,
+  testWebhook,
+  hostnameOf,
+  getConnectionWebhookUrl,
+  callBitrix,
+  getStatusLabels,
+} from './service/client.js';
 
 export type { BitrixConnectionSummary } from './service/connections.js';
 export {
-    listBitrixConnections, connectBitrix, disconnectBitrix, testBitrixConnection,
-    regenerateWebhookSecret, setInboundEventsEnabled,
+  listBitrixConnections,
+  connectBitrix,
+  disconnectBitrix,
+  testBitrixConnection,
+  regenerateWebhookSecret,
+  setInboundEventsEnabled,
 } from './service/connections.js';
 
 export type { BitrixLeadSummary, BitrixLeadFilters } from './service/leads.js';
-export { getLeadStatuses, listBitrixLeads, importSelectedBitrixLeads, findUnimportedBitrixLeadIds } from './service/leads.js';
+export {
+  getLeadStatuses,
+  listBitrixLeads,
+  importSelectedBitrixLeads,
+  findUnimportedBitrixLeadIds,
+} from './service/leads.js';
 
-export type { BitrixDealPipeline, BitrixDealStage, BitrixUserOption, BitrixDealSummary, BitrixDealFilters } from './service/deals.js';
-export { getDealPipelines, getDealStages, getBitrixUsers, listBitrixDeals, importSelectedBitrixDeals, findUnimportedBitrixDealIds } from './service/deals.js';
+export type {
+  BitrixDealPipeline,
+  BitrixDealStage,
+  BitrixUserOption,
+  BitrixDealSummary,
+  BitrixDealFilters,
+} from './service/deals.js';
+export {
+  getDealPipelines,
+  getDealStages,
+  getBitrixUsers,
+  listBitrixDeals,
+  importSelectedBitrixDeals,
+  findUnimportedBitrixDealIds,
+} from './service/deals.js';
 
 export type { SyncLeadOverrides } from './service/outboundSync.js';
-export { pushLeadToBitrix, exportLeadToBitrixNow, postCommentToBitrix } from './service/outboundSync.js';
+export {
+  pushLeadToBitrix,
+  exportLeadToBitrixNow,
+  postCommentToBitrix,
+} from './service/outboundSync.js';
 
 export type { BitrixSyncRuleInput } from './service/syncRules.js';
-export { listSyncRules, createSyncRule, setSyncRuleActive, deleteSyncRule, runBitrixSyncTick } from './service/syncRules.js';
+export {
+  listSyncRules,
+  createSyncRule,
+  setSyncRuleActive,
+  deleteSyncRule,
+  runBitrixSyncTick,
+} from './service/syncRules.js';
 
-export { resolveEnumMaps, buildOutboundCustomFields, applyInboundCustomFields, getEntityFields } from './service/customFields.js';
+export {
+  resolveEnumMaps,
+  buildOutboundCustomFields,
+  applyInboundCustomFields,
+  getEntityFields,
+} from './service/customFields.js';
 export type { BitrixEntityKind, BitrixFieldOption } from './service/customFields.js';
 
-export { resolveOwnBitrixUserId, resolveAtlasUserNameByEmail, resolveAtlasUserIdByEmail } from './service/userMapping.js';
+export {
+  resolveOwnBitrixUserId,
+  resolveAtlasUserNameByEmail,
+  resolveAtlasUserIdByEmail,
+} from './service/userMapping.js';
 
 // Histórico real de sincronização (webhook de entrada + push/pull), consumido por WebhookMonitor.tsx.
 export type { BitrixSyncLogSummary } from './service/syncLogs.js';
@@ -49,7 +97,13 @@ export { listRecentBitrixSyncLogs } from './service/syncLogs.js';
 // racional de arquitetura (execução em segundo plano sem worker BullMQ dedicado nesta rodada).
 export type { CreateExtractionRunInput } from './service/extraction.js';
 export {
-    createExtractionRun, listExtractionRuns, getExtractionRun, cancelExtractionRun,
-    deleteExtractionRun, downloadExtractionFile, ALL_EXTRACTION_ENTITIES, EXTRACTION_PERIODS,
+  createExtractionRun,
+  listExtractionRuns,
+  getExtractionRun,
+  cancelExtractionRun,
+  deleteExtractionRun,
+  downloadExtractionFile,
+  ALL_EXTRACTION_ENTITIES,
+  EXTRACTION_PERIODS,
 } from './service/extraction.js';
 export type { ExtractionFileFormat } from './service/extractionFiles.js';

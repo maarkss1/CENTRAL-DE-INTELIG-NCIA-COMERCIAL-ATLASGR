@@ -42,7 +42,9 @@ function isKnownRedisUnavailableRejection(reason: unknown): boolean {
     reason.name === 'MaxRetriesPerRequestError' ||
     reason.constructor?.name === 'AbortError' ||
     /redis|ioredis|bullmq/i.test(reason.stack || '');
-  const matchesKnownPattern = KNOWN_REDIS_UNAVAILABLE_PATTERNS.some((pattern) => pattern.test(message));
+  const matchesKnownPattern = KNOWN_REDIS_UNAVAILABLE_PATTERNS.some((pattern) =>
+    pattern.test(message),
+  );
   return matchesKnownPattern && (looksLikeIoredis || matchesKnownPattern);
 }
 

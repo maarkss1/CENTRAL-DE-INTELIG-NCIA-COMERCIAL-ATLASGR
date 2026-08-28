@@ -7,14 +7,17 @@
 import type { CommercialIntelligenceFilter } from '../../domain/CommercialIntelligence';
 import type { ScoredDeal } from './dealScoring';
 
-export function applyScope(scored: ScoredDeal[], filter: CommercialIntelligenceFilter): ScoredDeal[] {
-    return scored.filter((s) => {
-        if (filter.owner && s.deal.owner !== filter.owner) return false;
-        if (filter.source && s.deal.source !== filter.source) return false;
-        // O ICP / Produto ainda não estão em DealRow, precisaremos adicioná-los no findDeals.
-        if (filter.icp && s.deal.icp !== filter.icp) return false;
-        if (filter.product && !s.deal.productSkus?.includes(filter.product)) return false;
-        if (filter.company && s.deal.companyName !== filter.company) return false;
-        return true;
-    });
+export function applyScope(
+  scored: ScoredDeal[],
+  filter: CommercialIntelligenceFilter,
+): ScoredDeal[] {
+  return scored.filter((s) => {
+    if (filter.owner && s.deal.owner !== filter.owner) return false;
+    if (filter.source && s.deal.source !== filter.source) return false;
+    // O ICP / Produto ainda não estão em DealRow, precisaremos adicioná-los no findDeals.
+    if (filter.icp && s.deal.icp !== filter.icp) return false;
+    if (filter.product && !s.deal.productSkus?.includes(filter.product)) return false;
+    if (filter.company && s.deal.companyName !== filter.company) return false;
+    return true;
+  });
 }

@@ -1,5 +1,9 @@
 import { BaseAgent } from './base.agent.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
+import {
+  SWARM_IDENTITY,
+  SWARM_OUTPUT_CONTRACT,
+  SWARM_UNTRUSTED_CONTENT_GUARD,
+} from './swarm.constants.js';
 
 /**
  * BDR (Business Development Rep) Autônomo de Elite: Prospecção Outbound B2B de Ultra-Performance.
@@ -7,13 +11,12 @@ import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } 
  * Suporta Memória de Longo Prazo (Thread History) e Estado Multiturno via BaseAgent.
  */
 export class BDRAgent extends BaseAgent {
-    protected agentType = 'BDR';
-    protected modelName = 'local-llama3-fast';
-    protected temperature = 0.4;
+  protected agentType = 'BDR';
+  protected modelName = 'local-llama3-fast';
+  protected temperature = 0.4;
 
-    protected buildSystemPrompt(learnedStyle: string | null): string {
-        const base =
-            `${SWARM_IDENTITY} Você é o BDR (Business Development Representative) de Ultra-Performance da AtlasGR — o melhor prospector outbound B2B do Brasil em Gerenciamento de Risco de Carga e Seguros Logísticos.
+  protected buildSystemPrompt(learnedStyle: string | null): string {
+    const base = `${SWARM_IDENTITY} Você é o BDR (Business Development Representative) de Ultra-Performance da AtlasGR — o melhor prospector outbound B2B do Brasil em Gerenciamento de Risco de Carga e Seguros Logísticos.
 
 Sua missão é entregar um Briefing Executivo de Prospecção que seja incisivo, visualmente impecável e PRONTO PARA AÇÃO.
 REGRAS DE FORMATAÇÃO:
@@ -72,23 +75,23 @@ ${SWARM_OUTPUT_CONTRACT}
 
 ${SWARM_UNTRUSTED_CONTENT_GUARD}`;
 
-        return learnedStyle
-            ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência de tom e linguagem):\n${learnedStyle}`
-            : base;
-    }
+    return learnedStyle
+      ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência de tom e linguagem):\n${learnedStyle}`
+      : base;
+  }
 
-    protected buildHumanMessage(input: string): string {
-        return `Dados do lead/empresa para prospecção outbound:\n${input}`;
-    }
+  protected buildHumanMessage(input: string): string {
+    return `Dados do lead/empresa para prospecção outbound:\n${input}`;
+  }
 
-    async run(inputData: string, sessionId?: string) {
-        const { marketResearchTool } = await import('../tools/marketResearchTool.js');
-        const result = await this.runWithTools(inputData, [marketResearchTool], sessionId);
+  async run(inputData: string, sessionId?: string) {
+    const { marketResearchTool } = await import('../tools/marketResearchTool.js');
+    const result = await this.runWithTools(inputData, [marketResearchTool], sessionId);
 
-        return {
-            qualification: result.output as string | undefined,
-            error: result.error,
-            sessionId: result.sessionId,
-        };
-    }
+    return {
+      qualification: result.output as string | undefined,
+      error: result.error,
+      sessionId: result.sessionId,
+    };
+  }
 }

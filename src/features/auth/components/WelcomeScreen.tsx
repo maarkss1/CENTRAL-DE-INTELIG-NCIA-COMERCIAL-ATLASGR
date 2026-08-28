@@ -21,7 +21,14 @@ function FacebookGlyph({ className }: { className?: string }) {
 
 function InstagramGlyph({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      aria-hidden="true"
+    >
       <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
       <circle cx="12" cy="12" r="4" />
       <circle cx="17" cy="7" r="1" fill="currentColor" stroke="none" />
@@ -32,7 +39,16 @@ function InstagramGlyph({ className }: { className?: string }) {
 function LinkedinGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
-      <rect x="3.5" y="3.5" width="17" height="17" rx="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <rect
+        x="3.5"
+        y="3.5"
+        width="17"
+        height="17"
+        rx="3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
       <circle cx="8" cy="8.7" r="1.15" />
       <rect x="7.1" y="10.8" width="1.8" height="6.5" />
       <path d="M11.4 10.8h1.75v1.05c.5-.78 1.35-1.25 2.35-1.25 1.9 0 2.9 1.28 2.9 3.42v3.68h-1.8v-3.28c0-1.1-.4-1.83-1.4-1.83-1 0-1.6.72-1.6 1.83v3.28h-1.8Z" />
@@ -42,7 +58,14 @@ function LinkedinGlyph({ className }: { className?: string }) {
 
 function YoutubeGlyph({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      aria-hidden="true"
+    >
       <rect x="3" y="6" width="18" height="12" rx="4" />
       <path d="M10.3 9.4v5.2l4.7-2.6Z" fill="currentColor" stroke="none" />
     </svg>
@@ -52,7 +75,11 @@ function YoutubeGlyph({ className }: { className?: string }) {
 const SOCIAL_LINKS = [
   { href: 'https://www.facebook.com/atlasgroficial', label: 'Facebook', Icon: FacebookGlyph },
   { href: 'https://www.instagram.com/atlasgroficial/', label: 'Instagram', Icon: InstagramGlyph },
-  { href: 'https://www.linkedin.com/company/atlasgroficial', label: 'LinkedIn', Icon: LinkedinGlyph },
+  {
+    href: 'https://www.linkedin.com/company/atlasgroficial',
+    label: 'LinkedIn',
+    Icon: LinkedinGlyph,
+  },
   { href: 'https://www.youtube.com/@atlasgroficial', label: 'YouTube', Icon: YoutubeGlyph },
 ] as const;
 
@@ -116,7 +143,10 @@ export function WelcomeScreen() {
         animate="show"
         className="relative z-10 flex w-full max-w-3xl flex-col items-center px-6 text-center"
       >
-        <motion.p variants={staggerItem} className="mb-8 text-xs font-bold uppercase tracking-[0.3em] text-ink-2">
+        <motion.p
+          variants={staggerItem}
+          className="mb-8 text-xs font-bold uppercase tracking-[0.3em] text-ink-2"
+        >
           AtlasGR <span className="text-ink-2/40">•</span> Total Trac
         </motion.p>
 
@@ -130,11 +160,18 @@ export function WelcomeScreen() {
           </div>
         </motion.div>
 
-        <motion.h1 variants={staggerItem} className="max-w-2xl text-4xl font-bold leading-tight tracking-tight text-ink md:text-5xl">
+        <motion.h1
+          variants={staggerItem}
+          className="max-w-2xl text-4xl font-bold leading-tight tracking-tight text-ink md:text-5xl"
+        >
           A sua nova inteligência comercial.
         </motion.h1>
-        <motion.p variants={staggerItem} className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-ink-2 md:text-lg">
-          Onde dados se transformam em receita e os leads B2B mais qualificados encontram o seu negócio de forma automatizada.
+        <motion.p
+          variants={staggerItem}
+          className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-ink-2 md:text-lg"
+        >
+          Onde dados se transformam em receita e os leads B2B mais qualificados encontram o seu
+          negócio de forma automatizada.
         </motion.p>
 
         <motion.div variants={staggerItem} className="mt-10">
@@ -151,7 +188,10 @@ export function WelcomeScreen() {
           </button>
         </motion.div>
 
-        <motion.p variants={staggerItem} className="mt-14 text-xs font-medium tracking-wide text-ink-2">
+        <motion.p
+          variants={staggerItem}
+          className="mt-14 text-xs font-medium tracking-wide text-ink-2"
+        >
           Desenvolvido pelo Coordenador Comercial Marcelo do Nascimento
         </motion.p>
       </motion.div>
@@ -167,7 +207,10 @@ export function WelcomeScreen() {
             <MessageCircle size={16} aria-hidden="true" />
             <span>Suporte: (16) 98181-8458</span>
           </a>
-          <a href="tel:1621323790" className="flex items-center gap-2 transition-colors hover:text-ink">
+          <a
+            href="tel:1621323790"
+            className="flex items-center gap-2 transition-colors hover:text-ink"
+          >
             <Phone size={16} aria-hidden="true" />
             <span>Comercial: (16) 2132-3790</span>
           </a>
@@ -175,7 +218,13 @@ export function WelcomeScreen() {
         <ul className="flex gap-4">
           {SOCIAL_LINKS.map(({ href, label, Icon }) => (
             <li key={href}>
-              <a href={href} target="_blank" rel="noreferrer" aria-label={label} className="block transition-colors hover:text-ink">
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={label}
+                className="block transition-colors hover:text-ink"
+              >
                 <Icon className="h-[18px] w-[18px]" />
               </a>
             </li>

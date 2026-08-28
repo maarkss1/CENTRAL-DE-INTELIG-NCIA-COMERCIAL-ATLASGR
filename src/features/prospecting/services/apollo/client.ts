@@ -33,55 +33,60 @@ export const APOLLO_PLAN_RESTRICTED_CODE = 'API_INACCESSIBLE';
 
 /** Detecta o erro específico de plano/escopo insuficiente que a Apollo devolve para People Search. */
 export function parsePlanRestriction(status: number, rawBody: string): boolean {
-    if (status !== 403) return false;
-    try {
-        const parsed = JSON.parse(rawBody);
-        return parsed?.error_code === APOLLO_PLAN_RESTRICTED_CODE;
-    } catch {
-        return rawBody.includes(APOLLO_PLAN_RESTRICTED_CODE);
-    }
+  if (status !== 403) return false;
+  try {
+    const parsed = JSON.parse(rawBody);
+    return parsed?.error_code === APOLLO_PLAN_RESTRICTED_CODE;
+  } catch {
+    return rawBody.includes(APOLLO_PLAN_RESTRICTED_CODE);
+  }
 }
 
 export interface ApolloConnectionStatus {
-    connected: boolean;
-    configured: boolean;
-    providerMode: 'apollo' | 'hunter' | 'none';
-    message?: string;
+  connected: boolean;
+  configured: boolean;
+  providerMode: 'apollo' | 'hunter' | 'none';
+  message?: string;
 }
 
 export async function checkApolloConnection(): Promise<ApolloConnectionStatus> {
-    const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
-    if (!apiKey) {
-        return {
-            connected: false,
-            configured: false,
-            providerMode: 'hunter',
-            message: 'APOLLO_API_KEY não configurada ou PROSPECTING_PROVIDER_MODE != hybrid — usando Hunter.io como fallback.',
-        };
+  const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
+  if (!apiKey) {
+    return {
+      connected: false,
+      configured: false,
+      providerMode: 'hunter',
+      message:
+        'APOLLO_API_KEY não configurada ou PROSPECTING_PROVIDER_MODE != hybrid — usando Hunter.io como fallback.',
+    };
+  }
+
+  try {
+    const res = await fetchWithTimeout(
+      APOLLO_AUTH_HEALTH_URL,
+      {
+        headers: { 'X-Api-Key': apiKey },
+      },
+      8_000,
+    );
+
+    if (res.ok) {
+      return { connected: true, configured: true, providerMode: 'apollo' };
     }
 
-    try {
-        const res = await fetchWithTimeout(APOLLO_AUTH_HEALTH_URL, {
-            headers: { 'X-Api-Key': apiKey },
-        }, 8_000);
-
-        if (res.ok) {
-            return { connected: true, configured: true, providerMode: 'apollo' };
-        }
-
-        const text = await res.text().catch(() => '');
-        return {
-            connected: false,
-            configured: true,
-            providerMode: 'hunter',
-            message: `Apollo respondeu ${res.status} ao validar a API key: ${text.slice(0, 150)}`,
-        };
-    } catch (error) {
-        return {
-            connected: false,
-            configured: true,
-            providerMode: 'hunter',
-            message: error instanceof Error ? error.message : 'Falha desconhecida ao contatar a Apollo.',
-        };
-    }
+    const text = await res.text().catch(() => '');
+    return {
+      connected: false,
+      configured: true,
+      providerMode: 'hunter',
+      message: `Apollo respondeu ${res.status} ao validar a API key: ${text.slice(0, 150)}`,
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      configured: true,
+      providerMode: 'hunter',
+      message: error instanceof Error ? error.message : 'Falha desconhecida ao contatar a Apollo.',
+    };
+  }
 }

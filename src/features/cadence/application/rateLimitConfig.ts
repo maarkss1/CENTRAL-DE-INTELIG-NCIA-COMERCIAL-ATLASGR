@@ -11,19 +11,27 @@ import { DEFAULT_RATE_LIMIT_POLICY, type CadenceRateLimitPolicy } from '../domai
  * - `CADENCE_RATE_LIMIT_CONTACT_WINDOW_HOURS` (default 24)
  * - `CADENCE_RATE_LIMIT_MAX_EMAIL_RECIPIENTS_PER_DOMAIN_PER_DAY` (default 20)
  */
-export function loadCadenceRateLimitPolicy(env: NodeJS.ProcessEnv = process.env): CadenceRateLimitPolicy {
-    return {
-        maxTouchesPerContactWindow: envPositiveInt(env.CADENCE_RATE_LIMIT_MAX_TOUCHES_PER_CONTACT, DEFAULT_RATE_LIMIT_POLICY.maxTouchesPerContactWindow),
-        contactWindowHours: envPositiveInt(env.CADENCE_RATE_LIMIT_CONTACT_WINDOW_HOURS, DEFAULT_RATE_LIMIT_POLICY.contactWindowHours),
-        maxEmailRecipientsPerDomainPerDay: envPositiveInt(
-            env.CADENCE_RATE_LIMIT_MAX_EMAIL_RECIPIENTS_PER_DOMAIN_PER_DAY,
-            DEFAULT_RATE_LIMIT_POLICY.maxEmailRecipientsPerDomainPerDay,
-        ),
-    };
+export function loadCadenceRateLimitPolicy(
+  env: NodeJS.ProcessEnv = process.env,
+): CadenceRateLimitPolicy {
+  return {
+    maxTouchesPerContactWindow: envPositiveInt(
+      env.CADENCE_RATE_LIMIT_MAX_TOUCHES_PER_CONTACT,
+      DEFAULT_RATE_LIMIT_POLICY.maxTouchesPerContactWindow,
+    ),
+    contactWindowHours: envPositiveInt(
+      env.CADENCE_RATE_LIMIT_CONTACT_WINDOW_HOURS,
+      DEFAULT_RATE_LIMIT_POLICY.contactWindowHours,
+    ),
+    maxEmailRecipientsPerDomainPerDay: envPositiveInt(
+      env.CADENCE_RATE_LIMIT_MAX_EMAIL_RECIPIENTS_PER_DOMAIN_PER_DAY,
+      DEFAULT_RATE_LIMIT_POLICY.maxEmailRecipientsPerDomainPerDay,
+    ),
+  };
 }
 
 function envPositiveInt(raw: string | undefined, fallback: number): number {
-    if (!raw) return fallback;
-    const parsed = Number.parseInt(raw, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

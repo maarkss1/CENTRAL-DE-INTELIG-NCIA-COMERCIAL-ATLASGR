@@ -10,13 +10,7 @@ interface EmptyStateProps {
   icon?: React.ReactNode;
 }
 
-export function EmptyState({
-  title,
-  description,
-  actionLabel,
-  onAction,
-  icon
-}: EmptyStateProps) {
+export function EmptyState({ title, description, actionLabel, onAction, icon }: EmptyStateProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }}
@@ -30,7 +24,11 @@ export function EmptyState({
       <h3 className="text-xl font-bold text-ink mb-2">{title}</h3>
       <p className="text-ink-2 max-w-md mb-6 text-sm leading-relaxed">{description}</p>
       {actionLabel && onAction && (
-        <Button onClick={onAction} variant="default" className="shadow-lg shadow-brand/20 cursor-pointer">
+        <Button
+          onClick={onAction}
+          variant="default"
+          className="shadow-lg shadow-brand/20 cursor-pointer"
+        >
           {actionLabel}
         </Button>
       )}

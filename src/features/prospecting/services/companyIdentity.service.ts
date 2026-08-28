@@ -26,17 +26,17 @@ import { toDeterministicCnpj } from './cnpj.util.js';
 export type CompanyIdentityMatchMethod = 'cnpj' | 'name-heuristic' | 'none';
 
 export interface CompanyIdentityResolution {
-    company: Company | null;
-    /** Como `company` foi encontrada — ver documentação do tipo acima. `'none'` quando não achou nada. */
-    method: CompanyIdentityMatchMethod;
+  company: Company | null;
+  /** Como `company` foi encontrada — ver documentação do tipo acima. `'none'` quando não achou nada. */
+  method: CompanyIdentityMatchMethod;
 }
 
 export interface CompanyIdentityInput {
-    organizationId: string;
-    /** CNPJ em qualquer formato (com ou sem pontuação) — normalizado e validado internamente. */
-    cnpj?: string | null;
-    tradeName: string;
-    legalName?: string | null;
+  organizationId: string;
+  /** CNPJ em qualquer formato (com ou sem pontuação) — normalizado e validado internamente. */
+  cnpj?: string | null;
+  tradeName: string;
+  legalName?: string | null;
 }
 
 /**
@@ -56,46 +56,50 @@ export interface CompanyIdentityInput {
  * method: 'none' }` em vez de propagar — resolução de duplicata é best-effort, nunca deve
  * impedir a criação de um lead/company novo por causa de uma falha transitória na checagem.
  */
-export async function resolveCompanyIdentity(input: CompanyIdentityInput): Promise<CompanyIdentityResolution> {
-    try {
-        const cnpj = toDeterministicCnpj(input.cnpj);
-        if (cnpj) {
-            // CNPJs de Company nem sempre chegam ao banco no mesmo formato (alguns fluxos
-            // gravam só dígitos, outros com pontuação) — normaliza no próprio Postgres via
-            // regexp_replace em vez de carregar todas as empresas do tenant para comparar em
-            // memória, o que não escalaria com a base de clientes.
-            //
-            // '\\D' (barra dupla) de propósito: dentro de um template literal comum do JS, `\D`
-            // não é uma sequência de escape reconhecida, então o parser descarta a barra e o texto
-            // "cooked" enviado ao driver do Postgres vira só `D` — Prisma usa esse texto "cooked"
-            // (não `strings.raw`) para montar o SQL da query crua. Com barra simples, o
-            // regexp_replace comparava contra o caractere literal "D" (que um CNPJ nunca tem), e a
-            // busca por CNPJ nunca encontrava nada, mesmo já dentro do withRlsContext — confirmado
-            // empiricamente contra Postgres real (ver tests/integration/prospecting-rls.test.ts).
-            const [found] = await withRlsContext((tx) => tx.$queryRaw<{ id: string }[]>`
+export async function resolveCompanyIdentity(
+  input: CompanyIdentityInput,
+): Promise<CompanyIdentityResolution> {
+  try {
+    const cnpj = toDeterministicCnpj(input.cnpj);
+    if (cnpj) {
+      // CNPJs de Company nem sempre chegam ao banco no mesmo formato (alguns fluxos
+      // gravam só dígitos, outros com pontuação) — normaliza no próprio Postgres via
+      // regexp_replace em vez de carregar todas as empresas do tenant para comparar em
+      // memória, o que não escalaria com a base de clientes.
+      //
+      // '\\D' (barra dupla) de propósito: dentro de um template literal comum do JS, `\D`
+      // não é uma sequência de escape reconhecida, então o parser descarta a barra e o texto
+      // "cooked" enviado ao driver do Postgres vira só `D` — Prisma usa esse texto "cooked"
+      // (não `strings.raw`) para montar o SQL da query crua. Com barra simples, o
+      // regexp_replace comparava contra o caractere literal "D" (que um CNPJ nunca tem), e a
+      // busca por CNPJ nunca encontrava nada, mesmo já dentro do withRlsContext — confirmado
+      // empiricamente contra Postgres real (ver tests/integration/prospecting-rls.test.ts).
+      const [found] = await withRlsContext(
+        (tx) => tx.$queryRaw<{ id: string }[]>`
                 SELECT id FROM "Company"
                 WHERE "organizationId" = ${input.organizationId}
                   AND cnpj IS NOT NULL
                   AND regexp_replace(cnpj, '\\D', '', 'g') = ${cnpj}
                 LIMIT 1
-            `);
-            if (found) {
-                const company = await prisma.company.findUnique({ where: { id: found.id } });
-                if (company) return { company, method: 'cnpj' };
-            }
-        }
-
-        const company = await prisma.company.findFirst({
-            where: {
-                organizationId: input.organizationId,
-                OR: [
-                    { tradeName: { equals: input.tradeName, mode: 'insensitive' } },
-                    { legalName: { equals: input.legalName || input.tradeName, mode: 'insensitive' } },
-                ],
-            },
-        });
-        return { company, method: company ? 'name-heuristic' : 'none' };
-    } catch {
-        return { company: null, method: 'none' };
+            `,
+      );
+      if (found) {
+        const company = await prisma.company.findUnique({ where: { id: found.id } });
+        if (company) return { company, method: 'cnpj' };
+      }
     }
+
+    const company = await prisma.company.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        OR: [
+          { tradeName: { equals: input.tradeName, mode: 'insensitive' } },
+          { legalName: { equals: input.legalName || input.tradeName, mode: 'insensitive' } },
+        ],
+      },
+    });
+    return { company, method: company ? 'name-heuristic' : 'none' };
+  } catch {
+    return { company: null, method: 'none' };
+  }
 }

@@ -13,9 +13,10 @@ export interface LoggingBehaviorLogger {
   error(message: string, meta?: Readonly<Record<string, unknown>>): void;
 }
 
-export class LoggingBehavior<TRequest extends { readonly commandName?: string; readonly queryName?: string }, TValue>
-  implements PipelineBehavior<TRequest, TValue>
-{
+export class LoggingBehavior<
+  TRequest extends { readonly commandName?: string; readonly queryName?: string },
+  TValue,
+> implements PipelineBehavior<TRequest, TValue> {
   private readonly logger: LoggingBehaviorLogger;
 
   public constructor(logger: LoggingBehaviorLogger) {

@@ -10,15 +10,15 @@
  * as outras organizações só alterando o catálogo global — só o próprio tenant.
  */
 export interface FeatureFlagDefinition {
-    key: string;
-    description: string;
-    enabledByDefault: boolean;
+  key: string;
+  description: string;
+  enabledByDefault: boolean;
 }
 
 export const FEATURE_FLAG_REGISTRY: readonly FeatureFlagDefinition[] = [
-    {
-        key: 'bug_report_module',
-        description: 'Exibe o botão flutuante "Reportar problema" no frontend, para todas as marcas.',
-        enabledByDefault: true,
-    },
+  {
+    key: 'bug_report_module',
+    description: 'Exibe o botão flutuante "Reportar problema" no frontend, para todas as marcas.',
+    enabledByDefault: true,
+  },
 ];

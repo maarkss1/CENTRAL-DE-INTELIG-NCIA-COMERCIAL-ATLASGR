@@ -39,8 +39,11 @@ Temos tecnologia própria e somos homologados por todas as principais seguradora
  * Monta o prompt customizado para a IA de Voz levando em consideração os detalhes da empresa
  * que estamos ligando.
  */
-export function buildVoicePromptForLead(companyName?: string | null, contactName?: string | null): string {
-    const contextStr = `
+export function buildVoicePromptForLead(
+  companyName?: string | null,
+  contactName?: string | null,
+): string {
+  const contextStr = `
 DADOS DO LEAD ATUAL:
 Empresa: ${companyName || 'Empresa do setor logístico'}
 Pessoa de Contato: ${contactName || 'Responsável'}
@@ -51,6 +54,5 @@ Identifique e responda a qualquer tipo de pergunta com simpatia. Se for necessá
 Entenda como lidam com seleção de motoristas e gestão de risco, ofereça o Teste Grátis (2 consultas) e encerre com o abraço caloroso da marca Atlas GR ("Tchau, tchau da Atlas GR!").
 `;
 
-    return ATLAS_GR_PLAYBOOK + "\n\n" + contextStr;
+  return ATLAS_GR_PLAYBOOK + '\n\n' + contextStr;
 }
-

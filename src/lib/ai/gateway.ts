@@ -37,13 +37,13 @@
 
 export { LOCAL_MODEL } from './gateway/model-routing.js';
 export type {
-    ChatCompletionMessage,
-    AiTokenUsage,
-    AiInvokeResult,
-    AiChatModel,
-    AiStreamChunk,
-    AiStreamResult,
-    AiUsageLogInput,
+  ChatCompletionMessage,
+  AiTokenUsage,
+  AiInvokeResult,
+  AiChatModel,
+  AiStreamChunk,
+  AiStreamResult,
+  AiUsageLogInput,
 } from './gateway/types.js';
 export { toChatCompletionMessages, cleanAndParseJson } from './gateway/parsing.js';
 export { withRetry } from './gateway/retry.js';
@@ -53,4 +53,7 @@ export { getAiModel } from './gateway/chat-model.js';
 export { streamChatCompletion } from './gateway/streaming.js';
 export { generateEmbedding } from './gateway/embeddings.js';
 export { logAiUsage } from './usage-log.js';
-export { wrapUntrustedContent, UNTRUSTED_CONTENT_GUARD_INSTRUCTION } from './gateway/prompt-safety.js';
+export {
+  wrapUntrustedContent,
+  UNTRUSTED_CONTENT_GUARD_INSTRUCTION,
+} from './gateway/prompt-safety.js';
