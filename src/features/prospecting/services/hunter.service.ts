@@ -1,6 +1,10 @@
 import { logger } from '../../../lib/logger';
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
 import { fetchWithProviderRetry } from '../../../lib/enrichment/providerFetch.js';
+import { checkProviderRateLimit } from './providerRateLimit.js';
+import { withProviderCache, buildProviderCacheKey } from './providerCache.js';
+import { recordProviderCallCost } from './providerCostMetrics.js';
+import { assertProspectingBudgetNotExceeded } from './providerBudget.js';
 
 export interface HunterEmailResult {
     email: string | null;
@@ -48,6 +52,28 @@ export async function findEmailViaHunter(domain: string, fullName: string): Prom
     const lastName = rest.join(' ');
     if (!firstName || !lastName) return { email: null };
 
+    const cacheKey = buildProviderCacheKey('hunter', 'email-finder', { domain, fullName });
+    return withProviderCache(
+        cacheKey,
+        () => findEmailViaHunterUncached(domain, firstName, lastName, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function findEmailViaHunterUncached(
+    domain: string,
+    firstName: string,
+    lastName: string,
+    apiKey: string
+): Promise<HunterEmailResult> {
+    const rateLimit = checkProviderRateLimit('hunter');
+    if (!rateLimit.allowed) return { email: null, error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança (não retorna um `{error}` suave
+    // como o rate limit acima) de propósito, para propagar como erro HTTP real ao chamador em vez
+    // de virar silenciosamente "sem resultado".
+    await assertProspectingBudgetNotExceeded('hunter');
+
     try {
         const params = new URLSearchParams({
             domain,
@@ -61,6 +87,7 @@ export async function findEmailViaHunter(domain: string, fullName: string): Prom
             logger.error({ status: res.status, domain }, 'Hunter.io Email Finder respondeu erro');
             return { email: null, error: `Hunter Email Finder respondeu ${res.status}: ${text.slice(0, 150)}` };
         }
+        recordProviderCallCost('hunter');
         const data = await res.json() as HunterEmailFinderResponse;
         return { email: data?.data?.email || null, score: data?.data?.score };
     } catch (error) {
@@ -84,6 +111,25 @@ export async function findPeopleViaDomainSearch(
     const apiKey = getPaidProspectingKey('HUNTER_API_KEY');
     if (!apiKey || !domain) return { contacts: [] };
 
+    const cacheKey = buildProviderCacheKey('hunter', 'domain-search', { domain, limit });
+    return withProviderCache(
+        cacheKey,
+        () => findPeopleViaDomainSearchUncached(domain, limit, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function findPeopleViaDomainSearchUncached(
+    domain: string,
+    limit: number,
+    apiKey: string
+): Promise<{ contacts: HunterPersonContact[]; error?: string }> {
+    const rateLimit = checkProviderRateLimit('hunter');
+    if (!rateLimit.allowed) return { contacts: [], error: rateLimit.message };
+
+    // DEC-09: ver comentário equivalente em findEmailViaHunterUncached acima.
+    await assertProspectingBudgetNotExceeded('hunter');
+
     try {
         const params = new URLSearchParams({
             domain,
@@ -96,6 +142,7 @@ export async function findPeopleViaDomainSearch(
             const text = await res.text().catch(() => '');
             return { contacts: [], error: `Hunter Domain Search respondeu ${res.status}: ${text.slice(0, 150)}` };
         }
+        recordProviderCallCost('hunter');
         const data = await res.json() as HunterDomainSearchResponse;
         const emails = data?.data?.emails || [];
 

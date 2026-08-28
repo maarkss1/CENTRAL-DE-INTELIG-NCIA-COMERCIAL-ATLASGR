@@ -14,6 +14,11 @@ import type {
     SignalQuery,
 } from './accountIntelligence.schemas.js';
 import { getMarketIntelligenceCompany } from './marketIntelligenceCompany.service.js';
+import {
+    computeDataQualityReport,
+    fetchDataQualityReportInputs,
+    type DataQualityReport,
+} from './dataQualityReport.service.js';
 
 type TenantDb = NonNullable<AuthRequest['db']>;
 type KnowledgeType = 'FACT' | 'INFERENCE' | 'RECOMMENDATION';
@@ -45,6 +50,7 @@ export interface AccountIntelligenceServiceContract {
     listRelationships(accountId: string, query: RelationshipQuery): Promise<PaginatedResult<unknown>>;
     listRecommendations(accountId: string, query: RecommendationQuery): Promise<PaginatedResult<unknown>>;
     listEvidence(accountId: string, query: EvidenceQuery): Promise<PaginatedResult<unknown>>;
+    getDataQualityReport(): Promise<DataQualityReport>;
 }
 
 const companySelect = {
@@ -648,6 +654,17 @@ export class AccountIntelligenceService implements AccountIntelligenceServiceCon
         ]);
         const items = rows.map((row) => ({ ...row, value: row.value === null ? null : sanitizeJson(row.value) }));
         return toPaginated(items, total, query);
+    }
+
+    /**
+     * Relatório de qualidade de dados agregado do tenant (Account Intelligence). Não recebe
+     * `accountId`: é um consolidado organização-wide, cálculo real contra o estado atual do banco
+     * (ver `dataQualityReport.service.ts`), não um documento estático.
+     */
+    async getDataQualityReport(): Promise<DataQualityReport> {
+        const now = new Date();
+        const input = await fetchDataQualityReportInputs(this.db, this.organizationId, now);
+        return computeDataQualityReport(input);
     }
 }
 

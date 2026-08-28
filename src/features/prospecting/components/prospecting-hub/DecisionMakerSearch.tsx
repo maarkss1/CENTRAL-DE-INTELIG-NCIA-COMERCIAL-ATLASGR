@@ -245,7 +245,7 @@ export function DecisionMakerSearch({
                         {normalizedCompanyEmails.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
                                 {normalizedCompanyEmails.map((email) => (
-                                    <a key={email} href={`mailto:${email}`} className="text-success hover:underline flex items-center gap-1">
+                                    <a key={email} href={`mailto:${email}`} className="text-success-active dark:text-success hover:underline flex items-center gap-1">
                                         <Mail size={12} /> {email}
                                     </a>
                                 ))}
@@ -410,7 +410,7 @@ export function DecisionMakerSearch({
                 {isSearching ? 'Buscando pessoas...' : 'Buscar Pessoas'}
             </button>
 
-            {error && <p className="text-xs text-danger mt-3">{error}</p>}
+            {error && <p className="text-xs text-danger-active dark:text-danger mt-3">{error}</p>}
 
             {results && (
                 <div className="mt-4 border-t border-indigo-100 pt-4">
@@ -431,7 +431,7 @@ export function DecisionMakerSearch({
                                 <div className="rounded-xl bg-surface-2 p-3">
                                     <span className="block text-[9px] uppercase tracking-wider text-ink-2 mb-1">E-mail do decisor</span>
                                     {selectedDecisionMaker.email ? (
-                                        <a href={`mailto:${selectedDecisionMaker.email}`} className="text-success hover:underline flex items-center gap-1">
+                                        <a href={`mailto:${selectedDecisionMaker.email}`} className="text-success-active dark:text-success hover:underline flex items-center gap-1">
                                             <Mail size={12} /> {selectedDecisionMaker.email}
                                         </a>
                                     ) : (
@@ -495,7 +495,7 @@ export function DecisionMakerSearch({
                                         </button>
                                         {dm.title && <span className="text-ink-2 font-medium bg-surface-2 px-2 py-0.5 rounded-md">{dm.title}</span>}
                                         {dm.email && (
-                                            <a href={`mailto:${dm.email}`} className="flex items-center gap-1 text-success font-medium bg-success/10 px-2 py-0.5 rounded-md hover:underline">
+                                            <a href={`mailto:${dm.email}`} className="flex items-center gap-1 text-success-active dark:text-success font-medium bg-success/10 px-2 py-0.5 rounded-md hover:underline">
                                                 <Mail size={12} /> {dm.email}
                                                 {dm.emailSource === 'hunter' && <span className="text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full font-bold ml-1">HUNTER</span>}
                                             </a>

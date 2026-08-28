@@ -35,6 +35,23 @@ export function isValidCnpj(cnpj: string): boolean {
     return digits === base + String(firstCheck) + String(secondCheck);
 }
 
+/**
+ * Normaliza um CNPJ (qualquer formato de entrada — com ou sem pontuação) para uma chave de
+ * identidade determinística: string de 14 dígitos, só depois de passar pela validação real do
+ * dígito verificador (`isValidCnpj`). Devolve `null` quando o CNPJ está ausente, mal formado ou
+ * com dígito verificador inválido — nesses casos NÃO existe identidade determinística de empresa
+ * disponível, e quem chamar esta função deve cair para um método de resolução heurístico (nunca
+ * tratar `null` como "CNPJ igual a vazio").
+ *
+ * Único ponto usado por toda a resolução de identidade de empresa (`companyIdentity.service.ts`)
+ * e pela criação de `Company` em `prospecting.service.ts` — existia duplicado inline nos dois
+ * lugares antes desta extração.
+ */
+export function toDeterministicCnpj(cnpjRaw?: string | null): string | null {
+    if (!cnpjRaw) return null;
+    return isValidCnpj(cnpjRaw) ? sanitizeCnpj(cnpjRaw) : null;
+}
+
 
 /** Busca um CNPJ na web pelo nome da empresa (útil quando o usuário só digitou o nome) */
 export async function discoverCnpjByName(companyName: string): Promise<string | null> {

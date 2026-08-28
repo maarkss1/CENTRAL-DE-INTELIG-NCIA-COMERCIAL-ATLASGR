@@ -38,7 +38,7 @@ const FUNNEL_RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#18
 function StatTile({ label, value, hint, tone }: {
     label: string; value: string; hint?: string; tone?: 'good' | 'critical';
 }) {
-    const toneClass = tone === 'good' ? 'text-[#0ca30c]' : tone === 'critical' ? 'text-[#d03b3b]' : 'text-ink';
+    const toneClass = tone === 'good' ? 'text-success-active dark:text-success' : tone === 'critical' ? 'text-critical' : 'text-ink';
     return (
         <Card variant="stat" padding="sm">
             <p className="text-[11px] uppercase tracking-wide text-ink-2 font-semibold">{label}</p>

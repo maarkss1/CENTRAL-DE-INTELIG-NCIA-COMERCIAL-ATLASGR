@@ -35,6 +35,12 @@ vi.mock('../../src/lib/queue/redis.js', () => ({
     // exercita o caminho "sessão conectada" (socket mockado sempre presente), então o valor não
     // muda o comportamento testado aqui — só precisa existir para o módulo carregar.
     isDedicatedWorkerProcess: false,
+    // Onda 41 (lock distribuído entre réplicas): redisConfigured: false faz acquireDistributedLock
+    // cair no ramo "instância única" (trava sempre concedida, sem chamar cacheConnection.set/get/
+    // eval) — mesma suposição de "sem Redis real neste teste" já documentada acima para
+    // queuesEnabled/isDedicatedWorkerProcess (ver também o mesmo ajuste em
+    // tests/unit/features/integrations/whatsapp/whatsapp.service.test.ts).
+    redisConfigured: false,
 }));
 
 vi.mock('fs', () => ({

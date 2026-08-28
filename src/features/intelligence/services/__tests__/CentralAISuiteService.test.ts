@@ -102,6 +102,12 @@ vi.mock('../../../../lib/ai/gateway.js', () => ({
             return {};
         }
     }),
+    // AI-0XX: KnowledgeCopilotService passou a envolver cada chunk de RAG com o delimitador
+    // estrutural real de `lib/ai/gateway/prompt-safety.ts` — puramente síncrono/sem I/O, então
+    // reexportar a implementação real aqui (em vez de mais um stub) é seguro e não exige atualizar
+    // este mock a cada novo export do barril.
+    wrapUntrustedContent: (content: string) => `<untrusted_external_content>\n${content}\n</untrusted_external_content>`,
+    UNTRUSTED_CONTENT_GUARD_INSTRUCTION: 'stub-guard-instruction',
 }));
 
 describe('CentralAISuiteService', () => {

@@ -8,6 +8,9 @@ import { APOLLO_SEARCH_URL, DECISION_MAKER_PREFETCH_BUDGET_MS } from './client.j
 import type { ApolloSearchResponse } from './types.js';
 import { enrichCandidatesWithDecisionMakers } from './people.js';
 import { ExclusionSet } from '../../utils/exclusionSet.js';
+import { checkProviderRateLimit } from '../providerRateLimit.js';
+import { recordProviderCallCost } from '../providerCostMetrics.js';
+import { assertProspectingBudgetNotExceeded } from '../providerBudget.js';
 
 /**
  * As opções de "Região de Atuação (ampla)" do ICP (icp-options.ts) usam rótulos do playbook
@@ -125,6 +128,13 @@ export async function fetchApolloCandidates(
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey) return { candidates: [] };
 
+    const rateLimit = checkProviderRateLimit('apollo');
+    if (!rateLimit.allowed) return { candidates: [], error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
+
     const extraKeywords = criteria.palavrasChave
         ? criteria.palavrasChave.split(',').map((k) => k.trim()).filter(Boolean)
         : [];
@@ -222,6 +232,7 @@ export async function fetchApolloCandidates(
             return { candidates: [], error: `Apollo API respondeu ${res.status}: ${text.slice(0, 200)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = (await res.json()) as ApolloSearchResponse;
         let organizations = data.organizations || [];
 

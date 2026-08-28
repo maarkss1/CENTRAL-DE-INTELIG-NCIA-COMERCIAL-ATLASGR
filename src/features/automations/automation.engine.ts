@@ -5,6 +5,7 @@ import { requestContext } from '../../lib/async-context.js';
 import { notificationService, type NotificationKind } from '../notifications/notification.service.js';
 import { toPrismaAutomationTrigger, fromPrismaAutomationAction } from '../../lib/enumMap.js';
 import { automationHistoryService } from './automation-history.service.js';
+import { buildTriggerIdempotencyKey, claimAutomationTrigger } from './automation-idempotency.service.js';
 
 export type AutomationTrigger = 'Lead criado' | 'Lead mudou de status' | 'Atividade concluída' | 'Lead sem interação';
 export type AutomationActionType = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
@@ -126,6 +127,43 @@ export function matchesConditions(
     });
 }
 
+/**
+ * Erro de configuração/validação da própria regra (destinatário ausente, lead não vinculado ao
+ * evento, ação desconhecida, SMTP não configurado…): o problema está no dado ou na config, não numa
+ * falha transitória de rede/serviço externo. Repetir não muda o resultado, então este tipo de erro
+ * NUNCA entra no retry de `runActionWithRetry` — evita esperar (e acumular backoff) por um erro que
+ * vai se repetir de forma idêntica em toda tentativa.
+ */
+export class PermanentAutomationError extends Error {}
+
+/** Tentativas totais por ação (1 original + 2 retries). Mesma ordem de grandeza do retry de IA já
+ *  existente (`src/lib/ai/gateway/retry.ts`), mas com política de classificação própria do domínio
+ *  de automações (ver `PermanentAutomationError`) — não reaproveitado diretamente porque aquele
+ *  helper classifica erro por padrão de mensagem HTTP (429/5xx) específico de provedor de IA, que
+ *  não se aplica às ações deste motor (DB write, SMTP, chamada de voz). */
+export const MAX_ACTION_ATTEMPTS = 3;
+export const ACTION_RETRY_BASE_DELAY_MS = 500;
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export type RunActionWithRetryResult =
+    | { success: true; attempts: number }
+    | { success: false; attempts: number; error: unknown };
+
+/**
+ * Estado compartilhado entre as tentativas de UMA MESMA execução de ação (não sobrevive além de
+ * `runActionWithRetry`). Existe porque uma ação pode ter uma etapa não-idempotente (criar a
+ * notificação in-app) seguida de uma etapa que pode falhar de forma transitória (enviar o e-mail).
+ * Sem isso, retry por falha do e-mail recriaria a notificação in-app a cada tentativa.
+ */
+interface ActionAttemptState {
+    /** "Notificar equipe": true assim que a notificação in-app é criada — nunca recriar num retry
+     *  motivado só pela falha do e-mail que vem depois. */
+    inAppNotificationCreated?: boolean;
+}
+
 export class AutomationEngine {
     /**
      * Roda todas as automações ativas que casam com o evento.
@@ -183,15 +221,34 @@ export class AutomationEngine {
             for (const automation of automations) {
                 if (!matchesConditions(automation.conditions, event.data)) continue;
 
-                const startedAt = new Date();
                 const correlationId = randomUUID();
                 const action = fromPrismaAutomationAction(automation.action);
 
-                try {
-                    await this.runAction(
-                        { ...automation, action },
-                        event,
+                // Dedupe de disparo: mesmo evento de gatilho (replay, corrida entre workers) para a
+                // mesma automação, dentro da janela de TTL, não executa a ação uma segunda vez. Ver
+                // `automation-idempotency.service.ts` para a justificativa completa da chave e do
+                // fail-open quando o Redis está indisponível.
+                const idempotencyKey = buildTriggerIdempotencyKey({
+                    automationId: automation.id,
+                    organizationId: event.organizationId,
+                    entity: event.entity,
+                    entityId: event.entityId,
+                    trigger: event.trigger,
+                    data: event.data,
+                });
+                const claim = await claimAutomationTrigger(idempotencyKey);
+                if (claim === 'duplicate') {
+                    logger.info(
+                        { automationId: automation.id, name: automation.name, correlationId, entityId: event.entityId },
+                        'Disparo de automação ignorado: mesmo evento já processado dentro da janela de dedupe.',
                     );
+                    continue;
+                }
+
+                const startedAt = new Date();
+                const result = await this.runActionWithRetry({ ...automation, action }, event);
+
+                if (result.success) {
                     await prisma.automation.update({
                         where: { id: automation.id },
                         data: { lastRunAt: new Date(), runCount: { increment: 1 } },
@@ -212,8 +269,9 @@ export class AutomationEngine {
                         status: 'success',
                         startedAt,
                         finishedAt: new Date(),
+                        retryCount: result.attempts - 1,
                     });
-                } catch (err) {
+                } else {
                     await this.recordHistorySafely({
                         automationId: automation.id,
                         automationName: automation.name,
@@ -228,11 +286,12 @@ export class AutomationEngine {
                         status: 'failed',
                         startedAt,
                         finishedAt: new Date(),
-                        error: err,
+                        error: result.error,
+                        retryCount: result.attempts - 1,
                     });
                     logger.error(
-                        { err, automationId: automation.id, name: automation.name, correlationId },
-                        'Automação falhou ao executar',
+                        { err: result.error, automationId: automation.id, name: automation.name, correlationId, attempts: result.attempts },
+                        'Automação falhou ao executar após esgotar as tentativas',
                     );
                 }
             }
@@ -258,9 +317,54 @@ export class AutomationEngine {
         }
     }
 
+    /**
+     * Executa a ação com retry e backoff linear para falhas transitórias.
+     *
+     * `PermanentAutomationError` (config/validação da regra — ver a classe) nunca é reexecutado:
+     * tentar de novo daria o mesmo resultado, só mais devagar. Qualquer outro erro (DB indisponível,
+     * SMTP fora do ar, falha de rede na chamada de voz) é tratado como transitório e reexecutado até
+     * `MAX_ACTION_ATTEMPTS`, com backoff linear (`ACTION_RETRY_BASE_DELAY_MS * tentativa`) entre elas.
+     *
+     * Nunca lança: o chamador (`handleScoped`) decide o que fazer com sucesso/falha via o resultado
+     * discriminado, para poder registrar `retryCount` no histórico mesmo em caso de falha final.
+     */
+    private async runActionWithRetry(
+        automation: { id: string; name: string; action: string; actionConfig: unknown },
+        event: AutomationEvent,
+    ): Promise<RunActionWithRetryResult> {
+        let lastError: unknown;
+        const attemptState: ActionAttemptState = {};
+
+        for (let attempt = 1; attempt <= MAX_ACTION_ATTEMPTS; attempt++) {
+            try {
+                await this.runAction(automation, event, attemptState);
+                return { success: true, attempts: attempt };
+            } catch (err) {
+                lastError = err;
+                const permanent = err instanceof PermanentAutomationError;
+                const isLastAttempt = attempt === MAX_ACTION_ATTEMPTS;
+
+                if (permanent || isLastAttempt) {
+                    return { success: false, attempts: attempt, error: err };
+                }
+
+                logger.warn(
+                    { err, automationId: automation.id, name: automation.name, attempt, maxAttempts: MAX_ACTION_ATTEMPTS },
+                    'Ação de automação falhou; tentando novamente após backoff.',
+                );
+                await sleep(ACTION_RETRY_BASE_DELAY_MS * attempt);
+            }
+        }
+
+        // Inatingível (o loop sempre retorna dentro de `MAX_ACTION_ATTEMPTS` iterações), mas
+        // satisfaz o checador de tipos sem precisar de `!`/`as` no retorno.
+        return { success: false, attempts: MAX_ACTION_ATTEMPTS, error: lastError };
+    }
+
     private async runAction(
         automation: { id: string; name: string; action: string; actionConfig: unknown },
         event: AutomationEvent,
+        attemptState: ActionAttemptState = {},
     ): Promise<void> {
         const config = (automation.actionConfig ?? {}) as Record<string, unknown>;
 
@@ -269,20 +373,26 @@ export class AutomationEngine {
             const title = renderTemplate(c.title || automation.name, event.data);
             const body = c.body ? renderTemplate(c.body, event.data) : null;
 
-            await notificationService.create({
-                organizationId: event.organizationId,
-                title,
-                body,
-                kind: c.kind ?? 'Info',
-                entity: event.entity,
-                entityId: event.entityId,
-                automationId: automation.id,
-            });
+            // Guardado por `attemptState`: num retry motivado só pela falha do envio de e-mail
+            // abaixo, a notificação in-app já criada numa tentativa anterior não é recriada.
+            if (!attemptState.inAppNotificationCreated) {
+                await notificationService.create({
+                    organizationId: event.organizationId,
+                    title,
+                    body,
+                    kind: c.kind ?? 'Info',
+                    entity: event.entity,
+                    entityId: event.entityId,
+                    automationId: automation.id,
+                });
+                attemptState.inAppNotificationCreated = true;
+            }
 
             if (c.channel === 'email') {
                 const to = c.to ? renderTemplate(c.to, event.data) : '';
                 if (!to) {
-                    throw new Error('A ação "Notificar equipe" com canal de e-mail precisa de um destinatário ("to").');
+                    // Config da regra, não falha transitória — repetir não cria um destinatário.
+                    throw new PermanentAutomationError('A ação "Notificar equipe" com canal de e-mail precisa de um destinatário ("to").');
                 }
                 const { sendEmail, MailerNotConfiguredError } = await import('../../lib/email/mailer.js');
                 try {
@@ -291,9 +401,12 @@ export class AutomationEngine {
                     // Sem SMTP configurado, a notificação interna já foi criada acima (o time não
                     // fica sem aviso nenhum) — só o e-mail extra não sai. Propaga um erro claro para
                     // o histórico da automação registrar a causa, em vez de fingir sucesso total.
+                    // Ausência de config (env var) não muda entre tentativas — não retryable.
                     if (error instanceof MailerNotConfiguredError) {
-                        throw new Error('Canal de e-mail não configurado (SMTP_HOST ausente) — a notificação interna foi criada normalmente.');
+                        throw new PermanentAutomationError('Canal de e-mail não configurado (SMTP_HOST ausente) — a notificação interna foi criada normalmente.');
                     }
+                    // Qualquer outra falha do transporte SMTP (timeout, recusa de conexão, 4xx/5xx
+                    // do provedor) é tratada como transitória e entra no retry do chamador.
                     throw error;
                 }
             }
@@ -307,7 +420,8 @@ export class AutomationEngine {
                 ? event.entityId
                 : (typeof event.data.leadId === 'string' ? event.data.leadId : null);
             if (!leadId) {
-                throw new Error('A ação "Criar atividade" precisa de um lead vinculado ao evento.');
+                // Dado do evento, não instabilidade de rede/DB — retentar não cria um lead do nada.
+                throw new PermanentAutomationError('A ação "Criar atividade" precisa de um lead vinculado ao evento.');
             }
             const c = config as CreateActivityConfig;
             const date = new Date();
@@ -332,7 +446,8 @@ export class AutomationEngine {
 
         if (automation.action === 'Ligar via SDR de Voz') {
             if (event.entity !== 'Lead') {
-                throw new Error('A ação "Ligar via SDR de Voz" só se aplica a eventos de lead.');
+                // Config/tipo do evento, não instabilidade externa — nunca vira "Lead" tentando de novo.
+                throw new PermanentAutomationError('A ação "Ligar via SDR de Voz" só se aplica a eventos de lead.');
             }
             const { callLead, SuppressedNumberError } = await import('../integrations/birth-voice/birthVoice.service.js');
             const { isWithinCallWindow } = await import('../integrations/birth-voice/coldCall.policy.js');
@@ -347,6 +462,14 @@ export class AutomationEngine {
             }
 
             try {
+                // Nota de limitação conhecida: se `callLead` falhar de forma transitória DEPOIS de a
+                // chamada já ter sido efetivamente iniciada no provedor (resposta perdida na volta),
+                // o retry abaixo pode discar de novo — `birthVoice.service.ts` não expõe hoje uma
+                // chave de idempotência por tentativa para evitar isso (fora do escopo deste agente,
+                // que só edita `src/features/automations/**`). Risco aceito nesta mudança: o cenário
+                // real e frequente que motivou a tarefa (evento duplicado por replay/corrida) já é
+                // coberto pelo dedupe de disparo em `automation-idempotency.service.ts`, que impede a
+                // automação de sequer chegar a chamar `callLead` duas vezes para o MESMO evento.
                 await callLead(event.organizationId, event.entityId);
             } catch (error) {
                 // Número com opt-out é a regra funcionando, não uma falha.
@@ -359,7 +482,8 @@ export class AutomationEngine {
             return;
         }
 
-        throw new Error(`Ação desconhecida: ${automation.action}`);
+        // Ação inexistente no catálogo — problema de config da regra, não retentável.
+        throw new PermanentAutomationError(`Ação desconhecida: ${automation.action}`);
     }
 }
 

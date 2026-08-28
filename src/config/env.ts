@@ -22,6 +22,15 @@ const envSchema = z.object({
   // secretFields.ts, não aqui, para não derrubar a aplicação inteira ao subir só por causa deste
   // schema quando NODE_ENV ainda não foi resolvido nesta camada.
   CREDENTIALS_ENCRYPTION_KEY: z.string().optional(),
+  // Segredo do índice de busca determinístico (HMAC-SHA256) de PII de Contact (phone/email/
+  // whatsapp) — ver src/lib/security/piiSearchIndex.ts. Permite `WHERE`/dedup por igualdade exata
+  // continuar funcionando no dia em que esses campos voltarem a ser cifrados em repouso (cifra com
+  // IV aleatório nunca produz o mesmo ciphertext duas vezes — ver
+  // .agents/handoffs/onda-39/01-para-00-pii-contact-revertida-quebra-integration.md). Separado de
+  // CREDENTIALS_ENCRYPTION_KEY/BETTER_AUTH_SECRET pelo mesmo motivo que aqueles são separados entre
+  // si: um segredo comprometido não deve comprometer os outros. Opcional aqui (mesmo padrão) — a
+  // obrigatoriedade em produção é reforçada em runtime por piiSearchIndex.ts.
+  PII_SEARCH_HMAC_SECRET: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   MEILI_MASTER_KEY: z.string().optional(),
@@ -175,6 +184,19 @@ const envSchema = z.object({
   // nunca finge que o arquivo ainda existe.
   BITRIX_EXTRACTION_STORAGE_DIR: z.string().default('./data/bitrix-extractions'),
 
+  // ── Retenção de memória de agentes de IA (AgentMemory) ───────────────────
+  // AgentMemory acumula uma linha por (sessionId, agentType, organizationId) para cada execução de
+  // agente do enxame (SDR/BDR/CLOSER/CRM/OPS/LearningAgent) e nunca teve expurgo — cresce para
+  // sempre. Mesmo padrão de janela configurável já usado para BitrixExtractionRun acima
+  // (BITRIX_EXTRACTION_RETENTION_DAYS): 90 dias por padrão, ver
+  // agentMemoryCleanup.worker.ts. Diferente do expurgo de extrações Bitrix, este worker roda sem
+  // flag de "enabled" adicional — não há decisão de negócio pendente aqui, é remediação direta do
+  // gap de retenção (mesmo critério de "correção de dívida técnica" do freeze de escopo em
+  // AGENTS.md). `agentType = 'LEARNING_PROFILE'` (perfil de estilo aprendido, persistente por
+  // tenant+ator) é deliberadamente excluído do expurgo por idade — ver comentário em
+  // agentMemoryCleanup.worker.ts.
+  AGENT_MEMORY_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+
   // ── Base legal LGPD para dado pessoal enviado a provedor de IA externo ──────
   // Ponto único de verificação em guardrails.service.ts (hasPiiExternalConsent/
   // assertPiiExternalConsent), consumido pelos caminhos reais que buscam dado pessoal de um
@@ -187,6 +209,23 @@ const envSchema = z.object({
   // SDR_COLD_CALL_*: lista vazia = nenhuma organização autorizada, mesmo que o restante do enxame
   // esteja ligado. `*`/`all` libera todas (mesma sintaxe de SWARM_SCHEDULER_ORGANIZATIONS).
   AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: z.string().optional(),
+
+  // ── Reranking da Base de Conhecimento (DEC-11, dossiê CPI, opção A) ─────────
+  // O RRF (`src/features/knowledge/search.service.ts`) já entrega um resultado final hoje — este
+  // estágio roda DEPOIS da fusão, sobre os top-N candidatos, só para reordenar por relevância real
+  // via LLM (ver `src/features/knowledge/services/reranker.service.ts` para a decisão LLM vs.
+  // cross-encoder). Default false: feature nova, opt-in — sem isto configurado o comportamento de
+  // busca é idêntico ao de antes desta mudança (RRF puro), inclusive nos testes de integração
+  // existentes que mockam o gateway de IA sem `getAiModel`.
+  KNOWLEDGE_RERANK_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  // Quantos candidatos do topo da lista já fundida por RRF entram na janela reordenada pelo
+  // reranker — o restante (se `hybridSearch` pedir mais que isto) mantém a ordem do RRF sem custo
+  // de IA adicional. 20 casa com `CANDIDATES_PER_STRATEGY` (o que cada perna da busca já traz).
+  KNOWLEDGE_RERANK_CANDIDATES: z.coerce.number().int().positive().default(20),
+  // Nome lógico de modelo (roteado por src/lib/ai/gateway/model-routing.ts) — o mesmo alias "fast"
+  // que KnowledgeCopilotService já usa para responder a pergunta em si: pontuar relevância é uma
+  // tarefa mais barata que gerar a resposta final, não precisa do modelo "grande".
+  KNOWLEDGE_RERANK_MODEL: z.string().default('local-llama3-fast'),
 })
   // Uma janela invertida (início 18, fim 9) nunca deixaria a campanha rodar, e o sintoma seria
   // "o SDR não liga" — muito mais difícil de diagnosticar do que uma falha na subida.

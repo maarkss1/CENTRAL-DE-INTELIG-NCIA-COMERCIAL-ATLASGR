@@ -4,33 +4,17 @@ import { generateEmbedding } from '../../lib/ai/gateway.js';
 import { fetchWithTimeout } from '../../lib/http.js';
 import { toVectorLiteral } from './ingestion.service.js';
 import { hasVectorSupport } from './vector-support.js';
+import { env } from '../../config/env.js';
+import { rerankerService } from './services/reranker.service.js';
+import type { SearchHit, SearchResponse } from './knowledge.types.js';
+
+export type { SearchHit, SearchResponse } from './knowledge.types.js';
 
 /** Constante de suavização do Reciprocal Rank Fusion. 60 é o valor do paper original (Cormack et al.). */
 const RRF_K = 60;
 
 /** Quantos candidatos cada estratégia traz antes da fusão. Maior que o `limit` final de propósito. */
 const CANDIDATES_PER_STRATEGY = 20;
-
-export interface SearchHit {
-    chunkId: string;
-    documentId: string;
-    documentTitle: string;
-    content: string;
-    chunkIndex: number;
-    /** De onde veio o resultado: só semântico, só palavra-chave, ou ambos. */
-    matchedBy: Array<'semantic' | 'keyword'>;
-    /** Similaridade de cosseno (0..1) quando o trecho veio da busca vetorial. */
-    similarity: number | null;
-    /** Score final de fusão — só faz sentido comparado aos outros hits da mesma consulta. */
-    score: number;
-}
-
-export interface SearchResponse {
-    hits: SearchHit[];
-    /** `false` quando o provedor de embeddings falhou e caímos só em palavra-chave. */
-    semanticAvailable: boolean;
-    query: string;
-}
 
 interface RawRow {
     chunkId: string;
@@ -63,7 +47,10 @@ export class SearchService {
             return { hits: [], semanticAvailable: true, query: trimmed };
         }
 
-        // Tenta primeiro o Meilisearch (engine open-source ultrarrápida <10ms) se MEILISEARCH_URL estiver configurada
+        // Tenta primeiro o Meilisearch (engine open-source ultrarrápida <10ms) se MEILISEARCH_URL estiver configurada.
+        // DEC-11: o reranking (`applyReranking` abaixo) roda só sobre o resultado do RRF de propósito
+        // — este ramo é um motor de retrieval totalmente diferente (BM25 do Meilisearch, sem RRF) que
+        // já busca exatamente `limit` resultados, não uma janela de candidatos maior para reordenar.
         if (process.env.MEILISEARCH_URL) {
             const meiliHits = await this.searchMeilisearch(organizationId, trimmed, limit);
             if (meiliHits && meiliHits.length > 0) {
@@ -78,12 +65,34 @@ export class SearchService {
 
         const semanticAvailable = semanticRows !== null;
         const fused = this.fuse(semanticRows ?? [], keywordRows);
+        const reordered = await this.applyReranking(trimmed, fused);
 
         return {
-            hits: fused.slice(0, limit),
+            hits: reordered.slice(0, limit),
             semanticAvailable,
             query: trimmed,
         };
+    }
+
+    /**
+     * DEC-11 (dossiê CPI, opção A): reordena os top-N candidatos já fundidos pelo RRF via
+     * `rerankerService` (ver `./services/reranker.service.ts` para a justificativa LLM vs.
+     * cross-encoder e o fallback fail-safe interno). Só a janela de `KNOWLEDGE_RERANK_CANDIDATES`
+     * primeiros candidatos paga o custo de IA — o restante (além dessa janela) mantém a ordem do
+     * RRF sem chamada adicional, porque `hybridSearch` normalmente já corta bem antes disso
+     * (`limit` default 8 < janela padrão 20).
+     *
+     * Se o reranking estiver desligado (`KNOWLEDGE_RERANK_ENABLED=false`, o padrão) ou a chamada
+     * falhar, `rerankerService.rerank` já devolve a janela na ordem original do RRF — este método
+     * nunca lança, então uma falha de reranking nunca derruba a busca inteira.
+     */
+    private async applyReranking(query: string, fused: SearchHit[]): Promise<SearchHit[]> {
+        if (fused.length === 0) return fused;
+
+        const window = fused.slice(0, env.KNOWLEDGE_RERANK_CANDIDATES);
+        const remainder = fused.slice(env.KNOWLEDGE_RERANK_CANDIDATES);
+        const reranked = await rerankerService.rerank(query, window, window.length);
+        return [...reranked, ...remainder];
     }
 
     /**
