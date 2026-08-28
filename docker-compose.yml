@@ -20,6 +20,10 @@ services:
       APP_DB_PASSWORD: prospector_app_pass
     ports:
       - "5434:5432"
+    # Padrão do Docker (64MB) é insuficiente para VACUUM/hash join paralelos em tabelas
+    # grandes (MarketIntelligenceCompany, dezenas de GB) — "No space left on device" ao
+    # redimensionar segmento de memória compartilhada não é falta de espaço em disco.
+    shm_size: '1gb'
     volumes:
       - atlas_pgdata:/var/lib/postgresql/data
       # Só roda na primeira inicialização de um volume novo (comportamento padrão da imagem
