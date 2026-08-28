@@ -106,12 +106,12 @@ export function QualificationItemForm({ item, defaultBrand, onClose, onSave }: Q
                     <div className="space-y-2">
                         <Label htmlFor="qi-segment">Segmento *</Label>
                         <Input id="qi-segment" type="text" {...register('segment')} />
-                        {errors.segment && <p className="text-xs text-danger mt-1">{errors.segment.message}</p>}
+                        {errors.segment && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.segment.message}</p>}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="qi-persona">Persona *</Label>
                         <Input id="qi-persona" type="text" {...register('persona')} />
-                        {errors.persona && <p className="text-xs text-danger mt-1">{errors.persona.message}</p>}
+                        {errors.persona && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.persona.message}</p>}
                     </div>
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="qi-category">Categoria da pergunta *</Label>
@@ -122,12 +122,12 @@ export function QualificationItemForm({ item, defaultBrand, onClose, onSave }: Q
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="qi-question">Pergunta de diagnóstico *</Label>
                         <Textarea id="qi-question" rows={3} {...register('questionText')} className="resize-none" />
-                        {errors.questionText && <p className="text-xs text-danger mt-1">{errors.questionText.message}</p>}
+                        {errors.questionText && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.questionText.message}</p>}
                     </div>
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="qi-answer">Resposta ideal / sinal de fit *</Label>
                         <Textarea id="qi-answer" rows={3} {...register('idealAnswer')} className="resize-none" />
-                        {errors.idealAnswer && <p className="text-xs text-danger mt-1">{errors.idealAnswer.message}</p>}
+                        {errors.idealAnswer && <p className="text-xs text-danger-active dark:text-danger mt-1">{errors.idealAnswer.message}</p>}
                     </div>
                 </div>
             </form>

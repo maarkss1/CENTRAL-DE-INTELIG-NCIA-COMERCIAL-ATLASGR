@@ -175,37 +175,40 @@ export interface WhatsAppConversationSummary {
  * Lista as conversas de WhatsApp da organização, uma por número, ordenadas pela mensagem mais
  * recente — a lista à esquerda do painel "WhatsApp Web" embutido na tela de Integrações.
  *
- * Usa `groupBy` tipado (não `$queryRaw`) de propósito: `$queryRaw` não passa pela extensão
- * `$allOperations` de `src/lib/prisma.ts` (RLS/tenant scoping), então bateria na RLS mesmo com um
- * usuário autenticado normal a menos que passasse por `withRlsContext` — o volume real de
- * conversas por organização é pequeno o bastante pra um N+1 tipado e seguro valer mais que a
- * complexidade de SQL cru com o contexto de RLS certo.
+ * CORREÇÃO (N+1, onda 42 — auditoria completa de rotas de listagem): a versão anterior fazia
+ * `groupBy` (buscando TODOS os números já conversados, sem limite) seguido de um `findFirst` por
+ * número dentro de `Promise.all` — até N+1 queries por chamada (1 groupBy + até 50 findFirst no
+ * pior caso), cada uma sua própria transação com RLS (ver `executeWithRls` em `src/lib/prisma.ts`,
+ * então na prática o dobro de round-trips reais ao Postgres). O comentário original já reconhecia
+ * isso como um "N+1 tipado e seguro" aceito por não ter alternativa simples com `groupBy` — mas
+ * existe: `findMany` com `distinct: ['phoneE164']` (equivalente a `DISTINCT ON` do Postgres) traz,
+ * numa ÚNICA query, exatamente uma linha por número — já com `include: { contact }` — desde que o
+ * campo do `distinct` venha primeiro em `orderBy` (regra do Prisma para produzir um `DISTINCT ON`
+ * determinístico). `receivedAt: 'desc'` como segundo critério garante que a linha mantida por
+ * número é a mensagem mais recente daquele número (mesma semântica do `_max(receivedAt)` antigo);
+ * `id: 'desc'` como desempate final reproduz o mesmo critério de desempate que o `orderBy: { id:
+ * 'desc' }` do `findFirst` antigo usava para mensagens com o mesmo `receivedAt`. `where:
+ * { organizationId }` continua explícito (mesmo escopo de tenant de antes) e o `include: {
+ * contact }` roda dentro da MESMA transação/contexto de RLS da query principal (ver
+ * `executeWithRls`), então o isolamento de tenant no JOIN não muda — só o número de queries cai.
  */
 export async function listConversations(organizationId: string, limit = 50): Promise<WhatsAppConversationSummary[]> {
-    const groups = await prisma.whatsAppMessage.groupBy({
-        by: ['phoneE164'],
+    const latestPerPhone = await prisma.whatsAppMessage.findMany({
         where: { organizationId },
-        _max: { receivedAt: true },
+        distinct: ['phoneE164'],
+        orderBy: [{ phoneE164: 'asc' }, { receivedAt: 'desc' }, { id: 'desc' }],
+        include: { contact: { select: { id: true, name: true } } },
     });
 
-    const mostRecentFirst = groups
-        .filter((g): g is typeof g & { _max: { receivedAt: Date } } => g._max.receivedAt !== null)
-        .sort((a, b) => b._max.receivedAt.getTime() - a._max.receivedAt.getTime())
-        .slice(0, limit);
-
-    return Promise.all(mostRecentFirst.map(async (group) => {
-        const last = await prisma.whatsAppMessage.findFirst({
-            where: { organizationId, phoneE164: group.phoneE164, receivedAt: group._max.receivedAt },
-            include: { contact: { select: { id: true, name: true } } },
-            orderBy: { id: 'desc' },
-        });
-        return {
-            phoneE164: group.phoneE164,
-            contactId: last?.contact?.id ?? null,
-            contactName: last?.contact?.name ?? null,
-            lastMessageBody: last?.body ?? null,
-            lastMessageDirection: (last?.direction as 'inbound' | 'outbound') ?? 'inbound',
-            lastMessageAt: group._max.receivedAt,
-        };
-    }));
+    return latestPerPhone
+        .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())
+        .slice(0, limit)
+        .map((msg) => ({
+            phoneE164: msg.phoneE164,
+            contactId: msg.contact?.id ?? null,
+            contactName: msg.contact?.name ?? null,
+            lastMessageBody: msg.body ?? null,
+            lastMessageDirection: (msg.direction as 'inbound' | 'outbound') ?? 'inbound',
+            lastMessageAt: msg.receivedAt,
+        }));
 }

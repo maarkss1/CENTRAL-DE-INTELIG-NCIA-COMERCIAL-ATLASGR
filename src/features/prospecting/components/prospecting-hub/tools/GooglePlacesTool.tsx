@@ -161,11 +161,11 @@ export function GooglePlacesTool({ configured }: { configured: boolean }) {
                 <button
                     onClick={handleSearch}
                     disabled={isSearching}
-                    className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                    className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:brightness-110 disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                 >
                     {isSearching ? (<><Loader2 className="animate-spin" size={18} /> Buscando...</>) : (<><Cpu size={18} /> Buscar no Google Places</>)}
                 </button>
-                {error && <p className="text-xs text-danger">{error}</p>}
+                {error && <p className="text-xs text-danger-active dark:text-danger">{error}</p>}
             </div>
 
             <div className="xl:col-span-8 space-y-4">

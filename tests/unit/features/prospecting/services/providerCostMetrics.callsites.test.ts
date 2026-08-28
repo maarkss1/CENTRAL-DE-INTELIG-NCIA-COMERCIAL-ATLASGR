@@ -37,13 +37,13 @@ async function getProviderCostValue(provider: 'apollo' | 'hunter'): Promise<numb
 
 const originalEnv = { ...process.env };
 
-beforeEach(() => {
+beforeEach(async () => {
     process.env.PROSPECTING_PROVIDER_MODE = 'hybrid';
     process.env.APOLLO_API_KEY = 'test-apollo-key';
     process.env.HUNTER_API_KEY = 'test-hunter-key';
     delete process.env.APOLLO_RATE_LIMIT_PER_MINUTE;
     resetProviderRateLimitersForTests();
-    resetProviderCacheForTests();
+    await resetProviderCacheForTests();
 });
 
 afterEach(() => {
