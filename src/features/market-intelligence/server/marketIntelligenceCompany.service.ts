@@ -131,12 +131,18 @@ const LIST_SELECT = {
   opcaoMei: true,
   icpTier: true,
   icpScore: true,
+  hasRntrc: true,
+  rntrcStatus: true,
+  rntrcType: true,
   dataOrigin: true,
   competencia: true,
 } satisfies Prisma.MarketIntelligenceCompanySelect;
 
 const DETAIL_SELECT = {
   ...LIST_SELECT,
+  rntrcNumber: true,
+  rntrcSource: true,
+  rntrcUpdatedAt: true,
   cnpjBasico: true,
   cnpjOrdem: true,
   cnpjDv: true,
@@ -304,7 +310,7 @@ export async function getMarketIntelligenceCompany(cnpjInput: string) {
         pipelineVersion: dataset.pipelineVersion,
         companyFields: 'OBSERVED',
         icp: company.icpTier ? 'DERIVED' : 'NOT_AVAILABLE',
-        rntrcCompany: 'NOT_AVAILABLE',
+        rntrcCompany: company.hasRntrc ? 'OBSERVED_ANTT_RNTRC' : 'NOT_FOUND_IN_ANTT_RNTRC',
         publicContact: 'REDACTED_GLOBAL_CATALOG',
       },
     },

@@ -46,6 +46,33 @@ const activeRibeirao = {
   competencia: '2026-08',
 };
 
+const rntrcRibeirao = {
+  id: 'mic-etapa2-ribeirao-rntrc',
+  datasetId: DATASET_ID,
+  cnpj: 'D2345678000192',
+  cnpjBasico: 'D2345678',
+  cnpjOrdem: '0001',
+  cnpjDv: '92',
+  razaoSocial: 'TRANSPORTADORA FIXTURE RNTRC LTDA',
+  razaoSocialSearch: normalizeCatalogSearch('TRANSPORTADORA FIXTURE RNTRC LTDA'),
+  matrizFilial: 'MATRIZ',
+  situacaoCadastralCodigo: '02',
+  situacaoCadastral: 'ATIVA',
+  cnaePrincipal: '4930202',
+  municipioCodigoReceita: '7024',
+  municipioIbge: '3170206',
+  municipioNome: 'Uberlândia',
+  uf: 'MG',
+  dataOrigin: 'OBSERVED' as const,
+  competencia: '2026-08',
+  hasRntrc: true,
+  rntrcStatus: 'ATIVO',
+  rntrcType: 'ETC',
+  rntrcNumber: '99887766',
+  rntrcSource: 'ANTT_RNTRC',
+  rntrcUpdatedAt: new Date('2026-08-26T22:00:00.000Z'),
+};
+
 const inactiveRibeirao = {
   id: 'mic-etapa2-ribeirao-inactive',
   datasetId: DATASET_ID,
@@ -99,6 +126,7 @@ describe('Market Intelligence empresarial — PostgreSQL/RLS real', () => {
       });
       await prisma.marketIntelligenceCompany.create({ data: activeRibeirao });
       await prisma.marketIntelligenceCompany.create({ data: inactiveRibeirao });
+      await prisma.marketIntelligenceCompany.create({ data: rntrcRibeirao });
     });
   });
 
@@ -132,18 +160,36 @@ describe('Market Intelligence empresarial — PostgreSQL/RLS real', () => {
     expect(result.data[0]?.cnpj).toBe('A2345678000195');
   });
 
-  it('detalhe mantém proveniência, RNTRC individual indisponível e contato global redigido', async () => {
+  it('detalhe mantém proveniência, RNTRC individual não encontrado e contato global redigido', async () => {
     const result = await withTenant(TENANT_A, () => getMarketIntelligenceCompany('A2345678000195'));
     expect(result.company).not.toBeNull();
+    expect(result.company).toMatchObject({ hasRntrc: null, rntrcStatus: null, rntrcType: null });
     expect(result.company?.provenance).toMatchObject({
       source: 'RECEITA_FEDERAL_CNPJ',
       competencia: '2026-08',
       companyFields: 'OBSERVED',
-      rntrcCompany: 'NOT_AVAILABLE',
+      rntrcCompany: 'NOT_FOUND_IN_ANTT_RNTRC',
       publicContact: 'REDACTED_GLOBAL_CATALOG',
     });
     expect(result.company).not.toHaveProperty('email');
     expect(result.company).not.toHaveProperty('telefone1');
+  });
+
+  it('lista e detalhe expõem o cruzamento RNTRC/ANTT real quando a empresa foi encontrada', async () => {
+    const list = await withTenant(TENANT_A, () => listMarketIntelligenceCompanies(
+      parseCompanyCatalogQuery({ cnpj: 'D2345678000192' }),
+    ));
+    expect(list.data[0]).toMatchObject({ hasRntrc: true, rntrcStatus: 'ATIVO', rntrcType: 'ETC' });
+
+    const detail = await withTenant(TENANT_A, () => getMarketIntelligenceCompany('D2345678000192'));
+    expect(detail.company).toMatchObject({
+      hasRntrc: true,
+      rntrcStatus: 'ATIVO',
+      rntrcType: 'ETC',
+      rntrcNumber: '99887766',
+      rntrcSource: 'ANTT_RNTRC',
+    });
+    expect(detail.company?.provenance).toMatchObject({ rntrcCompany: 'OBSERVED_ANTT_RNTRC' });
   });
 
   it('tenant comum não consegue escrever/publicar no catálogo global', async () => {

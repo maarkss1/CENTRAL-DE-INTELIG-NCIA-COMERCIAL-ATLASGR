@@ -6,9 +6,11 @@ import type {
 } from './domain/MarketIntelligence';
 import {
     buildCoreTerritories,
+    buildOptimizerMunicipalities,
     hydrateCoreEvidence,
     type MdfeMunicipalRow,
 } from './domain/coreEvidence';
+import { optimizeNationalPlan, type OptimizationScenario } from './domain/territoryOptimizer';
 
 const BASE = '/tools/atlas-market-intelligence/data';
 const MIN_NATIONAL_SCORED_MUNICIPALITIES = 1_000;
@@ -119,6 +121,26 @@ function validateRuntimeReadiness(
         decisionReady: false,
         decisionBlockers: [...new Set([...manifest.decisionBlockers, ...runtimeBlockers])],
     };
+}
+
+/**
+ * Cenários de 1/2/3/5/10/20 vendedores via territoryOptimizer.optimizeNationalPlan.
+ *
+ * Sob demanda apenas (não faz parte de loadMarketIntelligenceSnapshot): precisa do agregado
+ * municipal completo (municipios_scored.json, ~11 MB) mesmo quando territorios.json já existe,
+ * então só é buscado quando o usuário abre o otimizador multi-vendedor.
+ */
+export async function loadNationalOptimizationScenarios(
+    manifest: MarketIntelligenceManifest,
+): Promise<OptimizationScenario[]> {
+    const [municipalitiesBase, mdfe] = await Promise.all([
+        loadMunicipalities(manifest),
+        loadMdfeMunicipalFlow(),
+    ]);
+    const municipalities = mdfe.origins.length || mdfe.destinations.length
+        ? hydrateCoreEvidence(municipalitiesBase, mdfe.origins, mdfe.destinations)
+        : municipalitiesBase;
+    return optimizeNationalPlan(buildOptimizerMunicipalities(municipalities));
 }
 
 export async function loadMarketIntelligenceSnapshot(): Promise<MarketIntelligenceSnapshot> {
