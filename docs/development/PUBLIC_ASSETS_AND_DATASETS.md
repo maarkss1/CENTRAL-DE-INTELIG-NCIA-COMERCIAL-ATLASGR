@@ -19,7 +19,7 @@ endpoint HTTP público e não autenticado, para sempre, até alguém remover.
 
 | O que é | Onde vive | Por quê |
 |---|---|---|
-| Asset que o **navegador** carrega em runtime (logo, ícone, dataset municipal que `fetch()` busca — ex. `src/features/market-intelligence/marketIntelligence.data.ts`) | `public/` | Só `public/` (ou uma rota de API) chega até o navegador sem passar pelo bundler de JS. |
+| Asset que o **navegador** carrega em runtime (logo, ícone, dataset que `fetch()` busca — ex. `public/tools/atlas-market-intelligence/data/*.json`) | `public/` | Só `public/` (ou uma rota de API) chega até o navegador sem passar pelo bundler de JS. |
 | Dataset/seed que só o **backend** lê do disco (`fs`, nunca `fetch`) em build, deploy ou seed — ex. `scripts/market-intelligence/load-company-seed.mjs` | `data/<domínio>/` na raiz do repo | Não precisa (nem deveria) ser alcançável por HTTP; ficar em `public/` só custa build/bundle e abre exposição não autenticada sem propósito. |
 | Dataset bruto/grande demais para versionar em texto no git, ou que muda com frequência fora do ciclo de release | Object storage (S3/R2 já disponível via `@aws-sdk/client-s3`) ou pipeline dedicado, referenciado por manifest com URL + hash | Git não é um bom lugar para blobs binários grandes que crescem sem limite; `public/`/`data/` servem para datasets pequenos/médios versionados. |
 | Segredo, dump de produção, `.env` real, credencial | Nunca no repositório | Ver regras globais de execução — proibido em qualquer lugar do git. |

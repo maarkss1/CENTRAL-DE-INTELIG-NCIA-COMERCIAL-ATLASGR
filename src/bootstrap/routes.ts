@@ -37,7 +37,6 @@ import {
   publicBookingRouter,
   privateBookingRouter,
 } from '../features/calendar/routes/booking.routes.js';
-import { marketIntelligenceRoutes } from '../features/market-intelligence/server/marketIntelligence.routes.js';
 import { accountIntelligenceRoutes } from '../features/market-intelligence/server/accountIntelligence.routes.js';
 import { lgpdRouter } from '../features/lgpd/lgpd.routes.js';
 import { featureFlagsRouter } from '../features/feature-flags/featureFlags.routes.js';
@@ -118,9 +117,8 @@ export function mountFeatureRoutes(app: Express): void {
   app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
   app.use('/api/calendar/booking-links', privateBookingRouter);
   app.use('/api/calendar/book', publicBookingRouter);
-  app.use('/api/market-intelligence', authenticateToken, requireTenant, marketIntelligenceRoutes);
-  // Rotas de inteligência de conta (/accounts/...) — router separado, com sua própria checagem
-  // de papel (requireRole dentro do próprio router). Ver comentário em marketIntelligence.routes.ts.
+  // Rotas de inteligência de conta (LDR, /accounts/...) — checagem de papel própria
+  // (requireRole dentro do router).
   app.use('/api/market-intelligence', authenticateToken, requireTenant, accountIntelligenceRoutes);
 
   // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca

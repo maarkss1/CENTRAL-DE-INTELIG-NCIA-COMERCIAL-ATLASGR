@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import {
   CompanyCatalogValidationError,
+  approveToPipeline,
   getMarketIntelligenceCompany,
   listMarketIntelligenceCompanies,
   parseCompanyCatalogQuery,
@@ -37,6 +38,21 @@ router.get('/:cnpj/intelligence', async (req, res, next) => {
     }
 
     res.json({ success: true, data: result.account, dataset: result.dataset });
+  } catch (error) {
+    if (error instanceof CompanyCatalogValidationError) {
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
+    next(error);
+  }
+});
+
+router.post('/:cnpj/approve-to-pipeline', async (req: any, res, next) => {
+  try {
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.id;
+    const result = await approveToPipeline(organizationId, req.params.cnpj, userId);
+    res.status(201).json({ success: true, data: result });
   } catch (error) {
     if (error instanceof CompanyCatalogValidationError) {
       res.status(400).json({ success: false, error: error.message });

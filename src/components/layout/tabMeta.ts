@@ -28,6 +28,7 @@ import {
   Repeat,
   FileSignature,
   Headset,
+  Bot,
 } from 'lucide-react';
 
 /**
@@ -93,7 +94,7 @@ export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
   qualification_matrix: { label: 'Matriz de Qualificação', icon: Target },
   objections_matrix: { label: 'Matriz de Objeções', icon: Shield },
   intelligence: { label: 'Hub de IA', icon: Zap },
-  'market-intelligence': { label: 'Market Intelligence', icon: LineChart },
+  'market-intelligence': { label: 'LDR', icon: Bot },
   topic_training: { label: 'Academy', icon: BookOpen },
   bitrix: { label: 'Guia Bitrix24', icon: Layers },
   reports: { label: 'Relatórios IA', icon: FileBarChart },

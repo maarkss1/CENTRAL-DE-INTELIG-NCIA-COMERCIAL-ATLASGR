@@ -1,4 +1,4 @@
-name: Market Intelligence - Quality Gate
+name: LDR - Quality Gate
 
 on:
   push:
@@ -6,12 +6,7 @@ on:
       - main
     paths:
       - 'src/features/market-intelligence/**'
-      - 'public/tools/atlas-market-intelligence/**'
-      - 'scripts/market-intelligence-core-evidence-smoke.ts'
-      - 'scripts/market-intelligence-hub-suitability-smoke.ts'
       - 'tests/unit/market-intelligence/**'
-      - 'tests/python/market_intelligence/**'
-      - 'tests/e2e/market-intelligence.spec.ts'
       - 'tsconfig.market-intelligence.json'
       - '.github/workflows/market-intelligence-ci.yml'
   pull_request:
@@ -19,12 +14,7 @@ on:
       - main
     paths:
       - 'src/features/market-intelligence/**'
-      - 'public/tools/atlas-market-intelligence/**'
-      - 'scripts/market-intelligence-core-evidence-smoke.ts'
-      - 'scripts/market-intelligence-hub-suitability-smoke.ts'
       - 'tests/unit/market-intelligence/**'
-      - 'tests/python/market_intelligence/**'
-      - 'tests/e2e/market-intelligence.spec.ts'
       - 'tsconfig.market-intelligence.json'
       - '.github/workflows/market-intelligence-ci.yml'
   workflow_dispatch:
@@ -51,9 +41,6 @@ jobs:
       - name: Enforce LDR integrity guard
         run: node scripts/security/check-ldr-integrity.mjs
 
-      - name: Run Market Intelligence Python ETL fixtures
-        run: python3 -m unittest discover -s tests/python/market_intelligence -p 'test_*.py'
-
       - name: Setup Node.js 22
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -69,25 +56,8 @@ jobs:
       - name: Typecheck Market Intelligence
         run: npx tsc -p tsconfig.market-intelligence.json --noEmit
 
-      - name: Run Market Intelligence unit tests
+      - name: Run LDR unit tests
         run: npx vitest run tests/unit/market-intelligence
-
-      - name: Verify Hub Suitability components against published national snapshot
-        run: npx tsx scripts/market-intelligence-hub-suitability-smoke.ts
-
-      - name: Verify and materialize Core Evidence against published snapshots
-        run: npx tsx scripts/market-intelligence-core-evidence-smoke.ts --write
-
-      - name: Verify materialized ranking is committed
-        run: git diff --exit-code -- public/tools/atlas-market-intelligence/data/territorios.json
-
-      - name: Upload materialized territory ranking
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: market-intelligence-territories
-          path: public/tools/atlas-market-intelligence/data/territorios.json
-          retention-days: 7
-          if-no-files-found: error
 
       - name: Build application
         run: npm run build

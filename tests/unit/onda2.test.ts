@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { calculateLeadScore } from '../../src/features/crm/domain/leadScoreCalculator';
-import { companyListQuerySchema } from '../../src/features/market-intelligence/server/marketIntelligence.schemas';
 
 describe('Onda 2 — Captura e Inteligência de Contas', () => {
     describe('1. Matriz de Qualificação & Lead Score (BANT / SPIN)', () => {
@@ -46,29 +45,7 @@ describe('Onda 2 — Captura e Inteligência de Contas', () => {
         });
     });
 
-    describe('2. Market Intelligence — Validação Espacial e Raio (km)', () => {
-        it('validates geographic radius query schema', () => {
-            const parsed = companyListQuerySchema.parse({
-                lat: -23.5505,
-                lng: -46.6333,
-                radiusKm: 50,
-            });
-
-            expect(parsed.lat).toBe(-23.5505);
-            expect(parsed.lng).toBe(-46.6333);
-            expect(parsed.radiusKm).toBe(50);
-        });
-
-        it('rejects invalid radius values', () => {
-            expect(() => {
-                companyListQuerySchema.parse({
-                    radiusKm: -10,
-                });
-            }).toThrow();
-        });
-    });
-
-    describe('3. Agrupamento Matriz/Filiais por CNPJ Raiz', () => {
+    describe('2. Agrupamento Matriz/Filiais por CNPJ Raiz', () => {
         it('identifies CNPJ root (first 8 digits) and filial identifier', () => {
             const cnpj = '00.360.305/0001-04';
             const clean = cnpj.replace(/\D/g, '');
