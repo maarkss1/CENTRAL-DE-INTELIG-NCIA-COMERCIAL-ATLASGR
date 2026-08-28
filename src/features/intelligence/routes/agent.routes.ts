@@ -28,7 +28,7 @@ router.post('/tts', validateRequest(ttsRequestSchema), async (req: Request, res:
 
 // --- SWARM & CONTINUOUS LEARNING ENDPOINTS ---
 import { SwarmOrchestrator } from '../agents/supervisor.agent.js';
-import { LearningAgent } from '../agents/learning.agent.js';
+import { LearningAgent, getLearningProfileHistory, rollbackLearningProfile } from '../agents/learning.agent.js';
 import { getSwarmSloSnapshot } from '../services/swarmScheduler.service.js';
 import { getEvaluationMetricsSnapshot } from '../services/evaluationMetrics.service.js';
 import { getDatasetSummary, validateToolUseCases } from '../evaluation/goldenDataset.service.js';
@@ -145,6 +145,41 @@ router.post('/swarm/learn', async (req, res, next) => {
         const learningAgent = new LearningAgent();
         const guidelines = await learningAgent.reflectAndLearn(userId, organizationId);
         res.json({ success: true, learnedGuidelines: guidelines || 'Sem ações recentes suficientes para aprender.' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// GOV-13 (onda 39): histórico e rollback do perfil de estilo versionado pelo LearningAgent — o
+// mecanismo já existia em learning.agent.ts (append-only, nunca sobrescreve), mas ficava
+// inacessível fora de um script manual, sem rota HTTP nenhuma (ver
+// .agents/handoffs/onda-39/13-para-07-rota-rollback-learning-profile.md). Escopo: sempre o
+// perfil do próprio usuário autenticado — o histórico é por (tenant, ator), nunca cross-user,
+// então não há aqui uma forma de um ADMIN reverter o perfil aprendido de outro usuário.
+router.get('/swarm/learn/history', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id: actorId, organizationId } = (req as AuthRequest).user;
+        const history = await getLearningProfileHistory(organizationId, actorId);
+        res.json({ success: true, data: history });
+    } catch (err) {
+        next(err);
+    }
+});
+
+const learningRollbackSchema = z.object({
+    targetVersion: z.number().int().min(1),
+});
+
+router.post('/swarm/learn/rollback', validateRequest(learningRollbackSchema), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id: actorId, organizationId } = (req as AuthRequest).user;
+        const { targetVersion } = req.body as z.infer<typeof learningRollbackSchema>;
+        const result = await rollbackLearningProfile(organizationId, actorId, targetVersion);
+        if (!result.success) {
+            res.status(404).json({ success: false, error: result.reason });
+            return;
+        }
+        res.json({ success: true, data: result });
     } catch (err) {
         next(err);
     }

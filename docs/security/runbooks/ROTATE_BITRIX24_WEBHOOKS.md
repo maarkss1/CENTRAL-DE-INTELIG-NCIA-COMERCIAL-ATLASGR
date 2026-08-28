@@ -105,7 +105,8 @@ Cada agente/dev com ambiente local atualiza as duas variáveis a partir do cofre
 Para cada linha levantada no Passo 1 que **não** for a conexão default (ou seja, tem
 `webhookUrl` próprio salvo no banco): atualize via a tela de Integrações do produto (fluxo normal
 de edição de conexão), nunca via `UPDATE` direto no banco — o fluxo de edição já roda
-`assertSafeWebhookUrl`/`testWebhook` (ver `connections.ts`), que valida a nova URL antes de
+`assertSafeExternalUrl` (`src/shared/security/urlGuard.ts`, guard de SSRF compartilhado — antes
+vivia só em `Bitrix24Adapter.ts`)/`testWebhook` (ver `connections.ts`), que valida a nova URL antes de
 persistir. Editar direto no banco pula essa validação.
 
 ## Passo 4 — Validar que a NOVA URL funciona

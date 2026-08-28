@@ -25,6 +25,7 @@ function ctx(overrides: Partial<CadenceDecisionContext> = {}): CadenceDecisionCo
         isOptedOut: false,
         hasLeadReplied: false,
         isWithinBusinessWindow: ALWAYS_WITHIN_WINDOW,
+        rateLimitBlock: null,
         ...overrides,
     };
 }
@@ -136,6 +137,49 @@ describe('decideCadenceAction — janela comercial e progressão', () => {
 
         const failed = applyPolicyGuardrailFailure(run, NOW);
         expect(decideCadenceAction(failed, SEQUENCE, NOW, ctx())).toEqual({ type: 'stop', reason: 'policy-guardrail' });
+    });
+});
+
+// Auditoria transversal (Agente 17): rate limit por contato/domínio — ver `domain/rateLimit.ts`
+// para a política e `application/rateLimitService.ts` para a contagem real (I/O). Aqui só a
+// checagem PURA de `decideCadenceAction`: dado um `rateLimitBlock` já calculado pelo chamador, o
+// run continua `active` (é `wait`, nunca `stop` — bloqueio de volume não é o mesmo que opt-out ou
+// resposta do lead) e o motivo do bloqueio chega intacto na decisão.
+describe('decideCadenceAction — rate limit por contato/domínio', () => {
+    it('rateLimitBlock bloqueia o despacho mesmo com tudo mais elegível (dentro da janela, delay cumprido)', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        const decision = decideCadenceAction(run, SEQUENCE, NOW, ctx({ rateLimitBlock: 'contact-rate-limit' }));
+        expect(decision).toEqual({ type: 'wait', reason: 'contact-rate-limit' });
+    });
+
+    it('rateLimitBlock por domínio também bloqueia, com o motivo correto', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        const decision = decideCadenceAction(run, SEQUENCE, NOW, ctx({ rateLimitBlock: 'domain-rate-limit' }));
+        expect(decision).toEqual({ type: 'wait', reason: 'domain-rate-limit' });
+    });
+
+    it('run bloqueado por rate limit continua active — nunca stopped/failed', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        decideCadenceAction(run, SEQUENCE, NOW, ctx({ rateLimitBlock: 'contact-rate-limit' }));
+        expect(run.status).toBe('active'); // decideCadenceAction não muta nada — só decide
+    });
+
+    it('opt-out ainda tem precedência sobre rate limit (mais forte do domínio inteiro)', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        const decision = decideCadenceAction(run, SEQUENCE, NOW, ctx({ isOptedOut: true, rateLimitBlock: 'contact-rate-limit' }));
+        expect(decision).toEqual({ type: 'stop', reason: 'opt-out' });
+    });
+
+    it('janela comercial fechada é checada antes do rate limit — motivo continua sendo o da janela', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        const decision = decideCadenceAction(run, SEQUENCE, NOW, ctx({ isWithinBusinessWindow: NEVER_WITHIN_WINDOW, rateLimitBlock: 'contact-rate-limit' }));
+        expect(decision).toEqual({ type: 'wait', reason: 'outside-business-window' });
+    });
+
+    it('sem rateLimitBlock (null), despacha normalmente', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        const decision = decideCadenceAction(run, SEQUENCE, NOW, ctx({ rateLimitBlock: null }));
+        expect(decision).toEqual({ type: 'dispatch', touch: SEQUENCE.touches[0] });
     });
 });
 

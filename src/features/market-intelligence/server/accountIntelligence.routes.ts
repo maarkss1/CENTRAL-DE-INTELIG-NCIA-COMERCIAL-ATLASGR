@@ -55,6 +55,14 @@ export function createAccountIntelligenceRouter(
     // VISUALIZADOR é o menor papel canônico, então qualquer papel real pode ler; desconhecidos falham.
     router.use(requireRole(['VISUALIZADOR']));
 
+    // Relatório de qualidade de dados consolidado do tenant (Account Intelligence). Organização-wide
+    // de propósito — não recebe :id de conta. Ver dataQualityReport.service.ts para os sinais reais
+    // agregados e o que fica marcado como indisponível quando a população subjacente está vazia.
+    router.get('/data-quality-report', asyncHandler(async (req, res) => {
+        const data = await serviceFactory(req as AuthRequest).getDataQualityReport();
+        res.json({ success: true, data });
+    }));
+
     router.get('/accounts/:id/intelligence', asyncHandler(async (req, res) => {
         const { id } = parse(accountParamsSchema, req.params);
         const data = await serviceFactory(req as AuthRequest).getIntelligence(id);

@@ -107,8 +107,10 @@ router.post('/disconnect/:connectionId', managementRoles, async (req: Request, r
 router.post('/call', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
-        const { connectionId, phoneNumber, leadId } = req.body;
-        const data = await make3CXCall(organizationId, connectionId, phoneNumber, leadId);
+        // `email` é opcional e só fortalece a checagem de opt-out (ver comentário em
+        // make3CXCall/threecx.service.ts) — nunca obrigatório para completar a chamada.
+        const { connectionId, phoneNumber, leadId, email } = req.body;
+        const data = await make3CXCall(organizationId, connectionId, phoneNumber, leadId, email);
         res.json({ success: true, data });
     } catch (error) {
         next(error);

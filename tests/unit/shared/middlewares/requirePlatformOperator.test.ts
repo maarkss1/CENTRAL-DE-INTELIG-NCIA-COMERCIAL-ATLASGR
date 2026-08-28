@@ -7,7 +7,8 @@ const mockEnv: { PLATFORM_OPERATOR_TOKEN?: string; NODE_ENV: string } = {
 
 vi.mock('@/config/env', () => ({ env: mockEnv }));
 
-const { requirePlatformOperator } = await import('@/shared/middlewares/requirePlatformOperator');
+const { requirePlatformOperator, isPlatformOperatorTokenConfigured, isValidPlatformOperatorToken } =
+    await import('@/shared/middlewares/requirePlatformOperator');
 
 function buildReqRes(opts: { header?: string; query?: string; cookie?: string } = {}) {
     const req: any = {
@@ -105,5 +106,30 @@ describe('requirePlatformOperator (SEC-001/SEC-002)', () => {
             'super-secret-operator-token-value',
             expect.objectContaining({ secure: true })
         );
+    });
+});
+
+describe('isPlatformOperatorTokenConfigured / isValidPlatformOperatorToken (usado por worker.ts fora do Express)', () => {
+    beforeEach(() => {
+        mockEnv.PLATFORM_OPERATOR_TOKEN = undefined;
+    });
+
+    it('reporta não configurado quando PLATFORM_OPERATOR_TOKEN está ausente', () => {
+        expect(isPlatformOperatorTokenConfigured()).toBe(false);
+        expect(isValidPlatformOperatorToken('qualquer-coisa')).toBe(false);
+    });
+
+    it('rejeita candidato ausente/vazio mesmo com token configurado', () => {
+        mockEnv.PLATFORM_OPERATOR_TOKEN = 'super-secret-operator-token-value';
+        expect(isPlatformOperatorTokenConfigured()).toBe(true);
+        expect(isValidPlatformOperatorToken(null)).toBe(false);
+        expect(isValidPlatformOperatorToken(undefined)).toBe(false);
+        expect(isValidPlatformOperatorToken('')).toBe(false);
+    });
+
+    it('rejeita token incorreto e aceita o correto', () => {
+        mockEnv.PLATFORM_OPERATOR_TOKEN = 'super-secret-operator-token-value';
+        expect(isValidPlatformOperatorToken('token-errado')).toBe(false);
+        expect(isValidPlatformOperatorToken('super-secret-operator-token-value')).toBe(true);
     });
 });

@@ -81,7 +81,7 @@ export function DiscoveryResultsPanel({
             )}
 
             {apolloError && !isSearching && (
-                <div className="mb-4 p-3 bg-warning/10 border border-warning/30 rounded-xl text-xs text-warning flex items-start gap-2">
+                <div className="mb-4 p-3 bg-warning/10 border border-warning/30 rounded-xl text-xs text-warning-active dark:text-warning flex items-start gap-2">
                     <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                     Apollo.io não retornou resultados: {apolloError}
                 </div>

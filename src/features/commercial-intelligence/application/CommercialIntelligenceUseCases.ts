@@ -40,6 +40,8 @@ import type {
     ExportFormat,
     FilterOptions,
     HistoricalTrendsReport,
+    ForecastAccuracySummary,
+    HealthScoreResult,
 } from '../domain/CommercialIntelligence';
 import { getGoal as getGoalCommand, setGoal as setGoalCommand } from './goalCommands';
 import { buildExecutiveOverview } from './queries/executiveOverviewReport';
@@ -53,6 +55,8 @@ import { buildCrmQuality } from './queries/crmQualityReport';
 import { buildDealsDrillDown, buildForecastExplain } from './queries/drillDownReport';
 import { buildHistoricalTrends } from './queries/historicalTrendsReport';
 import { buildExecutiveExport, type ExecutiveExportPayload } from './executiveExport';
+import { summarizeForecastAccuracy } from './forecastAccuracy';
+import { computeHealthScore } from './healthScore';
 
 // ─── Re-exports de compatibilidade — consumidos fora deste arquivo (ver cabeçalho) ───────────────
 export { currentPeriod } from './shared/period';
@@ -146,5 +150,30 @@ export class CommercialIntelligenceUseCases {
     // ─── Tendências históricas — 6 meses (seção 23) ───────────────────────────
     async historicalTrends(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<HistoricalTrendsReport> {
         return buildHistoricalTrends(this.repository, organizationId, filter, now);
+    }
+
+    // ─── Health Score composto (Pipeline/Conversão/Produtividade/Qualidade de CRM/Follow-up/
+    // Confiabilidade de Forecast) — gap de auditoria CPI, ver application/healthScore.ts.
+    //
+    // `forecastAccuracy` é um parâmetro explícito (não buscado por esta fachada) porque a
+    // persistência do snapshot semanal (application/forecastSnapshot.ts) ainda depende de handoff
+    // de schema para o Agente 01 — sem tabela real ainda, não há histórico de snapshot para ler
+    // aqui. Omitir o parâmetro é uma resposta válida e honesta hoje: o pilar "Confiabilidade de
+    // Forecast" retorna "não disponível" em vez de um número fabricado, exatamente como os demais
+    // pilares fazem quando faltam dados (ver `application/healthScore.ts`).
+    async healthScore(
+        organizationId: string,
+        filter: CommercialIntelligenceFilter,
+        now = new Date(),
+        forecastAccuracy: ForecastAccuracySummary = summarizeForecastAccuracy([])
+    ): Promise<HealthScoreResult> {
+        const [overview, performance, aging, leadingIndicators, crmQuality] = await Promise.all([
+            this.executiveOverview(organizationId, filter, now),
+            this.performance(organizationId, filter, now),
+            this.aging(organizationId, filter, now),
+            this.leadingIndicators(organizationId, now),
+            this.crmQuality(organizationId, filter, now),
+        ]);
+        return computeHealthScore({ overview, performance, aging, leadingIndicators, crmQuality, forecastAccuracy }, now);
     }
 }

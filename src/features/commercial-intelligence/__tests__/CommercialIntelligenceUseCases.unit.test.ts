@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CommercialIntelligenceUseCases, classifyCoverageProtection } from '../application/CommercialIntelligenceUseCases';
+import { summarizeForecastAccuracy, computeForecastAccuracy } from '../application/forecastAccuracy';
+import { HEALTH_PILLAR_ORDER } from '../application/healthScore';
 import type {
     CommercialIntelligenceRepository, DealRow, StageDefinition, CommercialGoalDTO, GoalMetric,
 } from '../domain/CommercialIntelligence';
@@ -81,8 +83,22 @@ class FakeRepository implements CommercialIntelligenceRepository {
         return this.filterOptionsResult;
     }
 
+    getGoalCallCount = 0;
+    getGoalsCallCount = 0;
+
     async getGoal(organizationId: string, period: string, metric: GoalMetric): Promise<CommercialGoalDTO | null> {
+        this.getGoalCallCount += 1;
         return this.goals.get(`${organizationId}:${period}:${metric}`) ?? null;
+    }
+
+    async getGoals(organizationId: string, periods: string[], metric: GoalMetric): Promise<Map<string, CommercialGoalDTO>> {
+        this.getGoalsCallCount += 1;
+        const result = new Map<string, CommercialGoalDTO>();
+        for (const period of periods) {
+            const g = this.goals.get(`${organizationId}:${period}:${metric}`);
+            if (g) result.set(period, g);
+        }
+        return result;
     }
 
     async upsertGoal(organizationId: string, period: string, metric: GoalMetric, amount: number, currency: string, createdBy: string): Promise<CommercialGoalDTO> {
@@ -470,6 +486,32 @@ describe('CommercialIntelligenceUseCases', () => {
         expect(overview.coverageProtection[0].status).toBe('saudavel');
     });
 
+    // N+1 (onda 42, auditoria de listagens/dashboards): buildExecutiveOverview buscava a meta do
+    // mês do filtro com `getGoal` e depois, dentro do loop de Proteção 90 dias (4 iterações),
+    // disparava mais um `getGoal` sequencial por mês além do primeiro — até 4 queries de meta por
+    // chamada deste relatório (o mais lido do módulo). A correção troca isso por uma única
+    // `getGoals(organizationId, periods, metric)` batelada (`period: { in: [...] }` no Prisma).
+    // Este teste mede o NÚMERO DE CHAMADAS ao repositório (não só o resultado), para não regredir
+    // silenciosamente de volta a um `getGoal` por iteração.
+    it('Proteção 90 dias: busca as metas dos 4 meses numa única chamada ao repositório (sem N+1)', async () => {
+        const repo = new FakeRepository([deal({ id: 'd1', amount: 10_000 })]);
+        await repo.upsertGoal(ORG, '2026-08', 'NEW_MRR', 50_000, 'BRL', 'user-1');
+        await repo.upsertGoal(ORG, '2026-09', 'NEW_MRR', 20_000, 'BRL', 'user-1');
+        await repo.upsertGoal(ORG, '2026-10', 'NEW_MRR', 30_000, 'BRL', 'user-1');
+        await repo.upsertGoal(ORG, '2026-11', 'NEW_MRR', 40_000, 'BRL', 'user-1');
+        const useCases = new CommercialIntelligenceUseCases(repo);
+
+        const overview = await useCases.executiveOverview(ORG, { month: PERIOD }, NOW);
+
+        // Antes da correção: getGoalCallCount seria 1 (mês do filtro) + 3 (loop) = 4, e
+        // getGoalsCallCount seria 0 (o método nem existia). Depois: exatamente o oposto.
+        expect(repo.getGoalsCallCount).toBe(1);
+        expect(repo.getGoalCallCount).toBe(0);
+        // E o resultado continua correto com a busca batelada — as 4 metas aparecem certas.
+        expect(overview.coverageProtection.map((e) => e.goalAmount)).toEqual([50_000, 20_000, 30_000, 40_000]);
+        expect(overview.goal?.amount).toBe(50_000);
+    });
+
     // ─── Comparação com o mês anterior (seção 7/23) ────────────────────────────
 
     it('Comparação com o mês anterior: null sem nenhum negócio fechado no mês anterior', async () => {
@@ -740,5 +782,44 @@ describe('CommercialIntelligenceUseCases', () => {
         expect(quality.bitrixSync.lastSyncAt).toBeNull();
         expect(quality.bitrixSync.syncedCount30d).toBe(0);
         expect(quality.bitrixSync.failedCount30d).toBe(0);
+    });
+
+    // ─── Health Score composto (gap de auditoria CPI) ──────────────────────────
+
+    it('healthScore: sem nenhum negócio, todos os 6 pilares ficam "não disponível" e o score geral é null', async () => {
+        const useCases = new CommercialIntelligenceUseCases(new FakeRepository([]));
+        const result = await useCases.healthScore(ORG, { month: PERIOD }, NOW);
+        expect(result.pillars.map((p) => p.pillar)).toEqual(HEALTH_PILLAR_ORDER);
+        expect(result.pillars.every((p) => p.score === null)).toBe(true);
+        expect(result.overallScore).toBeNull();
+    });
+
+    it('healthScore: agrega os relatórios reais do módulo (win rate real vira o pilar Conversão)', async () => {
+        const won = deal({ id: 'w1', amount: 30_000, stageIsWon: true, pipelineStageId: 'stage-ganho', closedAt: new Date('2026-08-10T00:00:00Z') });
+        const lost = deal({ id: 'l1', amount: 10_000, stageIsLost: true, pipelineStageId: 'stage-perdido', closedAt: new Date('2026-08-11T00:00:00Z') });
+        const useCases = new CommercialIntelligenceUseCases(new FakeRepository([won, lost]));
+        const result = await useCases.healthScore(ORG, { month: PERIOD }, NOW);
+        const conversao = result.pillars.find((p) => p.pillar === 'conversao')!;
+        expect(conversao.score).toBe(50); // 1 ganho / (1 ganho + 1 perdido)
+        expect(conversao.classification).toBe('saudavel'); // 50% >= limiar saudável (30%) documentado em HEALTH_SCORE_RULES
+    });
+
+    it('healthScore: o pilar Confiabilidade de Forecast reflete o parâmetro forecastAccuracy explícito passado por quem chama', async () => {
+        const useCases = new CommercialIntelligenceUseCases(new FakeRepository([]));
+        const accuracySummary = summarizeForecastAccuracy([
+            computeForecastAccuracy('2026-07', { id: 's1', organizationId: ORG, period: '2026-07', snapshotAt: '2026-07-20T00:00:00.000Z', rulesVersion: 'v1', commitAmount: 0, bestCaseAmount: 0, forecastAmount: 110_000, currency: 'BRL' }, 100_000, NOW),
+        ]);
+        const result = await useCases.healthScore(ORG, { month: PERIOD }, NOW, accuracySummary);
+        const confiabilidade = result.pillars.find((p) => p.pillar === 'confiabilidadeForecast')!;
+        expect(confiabilidade.score).toBe(90); // 100 - 10% de erro
+        expect(confiabilidade.unavailableReason).toBeNull();
+    });
+
+    it('healthScore: sem o parâmetro forecastAccuracy, o pilar Confiabilidade de Forecast fica "não disponível" (nunca fabricado por omissão)', async () => {
+        const useCases = new CommercialIntelligenceUseCases(new FakeRepository([]));
+        const result = await useCases.healthScore(ORG, { month: PERIOD }, NOW);
+        const confiabilidade = result.pillars.find((p) => p.pillar === 'confiabilidadeForecast')!;
+        expect(confiabilidade.score).toBeNull();
+        expect(confiabilidade.unavailableReason).toBe('sem_historico_suficiente');
     });
 });

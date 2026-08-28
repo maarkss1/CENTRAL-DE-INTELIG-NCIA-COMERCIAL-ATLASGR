@@ -19,8 +19,10 @@
  */
 
 import type { CadenceChannel } from './optOut.js';
+import type { RateLimitBlockReason } from './rateLimit.js';
 
 export type { CadenceChannel };
+export type { RateLimitBlockReason };
 
 /** Um passo da sequência configurável (e-mail → WhatsApp → voz → e-mail…). */
 export interface CadenceTouch {
@@ -52,7 +54,13 @@ export interface CadenceSequenceDefinition {
 export type CadenceRunStatus = 'active' | 'paused' | 'stopped' | 'completed' | 'failed';
 export type CadenceStopReason = 'opt-out' | 'lead-reply' | 'completed' | 'manual-stop' | 'policy-guardrail';
 export type CadenceTouchResult = 'sent' | 'failed' | 'skipped';
-export type CadenceSkipReason = 'outside-business-window' | 'opt-out' | 'lead-replied' | 'paused';
+/**
+ * `contact-rate-limit`/`domain-rate-limit` (auditoria transversal, Agente 17): o mesmo contato (ou
+ * o mesmo domínio de e-mail) recebendo toques em excesso quando várias cadências/campanhas
+ * diferentes miram o mesmo lead — ver `domain/rateLimit.ts` para a política e
+ * `application/rateLimitService.ts` para a contagem real (I/O).
+ */
+export type CadenceSkipReason = 'outside-business-window' | 'opt-out' | 'lead-replied' | 'paused' | RateLimitBlockReason;
 
 export interface CadenceTouchAttempt {
     touchOrder: number;
@@ -80,6 +88,11 @@ export interface CadenceRunState {
     lastTouchAt: Date | null;
     pausedAt: Date | null;
     stoppedAt: Date | null;
+    /** Onda 40 (auditoria CPI — "sem campo Owner explícito no estado da cadência"): userId de quem
+     * iniciou este run (ator autenticado da rota `POST /cadence/runs`), nunca inferido. Null só
+     * para runs que já existiam antes desta coluna, ou disparados sem contexto de usuário
+     * (ex.: worker automático) — nunca um valor fabricado. Nunca muda depois da criação. */
+    createdBy: string | null;
     attempts: CadenceTouchAttempt[];
 }
 
@@ -88,6 +101,12 @@ export interface CadenceDecisionContext {
     hasLeadReplied: boolean;
     /** Injeção da regra de janela comercial (reaproveite `isWithinCallWindow`, não reimplemente aqui). */
     isWithinBusinessWindow: (now: Date) => boolean;
+    /**
+     * Resultado já calculado (I/O feito por quem chama, ver `evaluateRateLimitForUpcomingTouch`
+     * em `application/rateLimitService.ts`) de `decideRateLimitBlock` para o toque candidato desta
+     * decisão. `null` quando nenhum limite se aplica.
+     */
+    rateLimitBlock: RateLimitBlockReason | null;
 }
 
 export type CadenceDecision =
@@ -157,6 +176,14 @@ export function decideCadenceAction(
         return { type: 'wait', reason: 'outside-business-window' };
     }
 
+    // Rate limit é checado por último, só quando o toque despacharia de qualquer outro jeito
+    // (delay cumprido, dentro da janela comercial) — o motivo mais específico ganha (contato antes
+    // de domínio, ver `decideRateLimitBlock`), e o run continua `active`: é um `wait`, não um
+    // `stop` — bloqueio temporário de volume, não um sinal do lead nem falha estrutural do run.
+    if (ctx.rateLimitBlock) {
+        return { type: 'wait', reason: ctx.rateLimitBlock };
+    }
+
     return { type: 'dispatch', touch };
 }
 
@@ -167,6 +194,7 @@ export function startCadenceRun(input: {
     leadId: string;
     sequenceId: string;
     startedAt: Date;
+    createdBy?: string | null;
 }): CadenceRunState {
     return {
         id: input.id,
@@ -180,6 +208,7 @@ export function startCadenceRun(input: {
         lastTouchAt: null,
         pausedAt: null,
         stoppedAt: null,
+        createdBy: input.createdBy ?? null,
         attempts: [],
     };
 }

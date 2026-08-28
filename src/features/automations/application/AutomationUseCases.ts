@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { Automation, AutomationRepository } from '../domain/Automation';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';
+import { automationVersioningService, type AutomationVersionActor, type AutomationVersionTimeline } from '../automation-versioning.service.js';
+import { dryRunAutomation, type DryRunOptions, type DryRunResult } from '../automation-dry-run.service.js';
 
 export const AUTOMATION_TRIGGERS = ['Lead criado', 'Lead mudou de status', 'Atividade concluída'] as const;
 export const AUTOMATION_ACTIONS = ['Notificar equipe', 'Criar atividade', 'Ligar via SDR de Voz'] as const;
@@ -45,18 +47,44 @@ export class AutomationUseCases extends BaseUseCases<Automation, AutomationRepos
         return this.create(organizationId, validated);
     }
 
-    /** Atualização parcial restrita ao tenant — mesmo contrato do AutomationService original: null quando o id não pertence a esta organização (a rota devolve 404). */
-    async updateAutomation(organizationId: string, id: string, input: Partial<AutomationInput>) {
+    /** Atualização parcial restrita ao tenant — mesmo contrato do AutomationService original: null
+     *  quando o id não pertence a esta organização (a rota devolve 404). `actor` (quem está
+     *  editando) alimenta o histórico de versões (Onda 42) — o estado ANTERIOR à edição vira uma
+     *  versão histórica antes de ser sobrescrito. Nunca bloqueia a edição se o registro de versão
+     *  falhar (ver `automationVersioningService.recordPriorState`). */
+    async updateAutomation(organizationId: string, id: string, input: Partial<AutomationInput>, actor?: AutomationVersionActor) {
         const existing = await this.repository.findById!(organizationId, id);
         if (!existing) return null;
+        await automationVersioningService.recordPriorState(organizationId, id, existing, actor ?? { userId: null, email: null }, 'update');
         return this.update(organizationId, id, input);
     }
 
-    /** Remoção restrita ao tenant — mesmo contrato do AutomationService original: false quando o id não pertence a esta organização (a rota devolve 404). */
-    async removeAutomation(organizationId: string, id: string): Promise<boolean> {
+    /** Remoção restrita ao tenant — mesmo contrato do AutomationService original: false quando o id
+     *  não pertence a esta organização (a rota devolve 404). O último estado da regra vira uma
+     *  versão histórica (`changeReason: 'delete'`) antes de ser removida, para o histórico não
+     *  desaparecer junto com a automação. */
+    async removeAutomation(organizationId: string, id: string, actor?: AutomationVersionActor): Promise<boolean> {
         const existing = await this.repository.findById!(organizationId, id);
         if (!existing) return false;
+        await automationVersioningService.recordPriorState(organizationId, id, existing, actor ?? { userId: null, email: null }, 'delete');
         await this.delete(organizationId, id);
         return true;
+    }
+
+    /** Histórico de versões da regra (estado atual + edições anteriores com diff textual) — null
+     *  quando o id não pertence a esta organização (a rota devolve 404). */
+    async listVersions(organizationId: string, id: string): Promise<AutomationVersionTimeline | null> {
+        const automation = await this.repository.findById!(organizationId, id);
+        if (!automation) return null;
+        return automationVersioningService.buildTimeline(organizationId, automation);
+    }
+
+    /** Simulação ("dry-run") da regra contra o dado atual da organização — ver
+     *  `automation-dry-run.service.ts` para a metodologia. Null quando o id não pertence a esta
+     *  organização (a rota devolve 404). */
+    async dryRun(organizationId: string, id: string, options?: DryRunOptions): Promise<DryRunResult | null> {
+        const automation = await this.repository.findById!(organizationId, id);
+        if (!automation) return null;
+        return dryRunAutomation(organizationId, automation, options);
     }
 }

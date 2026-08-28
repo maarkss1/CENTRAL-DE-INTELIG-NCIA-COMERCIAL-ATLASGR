@@ -315,7 +315,7 @@ router.post('/pending/:id/approve', pendingActionRoles, async (req: Request, res
         const { id } = req.params;
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const result = await approvePendingAction(db, authRequest.user.organizationId, id);
+        const result = await approvePendingAction(db, authRequest.user.organizationId, id, authRequest.user.id);
         if (!result) {
             res.status(404).json({ success: false, error: 'Ação pendente não encontrada.' });
             return;
@@ -334,7 +334,7 @@ router.delete('/pending/:id', pendingActionRoles, async (req: Request, res: Resp
     try {
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const discarded = await discardPendingAction(db, authRequest.user.organizationId, req.params.id);
+        const discarded = await discardPendingAction(db, authRequest.user.organizationId, req.params.id, authRequest.user.id);
         if (!discarded) {
             res.status(404).json({ success: false, error: 'Ação pendente não encontrada.' });
             return;

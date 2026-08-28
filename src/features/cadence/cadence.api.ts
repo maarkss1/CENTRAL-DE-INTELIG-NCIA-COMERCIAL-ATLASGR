@@ -14,7 +14,7 @@ export type CadenceRunStatus = 'active' | 'paused' | 'stopped' | 'completed' | '
 export type CadenceStopReason = 'opt-out' | 'lead-reply' | 'completed' | 'manual-stop' | 'policy-guardrail';
 export type CadenceChannel = 'email' | 'whatsapp' | 'voice';
 export type CadenceTouchResult = 'sent' | 'failed' | 'skipped';
-export type CadenceSkipReason = 'outside-business-window' | 'opt-out' | 'lead-replied' | 'paused';
+export type CadenceSkipReason = 'outside-business-window' | 'opt-out' | 'lead-replied' | 'paused' | 'contact-rate-limit' | 'domain-rate-limit';
 export type OptOutScope = CadenceChannel | 'global';
 export type OptOutOriginChannel = CadenceChannel | 'manual' | 'import';
 

@@ -23,6 +23,14 @@ router.put('/:id', managementRoles, validateRequest(automationSchema.partial()),
 
 router.delete('/:id', managementRoles, (req, res, next) => container.resolve<AutomationController>('AutomationController').deleteAutomation(req, res, next));
 
+// Histórico de versões da regra (Onda 42 — dossiê CPI DEC-14, opção A) e simulação/preview
+// ("dry-run") antes de ativar — mesmo nível de restrição das outras rotas de gestão de automação
+// (ADMIN/GESTOR): a primeira revela histórico de configuração comercial, a segunda lê uma amostra
+// de leads/atividades reais da organização.
+router.get('/:id/versions', managementRoles, (req, res, next) => container.resolve<AutomationController>('AutomationController').getVersions(req, res, next));
+
+router.post('/:id/dry-run', managementRoles, (req, res, next) => container.resolve<AutomationController>('AutomationController').dryRunAutomation(req, res, next));
+
 // Dispara a varredura de estagnação (regras "Lead mudou de status" com condição
 // `daysSinceLastInteraction`, ver stagnation-scanner.service.ts) imediatamente em vez de esperar o
 // cron diário. Roda para TODAS as organizações (mesmo padrão de `runColdLeadsScan`/`/win-loss-

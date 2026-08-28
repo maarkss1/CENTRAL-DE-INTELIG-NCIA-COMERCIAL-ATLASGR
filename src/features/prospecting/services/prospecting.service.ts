@@ -1,7 +1,8 @@
 import { logger } from '../../../lib/logger';
-import { prisma, withRlsContext } from '../../../lib/prisma.js';
+import { prisma } from '../../../lib/prisma.js';
 import { Prisma } from '@prisma/client';
-import { isValidCnpj, sanitizeCnpj, discoverCnpjByName } from './cnpj.util';
+import { toDeterministicCnpj, discoverCnpjByName } from './cnpj.util';
+import { resolveCompanyIdentity } from './companyIdentity.service';
 import { enrichCompany } from './enrichment.service';
 import { fetchApolloCandidates, searchDecisionMakersAdvanced, enrichOrganizationWithContacts } from './apollo.service';
 import type { DecisionMakerCriteria } from './apollo.service';
@@ -14,6 +15,9 @@ import { ExclusionSet } from '../utils/exclusionSet.js';
 import { searchCompanyNews } from './news.service.js';
 import { findCompanyDomain } from '../utils/domain.js';
 import { validContactEmails } from '../../../shared/utils/contact-links';
+import { buildSearchIntent } from '../domain/searchIntent.js';
+import { planCompanyDiscovery, planShortfallFallback, type ProviderPlanStep } from '../domain/queryPlanner.js';
+import { SearchExecutionTracker, type SearchExecutionStatus } from './searchExecution.service.js';
 
 export interface ProspectCriteria {
     /** Detalhes adicionais do ICP além dos campos estruturados abaixo (texto livre, nuance qualitativa). */
@@ -104,6 +108,11 @@ export interface DiscoverResult {
     sources: Array<{ title: string; uri: string }>;
     apolloError?: string;
     providerMode: 'free' | 'hybrid';
+    /** Onda 42 (dossiê CPI, DEC-13, opção A): id único desta EXECUÇÃO de busca (cuid) — amarra
+     * critério usado, providers chamados, resultados e custo, persistido em
+     * `ProspectingSearchExecution` (ver searchExecution.service.ts) e consultável depois via
+     * `GET /api/prospecting/searches/:searchId`. */
+    searchId: string;
 }
 
 /** Monta a localização mais precisa disponível: cidade + estado > estado > região ampla do playbook. */
@@ -214,8 +223,32 @@ export async function fetchKnownExclusions(organizationId: string): Promise<Excl
 }
 
 /**
- * Descoberta de candidatos: combina Apollo.io, Google Places e OpenStreetMap (Nominatim).
- * — nenhuma chamada a modelos generativos. Cada candidato ainda passa pelo pipeline de
+ * Executa UM passo do `QueryPlan` (`domain/queryPlanner.ts`) contra o provider real que ele indica
+ * — o único lugar que ainda conhece as três funções concretas de busca (`fetchApolloCandidates`,
+ * `discoverViaGooglePlaces`, `discoverViaNominatim`). O planner decide QUAIS providers chamar, com
+ * que cota e em que ordem; este dispatcher só traduz essa decisão em chamada real, normalizando o
+ * retorno de cada provider (só a Apollo hoje devolve `error` junto dos candidatos) para o mesmo
+ * formato `{ candidates, error? }`.
+ */
+async function executeDiscoveryStep(
+    step: ProviderPlanStep,
+    criteria: ProspectCriteria,
+    exclusions: ExclusionSet
+): Promise<{ candidates: ProspectCandidate[]; error?: string }> {
+    switch (step.provider) {
+        case 'apollo':
+            return fetchApolloCandidates(criteria, step.quota, exclusions);
+        case 'googlePlaces':
+            return { candidates: await discoverViaGooglePlaces(criteria, step.quota, exclusions) };
+        case 'nominatim':
+            return { candidates: await discoverViaNominatim(criteria, step.quota, exclusions) };
+    }
+}
+
+/**
+ * Descoberta de candidatos: combina Apollo.io, Google Places e OpenStreetMap (Nominatim), na
+ * ordem/cota que o `QueryPlanner` (`domain/queryPlanner.ts`) decidir para o `SearchIntent` desta
+ * busca — nenhuma chamada a modelos generativos. Cada candidato ainda passa pelo pipeline de
  * enriquecimento real (Receita Federal + Google Places + Apollo People) antes de virar um Lead confiável.
  * `organizationId`, quando informado, exclui do resultado empresas já cadastradas no CRM do tenant
  * ou já rejeitadas (ver `fetchKnownExclusions`) — opcional só para não quebrar chamadas de teste
@@ -223,98 +256,174 @@ export async function fetchKnownExclusions(organizationId: string): Promise<Excl
  * Google Places (precisão geográfica real), em vez de só entrar como fallback se a Apollo não
  * preencher a cota sozinha. `criteria.pagina` avança pro próximo lote do ranking da Apollo.
  */
-// Teto de leads por busca — priorizamos qualidade (enriquecimento completo: CNPJ, decisores,
-// notícias) em vez de volume. Ver MAX_LEADS_PER_SEARCH espelhado em discoverCriteria.schema.ts.
-const MAX_LEADS_PER_SEARCH = 20;
+// Onda 42 (DEC-12+DEC-13): a ORDEM e a COTA de cada provider deixaram de ser um array hardcoded e
+// passaram a ser uma decisão explícita do QueryPlanner (`domain/queryPlanner.ts`) — dado o mesmo
+// `SearchIntent` e `providerMode`, `planCompanyDiscovery` devolve o MESMO cascade que existia antes
+// (Apollo → Google Places → Nominatim, com a mesma aritmética de cota), só que agora nomeado,
+// comentado e testado (ver queryPlanner.test.ts). Cada chamada de provider real, tanto na leva
+// primária quanto no fallback, também alimenta o `SearchExecutionTracker` (DEC-13) — o Search-ID
+// rastreável amarra critério → providers chamados → resultados → custo de ponta a ponta.
+function trackerProviderName(provider: ProviderPlanStep['provider']): string {
+    return provider === 'googlePlaces' ? 'google_places' : provider;
+}
 
-export async function discoverCandidates(criteria: ProspectCriteria, organizationId?: string): Promise<DiscoverResult> {
-    const total = Math.max(1, Math.min(MAX_LEADS_PER_SEARCH, criteria.quantidade || MAX_LEADS_PER_SEARCH));
-    const allCandidates: ProspectCandidate[] = [];
-    const exclusions = organizationId ? await fetchKnownExclusions(organizationId) : new ExclusionSet();
+export async function discoverCandidates(
+    criteria: ProspectCriteria,
+    organizationId?: string,
+    /** Onda 42 (dossiê CPI, DEC-13, opção A): id da SavedSearch cuja reexecução gerou esta busca,
+     * quando aplicável (ver `/saved-searches/:id/run` em prospecting.routes.ts) — nunca inferido,
+     * só passado quando o chamador realmente sabe a origem. Persistido no
+     * ProspectingSearchExecution como relação opcional para amarrar "esta execução veio desta
+     * busca salva". */
+    savedSearchId?: string | null
+): Promise<DiscoverResult> {
+    // `SearchIntent` normaliza `criteria.quantidade` (clamp a MAX_LEADS_PER_SEARCH) da mesma forma
+    // que este serviço já fazia antes — `total` é só um apelido local de `intent.quantityRequested`
+    // para o restante da função (ranking/corte final) não precisar recalcular o mesmo clamp.
+    const intent = buildSearchIntent(criteria);
+    const total = intent.quantityRequested;
     const providerMode = getProspectingProviderMode();
-
-    if (criteria.excludeNames && criteria.excludeNames.length > 0) {
-        for (const name of criteria.excludeNames) {
-            exclusions.add(name);
-        }
-    }
-
-    let apolloError: string | undefined;
-
-    // Executa os motores de busca em PARALELO para tempo de resposta ultrarrápido (300%+ mais rápido)
-    const placesTarget = criteria.cidade ? Math.max(1, Math.round(total * 0.4)) : Math.min(total, 25);
-
-    const [apolloResult, placesResult, nominatimResult] = await Promise.allSettled([
-        providerMode === 'hybrid'
-            ? fetchApolloCandidates(criteria, total, exclusions)
-            : Promise.resolve({ candidates: [] as ProspectCandidate[], error: undefined }),
-        discoverViaGooglePlaces(criteria, placesTarget, exclusions),
-        total > 15 ? discoverViaNominatim(criteria, Math.min(total, 20), exclusions) : Promise.resolve([] as ProspectCandidate[]),
-    ]);
-
-    function absorb(found: ProspectCandidate[]) {
-        for (const candidate of found) {
-            if (exclusions.has(candidate.tradeName, candidate.website)) continue;
-            exclusions.add(candidate.tradeName, candidate.website);
-            allCandidates.push(candidate);
-        }
-    }
-
-    if (apolloResult.status === 'fulfilled') {
-        absorb(apolloResult.value.candidates);
-        apolloError = apolloResult.value.error;
-    }
-    if (placesResult.status === 'fulfilled') {
-        absorb(placesResult.value);
-    }
-    if (nominatimResult.status === 'fulfilled') {
-        absorb(nominatimResult.value);
-    }
-
-    // Se faltarem candidatos para completar a cota desejada, executa fallback rápido
-    if (allCandidates.length < total && providerMode === 'hybrid') {
-        const remaining = total - allCandidates.length;
-        try {
-            const extraPlaces = await discoverViaGooglePlaces(criteria, remaining, exclusions);
-            absorb(extraPlaces);
-        } catch {
-            // Best effort
-        }
-    }
-
-    // RANKING DE ALTA QUALIDADE: eleva ao topo os candidatos com maior acionabilidade (decisores, e-mails, fones, site)
-    allCandidates.sort((a, b) => {
-        const scoreA = (a.fitScoreEstimate || 50) + (a.decisionMakers?.length ? 30 : 0) + (a.emails?.length ? 20 : 0) + (a.phone ? 10 : 0) + (a.website ? 10 : 0);
-        const scoreB = (b.fitScoreEstimate || 50) + (b.decisionMakers?.length ? 30 : 0) + (b.emails?.length ? 20 : 0) + (b.phone ? 10 : 0) + (b.website ? 10 : 0);
-        return scoreB - scoreA;
+    // Search-ID gerado ANTES de qualquer chamada a provider — precisa existir mesmo que a busca
+    // falhe logo no início, para os logs estruturados da execução inteira poderem carregá-lo.
+    const tracker = new SearchExecutionTracker({
+        organizationId,
+        savedSearchId: savedSearchId ?? null,
+        criteria,
+        providerMode,
     });
 
-    const finalCandidates = allCandidates.slice(0, total);
-
-    // Enriquecimento de qualidade (CNPJ, decisores + LinkedIn/e-mail/telefone, notícias/quebra-gelo)
-    // direto na busca — o teto de MAX_LEADS_PER_SEARCH candidatos é o que torna isto viável em
-    // termos de tempo/custo (antes, com até 500 candidatos, só os 10 primeiros recebiam notícia e
-    // decisores só vinham para os candidatos originados da Apollo).
     try {
-        await Promise.race([
-            enrichCandidatesWithQualityData(finalCandidates),
-            new Promise<void>((resolve) => setTimeout(resolve, 9000)),
-        ]);
-    } catch {
-        // Non-blocking best-effort
-    }
+        const allCandidates: ProspectCandidate[] = [];
+        const exclusions = organizationId ? await fetchKnownExclusions(organizationId) : new ExclusionSet();
 
-    return {
-        candidates: finalCandidates,
-        sources: [
-            {
-                title: 'Apollo.io / Google Places / OpenStreetMap',
-                uri: 'https://apollo.io',
-            },
-        ],
-        apolloError: providerMode === 'hybrid' ? apolloError : undefined,
-        providerMode,
-    };
+        if (criteria.excludeNames && criteria.excludeNames.length > 0) {
+            for (const name of criteria.excludeNames) {
+                exclusions.add(name);
+            }
+        }
+
+        let apolloError: string | undefined;
+
+        function absorb(found: ProspectCandidate[]) {
+            for (const candidate of found) {
+                if (exclusions.has(candidate.tradeName, candidate.website)) continue;
+                exclusions.add(candidate.tradeName, candidate.website);
+                allCandidates.push(candidate);
+            }
+        }
+
+        function reasonMessage(reason: unknown): string {
+            return reason instanceof Error ? reason.message : String(reason);
+        }
+
+        // A leva primária continua rodando em PARALELO — o plano decide QUEM e QUANTO, não quando;
+        // o tempo de resposta ultrarrápido (Promise.allSettled) é preservado.
+        const plan = planCompanyDiscovery(intent, providerMode);
+        const results = await Promise.allSettled(plan.steps.map((step) => executeDiscoveryStep(step, criteria, exclusions)));
+
+        // A ordem de absorção segue `plan.steps` (maior prioridade primeiro) — quando o mesmo nome
+        // de empresa aparece em mais de um provider da leva, o resultado do provider mais
+        // prioritário "vence" o dedupe (ver `scoreProvider` em queryPlanner.ts). Mesmo comportamento
+        // do cascade anterior (Apollo antes de Google Places antes de Nominatim), só que a ordem
+        // agora vem do plano, não da posição literal no array de código.
+        plan.steps.forEach((step, index) => {
+            const result = results[index];
+            if (result.status === 'fulfilled') {
+                absorb(result.value.candidates);
+                if (step.provider === 'apollo') apolloError = result.value.error;
+                tracker.recordProviderCall({
+                    provider: trackerProviderName(step.provider),
+                    resultCount: result.value.candidates.length,
+                    status: result.value.error ? 'error' : 'ok',
+                    errorMessage: result.value.error,
+                });
+            } else {
+                const message = reasonMessage(result.reason);
+                if (step.provider === 'apollo') apolloError = message;
+                tracker.recordProviderCall({ provider: trackerProviderName(step.provider), resultCount: 0, status: 'error', errorMessage: message });
+            }
+        });
+
+        // Se faltarem candidatos para completar a cota desejada, o planner decide se (e como)
+        // reforçar — mesma regra do cascade anterior: só em modo 'hybrid', sempre via Google Places.
+        const fallbackStep = planShortfallFallback(intent, providerMode, allCandidates.length);
+        if (fallbackStep) {
+            try {
+                const fallbackResult = await executeDiscoveryStep(fallbackStep, criteria, exclusions);
+                absorb(fallbackResult.candidates);
+                tracker.recordProviderCall({
+                    provider: trackerProviderName(fallbackStep.provider),
+                    resultCount: fallbackResult.candidates.length,
+                    status: 'ok',
+                });
+            } catch (err) {
+                tracker.recordProviderCall({
+                    provider: trackerProviderName(fallbackStep.provider),
+                    resultCount: 0,
+                    status: 'error',
+                    errorMessage: err instanceof Error ? err.message : 'Falha no fallback do Google Places',
+                });
+            }
+        }
+
+        // RANKING DE ALTA QUALIDADE: eleva ao topo os candidatos com maior acionabilidade (decisores, e-mails, fones, site)
+        allCandidates.sort((a, b) => {
+            const scoreA = (a.fitScoreEstimate || 50) + (a.decisionMakers?.length ? 30 : 0) + (a.emails?.length ? 20 : 0) + (a.phone ? 10 : 0) + (a.website ? 10 : 0);
+            const scoreB = (b.fitScoreEstimate || 50) + (b.decisionMakers?.length ? 30 : 0) + (b.emails?.length ? 20 : 0) + (b.phone ? 10 : 0) + (b.website ? 10 : 0);
+            return scoreB - scoreA;
+        });
+
+        const finalCandidates = allCandidates.slice(0, total);
+
+        // Enriquecimento de qualidade (CNPJ, decisores + LinkedIn/e-mail/telefone, notícias/quebra-gelo)
+        // direto na busca — o teto de MAX_LEADS_PER_SEARCH candidatos é o que torna isto viável em
+        // termos de tempo/custo (antes, com até 500 candidatos, só os 10 primeiros recebiam notícia e
+        // decisores só vinham para os candidatos originados da Apollo).
+        try {
+            await Promise.race([
+                enrichCandidatesWithQualityData(finalCandidates, tracker),
+                new Promise<void>((resolve) => setTimeout(resolve, 9000)),
+            ]);
+        } catch {
+            // Non-blocking best-effort
+        }
+
+        const hadProviderError = tracker.providerCalls.some((c) => c.status === 'error');
+        const finishStatus: SearchExecutionStatus = !hadProviderError
+            ? 'success'
+            : finalCandidates.length > 0
+                ? 'partial'
+                : 'error';
+
+        await tracker.finish({
+            status: finishStatus,
+            totalResults: finalCandidates.length,
+            errorMessage: providerMode === 'hybrid' ? apolloError : undefined,
+        });
+
+        return {
+            searchId: tracker.searchId,
+            candidates: finalCandidates,
+            sources: [
+                {
+                    title: 'Apollo.io / Google Places / OpenStreetMap',
+                    uri: 'https://apollo.io',
+                },
+            ],
+            apolloError: providerMode === 'hybrid' ? apolloError : undefined,
+            providerMode,
+        };
+    } catch (error) {
+        // Search-ID precisa ser persistido mesmo quando a execução inteira quebra antes de gerar
+        // qualquer candidato — é exatamente o cenário que a auditoria de execução (Onda 42) existe
+        // para capturar ("a busca rodou, com este critério, e falhou assim").
+        await tracker.finish({
+            status: 'error',
+            totalResults: 0,
+            errorMessage: error instanceof Error ? error.message : 'Erro desconhecido na execução de busca',
+        });
+        throw error;
+    }
 }
 
 /**
@@ -325,7 +434,14 @@ export async function discoverCandidates(criteria: ProspectCriteria, organizatio
  * rodam em paralelo entre si, e todos os candidatos rodam em paralelo entre eles — o tempo total
  * fica limitado pelo orçamento em `discoverCandidates` (Promise.race), não pela soma dos custos.
  */
-export async function enrichCandidatesWithQualityData(candidates: ProspectCandidate[]): Promise<void> {
+export async function enrichCandidatesWithQualityData(
+    candidates: ProspectCandidate[],
+    /** Onda 42: quando informado, cada chamada real de provider feita aqui (CNPJ/Receita Federal,
+     * decisores via Apollo/Hunter, notícias) entra na mesma execução de busca rastreada pelo
+     * Search-ID do chamador (ver discoverCandidates). Opcional — chamadores fora do fluxo de busca
+     * (ex.: reprocessamento manual) continuam funcionando sem tracker. */
+    tracker?: SearchExecutionTracker
+): Promise<void> {
     await Promise.allSettled(
         candidates.map(async (candidate) => {
             await Promise.allSettled([
@@ -334,8 +450,15 @@ export async function enrichCandidatesWithQualityData(candidates: ProspectCandid
                     try {
                         const cnpj = await discoverCnpjByName(candidate.tradeName);
                         if (cnpj) candidate.cnpjGuess = cnpj;
+                        tracker?.recordProviderCall({ provider: 'receita_federal', resultCount: cnpj ? 1 : 0, status: 'ok' });
                     } catch (err) {
-                        logger.error({ err, companyName: candidate.tradeName }, 'Falha ao descobrir CNPJ do candidato');
+                        logger.error({ err, searchId: tracker?.searchId, companyName: candidate.tradeName }, 'Falha ao descobrir CNPJ do candidato');
+                        tracker?.recordProviderCall({
+                            provider: 'receita_federal',
+                            resultCount: 0,
+                            status: 'error',
+                            errorMessage: err instanceof Error ? err.message : 'Falha ao descobrir CNPJ',
+                        });
                     }
                 })(),
                 (async () => {
@@ -355,8 +478,15 @@ export async function enrichCandidatesWithQualityData(candidates: ProspectCandid
                         if (candidate.decisionMakers.length > 0) {
                             candidate.emails = validContactEmails(candidate.decisionMakers.map((dm) => dm.email));
                         }
+                        tracker?.recordProviderCall({ provider: source ?? 'apollo', resultCount: contacts.length, status: 'ok' });
                     } catch (err) {
-                        logger.error({ err, companyName: candidate.tradeName, domain }, 'Falha ao buscar decisores do candidato');
+                        logger.error({ err, searchId: tracker?.searchId, companyName: candidate.tradeName, domain }, 'Falha ao buscar decisores do candidato');
+                        tracker?.recordProviderCall({
+                            provider: 'apollo',
+                            resultCount: 0,
+                            status: 'error',
+                            errorMessage: err instanceof Error ? err.message : 'Falha ao buscar decisores',
+                        });
                     }
                 })(),
                 (async () => {
@@ -366,8 +496,15 @@ export async function enrichCandidatesWithQualityData(candidates: ProspectCandid
                             candidate.webInsights = mentions.map((m) => ({ title: m.title, url: m.url, domain: m.domain }));
                             candidate.icebreakerHook = `📰 Fato Relevante / Notícia: "${mentions[0].title}" (${mentions[0].domain})`;
                         }
+                        tracker?.recordProviderCall({ provider: 'news_search', resultCount: mentions?.length ?? 0, status: 'ok' });
                     } catch (err) {
-                        logger.error({ err, companyName: candidate.tradeName }, 'Falha ao buscar notícias para candidato');
+                        logger.error({ err, searchId: tracker?.searchId, companyName: candidate.tradeName }, 'Falha ao buscar notícias para candidato');
+                        tracker?.recordProviderCall({
+                            provider: 'news_search',
+                            resultCount: 0,
+                            status: 'error',
+                            errorMessage: err instanceof Error ? err.message : 'Falha ao buscar notícias',
+                        });
                     }
                 })(),
             ]);
@@ -416,6 +553,10 @@ export interface PromoteInput {
     state?: string | null;
     location?: string | null;
     source: string;
+    /** Onda 40 (auditoria CPI — "funil quebra no primeiro elo, busca→lead"): id da SavedSearch cujo
+     * candidato está sendo promovido, quando aplicável — nunca inferido, só passado quando o
+     * chamador realmente sabe a origem. */
+    savedSearchId?: string | null;
     contact?: { name: string; role?: string } | null;
     autoEnrich?: boolean;
     organizationId: string;
@@ -435,53 +576,21 @@ function splitLocation(location?: string | null): { city?: string; state?: strin
 }
 
 /**
- * Localiza uma empresa já cadastrada na organização que corresponda ao candidato
- * (mesmo CNPJ ou mesmo nome fantasia/razão social) — evita duplicar empresas ao
- * promover o mesmo candidato mais de uma vez.
- *
- * `$queryRaw` não passa pela extensão `$allOperations` de `src/lib/prisma.ts` (RLS/tenant
- * scoping) — roda via `withRlsContext` (seta `app.current_tenant_id` na transação; sem isso a
- * policy de RLS de "Company" com FORCE ROW LEVEL SECURITY devolve zero linhas sempre, mesmo com
- * o WHERE certo) e mantém o filtro explícito de `organizationId` como defesa em profundidade,
- * igual ao padrão já usado em `src/lib/ai/vectorStore.ts`.
+ * Localiza uma empresa já cadastrada na organização que corresponda ao candidato — via
+ * `resolveCompanyIdentity` (`companyIdentity.service.ts`): CNPJ normalizado+validado como
+ * identidade determinística quando disponível, com fallback para a heurística por nome fantasia/
+ * razão social só quando não há CNPJ confiável. Evita duplicar empresas ao promover o mesmo
+ * candidato mais de uma vez. Ver `companyIdentity.service.ts` para o raciocínio completo (dossiê
+ * CPI, DEC-16, opção A) e `tests/integration/prospecting-rls.test.ts` para a cobertura de RLS.
  */
 async function findExistingCompany(input: PromoteInput) {
-    try {
-        const cnpj = input.cnpj && isValidCnpj(input.cnpj) ? sanitizeCnpj(input.cnpj) : null;
-        if (cnpj) {
-            // CNPJs de Company nem sempre chegam ao banco no mesmo formato (alguns fluxos
-            // gravam só dígitos, outros com pontuação) — normaliza no próprio Postgres via
-            // regexp_replace em vez de carregar todas as empresas do tenant para comparar em
-            // memória, o que não escalaria com a base de clientes.
-            //
-            // '\\D' (barra dupla) de propósito: dentro de um template literal comum do JS, `\D`
-            // não é uma sequência de escape reconhecida, então o parser descarta a barra e o texto
-            // "cooked" enviado ao driver do Postgres vira só `D` — Prisma usa esse texto "cooked"
-            // (não `strings.raw`) para montar o SQL da query crua. Com barra simples, o
-            // regexp_replace comparava contra o caractere literal "D" (que um CNPJ nunca tem), e a
-            // busca por CNPJ nunca encontrava nada, mesmo já dentro do withRlsContext — confirmado
-            // empiricamente contra Postgres real (ver tests/integration/prospecting-rls.test.ts).
-            const [found] = await withRlsContext((tx) => tx.$queryRaw<{ id: string }[]>`
-                SELECT id FROM "Company"
-                WHERE "organizationId" = ${input.organizationId}
-                  AND cnpj IS NOT NULL
-                  AND regexp_replace(cnpj, '\\D', '', 'g') = ${cnpj}
-                LIMIT 1
-            `);
-            if (found) return prisma.company.findUnique({ where: { id: found.id } });
-        }
-        return await prisma.company.findFirst({
-            where: {
-                organizationId: input.organizationId,
-                OR: [
-                    { tradeName: { equals: input.tradeName, mode: 'insensitive' } },
-                    { legalName: { equals: input.legalName || input.tradeName, mode: 'insensitive' } },
-                ],
-            },
-        });
-    } catch {
-        return null;
-    }
+    const { company } = await resolveCompanyIdentity({
+        organizationId: input.organizationId,
+        cnpj: input.cnpj,
+        tradeName: input.tradeName,
+        legalName: input.legalName,
+    });
+    return company;
 }
 
 /**
@@ -505,7 +614,7 @@ export async function promoteToCrm(input: PromoteInput) {
         data: {
             legalName: input.legalName || input.tradeName,
             tradeName: input.tradeName,
-            cnpj: input.cnpj && isValidCnpj(input.cnpj) ? sanitizeCnpj(input.cnpj) : null,
+            cnpj: toDeterministicCnpj(input.cnpj),
             segment: input.segment,
             size: input.size,
             city,
@@ -591,6 +700,7 @@ export async function promoteToCrm(input: PromoteInput) {
             companyId: finalCompany.id,
             contactId: contact?.id,
             organizationId: input.organizationId,
+            savedSearchId: input.savedSearchId ?? null,
             timeline: {
                 create: {
                     type: 'creation',

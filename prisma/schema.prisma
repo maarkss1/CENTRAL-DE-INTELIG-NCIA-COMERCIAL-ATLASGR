@@ -137,10 +137,24 @@ enum CrmDocumentStatus {
 
 /// Classifica a natureza epistemica de cada item do LDR. O valor fica estruturado no banco para
 /// que fato observado, inferencia e recomendacao nunca dependam de convencao em texto livre.
+///
+/// CPI — item "Enum de evidencia incompleto": ESTIMATE/UNKNOWN/CONFLICT adicionados nesta rodada
+/// (migration prisma/migrations/20260826140000_expand_intelligence_evidence_type) porque o LDR
+/// real produz esses tres casos e nao tinha onde representa-los sem forcar um valor errado
+/// (ex.: uma confianca desconhecida sendo gravada como FACT). RECOMMENDATION nao e um tipo
+/// epistemico de dado (fato/inferencia/estimativa/desconhecido/conflito descrevem a natureza de
+/// uma OBSERVACAO; recomendacao e uma SAIDA/acao sugerida a partir de observacoes) — e
+/// semanticamente estranho no mesmo enum, mas nao foi removido nesta rodada: e valor already em
+/// uso por AccountSignal.evidenceType/DecisionMaker.roleEvidenceType e remove-lo exige investigar
+/// e migrar quem grava esse valor hoje, fora do escopo aditivo pedido (so ADICIONAR os que
+/// faltam). Ver relatorio da tarefa para o registro completo desta decisao.
 enum IntelligenceEvidenceType {
   FACT
   INFERENCE
   RECOMMENDATION
+  ESTIMATE
+  UNKNOWN
+  CONFLICT
 }
 
 enum IntelligenceSnapshotStatus {
@@ -434,6 +448,19 @@ model Contact {
   emailStatus         String? // ex: "verified", "guessed" — confiabilidade do e-mail encontrado
   aiProcessingConsent Boolean? // Consentimento LGPD explícito/titular para processamento de IA externa
 
+  // DEC-01 (dossiê CPI, Onda 42): índice de busca determinístico (HMAC-SHA256 do valor
+  // normalizado, ver src/lib/security/piiSearchIndex.ts) — permite igualdade exata/dedup em
+  // phone/email/whatsapp sem depender de comparação sobre texto puro (necessário caso estes
+  // campos sejam cifrados em repouso no futuro; hoje continuam em texto puro, ver decisão em
+  // .agents/handoffs/onda-42/01-para-00-pii-hash-fields.md). Calculado automaticamente pela
+  // extensão do Prisma Client (src/lib/prisma.ts) em toda escrita — nenhum call site precisa
+  // gravar estes campos manualmente. Índice simples (não único): dois contatos podem
+  // legitimamente compartilhar o mesmo telefone/e-mail (é o que o job de dedup existe para
+  // detectar).
+  phoneHash    String?
+  whatsappHash String?
+  emailHash    String?
+
   customFields        Json?
   commercialDocuments CrmCommercialDocument[]
 
@@ -460,6 +487,9 @@ model Contact {
   @@index([role])
   @@index([phone])
   @@index([whatsapp])
+  @@index([phoneHash])
+  @@index([whatsappHash])
+  @@index([emailHash])
 }
 
 model Lead {
@@ -547,6 +577,13 @@ model Lead {
   contactId String?
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
+  /// Onda 40 (auditoria CPI — "funil técnico-comercial quebra no primeiro elo, busca→lead"):
+  /// preenchido quando este Lead foi promovido a partir de um candidato descoberto por uma busca
+  /// salva (ver prospecting.service.ts, promoteToCrm). `SetNull`: apagar a busca salva não deve
+  /// apagar o lead já promovido, só desvincular o histórico de proveniência.
+  savedSearchId String?
+  savedSearch   SavedSearch? @relation(fields: [savedSearchId], references: [id], onDelete: SetNull)
+
   pipelineId      String?
   pipeline        CrmPipeline?      @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
   pipelineStageId String?
@@ -588,6 +625,7 @@ model Lead {
   @@index([organizationId, pipelineId, pipelineStageId])
   @@index([bitrixLeadId])
   @@index([bitrixDealId])
+  @@index([savedSearchId])
 }
 
 model Activity {
@@ -718,6 +756,7 @@ model Organization {
   crmCommercialDocuments        CrmCommercialDocument[]
   commercialGoals               CommercialGoal[]
   leadStageHistories            LeadStageHistory[]
+  forecastSnapshots             ForecastSnapshot[]
   featureFlagOverrides          OrganizationFeatureFlag[]
   bugReports                    BugReport[]
   // Onda 10 (Agente 01A) — schema de cadência/agendamento/proposta-assinatura proposto pelo
@@ -744,6 +783,18 @@ model Organization {
   threeCXCallEvents             ThreeCXCallEvent[]
   publicBookingLinks            PublicBookingLink[]
   savedSearches                 SavedSearch[]
+  prospectingSearchExecutions   ProspectingSearchExecution[]
+  automationVersions            AutomationVersion[]
+
+  /// DEC-09 (dossiê CPI, Onda 42): teto mensal de gasto com IA (USD) desta organização. Nullable =
+  /// SEM TETO (nunca bloqueia) — nunca um default implícito de US$0, que bloquearia toda
+  /// organização nova silenciosamente. Comparado contra a soma de AILog.cost do mês corrente desta
+  /// organização por assertOrgAiBudgetNotExceeded (src/lib/ai/budget.ts).
+  monthlyAiBudgetUsd Float?
+  /// DEC-09: teto mensal de gasto com providers de prospecção pagos (Apollo/Hunter, USD) desta
+  /// organização. Nullable = SEM TETO, mesmo raciocínio do campo acima. Comparado contra o
+  /// acumulado do mês corrente (Redis, ver providerBudget.ts) por assertProspectingBudgetNotExceeded.
+  monthlyProspectingBudgetUsd Float?
 }
 
 // ─── Comercial Inteligente (Revenue Command Center) ────────────────────────
@@ -809,6 +860,30 @@ model LeadStageHistory {
   @@index([organizationId, leadId, enteredAt])
   @@index([organizationId, stageId])
   @@index([leadId, exitedAt])
+}
+
+// Onda 39 (Agente 04, handoff .agents/handoffs/onda-39/04-para-01-schema-forecast-snapshot.md):
+// snapshot semanal append-only do Forecast (Commit/Best Case/Forecast por categoria + versão das
+// regras que o gerou), necessário para o erro histórico real (previsto x realizado) do Health
+// Score de Forecast — sem persistência, esse pilar nunca tem um snapshot antigo pra comparar
+// contra o realizado e fica permanentemente "não disponível" em produção. Nunca sobrescrito nem
+// truncado: cada corrida do snapshot semanal insere uma linha nova, mesmo período incluído
+// (histórico de revisões), nunca um upsert por período.
+model ForecastSnapshot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Período (mês) que este snapshot está prevendo — "YYYY-MM", mesma granularidade de CommercialGoal.
+  period         String
+  snapshotAt     DateTime     @default(now())
+  rulesVersion   String
+  commitAmount   Decimal      @db.Decimal(14, 2)
+  bestCaseAmount Decimal      @db.Decimal(14, 2)
+  forecastAmount Decimal      @db.Decimal(14, 2)
+  currency       String       @default("BRL")
+
+  @@index([organizationId, period])
+  @@index([organizationId, period, snapshotAt])
 }
 
 // ─── LDR / Account Intelligence ────────────────────────────────────────────
@@ -1330,6 +1405,12 @@ model Document {
   sourceName     String?
   // Contagem materializada: evita um COUNT por documento na listagem.
   chunkCount     Int             @default(0)
+  // Onda 40 (auditoria CPI — "RAG: document version/freshness ausente"): incrementado só quando o
+  // CONTEÚDO é reindexado (ingestion.service.ts updateDocument, ramo contentChanged) — editar só o
+  // título não conta como nova versão. Sem histórico de versões anteriores (reindexação continua
+  // in-place, chunks antigos são apagados), mas já permite saber se um documento retornado por uma
+  // busca é a versão mais recente indexada ou uma referência potencialmente desatualizada.
+  version        Int             @default(1)
   createdBy      String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -1572,7 +1653,46 @@ model Automation {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  /// DEC-14 (dossiê CPI, Onda 42): histórico de versões da REGRA (não das execuções — isso já
+  /// existe via AuditLog/automation-history.service.ts).
+  versions AutomationVersion[]
+
   @@index([organizationId, enabled])
+}
+
+/// DEC-14 (dossiê CPI, Onda 42, opção A): histórico de versões da REGRA de uma automação
+/// (trigger/condições/ação/config) — não das execuções dela. Cada registro é um snapshot do
+/// estado da regra imediatamente ANTES de uma edição ou remoção; o estado "atual" sempre é a
+/// própria linha em Automation (ou deixa de existir, no caso de remoção).
+model AutomationVersion {
+  id           String     @id @default(cuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  /// Snapshot da regra ANTES da edição/remoção que gerou este registro.
+  name         String
+  enabled      Boolean
+  trigger      AutomationTrigger
+  conditions   Json?
+  action       AutomationAction
+  actionConfig Json
+
+  /// Quem fez a edição/remoção que tornou este snapshot histórico (não quem criou o estado
+  /// snapshotado). Sem FK de propósito — mesmo padrão já usado no schema pelo mesmo motivo
+  /// (OrganizationFeatureFlag.updatedByUserId, BugReport.userId/userEmail): o histórico deve
+  /// sobreviver à remoção do usuário (ex-funcionário).
+  editedByUserId String?
+  editedByEmail  String?
+  /// 'update' | 'delete' — 'delete' registra o último estado antes da automação ser removida, para
+  /// o histórico não desaparecer junto com a regra.
+  changeReason String @default("update")
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([automationId, createdAt])
+  @@index([organizationId])
 }
 
 /// Lista interna de bloqueio de discagem: números para os quais o SDR de voz não pode ligar.
@@ -1884,6 +2004,12 @@ model BitrixExtractionRun {
 
   status BitrixExtractionStatus @default(queued)
 
+  /// Versão de BITRIX_FIELD_MAP (bitrixFieldMap.ts) vigente no momento desta extração — permite
+  /// confirmar contra qual mapeamento UF_CRM_* os dados foram interpretados se o portal for
+  /// reconfigurado depois. Nullable: extrações anteriores a esta coluna não têm esse dado (nunca
+  /// inferido retroativamente).
+  schemaVersion String?
+
   /// Progresso por entidade: total estimado, processado, página/lote atual, erros parciais.
   progress      Json?
   totalCount    Int   @default(0)
@@ -1904,12 +2030,20 @@ model BitrixExtractionRun {
   completedAt DateTime?
   cancelledAt DateTime?
 
+  /// DEC-04 (dossiê CPI, Onda 42, opção B): preenchido pelo worker de expurgo LGPD
+  /// (bitrixExtractionPurge.worker.ts) quando este run é anonimizado por retenção expirada — nunca
+  /// apagado, só anonimizado (arquivos removidos do storage, filters.search redigido). `null` =
+  /// nunca expurgado. Usado tanto para o filtro WHERE do worker (`purgedAt: null`) quanto para a
+  /// UI sinalizar "dado pessoal já removido por retenção".
+  purgedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([organizationId, createdAt])
   @@index([connectionId])
   @@index([status])
+  @@index([organizationId, purgedAt])
 }
 
 /// Conexão de PABX 3CX de uma organização (Click-to-Call / Call Control API) — antes deste modelo,
@@ -2019,20 +2153,6 @@ model ColdCallRun {
   @@index([organizationId, runAt])
 }
 
-model AIGovernancePolicy {
-  id       String @id @default(cuid())
-  name     String
-  rules    Json
-  tenantId String
-}
-
-model AIEvaluation {
-  id                 String @id @default(cuid())
-  logId              String
-  precisionScore     Float
-  hallucinationScore Float
-}
-
 model AIPendingAction {
   id             String        @id @default(cuid())
   entity         String
@@ -2048,7 +2168,12 @@ model AIPendingAction {
   idempotencyKey String?
   approved       Boolean       @default(false)
   approvedAt     DateTime?
+  /// Onda 39 (auditoria CPI — "trilha completa de aprovação"): id do usuário (User.id) que
+  /// aprovou/descartou esta ação, nunca inferido — ambos vêm de req.user na rota autenticada, o
+  /// mesmo usuário já responsável pelo RBAC de /pending/:id (ver pending-actions.service.ts).
+  approvedBy     String?
   discardedAt    DateTime?
+  discardedBy    String?
   /// Se a ação aprovada foi de fato executada (ex: e-mail enviado de verdade via SMTP). Sem este
   /// campo, "aprovar" só marcava um flag no banco e nada consumia isso depois (IA-005) — o
   /// executor real fica em src/features/intelligence/services/aiPendingAction.service.ts.
@@ -2564,6 +2689,64 @@ model SavedSearch {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  /// Onda 40 (auditoria CPI — "funil técnico-comercial quebra no primeiro elo, busca→lead"):
+  /// leads promovidos a partir de um candidato descoberto por esta busca salva. `leadsDiscovered`
+  /// acima já contava quantos candidatos uma execução encontrou, mas nenhum Lead real guardava de
+  /// qual busca salva ele veio — este relation fecha essa rastreabilidade.
+  leads Lead[]
+
+  /// DEC-13 (dossiê CPI, Onda 42): relação irmã de `leads` acima, do lado da EXECUÇÃO — quando uma
+  /// busca veio de POST /saved-searches/:id/run, não de /discover direto.
+  searchExecutions ProspectingSearchExecution[]
+
   @@index([organizationId])
+}
+
+/// DEC-13 (dossiê CPI, Onda 42, opção A): Search-ID formal rastreável — amarra critério de busca →
+/// providers chamados → resultados → custo de ponta a ponta, para auditoria/replay. `SavedSearch`
+/// acima só guarda o FILTRO salvo; este model é o registro de cada EXECUÇÃO individual.
+model ProspectingSearchExecution {
+  /// Search-ID — cuid gerado em aplicação (SearchExecutionTracker, ver searchExecution.service.ts)
+  /// no INÍCIO de cada execução real de busca, não pelo @default(cuid()) do Prisma — precisa
+  /// existir ANTES do INSERT para propagar nos logs estruturados da execução inteira, inclusive
+  /// quando ela falha antes de qualquer persistência.
+  id              String       @id
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  savedSearchId String?
+  savedSearch   SavedSearch? @relation(fields: [savedSearchId], references: [id], onDelete: SetNull)
+
+  /// Mesmo formato de SavedSearch.criteria — ProspectCriteria serializado.
+  criteria Json
+
+  /// 'free' | 'hybrid' — snapshot de getProspectingProviderMode() no momento da execução.
+  providerMode String
+
+  /// Array ordenado de chamadas reais a provider dentro desta execução — ver
+  /// SearchExecutionProviderCall em searchExecution.service.ts para o shape exato.
+  providersCalled Json
+
+  totalResults Int @default(0)
+
+  /// Custo estimado acumulado desta execução (USD), soma de providersCalled[].costUsd.
+  costUsd Decimal @default(0) @db.Decimal(10, 4)
+
+  /// 'success' | 'partial' | 'error' — texto livre (não enum), mesmo padrão já usado em outros
+  /// campos de status "narrativo" deste schema.
+  status       String
+  errorMessage String?
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  /// finishedAt - startedAt em ms — redundante com os dois campos acima, evita todo consumidor de
+  /// auditoria/replay precisar recalcular a mesma subtração.
+  durationMs Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, startedAt])
+  @@index([savedSearchId])
 }
 

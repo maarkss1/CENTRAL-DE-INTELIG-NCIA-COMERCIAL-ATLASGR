@@ -11,6 +11,8 @@ import {
 } from '../domain/cadence.js';
 import { isOptedOut } from './optOutService.js';
 import type { OptOutRepository, OptOutSubject } from '../domain/optOut.js';
+import { evaluateRateLimitForUpcomingTouch, type CadenceRateLimitPort } from './rateLimitService.js';
+import type { CadenceRateLimitPolicy, RateLimitBlockReason } from '../domain/rateLimit.js';
 
 /**
  * Orquestra um ciclo da cadência: decide a ação (`decideCadenceAction`), consulta o opt-out
@@ -69,7 +71,13 @@ export interface AdvanceCadenceRunDeps {
     lock: CadenceRunLockPort;
     isWithinBusinessWindow: (now: Date) => boolean;
     hasLeadReplied: (organizationId: string, leadId: string) => Promise<boolean>;
+    /** Porta de contagem do rate limit por contato/domínio (auditoria transversal, Agente 17) — ver `rateLimitService.ts`. */
+    rateLimit: CadenceRateLimitPort;
+    /** Override de política de rate limit — omitido usa `loadCadenceRateLimitPolicy()` (env var com default), ver `rateLimitConfig.ts`. */
+    rateLimitPolicy?: CadenceRateLimitPolicy;
 }
+
+export type { CadenceRateLimitPort };
 
 export interface AdvanceCadenceRunResult {
     run: CadenceRunState;
@@ -105,6 +113,19 @@ async function saveWithRetry(runRepo: CadenceRunRepository, run: CadenceRunState
 }
 
 /**
+ * `true` quando a ÚLTIMA tentativa já registrada para `touchOrder` já é um `skipped` com o MESMO
+ * motivo de rate limit desta decisão — usado para não gravar uma linha nova de
+ * `CadenceTouchAttempt` a cada tick do scheduler enquanto o bloqueio persiste (ver comentário em
+ * `advanceCadenceRun`). Um motivo diferente (ex.: passou de `domain-rate-limit` para
+ * `contact-rate-limit`) ainda grava, porque é informação nova.
+ */
+function isRedundantRateLimitSkip(run: CadenceRunState, touchOrder: number, reason: RateLimitBlockReason): boolean {
+    const attemptsForTouch = run.attempts.filter((a) => a.touchOrder === touchOrder);
+    const last = attemptsForTouch[attemptsForTouch.length - 1];
+    return last?.result === 'skipped' && last.skipReason === reason;
+}
+
+/**
  * Roda um ciclo de avaliação/despacho para um run existente. Idempotente de chamar mais de uma
  * vez no mesmo instante quando a decisão é `wait`/`stop` (nada é escrito além do estado já
  * persistido); quando a decisão é `dispatch`, o resultado real do canal é sempre gravado, nunca
@@ -135,20 +156,36 @@ export async function advanceCadenceRun(
     try {
         const hasLeadReplied = await deps.hasLeadReplied(organizationId, run.leadId);
 
-        // Opt-out é checado para o canal do PRÓXIMO toque (ou global, coberto por isOptedOut) — se o
-        // run já terminou (sem próximo toque), não há canal a checar e `decideCadenceAction` resolve
-        // isso sozinho como 'completed'.
+        // Opt-out e rate limit são checados para o canal do PRÓXIMO toque (ou global, coberto por
+        // isOptedOut) — se o run já terminou (sem próximo toque), não há canal a checar e
+        // `decideCadenceAction` resolve isso sozinho como 'completed'.
         const upcomingTouch = sequence.touches.find((t) => t.order === run.currentTouchOrder);
         let isOptedOutForUpcoming = false;
+        let rateLimitBlock: RateLimitBlockReason | null = null;
         if (upcomingTouch) {
             const subject = await deps.subjectResolver.resolve(organizationId, run.leadId);
             isOptedOutForUpcoming = await isOptedOut(deps.optOutRepo, organizationId, subject, upcomingTouch.channel);
+            // Rate limit por contato/domínio (auditoria transversal, Agente 17) — cruza QUALQUER
+            // cadência/run do mesmo lead, não só este run: o lock `deps.lock` só serializa dois
+            // ciclos concorrentes do MESMO runId, nunca protegeu contra o mesmo contato sendo
+            // atingido por cadências DIFERENTES em sequência. Checado por último (mesma ordem de
+            // `decideCadenceAction`): só vale a pena consultar quando o toque despacharia de
+            // qualquer outro jeito.
+            rateLimitBlock = await evaluateRateLimitForUpcomingTouch(deps.rateLimit, {
+                organizationId,
+                leadId: run.leadId,
+                email: subject.email ?? null,
+                channel: upcomingTouch.channel,
+                now,
+                policy: deps.rateLimitPolicy,
+            });
         }
 
         const decision = decideCadenceAction(run, sequence, now, {
             isOptedOut: isOptedOutForUpcoming,
             hasLeadReplied,
             isWithinBusinessWindow: deps.isWithinBusinessWindow,
+            rateLimitBlock,
         });
 
         if (decision.type === 'stop') {
@@ -161,6 +198,22 @@ export async function advanceCadenceRun(
         }
 
         if (decision.type === 'wait') {
+            // Registra o bloqueio de rate limit UMA vez por "episódio" (nunca falha silenciosamente
+            // — requisito da auditoria), não a cada tick do scheduler (5 min): sem essa deduplicação,
+            // um contato bloqueado por horas acumularia uma linha de `CadenceTouchAttempt` por
+            // ciclo. `isRedundantRateLimitSkip` compara com a ÚLTIMA tentativa já registrada para
+            // este `touchOrder` — só grava de novo se o motivo mudou (ex.: de domínio para contato)
+            // ou não havia registro ainda.
+            const reason = decision.reason;
+            if ((reason === 'contact-rate-limit' || reason === 'domain-rate-limit') && upcomingTouch && !isRedundantRateLimitSkip(run, upcomingTouch.order, reason)) {
+                const skipped = recordTouchAttempt(run, sequence, upcomingTouch, now, { result: 'skipped', skipReason: reason });
+                await deps.runRepo.save(skipped);
+                logger.warn(
+                    { organizationId, runId, leadId: run.leadId, touchOrder: upcomingTouch.order, channel: upcomingTouch.channel, reason },
+                    'Toque de cadência bloqueado por rate limit — motivo registrado; cadência permanece ativa para nova tentativa no próximo ciclo elegível.',
+                );
+                return { run: skipped, decision };
+            }
             return { run, decision };
         }
 

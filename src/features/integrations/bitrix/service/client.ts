@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '../../../../lib/prisma.js';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
-import { assertSafeWebhookUrl } from '../../../../lib/adapters/crm/Bitrix24Adapter.js';
+import { assertSafeExternalUrl } from '../../../../shared/security/urlGuard.js';
 
 export function normalizeWebhookUrl(rawUrl: string): string {
     const trimmed = rawUrl.trim();
@@ -53,8 +53,16 @@ function retryAfterMs(response: Response): number | null {
  * Confirma que a URL realmente fala com um portal Bitrix24 antes de salvar — sem isto, um typo
  * na URL ou um token revogado só apareceria na hora de exportar o primeiro lead, silenciosamente
  * salvo como "conectado".
+ *
+ * Revalida a URL contra o guard de SSRF (`assertSafeExternalUrl`) aqui dentro, e não só no
+ * cadastro (`connectBitrix`) — esta função também é chamada por `testBitrixConnection` para uma
+ * conexão JÁ persistida (botão "Testar conexão"), sem revalidação prévia do chamador. Sem isto
+ * aqui, um DNS rebinding (host resolvia IP público no cadastro, IP privado agora) só seria pego
+ * na primeira vez, nunca nos testes de conexão seguintes.
  */
 export async function testWebhook(webhookUrl: string): Promise<{ portalDomain: string }> {
+    await assertSafeExternalUrl(webhookUrl);
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
 
@@ -89,7 +97,7 @@ export async function testWebhook(webhookUrl: string): Promise<{ portalDomain: s
     try {
         portalDomain = new URL(webhookUrl).hostname;
     } catch {
-        // já validado por assertSafeWebhookUrl antes de chegar aqui
+        // já validado por assertSafeExternalUrl antes de chegar aqui
     }
     return { portalDomain };
 }
@@ -186,24 +194,111 @@ class TransientBitrixError extends Error {
     }
 }
 
+// ── Circuit breaker de saúde do provedor ────────────────────────────────────────────────────────
+//
+// Gap de auditoria: `bitrix_sync_failures_total` (metrics.ts) já CONTA falhas, mas nada usava essa
+// contagem para PARAR de tentar quando o Bitrix está claramente fora do ar — cada sync (push
+// automático, regra de pull, webhook) continuava tentando individualmente, mesmo sob falha
+// sustentada, pagando timeout+backoff cheios a cada chamada e gerando carga/ruído desnecessários
+// contra um portal sabidamente indisponível.
+//
+// Implementação deliberadamente simples e local ao processo — Map em memória (contador +
+// timestamp), sem dependência nova e sem Redis: depois de CIRCUIT_FAILURE_THRESHOLD falhas
+// CONSECUTIVAS (nenhum sucesso entre elas) da MESMA conexão, o circuito abre por
+// CIRCUIT_COOLDOWN_MS — toda chamada seguinte falha imediatamente (fail-fast), sem tentar rede, com
+// o MESMO shape de erro (AppError) que uma falha real teria, para não quebrar o contrato de quem já
+// trata exceção de `callBitrix` hoje (outboundSync.ts, syncRules.ts, extraction.ts). Chaveado pelo
+// `webhookUrl` inteiro (não só o hostname): cada conexão/organização tem seu próprio estado, então
+// uma conexão quebrada de um tenant nunca faz outro tenant (ou outra conexão do mesmo portal)
+// falhar rápido também.
+//
+// Só 401/403 (token revogado/sem permissão — a CONEXÃO está quebrada) e o esgotamento de tentativas
+// por falha transiente (rede/timeout/5xx/429 sustentados — o PROVEDOR está indisponível) contam
+// para o breaker. Um erro definitivo "comum" do Bitrix (filtro/campo inválido) é problema do
+// PAYLOAD daquela chamada específica, não da saúde do provedor — não deve abrir o circuito e
+// derrubar chamadas de outros leads/regras que mandam payloads válidos pela mesma conexão.
+const CIRCUIT_BREAKER_ENABLED = process.env.BITRIX_CIRCUIT_BREAKER_ENABLED !== 'false';
+const CIRCUIT_FAILURE_THRESHOLD = Number(process.env.BITRIX_CIRCUIT_BREAKER_THRESHOLD) > 0
+    ? Number(process.env.BITRIX_CIRCUIT_BREAKER_THRESHOLD)
+    : 5;
+const CIRCUIT_COOLDOWN_MS = Number(process.env.BITRIX_CIRCUIT_BREAKER_COOLDOWN_MS) > 0
+    ? Number(process.env.BITRIX_CIRCUIT_BREAKER_COOLDOWN_MS)
+    : 60_000;
+
+interface CircuitState {
+    consecutiveFailures: number;
+    /** 0 = circuito fechado. Timestamp (Date.now()) até quando o circuito fica aberto. */
+    openUntil: number;
+}
+const circuitState = new Map<string, CircuitState>();
+
+/** Só para testes: limpa o estado do circuit breaker entre casos (o módulo fica cacheado entre imports dentro do mesmo processo de teste). */
+export function __resetBitrixCircuitBreakerForTests(): void {
+    circuitState.clear();
+}
+
+function isCircuitOpen(webhookUrl: string): boolean {
+    const state = circuitState.get(webhookUrl);
+    return !!state && Date.now() < state.openUntil;
+}
+
+function recordCircuitSuccess(webhookUrl: string): void {
+    circuitState.delete(webhookUrl);
+}
+
+function recordCircuitFailure(webhookUrl: string): void {
+    const state = circuitState.get(webhookUrl) ?? { consecutiveFailures: 0, openUntil: 0 };
+    state.consecutiveFailures += 1;
+    if (state.consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD) {
+        state.openUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+        logger.error(
+            { host: hostnameOf(webhookUrl), consecutiveFailures: state.consecutiveFailures, cooldownMs: CIRCUIT_COOLDOWN_MS },
+            '[bitrix] Circuit breaker ABERTO — falhas consecutivas sustentadas nesta conexão; chamadas seguintes falharão rápido até o cooldown expirar',
+        );
+    }
+    circuitState.set(webhookUrl, state);
+}
+
+/** Erro do circuit breaker aberto — mesmo formato (AppError) que uma falha real do Bitrix24, para não quebrar o contrato de quem chama `callBitrix`. */
+export class BitrixCircuitOpenError extends AppError {
+    constructor() {
+        super(
+            'Bitrix24 está temporariamente indisponível para esta conexão (falhas consecutivas recentes) — novas tentativas serão retomadas automaticamente após o período de resfriamento.',
+            503,
+        );
+    }
+}
+
 /**
  * Cliente HTTP de baixo nível para a REST API do Bitrix24 (via webhook de entrada). Reintenta
  * automaticamente falha de rede, timeout, HTTP 429/5xx e `QUERY_LIMIT_EXCEEDED`, com backoff
  * exponencial + jitter; erro de autenticação/autorização ou erro definitivo do Bitrix (filtro,
- * campo, permissão) falha imediatamente, sem consumir tentativas à toa.
+ * campo, permissão) falha imediatamente, sem consumir tentativas à toa. Antes de qualquer tentativa
+ * de rede, consulta o circuit breaker desta conexão — ver bloco acima.
  */
 export async function callBitrix<T>(webhookUrl: string, method: string, params?: Record<string, unknown>, options: BitrixCallOptions = {}): Promise<T> {
-    await assertSafeWebhookUrl(webhookUrl);
     const correlationId = options.correlationId ?? randomUUID();
+
+    if (CIRCUIT_BREAKER_ENABLED && isCircuitOpen(webhookUrl)) {
+        logger.warn({ correlationId, method, host: hostnameOf(webhookUrl) }, '[bitrix] Circuit breaker aberto — falhando rápido sem chamar a rede');
+        throw new BitrixCircuitOpenError();
+    }
+
+    await assertSafeExternalUrl(webhookUrl);
     const maxAttempts = options.maxAttempts ?? BITRIX_MAX_ATTEMPTS;
 
     let lastError: TransientBitrixError | null = null;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            return await attemptBitrixCall<T>(webhookUrl, method, params, correlationId);
+            const result = await attemptBitrixCall<T>(webhookUrl, method, params, correlationId);
+            if (CIRCUIT_BREAKER_ENABLED) recordCircuitSuccess(webhookUrl);
+            return result;
         } catch (err) {
             if (err instanceof BitrixDefinitiveError) {
                 logger.warn({ correlationId, method, statusCode: err.statusCode, attempt }, '[bitrix] Erro definitivo — não será retentado');
+                if (CIRCUIT_BREAKER_ENABLED && (err.statusCode === 401 || err.statusCode === 403)) {
+                    recordCircuitFailure(webhookUrl);
+                }
                 throw err;
             }
             if (!(err instanceof TransientBitrixError)) throw err; // erro inesperado (bug de código) — propaga cru
@@ -214,6 +309,8 @@ export async function callBitrix<T>(webhookUrl: string, method: string, params?:
             }
         }
     }
+
+    if (CIRCUIT_BREAKER_ENABLED) recordCircuitFailure(webhookUrl);
 
     // Tentativas esgotadas: converte pro tipo de erro público (AppError) que o resto do app espera,
     // preservando o correlationId no log (nunca na mensagem devolvida ao usuário, que não deve

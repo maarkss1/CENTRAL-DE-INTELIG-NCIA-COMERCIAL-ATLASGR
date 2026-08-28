@@ -64,20 +64,20 @@ export function LiveStatsWidget() {
     {
       label: 'Contatos',
       value: stats?.totalContacts,
-      icon: <Users className="w-5 h-5 text-success" />,
-      color: 'text-success',
+      icon: <Users className="w-5 h-5 text-success-active dark:text-success" />,
+      color: 'text-success-active dark:text-success',
     },
     {
       label: 'Leads Ativos',
       value: stats?.totalLeads,
-      icon: <TrendingUp className="w-5 h-5 text-info" />,
-      color: 'text-info',
+      icon: <TrendingUp className="w-5 h-5 text-info-active dark:text-info" />,
+      color: 'text-info-active dark:text-info',
     },
     {
       label: 'Atividades',
       value: stats?.totalActivities,
-      icon: <Activity className="w-5 h-5 text-danger" />,
-      color: 'text-danger',
+      icon: <Activity className="w-5 h-5 text-danger-active dark:text-danger" />,
+      color: 'text-danger-active dark:text-danger',
     },
   ];
 

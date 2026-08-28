@@ -1,6 +1,7 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { logger } from '../../../lib/logger.js';
+import { wrapUntrustedContent } from '../../../lib/ai/gateway.js';
 
 interface SearchResultItem {
     title: string;
@@ -228,20 +229,25 @@ export const marketResearchTool = tool(
             return `A busca na web por "${cleanQuery}" não retornou fontes indexadas no momento. Recomenda-se pesquisar com termos mais amplos (ex.: "notícias da empresa ${cleanQuery}").`;
         }
 
-        // Monta relatório executivo de inteligência comercial
+        // Monta relatório executivo de inteligência comercial. Todo texto vindo do motor de busca
+        // (título, resumo, conteúdo extraído e a síntese de IA de terceiro) é conteúdo de fonte
+        // externa não confiável — uma página indexada maliciosa poderia conter algo como "ignore as
+        // instruções anteriores". Cada campo externo é envolvido individualmente com o delimitador
+        // estrutural (`wrapUntrustedContent`); os rótulos/markdown ao redor (**Link:**, numeração
+        // etc.) são texto nosso, não precisam de delimitador.
         let finalReport = `### 🌐 Inteligência de Mercado: "${cleanQuery}" (Motor: ${engineUsed})\n\n`;
 
         if (answer) {
-            finalReport += `> **Síntese Direta de IA:** ${answer}\n\n`;
+            finalReport += `> **Síntese Direta de IA (fonte externa):** ${wrapUntrustedContent(answer)}\n\n`;
         }
 
         finalReport += `**Fontes Reais Encontradas (${results.length}):**\n\n`;
 
         results.slice(0, 4).forEach((res, i) => {
-            finalReport += `**${i + 1}. ${res.title}**\n`;
+            finalReport += `**${i + 1}. ${wrapUntrustedContent(res.title)}**\n`;
             if (res.url) finalReport += `- **Link:** ${res.url}\n`;
-            if (res.snippet) finalReport += `- **Resumo:** ${res.snippet}\n`;
-            if (res.content) finalReport += `- **Contexto Extraído:** ${res.content.slice(0, 600)}...\n`;
+            if (res.snippet) finalReport += `- **Resumo:** ${wrapUntrustedContent(res.snippet)}\n`;
+            if (res.content) finalReport += `- **Contexto Extraído:** ${wrapUntrustedContent(res.content.slice(0, 600))}...\n`;
             finalReport += '\n';
         });
 

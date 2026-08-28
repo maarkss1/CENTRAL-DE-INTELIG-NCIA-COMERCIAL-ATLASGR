@@ -1,5 +1,6 @@
 import client from 'prom-client';
 import type { Job, Queue, Worker } from 'bullmq';
+import type Redis from 'ioredis';
 import { logger } from '../logger.js';
 
 interface RegisteredQueue {
@@ -106,6 +107,37 @@ export const redisReconnectCount = new client.Counter({
     name: 'redis_reconnect_total',
     help: 'Total de tentativas de reconexão Redis por papel de conexão.',
     labelNames: ['role'] as const,
+});
+
+interface RegisteredRedisConnection {
+    role: string;
+    redis: Redis;
+    /** Se este papel de conexão deveria estar ativo nesta configuração (mesmo predicado já usado
+     * por observeConnection em queue/redis.ts) — evita reportar (e alertar sobre) uma conexão que
+     * nunca deveria conectar de propósito (ex.: cache Redis em dev sem REDIS_URL configurado). */
+    enabled: () => boolean;
+}
+const registeredRedisConnections: RegisteredRedisConnection[] = [];
+
+// CPI (auditoria — "Alerta real de Redis health" nunca tinha métrica real). ioredis já mantém
+// `.status` internamente ('ready' quando a conexão está utilizável) — só faltava expor isso como
+// Gauge Prometheus por papel de conexão. Consumida pelo grupo
+// `prospector-atlas.database.ativos-hoje` em alert.rules.yml.
+export function registerRedisConnectionForMetrics(role: string, redis: Redis, enabled: () => boolean): void {
+    if (registeredRedisConnections.some((entry) => entry.role === role)) return;
+    registeredRedisConnections.push({ role, redis, enabled });
+}
+
+export const redisConnectionUp = new client.Gauge({
+    name: 'redis_connection_up',
+    help: '1 quando a conexão Redis deste papel está pronta (status "ready"), 0 caso contrário. Só reportada para papéis habilitados nesta configuração.',
+    labelNames: ['role'] as const,
+    collect() {
+        for (const { role, redis, enabled } of registeredRedisConnections) {
+            if (!enabled()) continue;
+            this.set({ role }, redis.status === 'ready' ? 1 : 0);
+        }
+    },
 });
 
 export function recordQueueJobCompleted(name: string): void {
