@@ -169,7 +169,7 @@ router.post('/sequences', writeRoles, validateRequest(createSequenceSchema), asy
 
 router.post('/runs', writeRoles, validateRequest(startRunSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { organizationId } = (req as AuthRequest).user;
+        const { organizationId, id: userId } = (req as AuthRequest).user;
         const { leadId, sequenceId } = req.body as z.infer<typeof startRunSchema>;
 
         const lead = await prisma.lead.findFirst({ where: { id: leadId, organizationId }, select: { id: true } });
@@ -190,6 +190,7 @@ router.post('/runs', writeRoles, validateRequest(startRunSchema), async (req: Re
             leadId,
             sequenceId,
             startedAt: new Date(),
+            createdBy: userId,
         });
 
         try {

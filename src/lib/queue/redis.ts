@@ -1,6 +1,6 @@
 import Redis from 'ioredis';
 import { logger } from '../logger.js';
-import { recordRedisReconnect } from './metrics.js';
+import { recordRedisReconnect, registerRedisConnectionForMetrics } from './metrics.js';
 
 const configuredRedisUrl = process.env.REDIS_URL?.trim();
 const redisUrl = configuredRedisUrl || 'redis://localhost:6379';
@@ -58,6 +58,7 @@ export const connection = new Redis(redisUrl, {
     },
 });
 observeConnection(connection, 'bullmq', () => queuesEnabled);
+registerRedisConnectionForMetrics('bullmq', connection, () => queuesEnabled);
 
 export const rateLimiterConnection = new Redis(redisUrl, {
     lazyConnect: !rateLimitRedisEnabled,
@@ -76,6 +77,7 @@ export const rateLimiterConnection = new Redis(redisUrl, {
     },
 });
 observeConnection(rateLimiterConnection, 'rate-limit', () => rateLimitRedisEnabled);
+registerRedisConnectionForMetrics('rate-limit', rateLimiterConnection, () => rateLimitRedisEnabled);
 
 export const cacheConnection = new Redis(redisUrl, {
     lazyConnect: !redisConfigured,
@@ -89,6 +91,7 @@ export const cacheConnection = new Redis(redisUrl, {
     },
 });
 observeConnection(cacheConnection, 'cache', () => redisConfigured);
+registerRedisConnectionForMetrics('cache', cacheConnection, () => redisConfigured);
 
 export async function pingRedis(connectionToPing: Redis = connection): Promise<void> {
     const pong = await connectionToPing.ping();

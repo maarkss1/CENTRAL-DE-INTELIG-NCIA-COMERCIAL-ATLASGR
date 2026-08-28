@@ -36,10 +36,11 @@ vi.mock('@/lib/prisma', () => ({
     },
 }));
 
-// assertSafeWebhookUrl faz DNS lookup real — indisponível/instável em ambiente de teste sandboxed
+// assertSafeExternalUrl faz DNS lookup real — indisponível/instável em ambiente de teste sandboxed
 // (mesmo padrão de src/features/integrations/bitrix/service/__tests__/client.test.ts).
-vi.mock('@/lib/adapters/crm/Bitrix24Adapter', () => ({
-    assertSafeWebhookUrl: vi.fn().mockResolvedValue(undefined),
+const assertSafeExternalUrlMock = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/shared/security/urlGuard', () => ({
+    assertSafeExternalUrl: (...args: unknown[]) => assertSafeExternalUrlMock(...args),
 }));
 
 const isSuppressedMock = vi.fn().mockResolvedValue(false);
@@ -63,6 +64,7 @@ beforeEach(() => {
     threeCXStore = [];
     deleteManyThreeCXMock.mockResolvedValue({ count: 0 });
     isSuppressedMock.mockResolvedValue(false);
+    assertSafeExternalUrlMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -142,8 +144,46 @@ describe('make3CXCall — honestidade sobre chamada real (nunca finge sucesso)',
             /lista interna de bloqueio/,
         );
         expect(fetchMock).not.toHaveBeenCalled();
-        // Terceiro argumento: contexto do opt-out unificado entre canais (leadId, quando informado
-        // — aqui não foi) — ver .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md.
-        expect(isSuppressedMock).toHaveBeenCalledWith(ORG_ID, '11987654321', { leadId: null });
+        // Terceiro argumento: contexto do opt-out unificado entre canais (leadId/email, quando
+        // informados — aqui não foram) — ver .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md.
+        expect(isSuppressedMock).toHaveBeenCalledWith(ORG_ID, '11987654321', { leadId: null, email: null });
+    });
+
+    // Gap real de auditoria: sem leadId resolvido (ex.: número digitado manualmente, ou dial a
+    // partir de um contato sem lead vinculado), o Click-to-Call ainda tem o e-mail do contato em
+    // mãos — e um opt-out registrado só por e-mail (sem esse telefone em comum) precisa continuar
+    // bloqueando, exatamente como já bloqueia para os outros canais (WhatsApp/e-mail/voz).
+    it('recusa a chamada quando não há leadId mas o e-mail do contato está na lista de opt-out', async () => {
+        const conn = await seedConnection();
+        isSuppressedMock.mockResolvedValue(true);
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(
+            make3CXCall(ORG_ID, conn.id, '11987654321', undefined, 'contato-optout@exemplo.com'),
+        ).rejects.toThrow(/lista interna de bloqueio/);
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(isSuppressedMock).toHaveBeenCalledWith(ORG_ID, '11987654321', {
+            leadId: null,
+            email: 'contato-optout@exemplo.com',
+        });
+    });
+
+    // Gap real de auditoria: `conn.pbxUrl` já passou pelo guard de SSRF uma vez em `connect3CX`,
+    // mas nunca era revalidado no momento de discar de verdade — um DNS rebinding (host resolvia
+    // IP público no cadastro, IP privado agora) passaria batido em toda chamada seguinte pela
+    // mesma conexão já persistida.
+    it('revalida a URL persistida contra SSRF (assertSafeExternalUrl) antes de discar de verdade', async () => {
+        const conn = await seedConnection();
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        assertSafeExternalUrlMock.mockRejectedValueOnce(
+            new Error('Endereço não permitido (resolve para IP privado/reservado).'),
+        );
+
+        await expect(make3CXCall(ORG_ID, conn.id, '11987654321')).rejects.toThrow(/IP privado\/reservado/);
+        expect(assertSafeExternalUrlMock).toHaveBeenCalledWith('https://pbx.example.com');
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 });

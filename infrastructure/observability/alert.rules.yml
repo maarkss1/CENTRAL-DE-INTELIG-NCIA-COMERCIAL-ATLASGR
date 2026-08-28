@@ -213,3 +213,41 @@ groups:
             só dispara ("unknown" caso contrário) quando AI_MONTHLY_BUDGET_USD estiver configurada
             no ambiente — confirmar se está setada em produção antes de confiar neste alerta.
           contract_metric_source: "src/lib/ai/metrics.ts (real desde Onda 5-7, condicionado a AI_MONTHLY_BUDGET_USD)"
+
+  - name: prospector-atlas.database.ativos-hoje
+    rules:
+      # RESOLVIDO (Onda 39, auditoria CPI): "Alerta real de DB pool saturation / Redis health"
+      # estava listado como puramente aspiracional (nenhum produtor no código). pg_pool_* e
+      # redis_connection_up agora existem de verdade — src/lib/prisma.ts expõe as 3 contagens que
+      # `pg.Pool` já mantinha internamente (nenhuma instrumentação de query nova, só leitura do
+      # próprio objeto Pool), e src/lib/queue/metrics.ts expõe `.status` de cada conexão ioredis
+      # registrada em src/lib/queue/redis.ts. `redis_connection_up` só é reportada para os papéis
+      # habilitados nesta configuração (bullmq/rate-limit/cache) — uma conexão que nunca deveria
+      # ligar de propósito (ex.: cache sem REDIS_URL em dev) não gera série, então não dispara
+      # falso positivo.
+      - alert: DbPoolSaturated
+        expr: pg_pool_waiting_requests > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pool de conexões Postgres (pg.Pool, max 20) com requisições esperando um client livre por 2min+"
+          description: >-
+            Toda a capacidade do pool está em uso e novas queries estão na fila — sintoma comum
+            antes de timeout em cascata. Cruzar com `pg_pool_total_connections`/
+            `pg_pool_idle_connections` (mesmo scrape) para confirmar saturação real vs. pico
+            passageiro. Ver runbook → "Latência/timeouts".
+          contract_metric_source: "src/lib/prisma.ts (real desde Onda 39)"
+
+      - alert: RedisConnectionDown
+        expr: redis_connection_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Conexão Redis (papel {{ $labels.role }}) fora do estado 'ready' por 2min+"
+          description: >-
+            Bloqueador conhecido: fila BullMQ travada, rate limit distribuído ou cache podem estar
+            silenciosamente inoperantes. Ver runbook → "Fila travada" / verificar `REDIS_URL` e
+            conectividade de rede até a instância Redis.
+          contract_metric_source: "src/lib/queue/metrics.ts + src/lib/queue/redis.ts (real desde Onda 39)"

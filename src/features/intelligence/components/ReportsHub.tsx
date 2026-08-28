@@ -124,7 +124,7 @@ export function ReportsHub() {
       </CardHeader>
 
       {error && (
-        <div className="mb-4 text-sm text-danger bg-danger/10 border border-danger/30 rounded-card px-4 py-3">{error}</div>
+        <div className="mb-4 text-sm text-danger-active dark:text-danger bg-danger/10 border border-danger/30 rounded-card px-4 py-3">{error}</div>
       )}
 
       <CardContent className="space-y-6">
@@ -145,12 +145,12 @@ export function ReportsHub() {
               <div><span className="text-ink-2 block">Contatos</span><span className="font-black text-ink">{metrics.totalContacts}</span></div>
               <div><span className="text-ink-2 block">Leads Ativos</span><span className="font-black text-ink">{metrics.totalLeads}</span></div>
               <div><span className="text-ink-2 block">Atividades</span><span className="font-black text-ink">{metrics.totalActivities}</span></div>
-              <div><span className="text-ink-2 block">Fechados no Mês</span><span className="font-black text-success">{metrics.closedThisMonth}</span></div>
+              <div><span className="text-ink-2 block">Fechados no Mês</span><span className="font-black text-success-active dark:text-success">{metrics.closedThisMonth}</span></div>
               {/* Não existe campo de valor no modelo Lead: exibimos "—" em vez de "R$ 0", que
                   seria lido como "pipeline zerado" e não como "métrica indisponível". */}
               <div><span className="text-ink-2 block">Valor em Pipeline</span><span className="font-black text-brand">{metrics.pipelineValue == null ? '—' : `R$ ${metrics.pipelineValue.toLocaleString('pt-BR')}`}</span></div>
               <div><span className="text-ink-2 block">Conversão</span><span className="font-black text-info-active dark:text-info">{metrics.conversionRate.toFixed(1)}%</span></div>
-              <div><span className="text-ink-2 block">Pendentes</span><span className="font-black text-danger">{metrics.pendingActivities}</span></div>
+              <div><span className="text-ink-2 block">Pendentes</span><span className="font-black text-danger-active dark:text-danger">{metrics.pendingActivities}</span></div>
             </div>
           ) : (
             <p className="text-sm text-ink-2">Sem dados disponíveis no momento.</p>

@@ -1,13 +1,17 @@
 import { StateGraph, MessagesAnnotation } from '@langchain/langgraph';
 import { getLeadContextTool, searchLeadsTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
-import { createFollowUpTaskTool, notifyTeamTool } from '../tools/opsTools.js';
+// GOV-13: as duas ferramentas de execução (`create_follow_up_task`/`notify_team`) agora vêm de
+// `opsPendingActions.tool.ts`, não mais de `../tools/opsTools.js` — mesmo nome/schema visível ao
+// LLM, mas em vez de executar direto elas registram uma `AIPendingAction` e a execução real só
+// acontece após aprovação humana (ver `opsPendingActions.tool.ts` para o raciocínio completo).
+import { createFollowUpTaskTool, notifyTeamTool } from './opsPendingActions.tool.js';
 import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
 import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
 import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
@@ -15,6 +19,12 @@ import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpoin
 // O Agente de Operações é o "braço executor" do enxame: não só analisa, ele age nas demais
 // ferramentas do sistema (CRM, agenda, notificações), sempre em cima de dados reais buscados
 // via get_lead_context/search_playbook — nunca inventando um leadId ou dado de empresa.
+//
+// GOV-13: "age" aqui significa PROPOR — `create_follow_up_task`/`notify_team` (via
+// `opsPendingActions.tool.ts`) registram uma `AIPendingAction` pendente de aprovação humana, não
+// executam o efeito real diretamente. Antes desta correção o Ops era o único agente do enxame
+// (SDR/BDR/Closer/CRM já usam o ledger) que contornava a aprovação — ver o comentário
+// `OPS_NO_LEDGER_NOTE` em `services/swarmScheduler.service.ts`, que documentava essa lacuna.
 const tools = [searchLeadsTool, getLeadContextTool, searchPlaybookTool, createFollowUpTaskTool, notifyTeamTool];
 const toolNode = new ToolNode(tools);
 
@@ -41,15 +51,17 @@ interface SerializedMessage {
 
 async function callModel(state: typeof MessagesAnnotation.State) {
     const systemPrompt = new SystemMessage(
-        `${SWARM_IDENTITY} Você é o Agente de Operações (Ops): EXECUTA ações concretas nas ferramentas do sistema a partir de uma instrução, nunca apenas descreve o que deveria ser feito.
+        `${SWARM_IDENTITY} Você é o Agente de Operações (Ops): PROPÕE ações concretas nas ferramentas do sistema a partir de uma instrução, nunca apenas descreve o que deveria ser feito — mas, assim como os demais agentes do enxame (SDR/BDR/Closer/CRM), toda ação com efeito real fica pendente de aprovação humana antes de ser executada de fato; você mesmo nunca envia/cria nada diretamente.
 
 DIRETRIZES DE EXECUÇÃO:
 1. Se a instrução já vier com um Lead ID (informado explicitamente na mensagem), use 'get_lead_context' para confirmar os dados reais antes de agir — nunca invente nome de empresa, contato ou histórico.
 2. Se a instrução mencionar uma empresa, contato ou lead PELO NOME (sem um ID pronto), use 'search_leads' primeiro para localizar o(s) lead(s) correspondente(s) — nunca recuse a missão só porque não veio um ID explícito. Se 'search_leads' retornar exatamente um resultado, use o ID retornado normalmente. Se retornar mais de um, peça esclarecimento indicando as opções. Se não retornar nada, explique o motivo e encerre.
 3. Se faltar critério ou regra de negócio (ex: quando agendar follow-up, o que vale um alerta), use 'search_playbook'.
-4. Para agendar um lembrete/tarefa de acompanhamento, use 'create_follow_up_task' com uma data ISO 8601 concreta e um leadId real.
-5. Para alertar a equipe comercial sobre um risco, oportunidade ou resultado importante, use 'notify_team'.
-6. Encerre sempre com uma síntese clara da ação executada (ex: tarefa agendada, notificação enviada), detalhando responsável, prazo e objetivo. ${SWARM_OUTPUT_CONTRACT}`,
+4. Para propor um lembrete/tarefa de acompanhamento, use 'create_follow_up_task' com uma data ISO 8601 concreta e um leadId real — isto registra uma proposta pendente, não cria a tarefa imediatamente.
+5. Para propor um alerta à equipe comercial sobre um risco, oportunidade ou resultado importante, use 'notify_team' — isto também registra uma proposta pendente, não envia a notificação imediatamente.
+6. Encerre sempre com uma síntese clara da ação PROPOSTA (ex: tarefa/notificação registrada e aguardando aprovação humana), detalhando responsável, prazo e objetivo — nunca diga que a ação já foi executada/enviada/criada. ${SWARM_OUTPUT_CONTRACT}
+
+${SWARM_UNTRUSTED_CONTENT_GUARD}`,
     );
 
     const startTime = Date.now();

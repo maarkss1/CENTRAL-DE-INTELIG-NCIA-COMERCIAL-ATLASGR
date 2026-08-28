@@ -133,11 +133,11 @@ export function LostReasonsWidget({ data }: { data: AnalyticsDashboard['lostReas
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                             <span className="text-xs text-ink truncate">{d.label}</span>
-                            <span className="text-xs font-bold text-[#d95926] ml-2 shrink-0">{d.count}</span>
+                            <span className="text-xs font-bold text-danger-active dark:text-danger ml-2 shrink-0">{d.count}</span>
                         </div>
                         <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                             <div
-                                className="h-full rounded-full bg-gradient-to-r from-[#d95926] to-[#f08a6a]"
+                                className="h-full rounded-full bg-gradient-to-r from-danger to-danger/60"
                                 style={{ width: `${(d.count / max) * 100}%` }}
                             />
                         </div>
@@ -157,10 +157,10 @@ export function TmqTile({ value }: { value: number | null }) {
             </span>
             <span className="text-[11px] text-ink-2 mt-1">dias (média)</span>
             {value !== null && value <= 3 && (
-                <span className="text-[10px] text-[#199e70] font-semibold mt-1">✓ Ótimo</span>
+                <span className="text-[10px] text-success-active dark:text-success font-semibold mt-1">✓ Ótimo</span>
             )}
             {value !== null && value > 7 && (
-                <span className="text-[10px] text-[#d95926] font-semibold mt-1">⚠ Acima da meta</span>
+                <span className="text-[10px] text-danger-active dark:text-danger font-semibold mt-1">⚠ Acima da meta</span>
             )}
         </div>
     );

@@ -296,6 +296,115 @@ describe('executeExtractionRun — paginação, progresso, cancelamento e resili
     });
 });
 
+describe('checkpoint incremental (Onda 41) — retomada real entre execuções, sem reprocessar o período inteiro', () => {
+    it('2ª execução da mesma conexão+entidade+período usa o checkpoint gravado pela 1ª — não refaz o full-scan', async () => {
+        const filters = { period: 'all' as const };
+
+        // ── 1ª execução: nenhum histórico ainda — full-scan real (sem limite inferior de data). ──
+        prismaMock.bitrixExtractionRun.findFirst.mockResolvedValue(baseRun({ id: 'run-1', entities: ['lead'], connectionId: 'conn-1', filters }));
+        prismaMock.bitrixExtractionRun.findMany.mockResolvedValue([]);
+        let capturedProgress: { entities: Array<Record<string, unknown>> } | undefined;
+        prismaMock.bitrixExtractionRun.update.mockImplementation(async (args: { data: { progress: unknown } }) => {
+            capturedProgress = args.data.progress as typeof capturedProgress;
+            return {};
+        });
+        clientMock.callBitrix.mockResolvedValueOnce({ result: [{ ID: '1' }], next: null });
+
+        const { executeExtractionRun } = await import('../extraction.js');
+        await executeExtractionRun('org-1', 'run-1');
+
+        const [, , firstParams] = clientMock.callBitrix.mock.calls[0];
+        expect((firstParams as { filter: Record<string, unknown> }).filter['>=DATE_CREATE']).toBeUndefined();
+
+        expect(capturedProgress).toBeDefined();
+        const firstEntry = capturedProgress!.entities.find((e) => e.entity === 'lead')!;
+        expect(firstEntry.status).toBe('done');
+        expect(firstEntry.pagesExhausted).toBe(true);
+        const firstCheckpoint = firstEntry.checkpointTo as string;
+        expect(firstCheckpoint).toEqual(expect.any(String));
+        expect(firstEntry.resumedFrom).toBeUndefined(); // 1ª execução não retomou de nada — full-scan de verdade
+
+        // ── 2ª execução: mesma conexão+entidade+período, com a 1ª agora no histórico como "completed". ──
+        prismaMock.bitrixExtractionRun.findFirst.mockResolvedValue(baseRun({ id: 'run-2', entities: ['lead'], connectionId: 'conn-1', filters }));
+        prismaMock.bitrixExtractionRun.findMany.mockResolvedValue([
+            { id: 'run-1', filters, progress: capturedProgress },
+        ]);
+        clientMock.callBitrix.mockReset();
+        clientMock.callBitrix.mockResolvedValueOnce({ result: [{ ID: '2' }], next: null });
+
+        await executeExtractionRun('org-1', 'run-2');
+
+        expect(prismaMock.bitrixExtractionRun.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({
+                organizationId: 'org-1', connectionId: 'conn-1', entities: { has: 'lead' },
+                status: { in: ['completed', 'completed_partial'] },
+            }),
+        }));
+        const [, , secondParams] = clientMock.callBitrix.mock.calls[0];
+        // A 2ª execução começa exatamente de onde a 1ª parou — não do início do período "all".
+        expect((secondParams as { filter: Record<string, unknown> }).filter['>=DATE_CREATE']).toBe(firstCheckpoint);
+    });
+
+    it('período "custom" explícito nunca usa (nem consulta) o checkpoint de uma execução anterior', async () => {
+        prismaMock.bitrixExtractionRun.findFirst.mockResolvedValue(baseRun({
+            entities: ['lead'],
+            connectionId: 'conn-1',
+            filters: { period: 'custom', customFrom: '2026-08-20', customTo: '2026-08-26' },
+        }));
+        // Existe, sim, uma extração anterior bem-sucedida no histórico — mas período explícito
+        // (custom) nunca deve nem olhar para ela (requisito 3 do handoff: nunca sobrepor um
+        // período explicitamente pedido).
+        prismaMock.bitrixExtractionRun.findMany.mockResolvedValue([
+            {
+                id: 'run-0',
+                filters: { period: 'custom' },
+                progress: { entities: [{ entity: 'lead', status: 'done', pagesExhausted: true, checkpointTo: '2020-01-01T00:00:00.000Z' }] },
+            },
+        ]);
+        clientMock.callBitrix.mockResolvedValueOnce({ result: [], next: null });
+
+        const { executeExtractionRun } = await import('../extraction.js');
+        const { resolvePeriodRange } = await import('../extractionPeriod.js');
+        await executeExtractionRun('org-1', 'run-1');
+
+        // Nem sequer consulta o histórico — período custom é sempre um pedido explícito do usuário.
+        expect(prismaMock.bitrixExtractionRun.findMany).not.toHaveBeenCalled();
+
+        const expected = resolvePeriodRange('custom', { from: '2026-08-20', to: '2026-08-26' })!;
+        const [, , params] = clientMock.callBitrix.mock.calls[0];
+        expect((params as { filter: Record<string, unknown> }).filter['>=DATE_CREATE']).toBe(expected.from.toISOString());
+        expect((params as { filter: Record<string, unknown> }).filter['<=DATE_CREATE']).toBe(expected.to.toISOString());
+    });
+
+    it('entidade sem campo de data (user) nunca participa de checkpoint — nem consulta o histórico', async () => {
+        prismaMock.bitrixExtractionRun.findFirst.mockResolvedValue(baseRun({ entities: ['user'], connectionId: 'conn-1', filters: { period: 'all' } }));
+        clientMock.callBitrix.mockResolvedValueOnce({ result: [], next: null });
+
+        const { executeExtractionRun } = await import('../extraction.js');
+        await executeExtractionRun('org-1', 'run-1');
+
+        expect(prismaMock.bitrixExtractionRun.findMany).not.toHaveBeenCalled();
+    });
+
+    it('entidade que só esgotou por bater no teto de segurança (pagesExhausted: false) NÃO grava checkpoint — evita pular registros nunca lidos numa retomada futura', async () => {
+        prismaMock.bitrixExtractionRun.findFirst.mockResolvedValue(baseRun({ entities: ['lead'], connectionId: 'conn-1', filters: { period: 'all' } }));
+        prismaMock.bitrixExtractionRun.findMany.mockResolvedValue([]);
+        let call = 0;
+        clientMock.callBitrix.mockImplementation(async () => {
+            call++;
+            return { result: [{ ID: String(call) }], next: call * 50 }; // nunca esgota (mesmo cenário do teste de PAGE_SAFETY_CAP)
+        });
+
+        const { executeExtractionRun } = await import('../extraction.js');
+        await executeExtractionRun('org-1', 'run-1');
+
+        const updateCall = prismaMock.bitrixExtractionRun.update.mock.calls[0][0] as { data: { progress: { entities: Array<Record<string, unknown>> } } };
+        const entry = updateCall.data.progress.entities.find((e) => e.entity === 'lead')!;
+        expect(entry.pagesExhausted).toBe(false);
+        expect(entry.checkpointTo).toBeUndefined();
+    });
+});
+
 describe('cancelExtractionRun', () => {
     it('cancela quando está queued/running (transição atômica) e grava auditoria', async () => {
         prismaMock.bitrixExtractionRun.updateMany.mockResolvedValue({ count: 1 });

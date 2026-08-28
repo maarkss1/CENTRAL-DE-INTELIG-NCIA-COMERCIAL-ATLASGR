@@ -2,6 +2,9 @@ import { getPaidProspectingKey } from '../../../../config/prospecting-integratio
 import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
 import { APOLLO_ORG_ENRICH_URL } from './client.js';
 import type { ApolloOrganization } from './types.js';
+import { checkProviderRateLimit } from '../providerRateLimit.js';
+import { recordProviderCallCost } from '../providerCostMetrics.js';
+import { assertProspectingBudgetNotExceeded } from '../providerBudget.js';
 
 /**
  * Enriquecimento firmográfico completo de UMA empresa via domínio (Apollo Organization Enrich).
@@ -15,6 +18,13 @@ export async function enrichOrganizationByDomain(
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !domain) return { organization: null };
 
+    const rateLimit = checkProviderRateLimit('apollo');
+    if (!rateLimit.allowed) return { organization: null, error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
+
     try {
         const url = `${APOLLO_ORG_ENRICH_URL}?domain=${encodeURIComponent(domain)}`;
         const res = await fetchWithProviderRetry(url, {
@@ -26,6 +36,7 @@ export async function enrichOrganizationByDomain(
             return { organization: null, error: `Apollo Organization Enrich respondeu ${res.status}: ${text.slice(0, 150)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = (await res.json()) as { organization?: ApolloOrganization };
         return { organization: data.organization || null };
     } catch (error) {

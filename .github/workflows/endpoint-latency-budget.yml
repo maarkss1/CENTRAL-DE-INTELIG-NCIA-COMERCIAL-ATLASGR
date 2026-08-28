@@ -5,6 +5,13 @@ name: Endpoint Latency Budget
 # real (Postgres + Redis + Express, o mesmo processo que tests/e2e usa via `npm run start:e2e`) e
 # roda tests/load/k6-api.js contra /health/live e /health/ready, com threshold de p95 por rota.
 #
+# Onda 42 (dossie CPI DEC-20 opcao A): acrescenta um segundo cenario, tests/load/
+# k6-crm-authenticated.js, contra rotas AUTENTICADAS reais do CRM (login real via Better Auth,
+# listagem de leads/empresas, criacao de atividade, relatorio de qualidade de dados) — cobre o
+# debito que ficava registrado em docs/development/PERFORMANCE_BUDGETS.md ("nenhuma rota
+# autenticada tinha latencia medida sob carga"). Roda na mesma app/mesmos service containers do
+# cenario de health check, sem subir infraestrutura nova.
+#
 # Nao e um required check do repositorio (nao bloqueia merge por branch protection) — roda em PR
 # que mexe no bootstrap do servidor/infra de health check, e tambem por schedule/dispatch para
 # publicar a tendencia de latencia mesmo sem PR. Ver docs/development/PERFORMANCE_BUDGETS.md.
@@ -17,6 +24,16 @@ on:
       - 'src/bootstrap/**'
       - 'tests/load/**'
       - '.github/workflows/endpoint-latency-budget.yml'
+      # Onda 42: rotas exercitadas pelo cenario autenticado (k6-crm-authenticated.js) — uma mudanca
+      # aqui e exatamente o tipo de risco de latencia que esse cenario existe para pegar.
+      - 'src/features/crm/**'
+      - 'src/features/companies/**'
+      - 'src/features/activities/**'
+      - 'src/features/market-intelligence/server/dataQualityReport.service.ts'
+      - 'src/features/market-intelligence/server/accountIntelligence.routes.ts'
+      - 'src/shared/middlewares/authenticateToken.ts'
+      - 'src/shared/middlewares/authorization.ts'
+      - 'src/lib/auth.ts'
   schedule:
     # 06:00 UTC, todo dia — publica a tendencia de latencia independente de PR.
     - cron: '0 6 * * *'
@@ -75,6 +92,13 @@ jobs:
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
       AUTH_RATE_LIMIT_MAX: 500
+      # Onda 42: o apiLimiter (src/bootstrap/rateLimiters.ts) e 600 req/15min por IP por padrao —
+      # o cenario k6-crm-authenticated.js sozinho ja gera mais de 800 requisicoes so no seed de
+      # dados (empresas + leads), todas da mesma maquina/IP do runner. Sem esse teto mais alto o
+      # proprio seed do teste estouraria o rate limit genuino e o resultado viraria uma parede de
+      # 429, nao a latencia real das rotas — mesmo raciocinio ja documentado para
+      # AUTH_RATE_LIMIT_MAX acima. Nunca afrouxa o default de producao (env.ts), so este job de CI.
+      API_RATE_LIMIT_MAX: 200000
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -112,6 +136,7 @@ jobs:
           BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
           ALLOWED_ORIGINS=$ALLOWED_ORIGINS
           AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
+          API_RATE_LIMIT_MAX=$API_RATE_LIMIT_MAX
           EOF
 
       - name: Instalar k6 (binario oficial, pinado)
@@ -139,16 +164,30 @@ jobs:
           echo "App nao respondeu /health/live a tempo."
           exit 1
 
-      - name: Rodar k6 contra endpoints criticos
+      - name: Rodar k6 contra endpoints criticos (sem autenticacao)
         run: |
           k6 run tests/load/k6-api.js \
             --summary-export=k6-latency-report.json \
             --env BASE_URL="http://localhost:${PORT}"
 
-      - name: Upload da tendencia de latencia
+      - name: Rodar k6 contra rotas autenticadas do CRM (Onda 42)
+        run: |
+          k6 run tests/load/k6-crm-authenticated.js \
+            --summary-export=k6-crm-latency-report.json \
+            --env BASE_URL="http://localhost:${PORT}"
+
+      - name: Upload da tendencia de latencia (health check)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: endpoint-latency-trend-${{ github.sha }}
           path: k6-latency-report.json
+          retention-days: 90
+
+      - name: Upload da tendencia de latencia (CRM autenticado)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: crm-authenticated-latency-trend-${{ github.sha }}
+          path: k6-crm-latency-report.json
           retention-days: 90

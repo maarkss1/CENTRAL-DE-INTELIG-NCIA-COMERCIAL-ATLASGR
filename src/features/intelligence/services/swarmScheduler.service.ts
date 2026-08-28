@@ -387,15 +387,21 @@ export async function runSwarmScheduler(organizationId: string, now: Date = new 
 //
 // Fontes e por que cada métrica vem de onde vem:
 //  - `AIPendingAction.agentRole` é o ÚNICO campo do schema que atribui uma decisão a um papel do
-//    enxame (SDR/BDR/CLOSER/CRM) — cobertura, conversão, override humano e taxa de erro vêm daqui,
-//    por papel, dentro da janela pedida.
+//    enxame (SDR/BDR/CLOSER/CRM/OPS) — cobertura, conversão, override humano e taxa de erro vêm
+//    daqui, por papel, dentro da janela pedida.
 //  - `AILog` tem custo/tokens/latência reais, mas NÃO tem coluna que amarre um registro a um
 //    agentRole (só a `model` e a `organizationId`, opcional) — por isso custo e latência de
 //    geração aparecem agregados por ORGANIZAÇÃO, nunca fatiados por agente. Fatiar por agente
 //    exigiria uma migração de schema (fora do meu escopo: `prisma/schema.prisma` é do Agente 01) —
 //    documentado como lacuna explícita no snapshot, não estimado.
-//  - "OPS" não passa por `AIPendingAction` (`OpsAgent` executa `create_follow_up_task`/`notify_team`
-//    direto, sem ledger de aprovação) — aparece como estado vazio com o motivo, não como zero.
+//  - GOV-13 (Agente 13): "OPS" passou a registrar `AIPendingAction` (`action: 'create_follow_up'`/
+//    `'notify_team'`, `agentRole: 'OPS'`) como os demais papéis — `create_follow_up_task`/
+//    `notify_team` (`agents/opsPendingActions.tool.ts`) não executam mais o efeito real
+//    diretamente, só propõem, e a execução real só acontece após aprovação humana (mesmo fluxo de
+//    `send_email`/`swarm_recommendation`). O caso especial que antes retornava um estado vazio
+//    fixo para OPS foi removido: OPS agora entra no mesmo cálculo genérico das outras linhas, e um
+//    estado vazio (`value: null`) só aparece quando a janela realmente não tem base suficiente,
+//    igual às demais.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export const SLO_SWARM_ROLES = ['SDR', 'BDR', 'CLOSER', 'CRM', 'OPS'] as const;
@@ -450,8 +456,6 @@ export function emptyRate(numerator: number, denominator: number, emptyReason: s
     return { value: numerator / denominator, numerator, denominator };
 }
 
-const OPS_NO_LEDGER_NOTE = 'O Agente de Operações executa direto (tarefa/notificação), sem passar por AIPendingAction — sem base para cobertura/conversão/override/erro até que essas ações tenham um ledger próprio.';
-
 /**
  * Snapshot de SLO por agente para uma organização, na janela solicitada (padrão 30 dias).
  * Nunca fabrica número: toda métrica sem base suficiente vem como estado vazio explícito
@@ -483,18 +487,6 @@ export async function getSwarmSloSnapshot(organizationId: string, windowDays = 3
     ]);
 
     const agents: AgentSloMetrics[] = SLO_SWARM_ROLES.map((role) => {
-        if (role === 'OPS') {
-            return {
-                role,
-                coverage: 0,
-                conversion: emptyRate(0, 0, OPS_NO_LEDGER_NOTE),
-                humanOverride: emptyRate(0, 0, OPS_NO_LEDGER_NOTE),
-                errorRate: emptyRate(0, 0, OPS_NO_LEDGER_NOTE),
-                avgExecutionLatencyMs: null,
-                dataSourceNote: OPS_NO_LEDGER_NOTE,
-            };
-        }
-
         const rows = pendingActions.filter((row) => (row.agentRole ?? '').toUpperCase() === role);
         const coverage = rows.length;
 

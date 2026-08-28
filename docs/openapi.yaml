@@ -212,6 +212,23 @@ paths:
       summary: Lista fontes, competências, hashes e status dos snapshots
       responses:
         '200': { description: Histórico de importações e snapshot ativo }
+  /market-intelligence/data-quality-report:
+    get:
+      tags: [Market Intelligence]
+      summary: >-
+        Relatório único de qualidade/proveniência de dados de Account Intelligence do tenant
+        (cálculo real contra o banco, não documento estático — ver
+        src/features/market-intelligence/server/dataQualityReport.service.ts)
+      description: >-
+        Consolida sinais já reais e computáveis que antes só existiam dispersos: cobertura de
+        contas com AccountIntelligenceSnapshot, distribuição de sourceStatus (crm/enrichment) do
+        snapshot mais recente por conta, idade desse snapshot (média/mín/máx) e obsolescência,
+        cobertura de IntelligenceEvidence/AccountSignal por tipo, e taxa de DecisionMaker/
+        EconomicRelationship verificados vs. não verificados. Cada seção da resposta traz
+        `available: boolean` e `reason` quando a população subjacente está vazia — nenhum campo
+        numérico é fabricado quando o dado não existe.
+      responses:
+        '200': { description: Relatório de qualidade de dados agregado do tenant autenticado }
 
   # ───────────────────────────── Mesa de Tratamento ─────────────────────────────
   /mesa-tratamento/queue:
@@ -1050,6 +1067,7 @@ paths:
               properties:
                 tradeName: { type: string }
                 source: { type: string }
+                savedSearchId: { type: string, nullable: true, description: 'Id da SavedSearch cujo candidato está sendo promovido, quando aplicável (onda 40 — rastreabilidade busca→lead).' }
       responses:
         '201':
           description: Recursos criados no CRM
@@ -1191,6 +1209,32 @@ paths:
                 $ref: '#/components/schemas/DataEnvelope'
         '404':
           description: Busca salva não encontrada
+
+  /prospecting/searches/{searchId}:
+    parameters:
+      - name: searchId
+        in: path
+        required: true
+        schema: { type: string }
+        description: >-
+          Search-ID (cuid) de uma execução real de busca de prospecção, devolvido em
+          `data.searchId` pelas respostas de /prospecting/discover e
+          /prospecting/saved-searches/{id}/run.
+    get:
+      tags: [Prospecting]
+      summary: >-
+        Onda 42 (dossiê CPI, DEC-13, opção A): consulta uma EXECUÇÃO de busca específica pelo
+        Search-ID — critério usado, providers chamados (em ordem, com resultado e custo de cada
+        um), total de resultados, status e timestamps. Sempre escopado ao tenant autenticado.
+      responses:
+        '200':
+          description: Execução de busca encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Execução de busca não encontrada (ou pertence a outro tenant)
 
   /prospecting/decision-makers:
     post:
@@ -1862,6 +1906,80 @@ paths:
                 properties:
                   success: { type: boolean }
                   learnedGuidelines: { type: string }
+
+  /agent/swarm/learn/history:
+    get:
+      tags: [Agent]
+      summary: >-
+        Histórico versionado do perfil de estilo aprendido pelo LearningAgent (todas as versões +
+        qual está ativa) do (tenant, usuário) autenticado — GOV-13, onda 39. Ver
+        `.agents/handoffs/onda-39/13-para-07-rota-rollback-learning-profile.md`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      activeVersion: { type: integer }
+                      lastAuditLogAt: { type: string, nullable: true, format: date-time }
+                      versions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            version: { type: integer }
+                            guidelines: { type: string }
+                            createdAt: { type: string, format: date-time }
+                            metrics: { type: object }
+
+  /agent/swarm/learn/rollback:
+    post:
+      tags: [Agent]
+      summary: >-
+        Reverte o perfil de estilo aprendido do (tenant, usuário) autenticado para uma versão
+        anterior já existente no histórico — nunca apaga nem sobrescreve versões, só move o
+        ponteiro ativo. GOV-13, onda 39.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetVersion]
+              properties:
+                targetVersion: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Rollback aplicado (ou já era a versão ativa)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      success: { type: boolean }
+                      activeVersion: { type: integer }
+                      guidelines: { type: string }
+        '400':
+          description: 'Corpo inválido (`targetVersion` ausente ou menor que 1)'
+        '404':
+          description: Versão pedida não existe no histórico deste perfil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  error: { type: string }
 
   /agent/swarm/slo:
     get:
@@ -2567,6 +2685,68 @@ paths:
       responses:
         '204':
           description: Removida
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /automations/{id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Automations]
+      summary: >-
+        Histórico de versões da regra (Onda 42, dossiê CPI DEC-14 opção A): estado atual mais uma
+        linha de tempo de edições anteriores (quem/quando trocou, e o diff textual campo a campo
+        até o estado seguinte), mais recente primeiro. Restrito a ADMIN/GESTOR — revela histórico
+        de configuração comercial da automação.
+      responses:
+        '200':
+          description: >-
+            OK. `data` é `{ automationId, current: { name, enabled, trigger, conditions, action,
+            actionConfig }, currentUpdatedAt, history: [{ id, editedAt, editedByUserId,
+            editedByEmail, changeReason: 'update'|'delete', snapshot: {...}, diffToNext: [{ field,
+            before, after }] }] }`. `history` vazio quando a regra nunca foi editada desde a
+            criação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /automations/{id}/dry-run:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Automations]
+      summary: >-
+        Simula a regra contra uma amostra dos dados reais e atuais da organização, sem executar
+        nenhuma ação de verdade (Onda 42, dossiê CPI DEC-14 opção A) — nenhum e-mail, atividade ou
+        ligação é disparado. Restrito a ADMIN/GESTOR — lê uma amostra de leads/atividades reais da
+        organização.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  description: Tamanho da amostra de registros candidatos. Padrão 25, teto 100.
+                  minimum: 1
+                  maximum: 100
+      responses:
+        '200':
+          description: >-
+            OK. `data` é `{ automationId, automationName, trigger, action, enabled, generatedAt,
+            sampleSize, matchedCount, wouldFireCount, methodologyNote, records: [{ entity:
+            'Lead'|'Activity', entityId, label, outcome: { action, wouldFire, blockedReason?,
+            details } }] }`. `wouldFire` reflete o mesmo critério de bloqueio do motor real
+            (janela comercial, opt-out, config inválida etc.) sem produzir nenhum efeito colateral.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -4603,9 +4783,55 @@ components:
   schemas:
     ErrorResponse:
       type: object
+      description: |
+        Envelope de erro padrão, emitido pelo middleware global
+        `src/shared/middlewares/errorHandler.ts` (último middleware da cadeia — ver `server.ts`).
+        `success`/`error` existem desde a primeira versão da API; `code`, `requestId` e `retryable`
+        foram adicionados depois como extensão aditiva (nenhum campo antigo foi removido) para
+        cobrir o checklist de contratos do produto. `details` só aparece em alguns casos
+        (ex.: `issues` do Zod em erro de validação).
+      required: [success, error]
       properties:
         success: { type: boolean, example: false }
-        error: { type: string }
+        error: { type: string, description: 'Mensagem de erro legível, já existente antes da extensão de contrato.' }
+        message: { type: string, description: 'Reservado no envelope de resposta; não é populado hoje por `errorHandler.ts`.' }
+        details:
+          description: 'Detalhe estruturado do erro quando disponível (ex.: `issues` do ZodError).'
+        code:
+          type: string
+          description: |
+            Código estável de erro, derivado do status HTTP e do tipo de erro já lançado no
+            código (ZodError, `AppError`, `Prisma.PrismaClientKnownRequestError`). Pensado para o
+            consumidor decidir programaticamente sem parsear `error`.
+          enum:
+            - VALIDATION_ERROR
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - METHOD_NOT_ALLOWED
+            - CONFLICT
+            - GONE
+            - UNSUPPORTED_MEDIA_TYPE
+            - UNPROCESSABLE_ENTITY
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+            - BAD_GATEWAY
+            - SERVICE_UNAVAILABLE
+            - TIMEOUT
+            - BAD_REQUEST
+        requestId:
+          type: string
+          description: |
+            Mesmo id de correlação devolvido no header `x-request-id` (ver
+            `src/shared/middlewares/observability.ts`) — não é gerado de novo aqui, é o mesmo
+            valor reaproveitado. Ausente quando o erro ocorre antes de `observabilityMiddleware`
+            rodar na cadeia de middlewares (ex.: falha em rota de auth/webhook montada antes dele).
+        retryable:
+          type: boolean
+          description: |
+            `true` para 5xx e timeouts (408/504) — falha transitória do servidor/upstream, repetir
+            a mesma requisição pode funcionar. `false` para os demais 4xx (validação, autenticação,
+            autorização, conflito, não encontrado) — o pedido em si precisa mudar antes de repetir.
 
     DataEnvelope:
       type: object
@@ -4636,7 +4862,9 @@ components:
         idempotencyKey: { type: string, nullable: true }
         approved: { type: boolean }
         approvedAt: { type: string, format: date-time, nullable: true }
+        approvedBy: { type: string, nullable: true, description: 'Id do usuário (User.id) que aprovou — onda 39, trilha de aprovação.' }
         discardedAt: { type: string, format: date-time, nullable: true }
+        discardedBy: { type: string, nullable: true, description: 'Id do usuário (User.id) que descartou — onda 39, trilha de aprovação.' }
         executed: { type: boolean }
         executedAt: { type: string, format: date-time, nullable: true }
         executionError: { type: string, nullable: true }

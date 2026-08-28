@@ -8,18 +8,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const prismaMock = {
     threeCXConnection: {
         findMany: vi.fn(),
+        findFirst: vi.fn(),
         create: vi.fn(),
         deleteMany: vi.fn(),
     },
+    threeCXCallEvent: {
+        findFirst: vi.fn(),
+        create: vi.fn(),
+    },
+    organization: {
+        findMany: vi.fn(),
+    },
+    lead: {
+        findFirst: vi.fn(),
+    },
     activity: {
         create: vi.fn(),
+        findFirst: vi.fn(),
     },
 };
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
 
-const assertSafeWebhookUrlMock = vi.fn().mockResolvedValue(undefined);
-vi.mock('../../../../lib/adapters/crm/Bitrix24Adapter.js', () => ({
-    assertSafeWebhookUrl: assertSafeWebhookUrlMock,
+const assertSafeExternalUrlMock = vi.fn().mockResolvedValue(undefined);
+vi.mock('../../../../shared/security/urlGuard.js', () => ({
+    assertSafeExternalUrl: assertSafeExternalUrlMock,
 }));
 
 const isSuppressedMock = vi.fn().mockResolvedValue(false);
@@ -27,9 +39,15 @@ vi.mock('@/features/integrations/birth-voice/callSuppression.service', () => ({
     isSuppressed: (...args: unknown[]) => isSuppressedMock(...args),
 }));
 
+// Logger real (pino + pino-pretty transport) grava em stdout via worker thread — trocado por um
+// double simples para os testes de idempotência/tenant poderem espiar o que foi logado, e para o
+// teste de "nunca loga o telefone completo" conseguir inspecionar os argumentos reais.
+const loggerMock = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+vi.mock('@/lib/logger', () => ({ logger: loggerMock }));
+
 beforeEach(() => {
     vi.clearAllMocks();
-    assertSafeWebhookUrlMock.mockResolvedValue(undefined);
+    assertSafeExternalUrlMock.mockResolvedValue(undefined);
     isSuppressedMock.mockResolvedValue(false);
 });
 
@@ -138,9 +156,9 @@ describe('connect3CX', () => {
         expect(prismaMock.threeCXConnection.create).not.toHaveBeenCalled();
     });
 
-    it('valida a URL contra SSRF (assertSafeWebhookUrl) antes de persistir', async () => {
+    it('valida a URL contra SSRF (assertSafeExternalUrl) antes de persistir', async () => {
         const { connect3CX } = await import('../threecx.service.js');
-        assertSafeWebhookUrlMock.mockRejectedValueOnce(new Error('Endereço de webhook não permitido (IP privado/reservado).'));
+        assertSafeExternalUrlMock.mockRejectedValueOnce(new Error('Endereço de webhook não permitido (IP privado/reservado).'));
         prismaMock.threeCXConnection.create.mockResolvedValueOnce({});
 
         await expect(
@@ -204,7 +222,7 @@ describe('make3CXCall', () => {
             'lista interna de bloqueio',
         );
         expect(fetch).not.toHaveBeenCalled();
-        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: null });
+        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: null, email: null });
 
         vi.unstubAllGlobals();
     });
@@ -220,7 +238,26 @@ describe('make3CXCall', () => {
         await expect(make3CXCall('org-a', 'conn-1', '11999998888', 'lead-1')).rejects.toThrow(
             'lista interna de bloqueio',
         );
-        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: 'lead-1' });
+        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: 'lead-1', email: null });
+
+        vi.unstubAllGlobals();
+    });
+
+    // Gap fechado nesta auditoria: sem leadId resolvido, o e-mail do contato agora também entra
+    // no contexto do opt-out unificado — antes disso o Click-to-Call só era barrado por telefone
+    // ou por leadId, nunca por e-mail sozinho.
+    it('propaga o email, quando informado sem leadId, como contexto do opt-out unificado', async () => {
+        const { make3CXCall } = await import('../threecx.service.js');
+        isSuppressedMock.mockResolvedValue(true);
+        vi.stubGlobal('fetch', vi.fn());
+
+        await expect(
+            make3CXCall('org-a', 'conn-1', '11999998888', undefined, 'ana@exemplo.com'),
+        ).rejects.toThrow('lista interna de bloqueio');
+        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', {
+            leadId: null,
+            email: 'ana@exemplo.com',
+        });
 
         vi.unstubAllGlobals();
     });
@@ -261,5 +298,243 @@ describe('make3CXCall', () => {
         );
 
         vi.unstubAllGlobals();
+    });
+
+    // Gap real de auditoria: `conn.pbxUrl` já foi validado uma vez em `connect3CX`, mas nunca era
+    // revalidado no momento da chamada real — um DNS rebinding (host resolvia IP público no
+    // cadastro, IP privado agora) passaria batido em toda chamada Click-to-Call seguinte.
+    it('revalida a URL persistida contra SSRF (assertSafeExternalUrl) antes de discar de verdade', async () => {
+        const { make3CXCall } = await import('../threecx.service.js');
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        assertSafeExternalUrlMock.mockRejectedValueOnce(
+            new Error('Endereço não permitido (resolve para IP privado/reservado).'),
+        );
+
+        await expect(make3CXCall('org-a', 'conn-1', '11999998888', 'lead-1')).rejects.toThrow(
+            'IP privado/reservado',
+        );
+        expect(assertSafeExternalUrlMock).toHaveBeenCalledWith('https://pbx.example.com');
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        vi.unstubAllGlobals();
+    });
+});
+
+describe('test3CXConnection', () => {
+    const conn = {
+        id: 'conn-1',
+        organizationId: 'org-a',
+        label: '3CX Ramal 101',
+        pbxUrl: 'https://pbx.example.com',
+        extension: '101',
+        apiKey: null,
+        apiSecret: null,
+        autoDialEnabled: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+
+    beforeEach(() => {
+        prismaMock.threeCXConnection.findMany.mockResolvedValue([conn]);
+    });
+
+    it('revalida a URL persistida contra SSRF (assertSafeExternalUrl) antes do healthcheck', async () => {
+        const { test3CXConnection } = await import('../threecx.service.js');
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        await test3CXConnection('org-a', 'conn-1');
+
+        expect(assertSafeExternalUrlMock).toHaveBeenCalledWith('https://pbx.example.com');
+        vi.unstubAllGlobals();
+    });
+
+    // Mesmo gap de DNS rebinding do make3CXCall: pbxUrl já validado no cadastro, mas o botão
+    // "Testar conexão" reusa a URL persistida — sem revalidação aqui, uma mudança de DNS depois do
+    // cadastro nunca seria pega de novo por este caminho.
+    it('nunca bate na rede quando a URL persistida falha na revalidação de SSRF', async () => {
+        const { test3CXConnection } = await import('../threecx.service.js');
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        assertSafeExternalUrlMock.mockRejectedValueOnce(
+            new Error('Endereço não permitido (resolve para IP privado/reservado).'),
+        );
+
+        await expect(test3CXConnection('org-a', 'conn-1')).rejects.toThrow('IP privado/reservado');
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        vi.unstubAllGlobals();
+    });
+});
+
+describe('process3CXWebhook', () => {
+    const CONN_ORG_A = {
+        id: 'conn-1',
+        organizationId: 'org-a',
+        label: '3CX Ramal 101',
+        pbxUrl: 'https://pbx.example.com',
+        extension: '101',
+        apiKey: null,
+        apiSecret: null,
+        autoDialEnabled: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+
+    const CONN_ORG_B = { ...CONN_ORG_A, id: 'conn-2', organizationId: 'org-b' };
+
+    const FULL_PAYLOAD = {
+        event: 'call.ended',
+        extension: '101',
+        callId: 'call-1',
+        disposition: 'answered',
+        duration: 42,
+        to: '5511999998888',
+    };
+
+    it('resolve a organização certa a partir do ramal e grava a Activity real no lead correspondente', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(CONN_ORG_A);
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValue(null);
+        prismaMock.threeCXCallEvent.create.mockResolvedValue({});
+        prismaMock.lead.findFirst.mockResolvedValue({
+            id: 'lead-1',
+            contact: { phone: '5511999998888', whatsapp: null },
+        });
+        prismaMock.activity.findFirst.mockResolvedValue(null);
+        prismaMock.activity.create.mockResolvedValue({});
+
+        const result = await process3CXWebhook(FULL_PAYLOAD);
+
+        expect(result).toMatchObject({ status: 'processed', organizationId: 'org-a', leadId: 'lead-1' });
+
+        // O rastro de auditoria (ThreeCXCallEvent) é gravado escopado à organização resolvida.
+        expect(prismaMock.threeCXCallEvent.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    organizationId: 'org-a',
+                    connectionId: 'conn-1',
+                    callId: 'call-1',
+                    eventType: 'call.ended',
+                }),
+            }),
+        );
+
+        // A Activity reflete o resultado real (disposition/duração/estado), nunca inventado.
+        expect(prismaMock.activity.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    organizationId: 'org-a',
+                    leadId: 'lead-1',
+                    type: 'Ligacao',
+                    status: 'Concluida', // 'answered' + 42s -> classifyCallOutcome = 'completed'
+                    observations: expect.stringContaining('[call:call-1]'),
+                }),
+            }),
+        );
+        expect(prismaMock.activity.create.mock.calls[0][0].data.observations).toContain('answered');
+    });
+
+    it('reentrega do mesmo call_id não duplica a nota (idempotência por ThreeCXCallEvent)', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(CONN_ORG_A);
+        prismaMock.lead.findFirst.mockResolvedValue({
+            id: 'lead-1',
+            contact: { phone: '5511999998888', whatsapp: null },
+        });
+        prismaMock.activity.findFirst.mockResolvedValue(null);
+        prismaMock.activity.create.mockResolvedValue({});
+        prismaMock.threeCXCallEvent.create.mockResolvedValue({});
+
+        // Primeira entrega: nenhum evento gravado ainda.
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValueOnce(null);
+        const first = await process3CXWebhook(FULL_PAYLOAD);
+        expect(first.status).toBe('processed');
+        expect(first.duplicate).toBeFalsy();
+
+        // Segunda entrega (reentrega do PABX): o evento já existe.
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValueOnce({ id: 'evt-1' });
+        const second = await process3CXWebhook(FULL_PAYLOAD);
+        expect(second).toMatchObject({ status: 'processed', duplicate: true, organizationId: 'org-a' });
+
+        // Nem o rastro de auditoria nem a Activity são duplicados na reentrega.
+        expect(prismaMock.threeCXCallEvent.create).toHaveBeenCalledTimes(1);
+        expect(prismaMock.activity.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('nunca adivinha o tenant quando o ramal é ambíguo entre duas organizações — descarta', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }, { id: 'org-b' }]);
+        prismaMock.threeCXConnection.findFirst
+            .mockResolvedValueOnce(CONN_ORG_A)
+            .mockResolvedValueOnce(CONN_ORG_B);
+
+        const result = await process3CXWebhook(FULL_PAYLOAD);
+
+        expect(result).toEqual({ status: 'discarded', reason: 'ramal-ambiguo' });
+        expect(prismaMock.threeCXCallEvent.create).not.toHaveBeenCalled();
+        expect(prismaMock.activity.create).not.toHaveBeenCalled();
+    });
+
+    it('descarta (não persiste nada) quando nenhuma organização tem esse ramal cadastrado', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(null);
+
+        const result = await process3CXWebhook(FULL_PAYLOAD);
+
+        expect(result).toEqual({ status: 'discarded', reason: 'ramal-desconhecido' });
+        expect(prismaMock.threeCXCallEvent.create).not.toHaveBeenCalled();
+        expect(prismaMock.activity.create).not.toHaveBeenCalled();
+    });
+
+    it('payload mínimo sem número reconhecível grava o rastro de auditoria mas não inventa um lead', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        // Mesmo shape mínimo já coberto por tests/unit/features/integrations/threecx/threecx.routes.test.ts.
+        const minimalPayload = { event: 'call.ended', extension: '101', callId: 'call-abc' };
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(CONN_ORG_A);
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValue(null);
+        prismaMock.threeCXCallEvent.create.mockResolvedValue({});
+
+        const result = await process3CXWebhook(minimalPayload);
+
+        expect(result).toMatchObject({ status: 'processed', organizationId: 'org-a', leadId: null });
+        expect(prismaMock.lead.findFirst).not.toHaveBeenCalled();
+        expect(prismaMock.activity.create).not.toHaveBeenCalled();
+        expect(prismaMock.threeCXCallEvent.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('nunca loga o número de telefone completo — só ids (callId/organizationId/leadId/connectionId)', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(CONN_ORG_A);
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValue(null);
+        prismaMock.threeCXCallEvent.create.mockResolvedValue({});
+        prismaMock.lead.findFirst.mockResolvedValue({
+            id: 'lead-1',
+            contact: { phone: '5511999998888', whatsapp: null },
+        });
+        prismaMock.activity.findFirst.mockResolvedValue(null);
+        prismaMock.activity.create.mockResolvedValue({});
+
+        await process3CXWebhook(FULL_PAYLOAD);
+
+        const phoneDigits = '5511999998888';
+        const allLogCalls = [...loggerMock.info.mock.calls, ...loggerMock.warn.mock.calls, ...loggerMock.error.mock.calls];
+        expect(allLogCalls.length).toBeGreaterThan(0);
+        for (const call of allLogCalls) {
+            const serialized = JSON.stringify(call);
+            expect(serialized).not.toContain(phoneDigits);
+            expect(serialized).not.toContain('999998888'); // sufixo também não pode vazar
+        }
     });
 });

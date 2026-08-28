@@ -80,9 +80,12 @@ export async function getEvaluationMetricsSnapshot(
         }),
     ]);
 
-    // Agrega humanOverride/toolCorrectness (proxy de errorRate) através dos papéis com ledger —
-    // OPS não tem AIPendingAction (executa direto), já vem como estado vazio de getSwarmSloSnapshot.
-    const ledgerAgents = sloSnapshot.agents.filter((agent) => agent.role !== 'OPS');
+    // Agrega humanOverride/toolCorrectness (proxy de errorRate) através de todos os papéis do
+    // enxame. Desde GOV-13 (onda 39), OPS também propõe via AIPendingAction em vez de executar
+    // direto (ver opsPendingActions.tool.ts), então já tem ledger real como os demais papéis —
+    // excluí-lo aqui voltaria a subestimar esse agregado sem motivo real. Ver
+    // .agents/handoffs/onda-39/13-para-07-evaluationmetrics-exclui-ops.md.
+    const ledgerAgents = sloSnapshot.agents;
     const humanOverride = emptyRate(
         ledgerAgents.reduce((sum, agent) => sum + agent.humanOverride.numerator, 0),
         ledgerAgents.reduce((sum, agent) => sum + agent.humanOverride.denominator, 0),

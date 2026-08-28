@@ -22,6 +22,10 @@ import {
 import { registerWorkerForRuntimeMetrics, setWorkerProcessUp } from './src/lib/queue/metrics.js';
 
 import { createLeadsWorker } from './src/lib/queue/index.js';
+import {
+    isPlatformOperatorTokenConfigured,
+    isValidPlatformOperatorToken,
+} from './src/shared/middlewares/requirePlatformOperator.js';
 import { createAgentWorker } from './src/lib/queue/agent.worker.js';
 import { createEnrichmentWorker } from './src/lib/queue/enrichment.queue.js';
 import { createSearchWorker } from './src/lib/queue/search.queue.js';
@@ -44,6 +48,8 @@ import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/featu
 import { createColdLeadsScannerWorker, scheduleColdLeadsScannerJob } from './src/features/automations/application/cold-leads-scanner.service.js';
 import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './src/features/automations/application/stagnation-scanner.service.js';
 import { createCadenceRunWorker, scheduleCadenceRunJob } from './src/features/cadence/jobs/cadenceRun.worker.js';
+import { createAgentMemoryCleanupWorker, scheduleAgentMemoryCleanupJob } from './src/features/intelligence/jobs/agentMemoryCleanup.worker.js';
+import { createBitrixExtractionPurgeWorker, scheduleBitrixExtractionPurgeJob } from './src/features/integrations/bitrix/jobs/bitrixExtractionPurge.worker.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -79,6 +85,8 @@ async function startWorkerProcess() {
     const coldLeadsScannerWorker = createColdLeadsScannerWorker();
     const stagnationScannerWorker = createStagnationScannerWorker();
     const cadenceRunWorker = createCadenceRunWorker();
+    const agentMemoryCleanupWorker = createAgentMemoryCleanupWorker();
+    const bitrixExtractionPurgeWorker = createBitrixExtractionPurgeWorker();
 
     await Promise.all([
         scheduleBitrixSync(),
@@ -91,6 +99,8 @@ async function startWorkerProcess() {
         scheduleColdLeadsScannerJob(),
         scheduleStagnationScannerJob(),
         scheduleCadenceRunJob(),
+        scheduleAgentMemoryCleanupJob(),
+        scheduleBitrixExtractionPurgeJob(),
     ]);
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -133,6 +143,8 @@ async function startWorkerProcess() {
         { name: 'stagnation-scanner-queue', worker: stagnationScannerWorker },
         { name: 'cadence-run-scanner', worker: cadenceRunWorker },
         { name: 'daily-report', worker: dailyReportWorker },
+        { name: 'agent-memory-cleanup', worker: agentMemoryCleanupWorker },
+        { name: 'bitrix-extraction-purge', worker: bitrixExtractionPurgeWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {
@@ -179,7 +191,35 @@ async function startWorkerProcess() {
             return;
         }
 
-        if (req.url === '/metrics' && env.EXPOSE_METRICS) {
+        // SEC-002 (Sprint 01/Onda 13) exigia o token de operador de plataforma em `/metrics` só no
+        // processo HTTP principal (`src/bootstrap/observability.ts`) — este `/metrics` do worker é
+        // um servidor `http` cru à parte (não monta o app Express), então a mesma trava nunca foi
+        // aplicada aqui e reabria a mesma classe de exposição sem auth num segundo processo.
+        const requestPath = (req.url ?? '/').split('?', 1)[0];
+        if (requestPath === '/metrics' && env.EXPOSE_METRICS) {
+            if (!isPlatformOperatorTokenConfigured()) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Recurso de operador de plataforma não habilitado — configure PLATFORM_OPERATOR_TOKEN.',
+                }));
+                return;
+            }
+
+            const requestUrl = new URL(req.url ?? '/metrics', 'http://internal');
+            const headerToken = req.headers['x-platform-operator-token'];
+            const queryToken = requestUrl.searchParams.get('operator_token');
+            const candidate =
+                (typeof headerToken === 'string' && headerToken) ||
+                (typeof queryToken === 'string' && queryToken) ||
+                null;
+
+            if (!isValidPlatformOperatorToken(candidate)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Acesso negado.' }));
+                return;
+            }
+
             try {
                 res.writeHead(200, { 'Content-Type': client.register.contentType });
                 res.end(await client.register.metrics());

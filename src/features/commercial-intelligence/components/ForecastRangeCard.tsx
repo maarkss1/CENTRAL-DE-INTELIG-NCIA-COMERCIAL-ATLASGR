@@ -17,11 +17,11 @@ const SCENARIO_STYLE: Record<'conservative' | 'likely' | 'optimistic', { barClas
     // text-brand cru sobre bg-surface mede 3.18:1 (abaixo do mínimo AA 4.5:1 pra texto normal) —
     // mesmo problema já corrigido na Sidebar/Configurações (PR #247). text-brand-active resolve.
     likely: { barClass: 'bg-brand', textClass: 'text-brand-active dark:text-brand-2' },
-    optimistic: { barClass: 'bg-[#0ca30c]', textClass: 'text-[#0ca30c]' },
+    optimistic: { barClass: 'bg-success-active', textClass: 'text-success-active dark:text-success' },
 };
 
 const TREND_STYLE: Record<TrendDirection, { icon: typeof TrendingUp; label: string; className: string }> = {
-    melhorando: { icon: TrendingUp, label: 'Win Rate melhorando', className: 'text-[#0ca30c] bg-[#0ca30c]/10 border-[#0ca30c]/20' },
+    melhorando: { icon: TrendingUp, label: 'Win Rate melhorando', className: 'text-success-active dark:text-success bg-success/10 border-success/20' },
     piorando: { icon: TrendingDown, label: 'Win Rate piorando', className: 'text-critical bg-critical/10 border-critical/20' },
     estavel: { icon: Minus, label: 'Win Rate estável', className: 'text-ink-2 bg-surface-2 border-line' },
 };

@@ -9,7 +9,7 @@ import { CRMAgent } from './crm.agent.js';
 import { OpsAgent } from './ops.agent.js';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
 import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
 import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 
@@ -230,7 +230,9 @@ ${resultsSummary}
 
 Decida o próximo passo usando a ferramenta de decisão de roteamento. Escolha o especialista cujo critério "Escolha quando" bate com a missão — se mais de um parecer plausível, prefira o mais específico. Não repita um especialista que já respondeu de forma satisfatória, a não ser que haja uma lacuna clara que só ele resolve.
 A instrução que você escrever para o especialista deve ser objetiva, caber em 1 a 2 frases e citar o dado concreto da missão que ele precisa usar — nunca escreva uma instrução genérica como "analise os dados disponíveis", e nunca a deixe vazia a menos que a ação seja 'finish'.
-Se a missão já foi suficientemente atendida pelos especialistas já acionados, escolha 'finish'.`;
+Se a missão já foi suficientemente atendida pelos especialistas já acionados, escolha 'finish'.
+
+${SWARM_UNTRUSTED_CONTENT_GUARD}`;
 
     let decision: SupervisorDecision;
     const startTime = Date.now();
@@ -493,7 +495,9 @@ REGRAS DE FORMATAÇÃO:
 > **[Qual o ÚNICO próximo passo matador que a equipe deve executar AGORA?]**
 [Indique de quem é a bola: BDR, Closer, ou Marketing, e o que exatamente deve ser feito para destravar a oportunidade]
 
-${SWARM_OUTPUT_CONTRACT}`
+${SWARM_OUTPUT_CONTRACT}
+
+${SWARM_UNTRUSTED_CONTENT_GUARD}`
             ),
             new HumanMessage(`Missão original: ${state.mission}\n\nIntel recebida dos especialistas:\n${resultsSummary}`),
         ]);

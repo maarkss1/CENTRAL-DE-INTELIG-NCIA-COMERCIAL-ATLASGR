@@ -4,7 +4,7 @@
     "url": "https://www.gov.br/mj/pt-br/assuntos/sua-seguranca/seguranca-publica/estatistica/download/dnsp-base-de-dados/bancovde-2026.xlsx/@@download/file",
     "year": 2026
   },
-  "downloadedAt": "2026-08-19T14:06:37.119872+00:00",
+  "downloadedAt": "2026-08-25T07:27:35.883523+00:00",
   "rawSha256": "9a2e65c7402de5a9c7970d24a68635e064fd8956b7fb9075518a270d413fbfaa",
   "rawBytes": 19639016,
   "output": "public/tools/atlas-market-intelligence/data/risco_uf.json",

@@ -150,7 +150,10 @@ describe('API LDR — autenticação, autorização e origem do tenant', () => {
             .set('x-organization-id', 'org-b');
 
         expect(response.status).toBe(404);
-        expect(response.body).toEqual({ success: false, error: 'Conta não encontrada.' });
+        // toMatchObject (não toEqual): errorHandler.ts também acrescenta code/retryable/requestId
+        // ao envelope de erro (extensão aditiva do contrato — ver Agente 18); os campos
+        // legados (success/error) continuam obrigatórios e inalterados.
+        expect(response.body).toMatchObject({ success: false, error: 'Conta não encontrada.', code: 'NOT_FOUND', retryable: false });
         expect(JSON.stringify(response.body)).not.toContain('org-b');
         expect(getTenantPrismaMock).toHaveBeenCalledWith('org-a');
     });
@@ -162,7 +165,7 @@ describe('API LDR — autenticação, autorização e origem do tenant', () => {
             .get('/api/market-intelligence/accounts/company-missing/intelligence');
 
         expect(response.status).toBe(404);
-        expect(response.body).toEqual({ success: false, error: 'Conta não encontrada.' });
+        expect(response.body).toMatchObject({ success: false, error: 'Conta não encontrada.', code: 'NOT_FOUND', retryable: false });
     });
 
     it('permite leitura a VISUALIZADOR, mas bloqueia refresh para papel abaixo de SDR', async () => {
@@ -287,9 +290,13 @@ describe('API LDR — refresh idempotente e ausência de dados fabricados', () =
             .post('/api/market-intelligence/accounts/company-a/refresh');
 
         expect(response.status).toBe(422);
-        expect(response.body).toEqual({
+        // toMatchObject: errorHandler.ts também acrescenta code/retryable/requestId (extensão
+        // aditiva do contrato — ver Agente 18); os campos legados continuam inalterados.
+        expect(response.body).toMatchObject({
             success: false,
             error: 'Fontes insuficientes para atualizar a conta.',
+            code: 'UNPROCESSABLE_ENTITY',
+            retryable: false,
         });
     });
 });
