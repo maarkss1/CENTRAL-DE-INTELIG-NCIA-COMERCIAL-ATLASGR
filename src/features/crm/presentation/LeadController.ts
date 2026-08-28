@@ -31,8 +31,13 @@ export class LeadController {
             const funnel: LeadFunnel | undefined = requestedFunnel === 'Lead' || requestedFunnel === 'Negocio'
                 ? requestedFunnel
                 : undefined;
-            const query = req.query.q as string | undefined;
-            const result = await this.leadUseCases.findLeads(orgId, req.query.status as string | undefined, page, limit, funnel, query);
+            // Mesmo padrão de ContactController.getContacts: `req.query.q`/`req.query.status`
+            // podem chegar como array (`?q=a&q=b`) ou objeto (`?q[x]=y`), não só string —
+            // `as string | undefined` só engana o TypeScript, não o runtime (CodeQL: "Type
+            // confusion through parameter tampering").
+            const query = typeof req.query.q === 'string' ? req.query.q : undefined;
+            const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+            const result = await this.leadUseCases.findLeads(orgId, status, page, limit, funnel, query);
             res.json({ success: true, data: result.data, meta: result.meta });
         } catch (error) {
             next(error);

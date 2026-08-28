@@ -14,7 +14,8 @@ import {
   encryptSensitiveFields,
   decryptSensitiveResult,
 } from './crypto/piiFields.js';
-import { computeContactHashFields } from './security/piiSearchIndex.js';
+import { computeContactPiiIndexes } from './crypto/piiIndex.js';
+import { decryptField } from './crypto/secretFields.js';
 const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || "";
 
 // Campos de credencial de integração cifrados em repouso (AES-256-GCM, ver
@@ -70,6 +71,40 @@ export const dbPoolWaitingRequests = new client.Gauge({
 });
 
 const adapter = new PrismaPg(pool);
+
+const CONTACT_PII_FIELDS = ['email', 'phone', 'whatsapp'] as const;
+const NESTED_CONTACT_PII_MAX_DEPTH = 6;
+
+/**
+ * Decifra `email`/`phone`/`whatsapp` (ver `piiFields.ts` — `ENCRYPTED_MODEL_FIELDS.Contact`) em
+ * QUALQUER profundidade de um resultado do Prisma, não só no nível do model da própria operação.
+ * Ver comentário no ponto de chamada (`$allOperations`, passo 6b) sobre por que isto existe.
+ * Muda os objetos em memória mesmo (mesmo padrão dos outros passos desta extensão) — o resultado
+ * de uma query do Prisma não é reutilizado por mais ninguém depois de sair daqui.
+ */
+function decryptNestedContactPii(value: unknown, depth = 0): unknown {
+  if (depth > NESTED_CONTACT_PII_MAX_DEPTH || value === null || value === undefined) return value;
+  if (value instanceof Date) return value;
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) value[i] = decryptNestedContactPii(value[i], depth + 1);
+    return value;
+  }
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    for (const field of CONTACT_PII_FIELDS) {
+      const v = obj[field];
+      if (typeof v === 'string' && v.startsWith('enc:v1:')) {
+        obj[field] = decryptField(v);
+      }
+    }
+    for (const key of Object.keys(obj)) {
+      const v = obj[key];
+      if (v && typeof v === 'object') decryptNestedContactPii(v, depth + 1);
+    }
+    return obj;
+  }
+  return value;
+}
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
@@ -203,43 +238,54 @@ export const prisma = basePrisma.$extends({
           }
         }
 
-        // --- 1b. Criptografia de credenciais em repouso (write) ---
+        // --- 1b. Criptografia de credenciais/PII em repouso (write) ---
         if (ENCRYPTED_FIELDS[model as string]) {
           const a = args as Record<string, unknown>;
-          if ((operation === 'create' || operation === 'update' || operation === 'updateMany') && a.data) {
-            a.data = encryptSensitiveFields(model as string, a.data as Record<string, unknown>);
-          } else if (operation === 'createMany' && Array.isArray(a.data)) {
-            a.data = (a.data as Record<string, unknown>[]).map((d) => encryptSensitiveFields(model as string, d));
-          } else if (operation === 'upsert') {
-            if (a.create) a.create = encryptSensitiveFields(model as string, a.create as Record<string, unknown>);
-            if (a.update) a.update = encryptSensitiveFields(model as string, a.update as Record<string, unknown>);
-          }
-        }
-
-        // --- 1c. Índice de busca determinístico (HMAC) de PII de Contact (write) ---
-        // DEC-01 (dossiê de auditoria CPI, opção A) — ver src/lib/security/piiSearchIndex.ts. Só
-        // `Contact` participa hoje. Calcula `phoneHash`/`whatsappHash`/`emailHash` a partir dos
-        // campos correspondentes presentes no payload (nunca mexe num campo que a escrita não
-        // tocou) e grava os dois juntos, na mesma escrita — igual ao padrão já usado acima para
-        // cifra de credenciais, mas aditivo (nunca substitui o campo original) em vez de
-        // transformá-lo. INERTE até `Contact.phoneHash/whatsappHash/emailHash` existirem no schema
-        // (ver .agents/handoffs/onda-42/01-para-00-pii-hash-fields.md) — até lá, `Object.keys`
-        // sempre vazio não muda nada, e depois de existirem no schema, o Postgres real rejeita a
-        // escrita com "Unknown argument" caso o Prisma Client não tenha sido regenerado
-        // (`prisma generate`) — nunca grava parcialmente.
-        if (model === 'Contact') {
-          const a = args as Record<string, unknown>;
-          const mergeHash = (data: Record<string, unknown>) => {
-            const hashFields = computeContactHashFields(data);
-            return Object.keys(hashFields).length ? { ...data, ...hashFields } : data;
+          // Índice cego de Contact (ver piiIndex.ts): precisa ser calculado ANTES de
+          // `encryptSensitiveFields` (que substitui email/phone/whatsapp pelo ciphertext no mesmo
+          // objeto `data`) — senão o índice seria computado sobre o ciphertext, não sobre o valor
+          // normalizado real, e nunca bateria com uma busca feita a partir do texto puro recebido.
+          //
+          // `partial: true` (update/updateMany/upsert.update) só inclui no patch o índice do
+          // campo que o próprio `data` está tocando — um `update({ data: { name: 'x' } })` que não
+          // toca email/phone/whatsapp NÃO PODE apagar o índice já gravado desses campos (senão
+          // qualquer edição parcial do contato zeraria a busca exata dele). `partial: false`
+          // (create/createMany/upsert.create) sempre grava o conjunto completo, inclusive null
+          // para um contato novo sem e-mail/telefone.
+          const withContactIndex = (d: Record<string, unknown>, partial: boolean): Record<string, unknown> => {
+            if (model !== 'Contact') return d;
+            const all = computeContactPiiIndexes({
+              email: d.email as string | null | undefined,
+              phone: d.phone as string | null | undefined,
+              whatsapp: d.whatsapp as string | null | undefined,
+            });
+            if (!partial) return { ...d, ...all };
+            const patch: Record<string, unknown> = {};
+            if ('email' in d) {
+              patch.emailIndex = all.emailIndex;
+              patch.emailDomainIndex = all.emailDomainIndex;
+            }
+            if ('phone' in d) {
+              patch.phoneIndex = all.phoneIndex;
+              patch.phoneLast8Index = all.phoneLast8Index;
+              patch.phoneLast9Index = all.phoneLast9Index;
+            }
+            if ('whatsapp' in d) {
+              patch.whatsappIndex = all.whatsappIndex;
+              patch.whatsappLast8Index = all.whatsappLast8Index;
+              patch.whatsappLast9Index = all.whatsappLast9Index;
+            }
+            return { ...d, ...patch };
           };
-          if ((operation === 'create' || operation === 'update' || operation === 'updateMany') && a.data) {
-            a.data = mergeHash(a.data as Record<string, unknown>);
+          if (operation === 'create' && a.data) {
+            a.data = encryptSensitiveFields(model as string, withContactIndex(a.data as Record<string, unknown>, false));
+          } else if ((operation === 'update' || operation === 'updateMany') && a.data) {
+            a.data = encryptSensitiveFields(model as string, withContactIndex(a.data as Record<string, unknown>, true));
           } else if (operation === 'createMany' && Array.isArray(a.data)) {
-            a.data = (a.data as Record<string, unknown>[]).map((d) => mergeHash(d));
+            a.data = (a.data as Record<string, unknown>[]).map((d) => encryptSensitiveFields(model as string, withContactIndex(d, false)));
           } else if (operation === 'upsert') {
-            if (a.create) a.create = mergeHash(a.create as Record<string, unknown>);
-            if (a.update) a.update = mergeHash(a.update as Record<string, unknown>);
+            if (a.create) a.create = encryptSensitiveFields(model as string, withContactIndex(a.create as Record<string, unknown>, false));
+            if (a.update) a.update = encryptSensitiveFields(model as string, withContactIndex(a.update as Record<string, unknown>, true));
           }
         }
 
@@ -425,6 +471,21 @@ export const prisma = basePrisma.$extends({
         if (ENCRYPTED_FIELDS[model as string]) {
           result = decryptSensitiveResult(model as string, result);
         }
+
+        // --- 6b. Descriptografia de PII de Contact em relações aninhadas (read) ---
+        // `decryptSensitiveResult` acima só decifra quando Contact é o MODEL da própria operação
+        // (`prisma.contact.findMany(...)`) — uma query de outro model que traz Contact junto via
+        // `include`/`select` aninhado (ex.: `prisma.lead.findFirst({ include: { contact: true } })`)
+        // nunca passa por ali, e o e-mail/telefone/whatsapp do contato voltariam como ciphertext
+        // cru para quem espera texto puro. Era exatamente esse o modo de quebra que
+        // `document-signature.routes.test.ts` expôs na tentativa anterior (ver piiFields.ts).
+        //
+        // Em vez de mapear cada relação que aponta pra Contact (frágil — quebra de novo a cada
+        // relação nova), decifra POR FORMA: qualquer valor de string em `email`/`phone`/`whatsapp`,
+        // em qualquer profundidade do resultado, que comece com o prefixo versionado `enc:v1:`
+        // (`decryptField` já trata qualquer outro valor como texto legado/sem cifra e devolve
+        // sem alteração) — idempotente mesmo quando já decifrado pelo passo 6 acima.
+        result = decryptNestedContactPii(result) as typeof result;
 
         return result;
       }
