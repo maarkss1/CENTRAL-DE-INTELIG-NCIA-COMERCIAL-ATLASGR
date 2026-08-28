@@ -50,6 +50,8 @@ import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './s
 import { createCadenceRunWorker, scheduleCadenceRunJob } from './src/features/cadence/jobs/cadenceRun.worker.js';
 import { createAgentMemoryCleanupWorker, scheduleAgentMemoryCleanupJob } from './src/features/intelligence/jobs/agentMemoryCleanup.worker.js';
 import { createBitrixExtractionPurgeWorker, scheduleBitrixExtractionPurgeJob } from './src/features/integrations/bitrix/jobs/bitrixExtractionPurge.worker.js';
+import { createNewsMonitorWorker, scheduleGlobalNewsScan } from './src/lib/queue/newsMonitor.worker.js';
+import { createAccountIntelligenceInsightsWorker, scheduleAccountIntelligenceInsightsJob } from './src/features/market-intelligence/jobs/accountIntelligenceInsights.worker.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -87,6 +89,8 @@ async function startWorkerProcess() {
     const cadenceRunWorker = createCadenceRunWorker();
     const agentMemoryCleanupWorker = createAgentMemoryCleanupWorker();
     const bitrixExtractionPurgeWorker = createBitrixExtractionPurgeWorker();
+    const newsMonitorWorker = createNewsMonitorWorker();
+    const accountIntelligenceInsightsWorker = createAccountIntelligenceInsightsWorker();
 
     await Promise.all([
         scheduleBitrixSync(),
@@ -101,6 +105,8 @@ async function startWorkerProcess() {
         scheduleCadenceRunJob(),
         scheduleAgentMemoryCleanupJob(),
         scheduleBitrixExtractionPurgeJob(),
+        scheduleGlobalNewsScan(),
+        scheduleAccountIntelligenceInsightsJob(),
     ]);
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -145,6 +151,8 @@ async function startWorkerProcess() {
         { name: 'daily-report', worker: dailyReportWorker },
         { name: 'agent-memory-cleanup', worker: agentMemoryCleanupWorker },
         { name: 'bitrix-extraction-purge', worker: bitrixExtractionPurgeWorker },
+        { name: 'news-monitor', worker: newsMonitorWorker },
+        { name: 'account-intelligence-insights', worker: accountIntelligenceInsightsWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {
