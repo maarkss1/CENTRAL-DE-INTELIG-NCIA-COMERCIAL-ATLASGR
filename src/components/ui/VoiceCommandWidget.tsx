@@ -95,7 +95,9 @@ export function VoiceCommandWidget() {
 
   const toggleListening = () => {
     if (!recognition) {
-      toast.error('Seu navegador não suporta reconhecimento de voz. Experimente usar o Google Chrome.');
+      toast.error(
+        'Seu navegador não suporta reconhecimento de voz. Experimente usar o Google Chrome.',
+      );
       return;
     }
 

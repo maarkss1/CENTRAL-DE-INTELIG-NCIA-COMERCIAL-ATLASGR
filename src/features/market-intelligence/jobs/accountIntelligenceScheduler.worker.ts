@@ -54,20 +54,23 @@ export const accountIntelligenceSchedulerWorker = new Worker<SchedulerJobData>(
       const targets = [
         ...expiredSnapshots.map((s) => ({ id: s.companyId, orgId: s.organizationId })),
         ...noSnapshotCompanies.map((c) => ({ id: c.id, orgId: c.organizationId })),
-      ].filter(t => t.orgId !== null) as { id: string, orgId: string }[];
+      ].filter((t) => t.orgId !== null) as { id: string; orgId: string }[];
 
       const uniqueTargets = Array.from(new Map(targets.map((t) => [t.id, t])).values());
 
       let refreshed = 0;
       for (const target of uniqueTargets) {
         try {
-           await withRlsContext(async (tx) => {
-             const service = new AccountIntelligenceService(tx as any, target.orgId);
-             await service.refresh(target.id);
-           });
-           refreshed++;
+          await withRlsContext(async (tx) => {
+            const service = new AccountIntelligenceService(tx as any, target.orgId);
+            await service.refresh(target.id);
+          });
+          refreshed++;
         } catch (error) {
-           logger.error({ error, companyId: target.id }, 'Falha ao atualizar a inteligencia no scheduler LDR');
+          logger.error(
+            { error, companyId: target.id },
+            'Falha ao atualizar a inteligencia no scheduler LDR',
+          );
         }
       }
 
