@@ -5,6 +5,12 @@ import { logger } from '../../lib/logger.js';
 export interface ErasureTarget {
   organizationId: string;
   contactId: string;
+  // Quem exerceu o direito de exclusão em nome do titular (ADMIN/GESTOR autenticado que chamou a
+  // rota) — sem isto, o `requestContext` não carrega `userId`, e o UPDATE automático de auditoria
+  // dessa extensão do Prisma (ver src/lib/prisma.ts, `auditableModels` inclui `Contact`) grava a
+  // anonimização com `actorId` vazio, perdendo justamente o "quem" de uma ação irreversível de
+  // LGPD. Opcional só para não quebrar chamadas indiretas (ex.: script/worker) sem ator humano.
+  actorUserId?: string;
 }
 
 export interface ErasureResult {
@@ -56,89 +62,92 @@ export const ANONYMIZED_CONTACT_NAME = '[titular anonimizado — LGPD]';
  *   de dado de empresa) — fora do escopo de exclusão de titular pessoa natural.
  */
 export async function eraseDataSubject(target: ErasureTarget): Promise<ErasureResult> {
-  return requestContext.run({ tenantId: target.organizationId }, async () => {
-    const contact = await prisma.contact.findFirst({
-      where: { id: target.contactId, organizationId: target.organizationId },
-    });
-    if (!contact) {
-      throw new Error(
-        `Contato ${target.contactId} não encontrado na organização ${target.organizationId}.`,
+  return requestContext.run(
+    { tenantId: target.organizationId, userId: target.actorUserId },
+    async () => {
+      const contact = await prisma.contact.findFirst({
+        where: { id: target.contactId, organizationId: target.organizationId },
+      });
+      if (!contact) {
+        throw new Error(
+          `Contato ${target.contactId} não encontrado na organização ${target.organizationId}.`,
+        );
+      }
+
+      const alreadyAnonymized = contact.name === ANONYMIZED_CONTACT_NAME;
+
+      if (!alreadyAnonymized) {
+        await prisma.contact.update({
+          where: { id: target.contactId },
+          data: {
+            name: ANONYMIZED_CONTACT_NAME,
+            phone: null,
+            whatsapp: null,
+            email: null,
+            linkedin: null,
+            birthDate: null,
+            observations: null,
+            customFields: {},
+          },
+        });
+      }
+
+      // Mensagens de WhatsApp guardam PII própria (telefone/conteúdo) — mascaradas mesmo se o
+      // Contact já estava anonimizado antes, caso alguma mensagem nova tenha chegado depois.
+      const { count: whatsAppMessagesMasked } = await prisma.whatsAppMessage.updateMany({
+        where: { contactId: target.contactId, body: { not: null } },
+        data: { body: null },
+      });
+
+      // Leads deste titular nesta organização (um contato pode ter tido mais de um Lead ao longo
+      // do tempo) — organizationId explícito no where como defesa em profundidade além do RLS.
+      const leads = await prisma.lead.findMany({
+        where: { contactId: target.contactId, organizationId: target.organizationId },
+        select: { id: true },
+      });
+      const leadIds = leads.map((l) => l.id);
+
+      let conversationSignalsRedacted = 0;
+      let timelineEventsRedacted = 0;
+
+      if (leadIds.length > 0) {
+        const { count: signalsCount } = await prisma.conversationSignal.updateMany({
+          where: { leadId: { in: leadIds }, organizationId: target.organizationId },
+          data: {
+            summary: null,
+            nextStep: null,
+            objections: [],
+            rawModelOutput: {},
+          },
+        });
+        conversationSignalsRedacted = signalsCount;
+
+        const { count: timelineCount } = await prisma.timelineEvent.updateMany({
+          where: { leadId: { in: leadIds } },
+          data: { description: '[evento anonimizado — LGPD]' },
+        });
+        timelineEventsRedacted = timelineCount;
+      }
+
+      logger.info(
+        {
+          organizationId: target.organizationId,
+          contactId: target.contactId,
+          whatsAppMessagesMasked,
+          conversationSignalsRedacted,
+          timelineEventsRedacted,
+          alreadyAnonymized,
+        },
+        '[lgpd] Titular anonimizado a pedido de exercício de direito (LGPD art. 18).',
       );
-    }
 
-    const alreadyAnonymized = contact.name === ANONYMIZED_CONTACT_NAME;
-
-    if (!alreadyAnonymized) {
-      await prisma.contact.update({
-        where: { id: target.contactId },
-        data: {
-          name: ANONYMIZED_CONTACT_NAME,
-          phone: null,
-          whatsapp: null,
-          email: null,
-          linkedin: null,
-          birthDate: null,
-          observations: null,
-          customFields: {},
-        },
-      });
-    }
-
-    // Mensagens de WhatsApp guardam PII própria (telefone/conteúdo) — mascaradas mesmo se o
-    // Contact já estava anonimizado antes, caso alguma mensagem nova tenha chegado depois.
-    const { count: whatsAppMessagesMasked } = await prisma.whatsAppMessage.updateMany({
-      where: { contactId: target.contactId, body: { not: null } },
-      data: { body: null },
-    });
-
-    // Leads deste titular nesta organização (um contato pode ter tido mais de um Lead ao longo
-    // do tempo) — organizationId explícito no where como defesa em profundidade além do RLS.
-    const leads = await prisma.lead.findMany({
-      where: { contactId: target.contactId, organizationId: target.organizationId },
-      select: { id: true },
-    });
-    const leadIds = leads.map((l) => l.id);
-
-    let conversationSignalsRedacted = 0;
-    let timelineEventsRedacted = 0;
-
-    if (leadIds.length > 0) {
-      const { count: signalsCount } = await prisma.conversationSignal.updateMany({
-        where: { leadId: { in: leadIds }, organizationId: target.organizationId },
-        data: {
-          summary: null,
-          nextStep: null,
-          objections: [],
-          rawModelOutput: {},
-        },
-      });
-      conversationSignalsRedacted = signalsCount;
-
-      const { count: timelineCount } = await prisma.timelineEvent.updateMany({
-        where: { leadId: { in: leadIds } },
-        data: { description: '[evento anonimizado — LGPD]' },
-      });
-      timelineEventsRedacted = timelineCount;
-    }
-
-    logger.info(
-      {
-        organizationId: target.organizationId,
+      return {
         contactId: target.contactId,
         whatsAppMessagesMasked,
         conversationSignalsRedacted,
         timelineEventsRedacted,
         alreadyAnonymized,
-      },
-      '[lgpd] Titular anonimizado a pedido de exercício de direito (LGPD art. 18).',
-    );
-
-    return {
-      contactId: target.contactId,
-      whatsAppMessagesMasked,
-      conversationSignalsRedacted,
-      timelineEventsRedacted,
-      alreadyAnonymized,
-    };
-  });
+      };
+    },
+  );
 }

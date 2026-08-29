@@ -61,7 +61,8 @@ async function fetchEnumMaps(
  * dos dois objetos (Lead ou Negócio) — os IDs de `items` são específicos deste portal, nunca
  * hardcoded (ver cabeçalho de bitrixFieldMap.ts). Esta é a função referenciada lá como
  * "resolveEnumMaps" — antes desta implementação existia só o comentário, sem código nenhum por
- * trás (achado da auditoria BITRIX24-LEAD-FLOW-AUDIT.md, item P4-1).
+ * trás (achado item P4-1 da antiga auditoria BITRIX24-LEAD-FLOW-AUDIT.md — removida do controle de
+ * versão em 22/08/2026, ver docs/REMOVED-DOCS.md).
  */
 export async function resolveEnumMaps(
   webhookUrl: string,

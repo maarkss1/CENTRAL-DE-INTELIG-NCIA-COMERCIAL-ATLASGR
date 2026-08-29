@@ -26,6 +26,7 @@ import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { toast } from '../../../lib/toast';
+import { downloadFile } from '../../../lib/api';
 import { BookingLinksModal } from './BookingLinksModal';
 import {
   calendarApi,
@@ -286,20 +287,28 @@ export function Calendar() {
               <Link2 className="w-4 h-4 mr-1.5 text-brand" /> Links de Agendamento
             </Button>
 
-            {/* Botão Sincronizar Calendário iCal */}
+            {/* Botão Baixar Agenda (.ics) — /api/activities/feed.ics exige sessão autenticada
+                (cookie), então um app externo (Google/Apple Calendar) fazendo *subscribe* por URL
+                nunca consegue buscar essa rota: o cookie nunca vai junto na requisição que o
+                provedor do calendário faz do lado dele. O botão antes copiava essa URL e prometia
+                "sincronizar" — funcionava só no instante em que a pessoa colava e o navegador
+                dela (autenticado) buscava uma vez; a assinatura periódica real sempre falhava
+                depois. Correção: baixa o .ics agora, para importar manualmente — mesmo padrão já
+                usado em downloadExecutiveExport/handleExportCsv. */}
             <Button
               variant="secondary"
               onClick={() => {
-                const icsUrl = `${window.location.origin}/api/activities/feed.ics`;
-                navigator.clipboard.writeText(icsUrl);
-                toast.success(
-                  'Link do feed iCal copiado! Cole no Google Calendar / Apple Calendar.',
-                );
+                void downloadFile(
+                  `${window.location.origin}/api/activities/feed.ics`,
+                  'agenda.ics',
+                ).catch((err) => {
+                  toast.error(err instanceof Error ? err.message : 'Falha ao baixar a agenda.');
+                });
               }}
               className="text-xs"
-              title="Sincronizar com Google Agenda / Apple Calendar"
+              title="Baixar agenda em .ics para importar no Google Agenda / Apple Calendar"
             >
-              <Download className="w-4 h-4 mr-1.5 text-sky-500" /> Sincronizar Google Agenda
+              <Download className="w-4 h-4 mr-1.5 text-sky-500" /> Baixar Agenda (.ics)
             </Button>
 
             <div className="flex items-center gap-1 pl-2 border-l border-line">

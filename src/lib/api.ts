@@ -87,6 +87,36 @@ export async function apiFetch<T>(endpoint: string, options?: ApiRequestOptions)
   return data as T;
 }
 
+/**
+ * Baixa um arquivo de uma rota autenticada que devolve o conteúdo cru (não o envelope
+ * `{success,data}` que `apiFetch` espera) — mesmo padrão de `downloadExecutiveExport`
+ * (commercialIntelligence.api.ts) e `handleExportCsv` (CrmBoard.tsx): fetch bruto com
+ * `credentials: 'include'` + Blob + link `<a download>` temporário.
+ */
+export async function downloadFile(url: string, fallbackFilename: string): Promise<void> {
+  const token = localStorage.getItem('token');
+  const response = await fetch(url, {
+    credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.error || errorData?.message || 'Falha ao baixar o arquivo.');
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const match = /filename="([^"]+)"/.exec(disposition);
+  const filename = match?.[1] || fallbackFilename;
+  const objectUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.parentNode?.removeChild(link);
+  window.URL.revokeObjectURL(objectUrl);
+}
+
 export const api = {
   get: <T>(url: string, options?: ApiRequestOptions) =>
     apiFetch<T>(url, { ...options, method: 'GET' }),

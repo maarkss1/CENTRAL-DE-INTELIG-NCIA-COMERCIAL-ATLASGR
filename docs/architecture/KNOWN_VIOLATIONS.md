@@ -81,6 +81,31 @@ a possui, sem necessidade real além de evitar este import. Dono: Agente 07 — 
 (`automations`) para o lado `from`; Agente 06 — Integrações e Bitrix para o lado `to`
 (`integrations/birth-voice`).
 
+## 2026-08-29 — 2 exceções novas registradas, 3 obsoletas removidas
+
+O gate de LGPD (`assertPiiExternalConsent`/`PiiConsentRequiredError`,
+`src/features/intelligence/services/guardrails.service.ts`) já protegia todo caminho que envia PII
+de um titular a um provedor de IA externo em texto (agentes de `intelligence`), mas não a ligação
+de voz do SDR (`birthVoice.service.ts`/`birthVoice.routes.ts`, `integrations/birth-voice`), que
+envia a mesma classe de dado (nome/telefone/empresa do contato) ao Birth Voices Hub/Bland AI sem
+essa checagem. Reusar o mesmo gate em vez de duplicar a lógica de consentimento introduz 2 imports
+cross-feature novos: `integrations/birth-voice/{birthVoice.service.ts,birthVoice.routes.ts}` →
+`intelligence/services/guardrails.service.ts`. Tratado como caso 2 (decisão de arquitetura
+deliberada) pelo mesmo raciocínio já usado na Onda 42 acima: extrair só essas duas funções para
+`src/shared/` moveria a fronteira "isto é uma checagem de IA" sem necessidade real além de evitar
+este import, e duplicar a lógica de consentimento em vez de reusar seria pior (duas fontes de
+verdade para a mesma decisão de compliance). Dono: Agente 06 — Integrações e Bitrix (`from`);
+Agente 07 — IA e Automações (`to`, dono de `intelligence`).
+
+Rodar `npm run lint:architecture:baseline` para registrar essas 2 entradas também removeu 3
+entradas obsoletas da baseline (`market-intelligence/{components/TerritoryEconomicSimulator.tsx,
+server/economicScenario.service.ts}` → `commercial-intelligence/*`) — os arquivos de origem não
+existem mais (módulo territorial/economia/catálogo removido do `market-intelligence` antes desta
+sessão), então suas violações somem naturalmente ao regenerar. Caso (a) da seção "Como adicionar
+uma exceção nova" abaixo (violação real corrigida), não uma exceção nova.
+
+**Total atualizado:** 108 violações (109 − 3 obsoletas + 2 novas).
+
 ## Como adicionar uma exceção nova (crescer a baseline deliberadamente)
 
 Só em dois casos:

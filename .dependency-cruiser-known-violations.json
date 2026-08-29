@@ -343,6 +343,24 @@
   },
   {
     "type": "dependency",
+    "from": "src/features/integrations/birth-voice/birthVoice.routes.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/guardrails.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/birth-voice/birthVoice.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/guardrails.service.ts"
+  },
+  {
+    "type": "dependency",
     "from": "src/features/integrations/birth-voice/callSuppression.service.ts",
     "rule": {
       "name": "no-cross-feature-imports",
@@ -782,39 +800,12 @@
   },
   {
     "type": "dependency",
-    "from": "src/features/market-intelligence/components/TerritoryEconomicSimulator.tsx",
-    "rule": {
-      "name": "no-cross-feature-imports",
-      "severity": "error"
-    },
-    "to": "src/features/commercial-intelligence/commercialIntelligence.api.ts"
-  },
-  {
-    "type": "dependency",
     "from": "src/features/market-intelligence/server/actionExecutor.service.ts",
     "rule": {
       "name": "no-cross-feature-imports",
       "severity": "error"
     },
     "to": "src/features/integrations/bitrix/service/client.ts"
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/market-intelligence/server/economicScenario.service.ts",
-    "rule": {
-      "name": "no-cross-feature-imports",
-      "severity": "error"
-    },
-    "to": "src/features/commercial-intelligence/application/CommercialIntelligenceUseCases.ts"
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/market-intelligence/server/economicScenario.service.ts",
-    "rule": {
-      "name": "no-cross-feature-imports",
-      "severity": "error"
-    },
-    "to": "src/features/commercial-intelligence/infra/PrismaCommercialIntelligenceRepository.ts"
   },
   {
     "type": "dependency",
