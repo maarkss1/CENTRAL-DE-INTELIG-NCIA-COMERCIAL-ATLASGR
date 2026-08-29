@@ -14,7 +14,7 @@ import {
 } from './automation-idempotency.service.js';
 
 export type AutomationTrigger =
-  'Lead criado' | 'Lead mudou de status' | 'Atividade concluída' | 'Lead sem interação';
+  'Lead criado' | 'Lead mudou de status' | 'Atividade concluída' | 'Lead sem interação' | 'Lead estagnado';
 export type AutomationActionType = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
 
 /**
