@@ -1,0 +1,14 @@
+{
+  "dataset": "Censo competitivo municipal Atlas GR",
+  "processedAt": "2026-08-29T16:46:57.490235+00:00",
+  "protocolVersion": "competition-census-v1",
+  "records": 29,
+  "censusComplete": 0,
+  "partial": 29,
+  "requestedComplete": 0,
+  "acceptedComplete": 0,
+  "unmatchedPresences": [],
+  "unmatchedCoverage": [],
+  "outputSha256": "3fe144c05fa38116117aec42c4a5210d52d49c4e2659dc8d90f66ea3e78a9a75",
+  "rule": "CENSO_COMPLETO só é aceito com todos os checks do protocolo; caso contrário é rebaixado para PESQUISA_PARCIAL."
+}
