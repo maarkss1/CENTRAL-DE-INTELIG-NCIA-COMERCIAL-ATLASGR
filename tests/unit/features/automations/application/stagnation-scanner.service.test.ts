@@ -146,7 +146,7 @@ describe('runStagnationScan', () => {
         const event = handleMock.mock.calls[0][0];
         expect(event).toEqual(expect.objectContaining({
             organizationId: 'org-1',
-            trigger: 'Lead mudou de status',
+            trigger: 'Lead estagnado',
             entity: 'Lead',
             entityId: 'lead-1',
         }));
