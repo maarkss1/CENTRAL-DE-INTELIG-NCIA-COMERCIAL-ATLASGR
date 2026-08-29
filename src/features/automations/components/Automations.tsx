@@ -93,7 +93,8 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
   const [dueInDays, setDueInDays] = useState('1');
   const [saving, setSaving] = useState(false);
 
-  const permiteCondicaoStatus = trigger === 'Lead mudou de status';
+  const permiteCondicaoStatus = trigger === 'Lead mudou de status' || trigger === 'Lead estagnado';
+  const requiresStagnationDays = trigger === 'Lead estagnado';
 
   const submit = useCallback(async () => {
     if (!name.trim()) {
@@ -101,10 +102,12 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
       return;
     }
     const stagnationThreshold =
-      permiteCondicaoStatus && stagnationDays.trim() ? Number(stagnationDays) : null;
+      requiresStagnationDays && stagnationDays.trim() ? Number(stagnationDays) : null;
     if (
-      stagnationThreshold != null &&
-      (!Number.isFinite(stagnationThreshold) || stagnationThreshold <= 0)
+      requiresStagnationDays &&
+      (stagnationThreshold == null ||
+        !Number.isFinite(stagnationThreshold) ||
+        stagnationThreshold <= 0)
     ) {
       toast.error('O número de dias parado precisa ser maior que zero.');
       return;
@@ -156,6 +159,7 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
     emailTo,
     dueInDays,
     permiteCondicaoStatus,
+    requiresStagnationDays,
     onSaved,
   ]);
 
@@ -237,20 +241,22 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                     ))}
                   </select>
                 </div>
-                <div className="mt-3">
-                  <label className={labelClass} htmlFor="auto-stagnation">
-                    Reavaliar todo dia se ficar parado por (dias)
-                  </label>
-                  <input
-                    id="auto-stagnation"
-                    type="number"
-                    min="1"
-                    value={stagnationDays}
-                    onChange={(e) => setStagnationDays(e.target.value)}
-                    placeholder="Ex: 3"
-                    className={inputClass}
-                  />
-                </div>
+                {requiresStagnationDays && (
+                  <div className="mt-3">
+                    <label className={labelClass} htmlFor="auto-stagnation">
+                      Reavaliar todo dia se ficar parado por (dias)
+                    </label>
+                    <input
+                      id="auto-stagnation"
+                      type="number"
+                      min="1"
+                      value={stagnationDays}
+                      onChange={(e) => setStagnationDays(e.target.value)}
+                      placeholder="Ex: 3"
+                      className={inputClass}
+                    />
+                  </div>
+                )}
               </VisualNode>
             )}
 

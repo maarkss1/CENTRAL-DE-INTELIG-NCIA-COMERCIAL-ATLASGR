@@ -300,7 +300,7 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-sm"
+      className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/50 sm:px-4 sm:pt-[12vh] backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"
@@ -313,7 +313,7 @@ export function CommandPalette() {
     >
       <div
         ref={panelRef}
-        className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl"
+        className="w-full h-full sm:h-auto sm:max-w-xl overflow-hidden sm:rounded-2xl border-0 sm:border border-line bg-surface shadow-2xl flex flex-col"
       >
         <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">
           <Search className="h-5 w-5 shrink-0 text-ink-2" />
@@ -331,7 +331,7 @@ export function CommandPalette() {
           </kbd>
         </div>
 
-        <div className="max-h-[60vh] overflow-y-auto p-2">
+        <div className="flex-1 sm:max-h-[60vh] overflow-y-auto p-2">
           {items.length === 0 && (
             <p className="px-3 py-8 text-center text-sm text-ink-2">
               Nenhum resultado para &quot;{query}&quot;.

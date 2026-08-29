@@ -300,14 +300,16 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                   }}
                   className="w-full p-3 rounded-2xl bg-surface-2 border border-line flex items-center justify-between gap-3 text-left hover:border-amber-500/40 transition-colors cursor-pointer group"
                 >
-                  <div className="flex items-center gap-2.5 text-xs">
-                    <Mic className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="text-ink-2">
-                      Isto é a prática rápida por texto. Para simulação completa por voz e nota
-                      final, abra o <span className="font-bold text-ink">Roleplay dedicado</span>.
+                  <div className="flex items-center gap-2.5 text-xs text-amber-200">
+                    <Mic className="w-5 h-5 text-amber-400 shrink-0" />
+                    <span className="font-medium">
+                      <strong className="text-amber-400 block mb-1">Aviso Importante:</strong>
+                      Esta é apenas uma simulação em formato de chat (texto). Para o treinamento
+                      imersivo por voz, abra o{' '}
+                      <span className="font-bold underline">Roleplay Simulator</span>.
                     </span>
                   </div>
-                  <ArrowUpRight className="w-4 h-4 text-ink-2 shrink-0 group-hover:text-amber-400 transition-colors" />
+                  <ArrowUpRight className="w-5 h-5 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
                 </button>
                 <div className="p-4 rounded-2xl bg-surface-2 border border-line space-y-3">
                   <div className="flex items-center justify-between">
