@@ -3,17 +3,22 @@ import { prisma } from '../../src/lib/prisma';
 import { requestContext } from '../../src/lib/async-context';
 
 // DB-001 / DB-002 (auditoria de dívida técnica, Fase 0, ciclo C0.2): confirma que consultas a
-// KnowledgeChunk, Prompt, AgentMemory e AIPendingAction filtradas por organizationId nunca
-// devolvem dado de outro tenant. Cobre a mesma camada que search.service.ts/prompt.routes.ts/
-// vector.service.ts/agent.service.ts usam de verdade — filtro explícito de organizationId — que é
-// a defesa que hoje realmente vale (ver nota de RLS/superuser em 08-PLANO-DE-SEGURANCA.md).
+// Prompt, AgentMemory e AIPendingAction filtradas por organizationId nunca devolvem dado de
+// outro tenant. Cobre a mesma camada que prompt.routes.ts/agent.service.ts usam de verdade —
+// filtro explícito de organizationId — que é a defesa que hoje realmente vale (ver nota de
+// RLS/superuser em 08-PLANO-DE-SEGURANCA.md).
+//
+// KnowledgeChunk foi removido do schema (Onda 37; ver scripts/migrateKnowledge.ts) e substituído
+// por Document/DocumentChunk — o isolamento de tenant desse par já tem cobertura própria e mais
+// completa em tests/integration/knowledge-rag-tenant-isolation.test.ts, por isso não foi
+// recriado aqui.
 //
 // Roda fora de qualquer request HTTP (sem sessão/tenantId do Better Auth por trás), e manipula
 // dois tenants (ORG_A/ORG_B) na mesma conexão de propósito. `Organization` está no allowlist de
 // bypass (BYPASS_RLS_ALLOWED_MODELS em src/lib/prisma.ts) — precisa dele pra criar o ORG_B de
-// teste, que não é conhecido de nenhum tenant ainda. KnowledgeChunk/Prompt/AgentMemory/
-// AIPendingAction NÃO estão no allowlist (ITEM-02, remediação de dívida técnica P0: RLS real
-// dessas tabelas não aceita mais bypass_rls, nem pra leitura nem pra escrita — ver migration
+// teste, que não é conhecido de nenhum tenant ainda. Prompt/AgentMemory/AIPendingAction NÃO
+// estão no allowlist (ITEM-02, remediação de dívida técnica P0: RLS real dessas tabelas não
+// aceita mais bypass_rls, nem pra leitura nem pra escrita — ver migration
 // 20260825120000_scope_rls_bypass_to_bootstrap_allowlist) — por isso cada organização escreve
 // dentro do PRÓPRIO contexto de tenant (`asOrg`), nunca sob bypass. Isso não invalida o que o
 // teste verifica: o que está sob teste é o filtro explícito de organizationId nas queries acima
@@ -26,7 +31,7 @@ const asOrg = <T>(tenantId: string, fn: () => Promise<T>): Promise<T> =>
 const ORG_A = 'test-org-id'; // já seedado por tests/helpers/integration-setup.ts
 const ORG_B = 'test-org-id-b';
 
-describe('Isolamento de tenant — KnowledgeChunk, Prompt, AgentMemory, AIPendingAction', () => {
+describe('Isolamento de tenant — Prompt, AgentMemory, AIPendingAction', () => {
   beforeEach(async () => withRlsBypass(async () => {
     const exists = await prisma.organization.findUnique({ where: { id: ORG_B } });
     if (!exists) {
@@ -35,8 +40,6 @@ describe('Isolamento de tenant — KnowledgeChunk, Prompt, AgentMemory, AIPendin
   }));
 
   afterEach(async () => {
-    await asOrg(ORG_A, () => prisma.knowledgeChunk.deleteMany({ where: { id: { in: ['kc-a', 'kc-b'] } } }));
-    await asOrg(ORG_B, () => prisma.knowledgeChunk.deleteMany({ where: { id: { in: ['kc-a', 'kc-b'] } } }));
     await asOrg(ORG_A, () => prisma.prompt.deleteMany({ where: { id: { in: ['prompt-a', 'prompt-b'] } } }));
     await asOrg(ORG_B, () => prisma.prompt.deleteMany({ where: { id: { in: ['prompt-a', 'prompt-b'] } } }));
     await asOrg(ORG_A, () => prisma.agentMemory.deleteMany({ where: { sessionId: { in: ['session-a', 'session-b'] } } }));
@@ -49,21 +52,6 @@ describe('Isolamento de tenant — KnowledgeChunk, Prompt, AgentMemory, AIPendin
   afterAll(async () => withRlsBypass(async () => {
     await prisma.organization.deleteMany({ where: { id: ORG_B } });
   }));
-
-  it('KnowledgeChunk: busca por organizationId nunca retorna trecho de outro tenant', async () => {
-    await asOrg(ORG_A, () => prisma.knowledgeChunk.create({
-      data: { id: 'kc-a', content: 'conteúdo do tenant A', organizationId: ORG_A },
-    }));
-    await asOrg(ORG_B, () => prisma.knowledgeChunk.create({
-      data: { id: 'kc-b', content: 'conteúdo do tenant B', organizationId: ORG_B },
-    }));
-
-    const asA = await asOrg(ORG_A, () => prisma.knowledgeChunk.findMany({ where: { organizationId: ORG_A } }));
-    expect(asA.map((c) => c.id)).toEqual(['kc-a']);
-
-    const asB = await asOrg(ORG_B, () => prisma.knowledgeChunk.findMany({ where: { organizationId: ORG_B } }));
-    expect(asB.map((c) => c.id)).toEqual(['kc-b']);
-  });
 
   it('Prompt: listagem e edição por organizationId nunca expõem/alteram prompt de outro tenant (IDOR corrigido)', async () => {
     await asOrg(ORG_A, () => prisma.prompt.create({
