@@ -13,7 +13,10 @@ import {
   type AccountScoreSignalInput,
 } from '../domain/accountInsights.js';
 import { classifyBuyingRole } from '../domain/accountDecisionMakers.js';
-import { matchEconomicGroupByCnpjRoot, type EconomicGroupCompanyInput } from '../domain/accountEconomicGroup.js';
+import {
+  matchEconomicGroupByCnpjRoot,
+  type EconomicGroupCompanyInput,
+} from '../domain/accountEconomicGroup.js';
 
 /**
  * D.1/D.5 do audit da Fase 0 (`.agents/runs/ldr-fase-0-auditoria.md`): até aqui nada persistia
@@ -301,11 +304,19 @@ export async function scanAndGenerateAccountInsights(
       prisma.company.findMany({
         where: { deletedAt: null },
         select: { id: true, lookalikeScore: true, cnpj: true },
-        take: Math.min(MAX_ACCOUNTS_PER_ORGANIZATION_PER_TICK, MAX_ACCOUNTS_PER_TICK - accounts.length),
+        take: Math.min(
+          MAX_ACCOUNTS_PER_ORGANIZATION_PER_TICK,
+          MAX_ACCOUNTS_PER_TICK - accounts.length,
+        ),
       }),
     );
     for (const company of companies) {
-      accounts.push({ id: company.id, organizationId, lookalikeScore: company.lookalikeScore, cnpj: company.cnpj });
+      accounts.push({
+        id: company.id,
+        organizationId,
+        lookalikeScore: company.lookalikeScore,
+        cnpj: company.cnpj,
+      });
     }
 
     // D.4: agrupamento de CNPJ roda uma vez por organização, com todas as contas do lote desta
@@ -314,7 +325,10 @@ export async function scanAndGenerateAccountInsights(
       await generateEconomicRelationshipsForOrganization(organizationId, companies, now);
     } catch (err) {
       errors += 1;
-      logger.error({ err, organizationId }, 'Falha ao gerar relações de grupo econômico (D.4) para a organização.');
+      logger.error(
+        { err, organizationId },
+        'Falha ao gerar relações de grupo econômico (D.4) para a organização.',
+      );
     }
   }
 

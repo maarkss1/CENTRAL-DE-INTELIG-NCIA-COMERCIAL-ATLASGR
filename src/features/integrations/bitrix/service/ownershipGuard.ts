@@ -12,17 +12,17 @@ import { contactEmailIndex, contactPhoneIndex } from '../../../../lib/crypto/pii
  * PrismaCommercialIntelligenceRepository.ts sobre por que essa duplicação pequena é aceitável.
  */
 const TERMINAL_STATUSES: LeadStatus[] = [
-    LeadStatus.Negocios_Ganhos,
-    LeadStatus.Negocios_Perdidos,
-    LeadStatus.Lead_Desqualificado,
-    LeadStatus.Piloto_Atlas_Profile_Cancelado,
-    LeadStatus.Piloto_Logistico_Cancelado,
+  LeadStatus.Negocios_Ganhos,
+  LeadStatus.Negocios_Perdidos,
+  LeadStatus.Lead_Desqualificado,
+  LeadStatus.Piloto_Atlas_Profile_Cancelado,
+  LeadStatus.Piloto_Logistico_Cancelado,
 ];
 
 export interface OwnershipConflict {
-    existingLeadId: string;
-    existingOwner: string;
-    existingTitle: string | null;
+  existingLeadId: string;
+  existingOwner: string;
+  existingTitle: string | null;
 }
 
 /**
@@ -48,39 +48,43 @@ export interface OwnershipConflict {
  * `findOpenLeadByEmail`.
  */
 export async function findOwnershipConflict(
-    organizationId: string,
-    contact: { phone: string | null; email: string | null },
-    incomingOwnerId: string | null,
+  organizationId: string,
+  contact: { phone: string | null; email: string | null },
+  incomingOwnerId: string | null,
 ): Promise<OwnershipConflict | null> {
-    if (!contact.phone && !contact.email) return null;
+  if (!contact.phone && !contact.email) return null;
 
-    // Contact.phone/email cifrados em repouso (ver src/lib/crypto/piiFields.ts) — a busca exata
-    // por telefone OU e-mail usa os índices cegos determinísticos correspondentes em vez do campo
-    // cifrado direto (ver src/lib/crypto/piiIndex.ts).
-    const phoneIndex = contactPhoneIndex(contact.phone);
-    const emailIndex = contactEmailIndex(contact.email);
-    if (!phoneIndex && !emailIndex) return null;
+  // Contact.phone/email cifrados em repouso (ver src/lib/crypto/piiFields.ts) — a busca exata
+  // por telefone OU e-mail usa os índices cegos determinísticos correspondentes em vez do campo
+  // cifrado direto (ver src/lib/crypto/piiIndex.ts).
+  const phoneIndex = contactPhoneIndex(contact.phone);
+  const emailIndex = contactEmailIndex(contact.email);
+  if (!phoneIndex && !emailIndex) return null;
 
-    const existing = await prisma.lead.findFirst({
-        where: {
-            organizationId,
-            status: { notIn: TERMINAL_STATUSES },
-            owner: { not: null },
-            contact: {
-                OR: [
-                    phoneIndex ? { phoneIndex } : undefined,
-                    emailIndex ? { emailIndex } : undefined,
-                ].filter((c): c is NonNullable<typeof c> => c !== undefined),
-            },
-        },
-        select: { id: true, owner: true, title: true },
-        orderBy: { updatedAt: 'desc' },
-    });
+  const existing = await prisma.lead.findFirst({
+    where: {
+      organizationId,
+      status: { notIn: TERMINAL_STATUSES },
+      owner: { not: null },
+      contact: {
+        OR: [
+          phoneIndex ? { phoneIndex } : undefined,
+          emailIndex ? { emailIndex } : undefined,
+        ].filter((c): c is NonNullable<typeof c> => c !== undefined),
+      },
+    },
+    select: { id: true, owner: true, title: true },
+    orderBy: { updatedAt: 'desc' },
+  });
 
-    if (!existing || !existing.owner) return null;
-    if (incomingOwnerId && existing.owner === incomingOwnerId) return null; // já é do mesmo dono — não é conflito
+  if (!existing || !existing.owner) return null;
+  if (incomingOwnerId && existing.owner === incomingOwnerId) return null; // já é do mesmo dono — não é conflito
 
-    return { existingLeadId: existing.id, existingOwner: existing.owner, existingTitle: existing.title };
+  return {
+    existingLeadId: existing.id,
+    existingOwner: existing.owner,
+    existingTitle: existing.title,
+  };
 }
 
 /**
@@ -92,8 +96,11 @@ export async function findOwnershipConflict(
  * fallback — nunca lança.
  */
 async function resolveOwnerDisplayName(organizationId: string, owner: string): Promise<string> {
-    const user = await prisma.user.findFirst({ where: { id: owner, organizationId }, select: { name: true } });
-    return user?.name ?? owner;
+  const user = await prisma.user.findFirst({
+    where: { id: owner, organizationId },
+    select: { name: true },
+  });
+  return user?.name ?? owner;
 }
 
 /**
@@ -102,17 +109,17 @@ async function resolveOwnerDisplayName(organizationId: string, owner: string): P
  * o restante do lote de importação (mesmo princípio de `NotificationService.create`).
  */
 export async function notifyOwnershipConflict(
-    organizationId: string,
-    conflict: OwnershipConflict,
-    attemptedTitle: string,
+  organizationId: string,
+  conflict: OwnershipConflict,
+  attemptedTitle: string,
 ): Promise<void> {
-    const ownerLabel = await resolveOwnerDisplayName(organizationId, conflict.existingOwner);
-    await notificationService.create({
-        organizationId,
-        title: 'Importação do Bitrix24 bloqueada — contato já pertence a outro responsável',
-        body: `"${attemptedTitle}" não foi importado: já existe um negócio ativo ("${conflict.existingTitle || 'sem título'}") para este mesmo telefone/e-mail, atribuído a ${ownerLabel}.`,
-        kind: 'Alerta',
-        entity: 'Lead',
-        entityId: conflict.existingLeadId,
-    });
+  const ownerLabel = await resolveOwnerDisplayName(organizationId, conflict.existingOwner);
+  await notificationService.create({
+    organizationId,
+    title: 'Importação do Bitrix24 bloqueada — contato já pertence a outro responsável',
+    body: `"${attemptedTitle}" não foi importado: já existe um negócio ativo ("${conflict.existingTitle || 'sem título'}") para este mesmo telefone/e-mail, atribuído a ${ownerLabel}.`,
+    kind: 'Alerta',
+    entity: 'Lead',
+    entityId: conflict.existingLeadId,
+  });
 }
