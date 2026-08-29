@@ -8,6 +8,7 @@ import { sendWhatsAppMessage } from '../whatsapp/whatsapp.service.js';
 import { sseService } from '../../notifications/sse.service.js';
 import { classifyCallOutcome, callResultedInConversation } from './birthVoice.helpers.js';
 import { last8DigitsIndex } from '../../../lib/crypto/piiIndex.js';
+import { claimWebhookDelivery, webhookDeliveryFingerprint } from '../../../shared/security/webhookReplayGuard.js';
 
 /**
  * Webhook de resultado de ligação da Bland AI (rota legada /api/webhooks/voice-result).
@@ -107,6 +108,18 @@ async function handleVoiceResult(req: Request, res: Response): Promise<void> {
 
     const payload = (req.body ?? {}) as VoiceResultPayload;
     const callId = asString(payload.call_id) ?? 'sem-id';
+
+    // Sem assinatura por requisição aqui (só um segredo fixo — ver secretMatches acima), então o
+    // fingerprint vem do próprio conteúdo: call_id (identificador único da Bland) + corpo bruto.
+    // Ver webhookReplayGuard.ts.
+    const replayCheck = await claimWebhookDelivery(
+        'voice-result',
+        webhookDeliveryFingerprint(callId, JSON.stringify(payload)),
+    );
+    if (replayCheck === 'replay') {
+        res.status(200).json({ success: true, outcome: 'duplicate-delivery' });
+        return;
+    }
     const phoneNumber = asString(payload.phone_number) ?? asString(payload.to) ?? '';
     const summary = asString(payload.summary);
     const transcript = asString(payload.concatenated_transcript);

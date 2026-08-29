@@ -150,7 +150,7 @@ export function ClockCalendarWidget() {
       {/* Compromissos do Dia Selecionado */}
       <div className="mt-5 space-y-3">
         <h4 className="font-bold text-ink text-xs uppercase tracking-wider flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-ok" /> Compromissos do Dia {selectedDate}
+          <CheckCircle2 className="w-4 h-4 text-ok-active dark:text-ok" /> Compromissos do Dia {selectedDate}
         </h4>
         {eventsError ? (
           <div className="flex items-center justify-between gap-3">

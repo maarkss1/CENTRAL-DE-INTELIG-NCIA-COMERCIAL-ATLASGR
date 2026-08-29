@@ -7,6 +7,7 @@ import { requestContext } from '../../../lib/async-context.js';
 import { callBitrix } from './service/client.js';
 import { resolveEnumMaps, applyInboundCustomFields } from './service/customFields.js';
 import { bitrixSyncFailuresTotal } from './service/metrics.js';
+import { claimWebhookDelivery, webhookDeliveryFingerprint } from '../../../shared/security/webhookReplayGuard.js';
 
 // ── Webhook de ENTRADA (Bitrix → Atlas, "исходящий вебхук" no admin do portal) ──────────────────
 //
@@ -224,6 +225,21 @@ async function handleWebhook(req: Request, res: Response): Promise<void> {
     // faria o admin do Bitrix mostrar o webhook como "falhando" por eventos que nunca vamos
     // processar. Mesmo padrão do webhook do SDR de voz (birthVoice.webhook.ts).
     res.status(200).json({ success: true, ignored: eventType || 'sem evento reconhecido' });
+    return;
+  }
+
+  // Sem assinatura por requisição (application_token é fixo por conexão). Fingerprint inclui o
+  // corpo inteiro, não só evento+registro: o Bitrix pode mandar dois eventos reais e distintos
+  // (ex.: dois ONCRMLEADUPDATE do mesmo lead, minutos-de-diferença) para o mesmo registro — usar
+  // só evento+registro faria o segundo, legítimo, ser descartado como replay do primeiro. O corpo
+  // completo (inclui `ts` quando o Bitrix o envia) diferencia entregas reais distintas; só bate
+  // quando os bytes são efetivamente os mesmos. Ver webhookReplayGuard.ts.
+  const replayCheck = await claimWebhookDelivery(
+    'bitrix',
+    webhookDeliveryFingerprint(connectionId, eventType, bitrixRecordId, JSON.stringify(body)),
+  );
+  if (replayCheck === 'replay') {
+    res.status(200).json({ success: true, outcome: 'duplicate-delivery' });
     return;
   }
 

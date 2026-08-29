@@ -4,6 +4,7 @@ import { logger } from '../../../lib/logger.js';
 import { pickCallablePhone } from './birthVoice.helpers.js';
 import { isSuppressed } from './callSuppression.service.js';
 import { buildVoicePromptForLead } from './atlasProductPlaybook.js';
+import { assertPiiExternalConsent } from '../../intelligence/services/guardrails.service.js';
 
 /** Caminho do webhook que o Birth Voices Hub chama com o resultado da ligação. */
 export const CALL_RESULT_WEBHOOK_PATH = '/api/integrations/birth-voice/webhook';
@@ -80,6 +81,12 @@ export async function callLead(
   agentType: VoiceAgentType = 'sdr',
 ): Promise<OutboundCallResult> {
   const config = requireConfig();
+
+  // Mesmo gate fail-closed já em vigor para os agentes de texto (guardrails.service.ts,
+  // AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS) — até esta correção, a ligação de voz enviava
+  // nome/telefone/empresa do contato ao provedor externo (Birth Voices Hub/Bland AI) sem passar
+  // por essa checagem, mesmo classe de dado pessoal que os outros caminhos já protegem.
+  assertPiiExternalConsent(organizationId);
 
   const lead = await prisma.lead.findFirst({
     where: { id: leadId, organizationId },

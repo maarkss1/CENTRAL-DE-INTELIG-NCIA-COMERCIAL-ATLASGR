@@ -5,6 +5,12 @@ import { logger } from '../../lib/logger.js';
 export interface ErasureTarget {
   organizationId: string;
   contactId: string;
+  // Quem exerceu o direito de exclusão em nome do titular (ADMIN/GESTOR autenticado que chamou a
+  // rota) — sem isto, o `requestContext` não carrega `userId`, e o UPDATE automático de auditoria
+  // dessa extensão do Prisma (ver src/lib/prisma.ts, `auditableModels` inclui `Contact`) grava a
+  // anonimização com `actorId` vazio, perdendo justamente o "quem" de uma ação irreversível de
+  // LGPD. Opcional só para não quebrar chamadas indiretas (ex.: script/worker) sem ator humano.
+  actorUserId?: string;
 }
 
 export interface ErasureResult {
@@ -56,7 +62,7 @@ export const ANONYMIZED_CONTACT_NAME = '[titular anonimizado — LGPD]';
  *   de dado de empresa) — fora do escopo de exclusão de titular pessoa natural.
  */
 export async function eraseDataSubject(target: ErasureTarget): Promise<ErasureResult> {
-  return requestContext.run({ tenantId: target.organizationId }, async () => {
+  return requestContext.run({ tenantId: target.organizationId, userId: target.actorUserId }, async () => {
     const contact = await prisma.contact.findFirst({
       where: { id: target.contactId, organizationId: target.organizationId },
     });
