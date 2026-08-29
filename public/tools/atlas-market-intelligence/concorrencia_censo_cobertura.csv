@@ -1,1 +1,12 @@
 ibge_code,municipio,uf,protocol_version,local_business_search,national_provider_search,primary_websites_reviewed,business_registry_search,maps_search,negative_evidence_recorded,reviewed_by,verified_at,confidence,census_status
+,Salvador,BA,competition-census-v1,true,true,true,true,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Feira de Santana,BA,competition-census-v1,true,true,true,true,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Belem,PA,competition-census-v1,true,true,true,false,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Vitoria,ES,competition-census-v1,true,true,true,true,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Sao Luis,MA,competition-census-v1,true,true,true,true,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Aracaju,SE,competition-census-v1,true,true,true,true,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Teresina,PI,competition-census-v1,true,true,true,true,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Natal,RN,competition-census-v1,true,true,true,true,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Joao Pessoa,PB,competition-census-v1,true,true,true,true,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Brasilia,DF,competition-census-v1,true,true,true,true,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL
+,Manaus,AM,competition-census-v1,true,true,true,false,false,true,Claude (sessao AtlasGR 2026-08-29),2026-08-29,MEDIO,PARCIAL

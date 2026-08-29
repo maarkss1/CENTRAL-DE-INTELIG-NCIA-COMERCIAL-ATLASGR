@@ -254,7 +254,7 @@ def render_report(
     marketing_panel = f"""<section class="panel">
     <h2>Processo de marketing preparado</h2>
     <div class="profiles">
-      <article class="profile"><h3>Onda 1 — validar PIC 1</h3><p><b>{fmt_int(wave1)} contas</b> com fit estrutural confirmado e hipótese de complexidade/expansão.</p></article>
+      <article class="profile"><h3>Onda 1 — validar PIC 1</h3><p><b>{fmt_int(wave1)} contas</b> com fit acionável (RNTRC ativo ou pendente) e hipótese de complexidade/expansão.</p></article>
       <article class="profile"><h3>Pesquisa antes do contato</h3><p><b>{fmt_int(research)} contas</b> cujo contexto exige validação antes de qualquer abordagem.</p></article>
       <article class="profile"><h3>Nurture sem nova evidência</h3><p><b>{fmt_int(nurture)} contas</b> com aderência apenas setorial; não priorizar outbound agora.</p><span>Requer nova fonte ou sinal comercial.</span></article>
       <article class="profile"><h3>Plano e governança</h3><p>Cadência preliminar de 15 dias úteis, personas, canais e bloqueios nacionais — ver <code>campinas-sp-marketing-plano.json</code> na pasta reports/ como referência metodológica.</p></article>
@@ -400,7 +400,7 @@ def process_uf(
                 "influenciadoresSugeridos": message["influenciadoresSugeridos"],
                 "validacoesPendentes": message["validacoesPendentes"],
                 "cnpjFormatado": fmt_cnpj(cnpj),
-                "fitAlto": "TIER_A_MODELADO",
+                "fitAlto": "TIER_A_CNAE_NAO_CALIBRADO",
                 "_bucket": bucket,
             }
             if only_fit and bucket != "wave1":
@@ -468,11 +468,11 @@ def build_index_html(index_entries: list[dict], only_fit: bool, generated_at: st
         uf_sections.append(
             f'<section class="panel" id="uf-{uf}"><h2>{uf} — {len(entries)} município(s)</h2>'
             f'<div class="table-wrap"><table><thead><tr><th>Município</th><th>Empresas no relatório</th>'
-            f'<th>Fit confirmado (wave1)</th></tr></thead><tbody>{rows_html}</tbody></table></div></section>'
+            f'<th>Fit acionável (wave1)</th></tr></thead><tbody>{rows_html}</tbody></table></div></section>'
         )
 
     escopo = (
-        "Somente empresas com fit ICP confirmado (RNTRC ativo/pendente + hipótese comercial real — bucket wave1)."
+        "Somente empresas com fit ICP acionável (RNTRC ativo ou pendente + hipótese comercial real — bucket wave1; inclui confirmado estrutural e potencial setorial)."
         if only_fit
         else "Todas as empresas Tier A (wave1 + pesquisa + nurture)."
     )
@@ -514,7 +514,7 @@ def build_index_html(index_entries: list[dict], only_fit: bool, generated_at: st
     <div class="card"><small>UFs cobertas</small><strong>{len(by_uf)}</strong></div>
     <div class="card"><small>Municípios com relatório</small><strong>{fmt_br(total_municipios)}</strong></div>
     <div class="card"><small>Empresas nos relatórios</small><strong>{fmt_br(total_empresas)}</strong></div>
-    <div class="card"><small>Fit confirmado (wave1)</small><strong>{fmt_br(total_wave1)}</strong></div>
+    <div class="card"><small>Fit acionável (wave1)</small><strong>{fmt_br(total_wave1)}</strong></div>
   </section>
   <div class="uf-grid">{"".join(uf_cards)}</div>
   {"".join(uf_sections)}
