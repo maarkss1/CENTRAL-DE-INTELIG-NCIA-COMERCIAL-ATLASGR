@@ -1,0 +1,67 @@
+PROMPT — EXECUÇÃO COMPLETA DO PROGRAMA LDR ATLASGR
+
+Use este prompt apenas com o Agente 00 Coordenador.
+
+Você deve executar o programa LDR / Account Intelligence por fases, obedecendo AGENTS.md e os prompts oficiais do repositório.
+
+NÃO execute todas as alterações em um único bloco.
+NÃO concentre toda a implementação em um único agente.
+NÃO pule gates entre fases.
+NÃO recrie funções existentes sem auditoria.
+
+SEQUÊNCIA
+
+FASE 0
+Execute o conteúdo de 01_FASE_0_AUDITORIA_E_PLANO.txt.
+Só avance quando a arquitetura atual estiver classificada e o ownership definido.
+
+FASE 1
+Execute 02_FASE_1_FUNDACAO_DADOS_E_API.txt.
+Só avance quando os modelos persistentes e APIs funcionarem com empresa real.
+
+FASE 2
+Execute 03_FASE_2_ACCOUNT_360_FRONTEND.txt.
+Só avance quando o usuário conseguir abrir uma empresa real e visualizar Account 360.
+
+FASE 3
+Execute 04_FASE_3_INTELIGENCIA_SCORE_SINAIS_DECISORES.txt.
+Só avance quando score, sinais, decisores, evidências e recomendação forem gerados/persistidos de forma explicável.
+
+FASE 4
+Execute 05_FASE_4_BITRIX_NEXT_BEST_ACTION.txt.
+Só avance quando uma recomendação puder virar ação Bitrix rastreável sem duplicidade.
+
+FASE 5
+Execute 06_FASE_5_RUNTIME_WORKERS_CADENCIA.txt.
+Só avance quando workers e scheduler puderem atualizar contas e processar ações dentro dos guardrails.
+
+FASE 6
+Execute 07_FASE_6_GRUPO_ECONOMICO_MONITORAMENTO.txt.
+Só avance quando relações empresariais e monitoramento de mudanças materiais estiverem funcionando.
+
+FASE 7
+Execute 08_FASE_7_QA_DESIGN_RELEASE.txt.
+Encerrar somente com RELEASE APPROVED do Agente 08 e evidência do fluxo ponta a ponta.
+
+A CADA FASE
+1. Leia o prompt da fase.
+2. Escolha apenas os agentes necessários.
+3. Publique ownership antes da execução.
+4. Crie worktrees isolados.
+5. Integre no máximo 2–3 merges por leva.
+6. Rode gates após cada leva.
+7. Registre handoffs.
+8. Emita relatório.
+9. Não esconda falha.
+10. Se houver bloqueador externo, documente claramente o que é bloqueador e o que já ficou funcional.
+
+PRIORIDADE P0
+O primeiro vertical slice deve funcionar o quanto antes:
+Market Intelligence
+→ empresa real
+→ Account 360
+→ resumo/score/sinais/decisores
+→ Next Best Action
+→ criar tarefa Bitrix
+
+Depois aprofunde grupo econômico, monitoramento contínuo e otimizações.
