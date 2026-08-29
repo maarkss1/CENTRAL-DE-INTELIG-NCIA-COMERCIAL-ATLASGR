@@ -27,7 +27,7 @@ import {
 import { useActivities } from '../../../hooks/useDatabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Activity } from '../../../types';
-import { api } from '../../../lib/api';
+import { api, downloadFile } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
 import { clientLogger } from '../../../lib/clientLogger';
 import type { PaletteIntent } from '../../../lib/paletteIntent';
@@ -313,20 +313,22 @@ export function ActivityList() {
               <span>Modelos Rápidos</span>
             </button>
 
-            {/* Sincronização iCal / Google Agenda */}
+            {/* Baixar Agenda (.ics) — /api/activities/feed.ics exige sessão autenticada (cookie);
+                um app externo fazendo *subscribe* por URL nunca envia esse cookie, então copiar o
+                link e prometer "sincronizar" funcionava só na primeira busca manual, nunca de
+                verdade como assinatura periódica. Ver mesma correção em Calendar.tsx. */}
             <button
               onClick={() => {
                 const icsUrl = `${window.location.origin}/api/activities/feed.ics${currentUser?.name ? `?owner=${encodeURIComponent(currentUser.name)}` : ''}`;
-                navigator.clipboard.writeText(icsUrl);
-                toast.success(
-                  'Link do feed iCal copiado! Cole no seu Google Calendar / Outlook para sincronizar.',
-                );
+                downloadFile(icsUrl, 'agenda.ics').catch((err) => {
+                  toast.error(err instanceof Error ? err.message : 'Falha ao baixar a agenda.');
+                });
               }}
               className="flex items-center gap-1.5 bg-surface-2 hover:bg-surface-3 border border-line text-ink font-bold text-xs px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
-              title="Copiar link de sincronização com Google Agenda e celular"
+              title="Baixar agenda em .ics para importar no Google Agenda / Outlook"
             >
               <Download className="w-4 h-4 text-sky-500" />
-              <span>Sincronizar Calendário</span>
+              <span>Baixar Agenda (.ics)</span>
             </button>
 
             {/* Nova Atividade */}

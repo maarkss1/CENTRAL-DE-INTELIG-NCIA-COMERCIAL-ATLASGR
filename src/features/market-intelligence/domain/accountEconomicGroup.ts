@@ -39,7 +39,9 @@ export function cnpjRoot(cnpj: string | null | undefined): string | null {
  * bidirecional; aqui só a matemática de agrupamento é determinística. Empresas com CNPJ ausente ou
  * malformado nunca entram em nenhum grupo.
  */
-export function matchEconomicGroupByCnpjRoot(companies: EconomicGroupCompanyInput[]): EconomicGroupMatch[] {
+export function matchEconomicGroupByCnpjRoot(
+  companies: EconomicGroupCompanyInput[],
+): EconomicGroupMatch[] {
   const byRoot = new Map<string, string[]>();
   for (const company of companies) {
     const root = cnpjRoot(company.cnpj);
@@ -58,7 +60,11 @@ export function matchEconomicGroupByCnpjRoot(companies: EconomicGroupCompanyInpu
     const sortedIds = [...companyIds].sort();
     for (let i = 0; i < sortedIds.length; i += 1) {
       for (let j = i + 1; j < sortedIds.length; j += 1) {
-        matches.push({ sourceCompanyId: sortedIds[i], targetCompanyId: sortedIds[j], cnpjRoot: root });
+        matches.push({
+          sourceCompanyId: sortedIds[i],
+          targetCompanyId: sortedIds[j],
+          cnpjRoot: root,
+        });
       }
     }
   }

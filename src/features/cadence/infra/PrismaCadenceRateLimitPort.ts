@@ -19,51 +19,56 @@ import { emailDomainIndexOf } from '../../../lib/crypto/piiIndex.js';
  * inexistente em e-mail corporativo real).
  */
 export class PrismaCadenceRateLimitPort implements CadenceRateLimitPort {
-    async countSentTouchesForContact(organizationId: string, leadId: string, since: Date, until: Date): Promise<number> {
-        return prisma.cadenceTouchAttempt.count({
-            where: {
-                organizationId,
-                result: 'Sent',
-                attemptedAt: { gte: since, lte: until },
-                cadenceRun: { leadId, organizationId },
-            },
-        });
-    }
+  async countSentTouchesForContact(
+    organizationId: string,
+    leadId: string,
+    since: Date,
+    until: Date,
+  ): Promise<number> {
+    return prisma.cadenceTouchAttempt.count({
+      where: {
+        organizationId,
+        result: 'Sent',
+        attemptedAt: { gte: since, lte: until },
+        cadenceRun: { leadId, organizationId },
+      },
+    });
+  }
 
-    async countDistinctEmailRecipientsForDomain(
-        organizationId: string,
-        emailDomain: string,
-        since: Date,
-        until: Date,
-        leadId: string,
-    ): Promise<{ distinctRecipientsToday: number; currentLeadAlreadyCounted: boolean }> {
-        // Contact.email cifrado em repouso (ver src/lib/crypto/piiFields.ts) — o antigo
-        // `endsWith('@dominio', insensitive)` contra o campo cifrado nunca mais casaria (IV
-        // aleatório por valor); substituído por igualdade contra o índice cego do domínio (ver
-        // src/lib/crypto/piiIndex.ts). Sem domínio válido, nenhum toque de e-mail tem como bater
-        // (evita `{ emailDomainIndex: null }` casar com contatos sem e-mail).
-        const emailDomainIndex = emailDomainIndexOf(emailDomain);
-        if (!emailDomainIndex) return { distinctRecipientsToday: 0, currentLeadAlreadyCounted: false };
-        const rows = await prisma.cadenceTouchAttempt.findMany({
-            where: {
-                organizationId,
-                channel: 'Email',
-                result: 'Sent',
-                attemptedAt: { gte: since, lte: until },
-                cadenceRun: {
-                    organizationId,
-                    lead: { contact: { emailDomainIndex } },
-                },
-            },
-            select: { cadenceRun: { select: { leadId: true } } },
-        });
+  async countDistinctEmailRecipientsForDomain(
+    organizationId: string,
+    emailDomain: string,
+    since: Date,
+    until: Date,
+    leadId: string,
+  ): Promise<{ distinctRecipientsToday: number; currentLeadAlreadyCounted: boolean }> {
+    // Contact.email cifrado em repouso (ver src/lib/crypto/piiFields.ts) — o antigo
+    // `endsWith('@dominio', insensitive)` contra o campo cifrado nunca mais casaria (IV
+    // aleatório por valor); substituído por igualdade contra o índice cego do domínio (ver
+    // src/lib/crypto/piiIndex.ts). Sem domínio válido, nenhum toque de e-mail tem como bater
+    // (evita `{ emailDomainIndex: null }` casar com contatos sem e-mail).
+    const emailDomainIndex = emailDomainIndexOf(emailDomain);
+    if (!emailDomainIndex) return { distinctRecipientsToday: 0, currentLeadAlreadyCounted: false };
+    const rows = await prisma.cadenceTouchAttempt.findMany({
+      where: {
+        organizationId,
+        channel: 'Email',
+        result: 'Sent',
+        attemptedAt: { gte: since, lte: until },
+        cadenceRun: {
+          organizationId,
+          lead: { contact: { emailDomainIndex } },
+        },
+      },
+      select: { cadenceRun: { select: { leadId: true } } },
+    });
 
-        const distinctLeadIds = new Set(rows.map((r) => r.cadenceRun.leadId));
-        return {
-            distinctRecipientsToday: distinctLeadIds.size,
-            currentLeadAlreadyCounted: distinctLeadIds.has(leadId),
-        };
-    }
+    const distinctLeadIds = new Set(rows.map((r) => r.cadenceRun.leadId));
+    return {
+      distinctRecipientsToday: distinctLeadIds.size,
+      currentLeadAlreadyCounted: distinctLeadIds.has(leadId),
+    };
+  }
 }
 
 /** Instância única, sem estado próprio além da conexão Prisma já compartilhada pelo app. */

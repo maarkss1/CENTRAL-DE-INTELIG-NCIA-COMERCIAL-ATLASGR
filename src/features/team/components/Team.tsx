@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { useAuth } from '../../../contexts/AuthContext';
+import { toast } from '../../../lib/toast';
 
 interface TeamMember {
   id: string;
@@ -141,7 +142,7 @@ export function Team() {
       await api.delete(`/api/team/${member.id}`);
       setMembers((prev) => prev.filter((m) => m.id !== member.id));
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Falha ao remover usuário.');
+      toast.error(error instanceof Error ? error.message : 'Falha ao remover usuário.');
     } finally {
       setDeletingId(null);
     }

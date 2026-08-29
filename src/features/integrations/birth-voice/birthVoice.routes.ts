@@ -8,6 +8,7 @@ import {
   NoPhoneNumberError,
   SuppressedNumberError,
 } from './birthVoice.service.js';
+import { PiiConsentRequiredError } from '../../intelligence/services/guardrails.service.js';
 import {
   listSuppressions,
   recordOptOut,
@@ -57,6 +58,12 @@ router.post(
       const result = await callLead(organizationId, req.params.leadId, agentType);
       res.status(202).json({ success: true, data: result });
     } catch (error) {
+      // Mesmo status/formato usado em intelligence.routes.ts para o mesmo erro — ver
+      // guardrails.service.ts:assertPiiExternalConsent.
+      if (error instanceof PiiConsentRequiredError) {
+        res.status(403).json({ success: false, error: error.message });
+        return;
+      }
       if (error instanceof BirthVoiceNotConfiguredError) {
         res.status(503).json({ success: false, error: error.message });
         return;

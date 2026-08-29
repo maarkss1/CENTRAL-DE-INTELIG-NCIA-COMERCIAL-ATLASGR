@@ -14,7 +14,8 @@
 // Este arquivo mantém enrichCompany/runEnrichment — o orquestrador de fato — e reexporta a API
 // pública dos três módulos acima.
 //
-// ATUALIZAÇÃO (BITRIX24-LEAD-FLOW-AUDIT.md, achado P1-2): os adapters (IDataProvider) citados
+// ATUALIZAÇÃO (achado P1-2 da antiga BITRIX24-LEAD-FLOW-AUDIT.md — removida do controle de
+// versão em 22/08/2026, ver docs/REMOVED-DOCS.md): os adapters (IDataProvider) citados
 // aqui numa nota anterior — BrasilApiAdapter/ApolloAdapter/CnpjWsAdapter/GooglePlacesAdapter em
 // lib/adapters/data-providers, e o orquestrador MergeEngineService que os consumia — foram
 // REMOVIDOS. Eram uma segunda implementação completa, nunca chamada por runEnrichment nem por
