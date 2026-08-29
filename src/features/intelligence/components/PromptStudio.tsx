@@ -3,6 +3,7 @@ import { Bot, Save, Loader2, Code2, Sliders } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { RobustScriptGenerator } from './RobustScriptGenerator';
 import { clientLogger } from '../../../lib/clientLogger';
+import { toast } from '../../../lib/toast';
 
 interface Prompt {
   id: string;
@@ -67,10 +68,10 @@ export function PromptStudio() {
         });
       }
       await loadPrompts();
-      alert('Configurações do modelo atualizadas e em produção!');
+      toast.success('Configurações do modelo atualizadas e em produção!');
     } catch (error) {
       clientLogger.error({ err: error }, 'Failed to save');
-      alert('Erro ao salvar as regras do modelo.');
+      toast.error('Erro ao salvar as regras do modelo.');
     } finally {
       setSaving(false);
     }

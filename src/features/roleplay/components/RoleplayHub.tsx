@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { PhoneCall } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { api } from '../../../lib/api';
+import { toast } from '../../../lib/toast';
 import {
   QUALIFICATION_CRITERIA,
   OBJECTIONS_DATA,
@@ -115,7 +116,7 @@ export function RoleplayHub() {
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
-      alert('Reconhecimento de voz não suportado neste navegador. Tente pelo Chrome desktop.');
+      toast.error('Reconhecimento de voz não suportado neste navegador. Tente pelo Chrome desktop.');
       return;
     }
     if (isListening) {
@@ -181,7 +182,7 @@ export function RoleplayHub() {
       mediaRecorder.start();
     } catch (err) {
       console.error('Erro ao acessar microfone para gravação', err);
-      alert('Não foi possível iniciar a gravação. Verifique as permissões do microfone.');
+      toast.error('Não foi possível iniciar a gravação. Verifique as permissões do microfone.');
     }
 
     const initialGreeting =

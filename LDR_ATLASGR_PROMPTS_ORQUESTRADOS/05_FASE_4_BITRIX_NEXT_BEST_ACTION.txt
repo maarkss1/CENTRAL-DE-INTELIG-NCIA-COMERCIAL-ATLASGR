@@ -1,0 +1,81 @@
+FASE 4 — BITRIX24 + NEXT BEST ACTION + EXECUÇÃO COMERCIAL
+
+COORDENAÇÃO
+Agente 00 coordena.
+
+AGENTES PRINCIPAIS
+- 06 Integrações e Bitrix — dono da integração
+- 04 CRM e BI — mapeamento comercial
+- 07 IA e Automações — recomendações/AIPendingAction
+- 05 Prospecção — regras SDR/BDR
+- 17 Cadência — handoff para cadências
+- 01 Dados — persistência de referências externas
+- 08 + 14 — testes
+
+MISSÃO
+Fazer a inteligência do LDR virar ação real no Bitrix24 e retornar o resultado ao Account 360.
+
+FLUXOS OBRIGATÓRIOS
+1. Abrir Account 360 → identificar lead/company/deal correspondente no Bitrix.
+2. Criar tarefa no Bitrix a partir de Next Best Action.
+3. Registrar no Bitrix um resumo de inteligência quando permitido.
+4. Atualizar campos comerciais configurados sem sobrescrever dados humanos indevidamente.
+5. Abrir/criar oportunidade quando regra de negócio permitir.
+6. Persistir externalRef/Bitrix IDs localmente.
+7. Mostrar no Account 360 se a ação foi executada, falhou ou está pendente.
+
+MODO SEGURO
+Toda ação externa sensível deve respeitar o mecanismo atual de aprovação/AIPendingAction/guardrails do projeto.
+
+MAPEAMENTO
+Descobrir os campos reais e pipelines do Bitrix. Não hardcodar IDs sem configuração.
+Criar uma camada de mapping/config quando necessário.
+
+NEXT BEST ACTION → BITRIX
+Exemplos:
+CREATE_BITRIX_TASK:
+- título
+- responsável
+- prazo
+- descrição com contexto LDR
+- referência para a conta
+
+START_SDR_CADENCE:
+- preparar handoff para Agente 17/runtime
+- registrar status
+
+CONTACT_DECISION_MAKER:
+- criar tarefa com contato recomendado
+- não enviar mensagem automaticamente se guardrail atual exigir aprovação
+
+CRM CONTEXT
+Trazer para o LDR:
+- owner
+- lead/deal status
+- etapa
+- valor quando aplicável
+- última atividade
+- próximas atividades
+- histórico relevante
+
+IDEMPOTÊNCIA
+- não duplicar tarefas por retry;
+- usar idempotency key;
+- registrar request/response sanitizado;
+- tratar rate limits do Bitrix.
+
+TESTES
+- sandbox/test account quando disponível;
+- criação real de tarefa em ambiente permitido;
+- retry sem duplicidade;
+- erro de autenticação;
+- rate limit;
+- empresa sem vínculo Bitrix;
+- vínculo ambíguo;
+- atualização de status de ação no LDR.
+
+ENTREGÁVEL
+.agents/runs/ldr-fase-4-bitrix-actions.md
+
+CRITÉRIO DE SAÍDA
+A partir do Account 360, uma Next Best Action pode virar uma ação rastreável no Bitrix24, e o resultado volta para a Central sem duplicidade.
