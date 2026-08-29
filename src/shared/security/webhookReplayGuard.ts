@@ -39,7 +39,9 @@ export type WebhookReplayCheck = 'fresh' | 'replay' | 'unavailable';
 
 /** Fingerprint determinístico — ver justificativa acima sobre por que isto faz o papel do nonce. */
 export function webhookDeliveryFingerprint(...parts: Array<string | null | undefined>): string {
-  return createHash('sha256').update(parts.filter((part): part is string => Boolean(part)).join(':')).digest('hex');
+  return createHash('sha256')
+    .update(parts.filter((part): part is string => Boolean(part)).join(':'))
+    .digest('hex');
 }
 
 /**
@@ -56,7 +58,13 @@ export async function claimWebhookDelivery(
 ): Promise<WebhookReplayCheck> {
   if (!redisConfigured) return 'unavailable';
   try {
-    const result = await cacheConnection.set(`${KEY_PREFIX}${namespace}:${fingerprint}`, '1', 'EX', ttlSeconds, 'NX');
+    const result = await cacheConnection.set(
+      `${KEY_PREFIX}${namespace}:${fingerprint}`,
+      '1',
+      'EX',
+      ttlSeconds,
+      'NX',
+    );
     return result === 'OK' ? 'fresh' : 'replay';
   } catch (err) {
     logger.warn(

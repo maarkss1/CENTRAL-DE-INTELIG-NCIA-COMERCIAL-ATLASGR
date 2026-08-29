@@ -192,7 +192,9 @@ export function LiveStatsWidget() {
           <div className="mt-4 pt-4 border-t border-line grid grid-cols-3 gap-4">
             <div className="text-center">
               <p className="text-xs text-ink-2 font-medium">Fechados este Mês</p>
-              <p className="text-lg font-black text-ok-active dark:text-ok">{stats.closedThisMonth}</p>
+              <p className="text-lg font-black text-ok-active dark:text-ok">
+                {stats.closedThisMonth}
+              </p>
             </div>
             <div className="text-center">
               <p className="text-xs text-ink-2 font-medium">Valor no Pipeline</p>
