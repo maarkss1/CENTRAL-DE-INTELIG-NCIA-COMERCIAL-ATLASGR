@@ -43,7 +43,16 @@ interface RawRow {
 function cell(row: ExcelJS.Row, col: number): string | null {
   const v = row.getCell(col).value;
   if (v === null || v === undefined) return null;
-  const s = typeof v === 'object' && 'text' in v ? String(v.text) : String(v);
+  let s: string;
+  if (typeof v === 'object' && 'richText' in v && Array.isArray(v.richText)) {
+    // Célula com múltiplos runs de formatação (ex.: negrito parcial) — ExcelJS devolve
+    // { richText: [{ text, font }, ...] } em vez de string simples; concatena os runs.
+    s = v.richText.map((run) => run.text ?? '').join('');
+  } else if (typeof v === 'object' && 'text' in v) {
+    s = String(v.text);
+  } else {
+    s = String(v);
+  }
   const trimmed = s.replace(/\s+/g, ' ').trim();
   return trimmed.length ? trimmed : null;
 }
@@ -116,8 +125,17 @@ async function main() {
   const userFlagIdx = args.indexOf('--user');
   const userEmail = userFlagIdx >= 0 ? args[userFlagIdx + 1] : undefined;
 
+  // Organization e user têm FORCE ROW LEVEL SECURITY (prisma/migrations/20260722020322_enable_rls)
+  // — sem app.current_tenant_id (que ainda não existe nesta fase, antes de sabermos o id da
+  // organização) nem bypass explícito, toda leitura aqui volta vazia mesmo com dados existindo.
+  // Ambos os models estão no allowlist de bypass (src/lib/prisma.ts, BYPASS_RLS_ALLOWED_MODELS),
+  // então usamos requestContext.run({ bypassRls: true }, ...) só nestas duas consultas de
+  // bootstrap — o restante do script já roda com tenantId real (linha ~181 em diante).
+
   if (listOrgs) {
-    const orgs = await prisma.organization.findMany({ select: { id: true, name: true } });
+    const orgs = await requestContext.run({ bypassRls: true }, () =>
+      prisma.organization.findMany({ select: { id: true, name: true } }),
+    );
     console.log('\nOrganizações disponíveis:');
     for (const o of orgs) console.log(`  - "${o.name}"  (id: ${o.id})`);
     console.log('\nRode de novo com --org "Nome exato" para importar.');
@@ -132,7 +150,9 @@ async function main() {
     return;
   }
 
-  const org = await prisma.organization.findUnique({ where: { name: orgName } });
+  const org = await requestContext.run({ bypassRls: true }, () =>
+    prisma.organization.findUnique({ where: { name: orgName } }),
+  );
   if (!org) {
     console.error(
       `Organização "${orgName}" não encontrada. Rode com --list-orgs para ver as opções.`,
@@ -141,11 +161,14 @@ async function main() {
     return;
   }
 
-  const actingUser = userEmail
-    ? await prisma.user.findFirst({ where: { organizationId: org.id, email: userEmail } })
-    : await prisma.user.findFirst({
-        where: { organizationId: org.id, role: { in: ['ADMIN', 'GESTOR'] } },
-      });
+  // Já sabemos o tenant aqui — basta o match normal de tenant (sem bypass) pra ler o "user".
+  const actingUser = await requestContext.run({ tenantId: org.id }, () =>
+    userEmail
+      ? prisma.user.findFirst({ where: { organizationId: org.id, email: userEmail } })
+      : prisma.user.findFirst({
+          where: { organizationId: org.id, role: { in: ['ADMIN', 'GESTOR'] } },
+        }),
+  );
   if (!actingUser) {
     console.error(
       `Nenhum usuário ADMIN/GESTOR encontrado na organização "${orgName}" (ou --user informado não existe). ` +
