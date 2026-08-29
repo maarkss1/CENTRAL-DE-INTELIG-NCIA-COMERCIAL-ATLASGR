@@ -69,7 +69,7 @@ export function ColdCallStatusCard() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center ${status.enabled ? 'bg-ok/15 text-ok' : 'bg-surface-2 text-ink-2'}`}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center ${status.enabled ? 'bg-ok/15 text-ok-active dark:text-ok' : 'bg-surface-2 text-ink-2'}`}
           >
             <Phone className="w-5 h-5" />
           </div>

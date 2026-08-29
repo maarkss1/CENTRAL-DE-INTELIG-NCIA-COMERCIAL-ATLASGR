@@ -31,7 +31,9 @@ router.get('/:cnpj/intelligence', async (req, res, next) => {
     if (!result.account) {
       res.status(404).json({
         success: false,
-        error: result.dataset ? 'Empresa não encontrada no snapshot ativo.' : 'Nenhum snapshot empresarial ativo foi publicado.',
+        error: result.dataset
+          ? 'Empresa não encontrada no snapshot ativo.'
+          : 'Nenhum snapshot empresarial ativo foi publicado.',
         dataset: result.dataset,
       });
       return;
@@ -68,7 +70,9 @@ router.get('/:cnpj', async (req, res, next) => {
     if (!result.company) {
       res.status(404).json({
         success: false,
-        error: result.dataset ? 'Empresa não encontrada no snapshot ativo.' : 'Nenhum snapshot empresarial ativo foi publicado.',
+        error: result.dataset
+          ? 'Empresa não encontrada no snapshot ativo.'
+          : 'Nenhum snapshot empresarial ativo foi publicado.',
         dataset: result.dataset,
       });
       return;

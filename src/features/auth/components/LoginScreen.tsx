@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Loader2, AlertCircle, ArrowRight, Mail, Building2, ListChecks, Sparkles } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  ArrowRight,
+  Mail,
+  Building2,
+  ListChecks,
+  Sparkles,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBrand, BRAND_CONFIGS, type Brand } from '../../../contexts/BrandContext';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -14,7 +22,10 @@ const BRAND_ORDER: Brand[] = ['atlasgr', 'totaltrac'];
 // Prova de valor real ao lado do formulário (não é marketing genérico): reflete os grupos de
 // jornada reais da Sidebar (src/components/layout/Sidebar.tsx) — Captar, Fechar, IA & Capacitação.
 const FEATURES = [
-  { icon: Building2, text: 'Prospecção com CNPJ oficial, decisores mapeados e Market Intelligence' },
+  {
+    icon: Building2,
+    text: 'Prospecção com CNPJ oficial, decisores mapeados e Market Intelligence',
+  },
   { icon: ListChecks, text: 'Pipeline comercial com automações, propostas e Bitrix24' },
   { icon: Sparkles, text: 'Dojo de Vendas: treino comercial com IA e capacitação contínua' },
 ] as const;
@@ -129,7 +140,10 @@ export function LoginScreen() {
       >
         <div className="pointer-events-none absolute -top-32 -left-24 w-[26rem] h-[26rem] rounded-full bg-white/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-40 -right-16 w-[30rem] h-[30rem] rounded-full bg-black/20 blur-3xl" />
-        <svg className="pointer-events-none absolute inset-0 w-full h-full opacity-[0.08]" xmlns="http://www.w3.org/2000/svg">
+        <svg
+          className="pointer-events-none absolute inset-0 w-full h-full opacity-[0.08]"
+          xmlns="http://www.w3.org/2000/svg"
+        >
           <defs>
             <pattern id="login-dot-grid" width="28" height="28" patternUnits="userSpaceOnUse">
               <circle cx="2" cy="2" r="1.6" fill="white" />
@@ -153,7 +167,10 @@ export function LoginScreen() {
             )}
           </motion.div>
 
-          <motion.h2 variants={staggerItem} className="mt-10 text-3xl font-black leading-tight text-white text-balance">
+          <motion.h2
+            variants={staggerItem}
+            className="mt-10 text-3xl font-black leading-tight text-white text-balance"
+          >
             {brandInfo.slogan}
           </motion.h2>
           <motion.p variants={staggerItem} className="mt-3 text-sm text-white/80">
@@ -175,7 +192,12 @@ export function LoginScreen() {
 
       {/* Painel do formulário */}
       <div className="flex-1 min-w-0 flex items-center justify-center p-4 sm:p-8">
-        <motion.div initial="hidden" animate="show" variants={fadeInUp} className="w-full min-w-0 max-w-sm">
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={fadeInUp}
+          className="w-full min-w-0 max-w-sm"
+        >
           {/* Chave Atlas / Total Trac — escolha explícita da marca, peso visual igual entre as duas
               (mesmo objetivo do antigo par de logos lado a lado), sincronizada com handleEmailChange. */}
           <div className="flex justify-center mb-8">
@@ -184,7 +206,8 @@ export function LoginScreen() {
                 aria-hidden="true"
                 className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-gradient-to-r from-brand to-brand-2 transition-transform duration-300 ease-out"
                 style={{
-                  transform: activeBrand === 'atlasgr' ? 'translateX(0%)' : 'translateX(calc(100% + 8px))',
+                  transform:
+                    activeBrand === 'atlasgr' ? 'translateX(0%)' : 'translateX(calc(100% + 8px))',
                 }}
               />
               {BRAND_ORDER.map((brand) => (
@@ -226,8 +249,8 @@ export function LoginScreen() {
                     <div className="bg-brand/10 border border-brand/30 text-ink p-3.5 rounded-2xl text-xs flex items-start gap-2.5 text-left">
                       <Mail size={16} className="shrink-0 mt-0.5 text-brand" />
                       <p>
-                        Se <strong>{email}</strong> tiver uma conta cadastrada, enviamos um e-mail com
-                        um link para redefinir a senha. O link expira em 1 hora.
+                        Se <strong>{email}</strong> tiver uma conta cadastrada, enviamos um e-mail
+                        com um link para redefinir a senha. O link expira em 1 hora.
                       </p>
                     </div>
                     <button

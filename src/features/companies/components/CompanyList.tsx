@@ -188,7 +188,7 @@ export function CompanyList() {
           description="Clique em qualquer logo de ferramenta nas empresas para ver detalhes do software ou filtrar todas as contas que utilizam a mesma tecnologia. Ideal para abordagens altamente personalizadas do SDR!"
           actionLabel="Ver Dicas Avançadas"
           onAction={() =>
-            alert(
+            toast.info(
               'Dica Atlas: Empresas que utilizam React + AWS costumam ter maior maturidade digital e budget elevado para conectividade e GR.',
             )
           }
