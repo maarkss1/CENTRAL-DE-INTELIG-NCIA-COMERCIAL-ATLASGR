@@ -16,10 +16,7 @@
  */
 
 export type BuyingRole =
-  | 'Decisor Econômico'
-  | 'Decisor Operacional'
-  | 'Influenciador Técnico'
-  | 'Usuário Final';
+  'Decisor Econômico' | 'Decisor Operacional' | 'Influenciador Técnico' | 'Usuário Final';
 
 export interface DecisionMakerClassificationInput {
   role: string | null;
@@ -33,10 +30,14 @@ export interface DecisionMakerClassification {
   reason: string;
 }
 
-const TECHNICAL_ROLE_PATTERN = /\b(ti|tecnologia|engenh|desenvolv|sistemas|infraestrutura|seguran[çc]a)\b/i;
-const OPERATIONAL_ROLE_PATTERN = /\b(log[íi]stica|opera[çc]|frota|frotas|transporte|manuten[çc][ãa]o)\b/i;
+const TECHNICAL_ROLE_PATTERN =
+  /\b(ti|tecnologia|engenh|desenvolv|sistemas|infraestrutura|seguran[çc]a)\b/i;
+const OPERATIONAL_ROLE_PATTERN =
+  /\b(log[íi]stica|opera[çc]|frota|frotas|transporte|manuten[çc][ãa]o)\b/i;
 
-export function classifyBuyingRole(input: DecisionMakerClassificationInput): DecisionMakerClassification | null {
+export function classifyBuyingRole(
+  input: DecisionMakerClassificationInput,
+): DecisionMakerClassification | null {
   const seniority = input.seniority?.toLowerCase().trim() || null;
   const role = input.role?.trim() || null;
   const department = input.department?.trim() || null;
@@ -79,9 +80,10 @@ export function classifyBuyingRole(input: DecisionMakerClassificationInput): Dec
     return {
       buyingRole: 'Decisor Operacional',
       confidence: 0.45,
-      reason: seniority === 'manager'
-        ? 'Senioridade "manager" registrada no contato.'
-        : `Cargo/departamento operacional ("${combinedText}").`,
+      reason:
+        seniority === 'manager'
+          ? 'Senioridade "manager" registrada no contato.'
+          : `Cargo/departamento operacional ("${combinedText}").`,
     };
   }
 

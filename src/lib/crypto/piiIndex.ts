@@ -78,7 +78,10 @@ function normalizeEmail(email: string): string {
 function emailDomainOf(email: string): string | null {
   const at = email.lastIndexOf('@');
   if (at === -1 || at === email.length - 1) return null;
-  return email.slice(at + 1).trim().toLowerCase();
+  return email
+    .slice(at + 1)
+    .trim()
+    .toLowerCase();
 }
 
 /**
@@ -180,9 +183,7 @@ export function last9DigitsIndex(rawPhoneNumber: string | null | undefined): str
  * o usuário digitou um e-mail completo, ou digitou dígitos de telefone que batem com os últimos 8
  * dígitos de um `phone`/`whatsapp` cadastrado.
  */
-export function contactSearchIndexClauses(
-  query: string,
-): Array<Record<string, string>> {
+export function contactSearchIndexClauses(query: string): Array<Record<string, string>> {
   const clauses: Array<Record<string, string>> = [];
   if (query.includes('@')) {
     const emailIndex = contactEmailIndex(query);

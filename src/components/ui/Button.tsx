@@ -1,13 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "../../lib/utils"
+import * as React from 'react';
+import { Slot } from '@radix-ui/react-slot';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '../../lib/utils';
 
 const buttonVariants = cva(
   // disabled:text-gray-600 (não gray-400) — gray-400 sobre disabled:bg-gray-200 dá só 2.1:1,
   // abaixo do mínimo WCAG AA de 4.5:1 (achado real do axe-core, tests/e2e/accessibility.spec.ts).
-  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.97] cursor-pointer disabled:pointer-events-none disabled:bg-gray-200 disabled:text-gray-600 disabled:opacity-100",
+  'inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.97] cursor-pointer disabled:pointer-events-none disabled:bg-gray-200 disabled:text-gray-600 disabled:opacity-100',
   {
     variants: {
       variant: {
@@ -22,50 +22,46 @@ const buttonVariants = cva(
         // O glow em hover usa o token `shadow-brand-sm` (color-mix com var(--brand)) em vez de
         // rgba(255,86,24,...) cru pelo mesmo motivo — reage à troca de marca em vez de ficar preso
         // ao laranja da AtlasGR.
-        default: "bg-brand-active text-white hover:bg-brand-2 hover:scale-[1.02] hover:shadow-brand-sm",
-        destructive: "bg-red-500 text-white shadow-sm hover:bg-red-600 hover:scale-[1.02]",
+        default:
+          'bg-brand-active text-white hover:bg-brand-2 hover:scale-[1.02] hover:shadow-brand-sm',
+        destructive: 'bg-red-500 text-white shadow-sm hover:bg-red-600 hover:scale-[1.02]',
         // border-gray-300/hover:bg-gray-100/200 (Tailwind cru, não token) nunca reagiam ao tema —
         // no dark mode (padrão do produto, CREATIVE_SYSTEM_01.md seção C) produziam borda
         // praticamente invisível e um hover claro incoerente sobre superfície escura. Trocados
         // pelos tokens já usados em todo o resto do design system (border-line/bg-surface-2),
         // mesmo padrão de hover já usado pelos itens de navegação da Sidebar.
-        outline: "border border-line bg-transparent text-ink hover:bg-surface-2",
-        secondary: "bg-surface-2 text-ink hover:bg-line hover:scale-[1.02]",
-        ghost: "hover:bg-surface-2 hover:text-ink",
-        link: "text-brand underline-offset-4 hover:underline",
+        outline: 'border border-line bg-transparent text-ink hover:bg-surface-2',
+        secondary: 'bg-surface-2 text-ink hover:bg-line hover:scale-[1.02]',
+        ghost: 'hover:bg-surface-2 hover:text-ink',
+        link: 'text-brand underline-offset-4 hover:underline',
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 px-3 text-xs",
-        lg: "h-10 px-8",
-        icon: "h-9 w-9",
+        default: 'h-9 px-4 py-2',
+        sm: 'h-8 px-3 text-xs',
+        lg: 'h-10 px-8',
+        icon: 'h-9 w-9',
       },
     },
     defaultVariants: {
-      variant: "default",
-      size: "default",
+      variant: 'default',
+      size: 'default',
     },
-  }
-)
+  },
+);
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
+    const Comp = asChild ? Slot : 'button';
     return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
+      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+    );
+  },
+);
+Button.displayName = 'Button';
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

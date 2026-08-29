@@ -6,8 +6,8 @@ export class LgpdService {
   /**
    * Apaga / Anonimiza dados de um titular (LGPD Art. 18)
    */
-  async eraseContact(organizationId: string, contactId: string) {
-    return await eraseDataSubject({ organizationId, contactId });
+  async eraseContact(organizationId: string, contactId: string, actorUserId?: string) {
+    return await eraseDataSubject({ organizationId, contactId, actorUserId });
   }
 
   /**

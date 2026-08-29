@@ -28,13 +28,17 @@ function clampScore(value: number | null | undefined): number | null {
 
 export function normalizeIcpReasons(value: unknown): string[] {
   if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    return value.filter(
+      (item): item is string => typeof item === 'string' && item.trim().length > 0,
+    );
   }
 
   if (value && typeof value === 'object') {
     const candidate = (value as { reasons?: unknown }).reasons;
     if (Array.isArray(candidate)) {
-      return candidate.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+      return candidate.filter(
+        (item): item is string => typeof item === 'string' && item.trim().length > 0,
+      );
     }
   }
 
@@ -72,7 +76,7 @@ export function buildAccountIntelligence(company: CompanyDetail, dataset: Datase
       uf: company.uf,
     },
     qualification: {
-      status: company.icpTier ? 'AVAILABLE' as const : 'NOT_AVAILABLE' as const,
+      status: company.icpTier ? ('AVAILABLE' as const) : ('NOT_AVAILABLE' as const),
       icpTier: company.icpTier,
       fitScore,
       reasons: icpReasons,
@@ -89,29 +93,34 @@ export function buildAccountIntelligence(company: CompanyDetail, dataset: Datase
         relationship: null,
       },
       missingComponents,
-      explanation: fitScore === null
-        ? 'Account Score ainda não pode ser calculado: nem mesmo o componente de fit está disponível.'
-        : 'Score parcial: o fit ICP é real/derivado do catálogo, mas intent, timing e relacionamento ainda não possuem evidência persistida para esta conta.',
+      explanation:
+        fitScore === null
+          ? 'Account Score ainda não pode ser calculado: nem mesmo o componente de fit está disponível.'
+          : 'Score parcial: o fit ICP é real/derivado do catálogo, mas intent, timing e relacionamento ainda não possuem evidência persistida para esta conta.',
     },
     signals: {
       status: 'NOT_AVAILABLE' as const,
       items: [],
-      message: 'Sinais materiais da conta ainda não foram persistidos no LDR. Ausência de sinal não é tratada como sinal negativo.',
+      message:
+        'Sinais materiais da conta ainda não foram persistidos no LDR. Ausência de sinal não é tratada como sinal negativo.',
     } satisfies LdrCapability<never>,
     decisionMakers: {
       status: 'NOT_AVAILABLE' as const,
       items: [],
-      message: 'Decisores exigem enriquecimento no contexto do tenant/CRM. O catálogo global não expõe PII.',
+      message:
+        'Decisores exigem enriquecimento no contexto do tenant/CRM. O catálogo global não expõe PII.',
     } satisfies LdrCapability<never>,
     economicGroup: {
       status: 'NOT_AVAILABLE' as const,
       items: [],
-      message: 'Relações de grupo econômico ainda não possuem fonte persistida e rastreável para esta conta.',
+      message:
+        'Relações de grupo econômico ainda não possuem fonte persistida e rastreável para esta conta.',
     } satisfies LdrCapability<never>,
     crm: {
       status: 'NOT_AVAILABLE' as const,
       companyId: null,
-      message: 'A leitura do catálogo não promove empresas automaticamente ao CRM. O vínculo explícito será o próximo passo do corte vertical.',
+      message:
+        'A leitura do catálogo não promove empresas automaticamente ao CRM. O vínculo explícito será o próximo passo do corte vertical.',
     },
     nextBestAction: {
       status: 'BLOCKED' as LdrActionStatus,
