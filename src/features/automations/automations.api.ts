@@ -2,7 +2,7 @@ import { api } from '../../lib/api';
 import { LEAD_STATUS } from '../../lib/zod';
 
 export type AutomationTrigger =
-  'Lead criado' | 'Lead mudou de status' | 'Atividade concluída' | 'Lead sem interação';
+  'Lead criado' | 'Lead mudou de status' | 'Atividade concluída' | 'Lead sem interação' | 'Lead estagnado';
 export type AutomationAction = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
 
 /**
@@ -40,6 +40,7 @@ export const TRIGGERS: AutomationTrigger[] = [
   'Lead criado',
   'Lead mudou de status',
   'Atividade concluída',
+  'Lead estagnado',
 ];
 export const ACTIONS: AutomationAction[] = [
   'Notificar equipe',
