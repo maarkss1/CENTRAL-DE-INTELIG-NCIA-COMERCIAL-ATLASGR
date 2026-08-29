@@ -304,7 +304,8 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                     <Mic className="w-5 h-5 text-amber-400 shrink-0" />
                     <span className="font-medium">
                       <strong className="text-amber-400 block mb-1">Aviso Importante:</strong>
-                      Esta é apenas uma simulação em formato de chat (texto). Para o treinamento imersivo por voz, abra o{' '}
+                      Esta é apenas uma simulação em formato de chat (texto). Para o treinamento
+                      imersivo por voz, abra o{' '}
                       <span className="font-bold underline">Roleplay Simulator</span>.
                     </span>
                   </div>

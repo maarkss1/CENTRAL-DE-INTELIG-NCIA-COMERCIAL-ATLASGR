@@ -105,7 +105,9 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
       requiresStagnationDays && stagnationDays.trim() ? Number(stagnationDays) : null;
     if (
       requiresStagnationDays &&
-      (stagnationThreshold == null || !Number.isFinite(stagnationThreshold) || stagnationThreshold <= 0)
+      (stagnationThreshold == null ||
+        !Number.isFinite(stagnationThreshold) ||
+        stagnationThreshold <= 0)
     ) {
       toast.error('O número de dias parado precisa ser maior que zero.');
       return;
