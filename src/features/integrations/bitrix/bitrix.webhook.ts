@@ -7,7 +7,10 @@ import { requestContext } from '../../../lib/async-context.js';
 import { callBitrix } from './service/client.js';
 import { resolveEnumMaps, applyInboundCustomFields } from './service/customFields.js';
 import { bitrixSyncFailuresTotal } from './service/metrics.js';
-import { claimWebhookDelivery, webhookDeliveryFingerprint } from '../../../shared/security/webhookReplayGuard.js';
+import {
+  claimWebhookDelivery,
+  webhookDeliveryFingerprint,
+} from '../../../shared/security/webhookReplayGuard.js';
 
 // ── Webhook de ENTRADA (Bitrix → Atlas, "исходящий вебхук" no admin do portal) ──────────────────
 //

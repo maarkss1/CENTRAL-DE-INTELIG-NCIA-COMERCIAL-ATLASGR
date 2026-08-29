@@ -3,7 +3,10 @@ import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.
 import { env } from '../../../config/env.js';
 import { logger } from '../../../lib/logger.js';
 import { isValidSignature } from '../birth-voice/birthVoice.helpers.js';
-import { claimWebhookDelivery, webhookDeliveryFingerprint } from '../../../shared/security/webhookReplayGuard.js';
+import {
+  claimWebhookDelivery,
+  webhookDeliveryFingerprint,
+} from '../../../shared/security/webhookReplayGuard.js';
 import {
   list3CXConnections,
   connect3CX,

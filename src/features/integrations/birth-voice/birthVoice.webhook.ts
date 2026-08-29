@@ -15,7 +15,10 @@ import {
 } from './birthVoice.helpers.js';
 import { recordOptOut } from './callSuppression.service.js';
 import { sendWhatsAppMessage } from '../whatsapp/whatsapp.service.js';
-import { claimWebhookDelivery, webhookDeliveryFingerprint } from '../../../shared/security/webhookReplayGuard.js';
+import {
+  claimWebhookDelivery,
+  webhookDeliveryFingerprint,
+} from '../../../shared/security/webhookReplayGuard.js';
 
 type RecordOutcome = 'recorded' | 'duplicate' | 'lead-not-found';
 

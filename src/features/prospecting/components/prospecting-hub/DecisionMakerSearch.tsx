@@ -736,7 +736,9 @@ export function DecisionMakerSearch({
                       </p>
                     )}
                     {icebreakers[idx]?.error && (
-                      <p className="w-full text-[11px] text-warn-active dark:text-warn mt-1">{icebreakers[idx].error}</p>
+                      <p className="w-full text-[11px] text-warn-active dark:text-warn mt-1">
+                        {icebreakers[idx].error}
+                      </p>
                     )}
                   </div>
                 );
