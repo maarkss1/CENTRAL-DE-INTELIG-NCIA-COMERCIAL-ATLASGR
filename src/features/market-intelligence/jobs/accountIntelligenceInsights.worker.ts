@@ -15,8 +15,8 @@ import {
 import { classifyBuyingRole } from '../domain/accountDecisionMakers.js';
 import {
   matchEconomicGroupByCnpjRoot,
-  type EconomicGroupCompanyInput,
-} from '../domain/accountEconomicGroup.js';
+  matchEconomicGroupCamada2e3,
+  } from '../domain/accountEconomicGroup.js';
 
 /**
  * D.1/D.5 do audit da Fase 0 (`.agents/runs/ldr-fase-0-auditoria.md`): até aqui nada persistia
@@ -47,11 +47,14 @@ function hashInput(value: unknown): string {
   return createHash('sha256').update(canonical).digest('hex');
 }
 
+
 interface AccountForInsights {
   id: string;
   organizationId: string;
   lookalikeScore: number | null;
   cnpj: string | null;
+  qsa?: any;
+  website?: string | null;
 }
 
 /**
@@ -106,15 +109,25 @@ async function generateDecisionMakersForAccount(account: AccountForInsights): Pr
  */
 async function generateEconomicRelationshipsForOrganization(
   organizationId: string,
-  companies: EconomicGroupCompanyInput[],
+  companies: any[],
   now: Date,
 ): Promise<void> {
   const matches = matchEconomicGroupByCnpjRoot(companies);
-  if (matches.length === 0) return;
+  const camada2e3Matches = matchEconomicGroupCamada2e3(companies);
+  
+  const allMatches = [
+    ...matches.map(m => ({ ...m, relationType: 'MATRIZ_FILIAL', confidence: 1, reason: m.cnpjRoot, status: 'Verified' })),
+    ...camada2e3Matches.map(m => ({ ...m, status: 'Inferred' }))
+  ];
+
+  if (allMatches.length === 0) return;
 
   await requestContext.run({ tenantId: organizationId }, async () => {
-    for (const match of matches) {
-      const dedupeKey = `cnpj-root:${match.cnpjRoot}:${match.sourceCompanyId}:${match.targetCompanyId}`;
+    for (const match of allMatches) {
+      const dedupeKey = match.relationType === 'MATRIZ_FILIAL' 
+        ? `cnpj-root:${match.reason}:${match.sourceCompanyId}:${match.targetCompanyId}`
+        : `camada23:${match.relationType}:${match.sourceCompanyId}:${match.targetCompanyId}`;
+      
       const existing = await prisma.economicRelationship.findFirst({
         where: { organizationId, dedupeKey },
         select: { id: true },
@@ -126,15 +139,13 @@ async function generateEconomicRelationshipsForOrganization(
           organizationId,
           sourceCompanyId: match.sourceCompanyId,
           targetCompanyId: match.targetCompanyId,
-          relationType: 'MATRIZ_FILIAL',
-          status: 'Verified',
+          relationType: match.relationType,
+          status: match.status as 'Verified' | 'Inferred',
           source: 'system:account-intelligence-insights-worker.v1',
-          confidence: 1,
+          confidence: match.confidence,
           dedupeKey,
-          // Constraint real do banco (EconomicRelationship_verified_timestamp): status Verified
-          // exige verifiedAt não nulo. Aqui é legítimo marcar sozinho — raiz de CNPJ é fato
-          // matematicamente derivável, não uma inferência que precise de revisão humana antes.
-          verifiedAt: now,
+                    createdAt: now,
+          verifiedAt: match.status === 'Verified' ? now : null,
         },
       });
     }
@@ -303,7 +314,7 @@ export async function scanAndGenerateAccountInsights(
     const companies = await requestContext.run({ tenantId: organizationId }, () =>
       prisma.company.findMany({
         where: { deletedAt: null },
-        select: { id: true, lookalikeScore: true, cnpj: true },
+        select: { id: true, lookalikeScore: true, cnpj: true, qsa: true, website: true },
         take: Math.min(
           MAX_ACCOUNTS_PER_ORGANIZATION_PER_TICK,
           MAX_ACCOUNTS_PER_TICK - accounts.length,
@@ -388,3 +399,5 @@ export async function scheduleAccountIntelligenceInsightsJob(): Promise<void> {
   );
   logger.info({ everyMs: SCAN_INTERVAL_MS }, 'Account intelligence insights scan job scheduled');
 }
+
+
