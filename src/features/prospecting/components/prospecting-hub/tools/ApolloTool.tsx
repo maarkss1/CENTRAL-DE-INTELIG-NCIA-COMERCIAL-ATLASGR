@@ -255,7 +255,7 @@ export function ApolloTool({ configured }: { configured: boolean }) {
           )}
         </button>
         {error && <p className="text-xs text-danger-active dark:text-danger">{error}</p>}
-        {apolloError && <p className="text-xs text-warn">{apolloError}</p>}
+        {apolloError && <p className="text-xs text-warn-active dark:text-warn">{apolloError}</p>}
       </div>
 
       <div className="xl:col-span-8 space-y-4">

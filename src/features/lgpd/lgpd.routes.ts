@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../shared/middlewares/requireRole.js';
 import { lgpdService } from './lgpd.service.js';
+import { AuditService } from '../../lib/audit/audit.service.js';
 
 export const lgpdRouter = Router();
 
@@ -18,9 +19,23 @@ lgpdRouter.delete(
       // authenticateToken a partir da sessão) — nunca de um header controlado pelo cliente.
       // Um fallback para `x-organization-id` aqui permitiria que qualquer requisição forjasse
       // esse header e apagasse/anonimizasse dados de OUTRO tenant.
-      const { organizationId } = (req as AuthRequest).user;
+      const { organizationId, id: actorId } = (req as AuthRequest).user;
       const { contactId } = req.params;
-      const result = await lgpdService.eraseContact(organizationId, contactId);
+      const result = await lgpdService.eraseContact(organizationId, contactId, actorId);
+
+      // Registro explícito, além do UPDATE genérico de Contact que a extensão de auditoria do
+      // Prisma já grava (src/lib/prisma.ts) — este identifica claramente, para quem lê a trilha em
+      // AuditLogs.tsx, que a ação foi um exercício do direito de exclusão/anonimização (LGPD art.
+      // 18), não uma edição de cadastro comum.
+      await AuditService.log({
+        action: 'DELETE',
+        entity: 'LGPD_TITULAR',
+        entityId: contactId,
+        actorId,
+        tenantId: organizationId,
+        ipAddress: req.ip,
+        afterState: { ...result },
+      });
 
       res.json({
         message: 'Dados do titular anonimizados com sucesso.',
@@ -30,15 +45,31 @@ lgpdRouter.delete(
   },
 );
 
-// Exportação / Portabilidade de Titular (LGPD Art. 18 V)
+// Exportação / Portabilidade de Titular (LGPD Art. 18 V) — mesmo papel mínimo da exclusão acima:
+// os dados exportados aqui (nome, e-mail, telefone, WhatsApp, LinkedIn, observações) são o PII
+// completo do titular; sem essa checagem, qualquer usuário autenticado do tenant (ex.: SDR)
+// conseguia baixar o dossiê completo de qualquer contato, não só ADMIN/GESTOR.
 lgpdRouter.get(
   '/titular/:contactId/export',
+  requireRole(['ADMIN', 'GESTOR']),
   (req: Request, res: Response, next: NextFunction): void => {
     (async () => {
       // Mesmo raciocínio da rota de exclusão acima: organizationId só do usuário autenticado.
-      const { organizationId } = (req as AuthRequest).user;
+      const { organizationId, id: actorId } = (req as AuthRequest).user;
       const { contactId } = req.params;
       const data = await lgpdService.exportContactData(organizationId, contactId);
+
+      // Rota só de leitura — não passa pela extensão de auditoria do Prisma (que só cobre
+      // create/update/delete, ver src/lib/prisma.ts), então sem este registro explícito o
+      // download completo de PII de um titular não deixava nenhum rastro em AuditLog.
+      await AuditService.log({
+        action: 'EXPORT',
+        entity: 'LGPD_TITULAR',
+        entityId: contactId,
+        actorId,
+        tenantId: organizationId,
+        ipAddress: req.ip,
+      });
 
       res.json(data);
     })().catch(next);

@@ -39,7 +39,7 @@ export function CompanyBranchesView({ cnpj, companyName, onSelectBranch }: Compa
         setLoading(true);
 
         // Busca empresas com a mesma raiz de CNPJ no catálogo
-        api.get<{ data: BranchCompanyItem[] }>(`/api/market-intelligence/companies?cnpj=${cnpjRoot}&pageSize=50`)
+        api.get<{ data: BranchCompanyItem[] }>(`/api/companies/market-intelligence?cnpj=${cnpjRoot}&pageSize=50`)
             .then((res) => {
                 if (!cancelled) {
                     setBranches(res.data || []);
@@ -58,7 +58,7 @@ export function CompanyBranchesView({ cnpj, companyName, onSelectBranch }: Compa
     const handleApprove = async (branchCnpj: string) => {
         try {
             setApprovingCnpj(branchCnpj);
-            const res = await api.post<{ message: string }>(`/api/market-intelligence/companies/${encodeURIComponent(branchCnpj)}/approve-to-pipeline`);
+            const res = await api.post<{ message: string }>(`/api/companies/market-intelligence/${encodeURIComponent(branchCnpj)}/approve-to-pipeline`);
             toast.success(res.message || 'Filial aprovada para o Pipeline CRM!');
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Falha ao aprovar filial');
