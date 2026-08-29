@@ -8,8 +8,6 @@ import { recordDeadLetter, isFinalAttempt } from './deadLetter.js';
 
 export const STALLED_LEAD_QUEUE_NAME = 'stalled-lead-check';
 
-
-
 export const stalledLeadQueue = new Queue(STALLED_LEAD_QUEUE_NAME, { connection });
 stalledLeadQueue.on('error', (err) =>
   logger.warn({ message: err.message }, 'stalledLeadQueue offline'),
@@ -41,7 +39,9 @@ export function createStalledLeadWorker() {
       for (const lead of leads) {
         if (!lead.organizationId) continue;
         const lastInteraction = lead.lastInteraction || now;
-        const daysSinceLastInteraction = Math.floor((now.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24));
+        const daysSinceLastInteraction = Math.floor(
+          (now.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24),
+        );
         const executed = await automationEngine.handle({
           organizationId: lead.organizationId,
           trigger: 'Lead estagnado',
@@ -62,7 +62,13 @@ export function createStalledLeadWorker() {
   worker.on('completed', () => recordQueueJobCompleted(worker.name));
   worker.on('failed', async (job, err) => {
     if (job && isFinalAttempt(job.attemptsMade, job.opts.attempts)) {
-      await recordDeadLetter({ queue: worker.name, jobId: job.id, jobName: job.name, attemptsMade: job.attemptsMade, error: err });
+      await recordDeadLetter({
+        queue: worker.name,
+        jobId: job.id,
+        jobName: job.name,
+        attemptsMade: job.attemptsMade,
+        error: err,
+      });
     }
   });
 
