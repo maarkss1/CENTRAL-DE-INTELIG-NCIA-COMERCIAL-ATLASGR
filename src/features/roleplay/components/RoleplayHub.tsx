@@ -116,7 +116,9 @@ export function RoleplayHub() {
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
-      toast.error('Reconhecimento de voz não suportado neste navegador. Tente pelo Chrome desktop.');
+      toast.error(
+        'Reconhecimento de voz não suportado neste navegador. Tente pelo Chrome desktop.',
+      );
       return;
     }
     if (isListening) {

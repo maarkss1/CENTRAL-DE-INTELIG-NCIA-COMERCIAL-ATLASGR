@@ -16,7 +16,7 @@ import { classifyBuyingRole } from '../domain/accountDecisionMakers.js';
 import {
   matchEconomicGroupByCnpjRoot,
   matchEconomicGroupCamada2e3,
-  } from '../domain/accountEconomicGroup.js';
+} from '../domain/accountEconomicGroup.js';
 
 /**
  * D.1/D.5 do audit da Fase 0 (`.agents/runs/ldr-fase-0-auditoria.md`): até aqui nada persistia
@@ -46,7 +46,6 @@ function hashInput(value: unknown): string {
   const canonical = JSON.stringify(value, Object.keys(value as object).sort());
   return createHash('sha256').update(canonical).digest('hex');
 }
-
 
 interface AccountForInsights {
   id: string;
@@ -114,20 +113,27 @@ async function generateEconomicRelationshipsForOrganization(
 ): Promise<void> {
   const matches = matchEconomicGroupByCnpjRoot(companies);
   const camada2e3Matches = matchEconomicGroupCamada2e3(companies);
-  
+
   const allMatches = [
-    ...matches.map(m => ({ ...m, relationType: 'MATRIZ_FILIAL', confidence: 1, reason: m.cnpjRoot, status: 'Verified' })),
-    ...camada2e3Matches.map(m => ({ ...m, status: 'Inferred' }))
+    ...matches.map((m) => ({
+      ...m,
+      relationType: 'MATRIZ_FILIAL',
+      confidence: 1,
+      reason: m.cnpjRoot,
+      status: 'Verified',
+    })),
+    ...camada2e3Matches.map((m) => ({ ...m, status: 'Inferred' })),
   ];
 
   if (allMatches.length === 0) return;
 
   await requestContext.run({ tenantId: organizationId }, async () => {
     for (const match of allMatches) {
-      const dedupeKey = match.relationType === 'MATRIZ_FILIAL' 
-        ? `cnpj-root:${match.reason}:${match.sourceCompanyId}:${match.targetCompanyId}`
-        : `camada23:${match.relationType}:${match.sourceCompanyId}:${match.targetCompanyId}`;
-      
+      const dedupeKey =
+        match.relationType === 'MATRIZ_FILIAL'
+          ? `cnpj-root:${match.reason}:${match.sourceCompanyId}:${match.targetCompanyId}`
+          : `camada23:${match.relationType}:${match.sourceCompanyId}:${match.targetCompanyId}`;
+
       const existing = await prisma.economicRelationship.findFirst({
         where: { organizationId, dedupeKey },
         select: { id: true },
@@ -144,7 +150,7 @@ async function generateEconomicRelationshipsForOrganization(
           source: 'system:account-intelligence-insights-worker.v1',
           confidence: match.confidence,
           dedupeKey,
-                    createdAt: now,
+          createdAt: now,
           verifiedAt: match.status === 'Verified' ? now : null,
         },
       });
@@ -399,5 +405,3 @@ export async function scheduleAccountIntelligenceInsightsJob(): Promise<void> {
   );
   logger.info({ everyMs: SCAN_INTERVAL_MS }, 'Account intelligence insights scan job scheduled');
 }
-
-

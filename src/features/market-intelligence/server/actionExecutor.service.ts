@@ -57,19 +57,22 @@ export const actionExecutorService = {
 
           const lead = await prisma.lead.findFirst({
             where: { companyId: company.id, deletedAt: null },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
           });
-          if (!lead) throw new AppError('Nenhum lead associado a esta conta para iniciar cadência.', 400);
+          if (!lead)
+            throw new AppError('Nenhum lead associado a esta conta para iniciar cadência.', 400);
 
           const sequenceRow = await prisma.cadenceSequence.findFirst({
             where: { organizationId: company.organizationId, active: true, deletedAt: null },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
           });
-          if (!sequenceRow) throw new AppError('Nenhuma sequência ativa encontrada para iniciar cadência.', 400);
+          if (!sequenceRow)
+            throw new AppError('Nenhuma sequência ativa encontrada para iniciar cadência.', 400);
 
           const userId = getUserId();
           const { startCadenceRun } = await import('../../cadence/domain/cadence.js');
-          const { prismaCadenceRunRepository } = await import('../../cadence/infra/PrismaCadenceRunRepository.js');
+          const { prismaCadenceRunRepository } =
+            await import('../../cadence/infra/PrismaCadenceRunRepository.js');
           const { randomUUID } = await import('node:crypto');
 
           const run = startCadenceRun({
@@ -85,7 +88,7 @@ export const actionExecutorService = {
             await prismaCadenceRunRepository.save(run);
           } catch (err: any) {
             if (err?.code === 'P2002') {
-               throw new AppError('Este lead já tem uma cadência ativa em andamento.', 409);
+              throw new AppError('Este lead já tem uma cadência ativa em andamento.', 409);
             }
             throw err;
           }

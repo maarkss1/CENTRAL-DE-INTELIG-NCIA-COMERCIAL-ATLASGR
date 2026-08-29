@@ -28,7 +28,10 @@ import {
   createDeduplicationWorker,
   scheduleDeduplicationJob,
 } from '../features/crm/jobs/deduplication.worker.js';
-import { accountIntelligenceSchedulerWorker, accountIntelligenceSchedulerQueue } from '../features/market-intelligence/jobs/accountIntelligenceScheduler.worker.js';
+import {
+  accountIntelligenceSchedulerWorker,
+  accountIntelligenceSchedulerQueue,
+} from '../features/market-intelligence/jobs/accountIntelligenceScheduler.worker.js';
 import {
   createWinLossAnalysisWorker,
   scheduleWinLossAnalysisJob,
@@ -108,7 +111,9 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
     autoAnonymizeWorker: embeddedWorkersEnabled ? createAutoAnonymizeWorker() : null,
     coldLeadsScannerWorker: embeddedWorkersEnabled ? createColdLeadsScannerWorker() : null,
     stagnationScannerWorker: embeddedWorkersEnabled ? createStagnationScannerWorker() : null,
-      accountIntelligenceSchedulerWorker: embeddedWorkersEnabled ? accountIntelligenceSchedulerWorker : null,
+    accountIntelligenceSchedulerWorker: embeddedWorkersEnabled
+      ? accountIntelligenceSchedulerWorker
+      : null,
     searchWorker: null,
     coldCallWorker: null,
     swarmSchedulerWorker: null,
@@ -143,7 +148,13 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
     scheduleColdLeadsScannerJob().catch((err) =>
       logger.error({ err }, 'Falha ao agendar job do cold leads scanner'),
     );
-    accountIntelligenceSchedulerQueue.upsertJobScheduler('daily-ldr-scheduler', { pattern: '0 2 * * *' }, { name: 'accountIntelligenceScheduler', data: {} }).catch((err) => logger.error({ err }, 'Falha ao agendar job do LDR scheduler'));
+    accountIntelligenceSchedulerQueue
+      .upsertJobScheduler(
+        'daily-ldr-scheduler',
+        { pattern: '0 2 * * *' },
+        { name: 'accountIntelligenceScheduler', data: {} },
+      )
+      .catch((err) => logger.error({ err }, 'Falha ao agendar job do LDR scheduler'));
     scheduleStagnationScannerJob().catch((err) =>
       logger.error({ err }, 'Falha ao agendar job do stagnation scanner'),
     );
@@ -183,5 +194,3 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
 
   return handle;
 }
-
-

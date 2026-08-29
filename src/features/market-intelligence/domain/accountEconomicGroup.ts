@@ -96,7 +96,10 @@ export function matchEconomicGroupCamada2e3(
   for (const company of companies) {
     if (company.website) {
       let domain = company.website.toLowerCase().trim();
-      domain = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+      domain = domain
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .split('/')[0];
       if (domain && domain.includes('.')) {
         const existing = byDomain.get(domain) || [];
         existing.push(company.id);
@@ -128,7 +131,7 @@ export function matchEconomicGroupCamada2e3(
           targetCompanyId: sortedIds[j],
           relationType: 'DOMINIO_COMPARTILHADO',
           confidence: 0.7,
-          reason: domain
+          reason: domain,
         });
       }
     }
@@ -144,7 +147,7 @@ export function matchEconomicGroupCamada2e3(
           targetCompanyId: sortedIds[j],
           relationType: 'SOCIEDADE_CRUZADA',
           confidence: 0.9,
-          reason: socio
+          reason: socio,
         });
       }
     }
