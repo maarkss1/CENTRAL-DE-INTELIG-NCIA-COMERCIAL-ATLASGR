@@ -52,6 +52,7 @@ import { createAgentMemoryCleanupWorker, scheduleAgentMemoryCleanupJob } from '.
 import { createBitrixExtractionPurgeWorker, scheduleBitrixExtractionPurgeJob } from './src/features/integrations/bitrix/jobs/bitrixExtractionPurge.worker.js';
 import { createNewsMonitorWorker, scheduleGlobalNewsScan } from './src/lib/queue/newsMonitor.worker.js';
 import { createAccountIntelligenceInsightsWorker, scheduleAccountIntelligenceInsightsJob } from './src/features/market-intelligence/jobs/accountIntelligenceInsights.worker.js';
+import { createForecastSnapshotWorker, scheduleForecastSnapshotJob } from './src/features/commercial-intelligence/jobs/forecastSnapshotWeekly.worker.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -91,6 +92,7 @@ async function startWorkerProcess() {
     const bitrixExtractionPurgeWorker = createBitrixExtractionPurgeWorker();
     const newsMonitorWorker = createNewsMonitorWorker();
     const accountIntelligenceInsightsWorker = createAccountIntelligenceInsightsWorker();
+    const forecastSnapshotWorker = createForecastSnapshotWorker();
 
     await Promise.all([
         scheduleBitrixSync(),
@@ -107,6 +109,7 @@ async function startWorkerProcess() {
         scheduleBitrixExtractionPurgeJob(),
         scheduleGlobalNewsScan(),
         scheduleAccountIntelligenceInsightsJob(),
+        scheduleForecastSnapshotJob(),
     ]);
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -153,6 +156,7 @@ async function startWorkerProcess() {
         { name: 'bitrix-extraction-purge', worker: bitrixExtractionPurgeWorker },
         { name: 'news-monitor', worker: newsMonitorWorker },
         { name: 'account-intelligence-insights', worker: accountIntelligenceInsightsWorker },
+        { name: 'forecast-snapshot-weekly-queue', worker: forecastSnapshotWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {
