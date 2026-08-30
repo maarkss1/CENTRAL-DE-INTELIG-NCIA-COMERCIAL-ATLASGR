@@ -76,10 +76,12 @@ describe('CompanyForm', () => {
         await user.click(screen.getByRole('button', { name: /criar empresa/i }));
 
         await waitFor(() => expect(createMock).toHaveBeenCalledTimes(1));
+        // companySchema normaliza cnpj pra dígitos puros antes de chegar em companiesDB.create
+        // (Onda 43) — o valor pontuado digitado no campo não é mais o que é persistido.
         expect(createMock.mock.calls[0][0]).toMatchObject({
             legalName: 'Acme Transportes Ltda',
             tradeName: 'Acme',
-            cnpj: '11.222.333/0001-81',
+            cnpj: '11222333000181',
         });
         expect(onSave).toHaveBeenCalledTimes(1);
     });

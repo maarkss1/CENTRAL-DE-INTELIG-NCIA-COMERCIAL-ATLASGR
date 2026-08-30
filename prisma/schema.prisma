@@ -277,6 +277,16 @@ model Company {
   // Permite FKs compostas nas tabelas de Account Intelligence: uma linha tenant-scoped nunca
   // pode apontar para uma Company de outra organizacao, mesmo sob bypass administrativo.
   @@unique([id, organizationId])
+  // Garante em nível de banco que uma organização não tem duas empresas com o mesmo CNPJ —
+  // antes só a aplicação evitava isso (companyIdentity.service.ts), sem nenhuma trava no schema
+  // (achado real, Onda 43: um segundo write path já criava duplicata silenciosa por comparar
+  // formatos diferentes do mesmo CNPJ). Só funciona porque todo write path de `cnpj` agora
+  // normaliza pra dígitos puros antes de gravar (src/lib/cnpj.ts) — Postgres não deduplica
+  // "12.345.678/0001-99" e "12345678000199" sozinho. NULL nunca colide com outro NULL (empresas
+  // sem CNPJ continuam livres), e a constraint cobre inclusive linhas com soft delete
+  // (`deletedAt` preenchido) de propósito — mesmo comportamento que `resolveCompanyIdentity` já
+  // usa pra achar duplicata (não reabre o CNPJ de uma empresa só porque foi soft-deletada).
+  @@unique([organizationId, cnpj])
   @@index([organizationId])
   @@index([cnpj])
   @@index([legalName])

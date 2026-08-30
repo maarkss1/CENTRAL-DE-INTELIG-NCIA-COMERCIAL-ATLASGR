@@ -17,6 +17,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { Company } from '../../../types';
+import { formatCnpj } from '../../../lib/cnpj';
 import { CompanyForm } from './CompanyForm';
 import { CompanyDetail } from './CompanyDetail';
 import { useCompanies } from '../../../hooks/useDatabase';
@@ -409,7 +410,7 @@ export function CompanyList() {
                         </button>
                       </h3>
                       <p className="text-xs text-ink-2 font-mono mt-0.5">
-                        {company.cnpj || 'CNPJ Não informado'}
+                        {company.cnpj ? formatCnpj(company.cnpj) : 'CNPJ Não informado'}
                       </p>
                     </div>
 
@@ -599,7 +600,7 @@ export function CompanyList() {
                                 {companyLabel}
                               </button>
                               <p className="text-xs text-ink-2 font-mono">
-                                {company.cnpj || 'Sem CNPJ'}
+                                {company.cnpj ? formatCnpj(company.cnpj) : 'Sem CNPJ'}
                               </p>
                             </div>
                           </div>

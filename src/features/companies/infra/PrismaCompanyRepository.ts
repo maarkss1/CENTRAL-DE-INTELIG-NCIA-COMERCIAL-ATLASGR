@@ -25,10 +25,16 @@ export class PrismaCompanyRepository implements CompanyRepository {
       if (meiliIds !== null) {
         where.id = { in: meiliIds };
       } else {
+        // Company.cnpj é gravado normalizado (só dígitos, ver src/lib/cnpj.ts) — comparar contra
+        // `query` cru faria uma busca por "12.345.678/0001-99" nunca bater com o dado salvo.
+        // Extrai os dígitos da busca e só adiciona a condição de cnpj quando sobrar algum (uma
+        // busca sem nenhum dígito, ex. "Acme", não deve virar `contains: ''`, que bateria com
+        // toda empresa independente de ter CNPJ).
+        const cnpjDigits = query.replace(/\D/g, '');
         where.OR = [
           { tradeName: { contains: query, mode: 'insensitive' } },
           { legalName: { contains: query, mode: 'insensitive' } },
-          { cnpj: { contains: query, mode: 'insensitive' } },
+          ...(cnpjDigits ? [{ cnpj: { contains: cnpjDigits } }] : []),
           { emails: { hasSome: [query] } },
           { phones: { hasSome: [query] } },
           { website: { contains: query, mode: 'insensitive' } },
