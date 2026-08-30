@@ -111,3 +111,39 @@ risco aceitável deste item:
 Verificação usada para chegar nesta lista: uma varredura de todos os links markdown relativos do
 repositório (`*.md`) contra o filesystem real, em 25/08/2026. Fora do que está listado acima, nenhum
 outro link relativo quebrado foi encontrado nos documentos tocados por este item.
+
+## Segunda leva — relatórios de segurança/teste obsoletos (30/08/2026, Onda 43)
+
+Pedido explícito do usuário, no mesmo espírito do commit `b7e1f7871c9`: mais 6 relatórios em
+`docs/reports/` saíram do controle de versão porque, ao contrário dos demais relatórios da pasta
+(históricos, mas ainda descrevendo com precisão a decisão que documentam), estes descreviam uma
+arquitetura que já não existe (autenticação JWT/refresh token — a stack real desde então é sessão
+via Better Auth, `src/lib/auth.ts`) ou nunca tiveram conteúdo substantivo (placeholders de 1-2
+parágrafos). Achado durante a auditoria de dívida técnica desta sessão (Onda 43).
+
+| Arquivo removido | O que era | Por que |
+| --- | --- | --- |
+| `docs/reports/RELATORIO_TESTES.md` | Relatório placeholder confirmando build/lint | Números desatualizados (45 testes; hoje ~2085) |
+| `docs/reports/TEST_RESOLUTION_REPORT.md` | Causa raiz de falhas de FK/paralelismo em testes de integração | Mesmo problema de números (45/45, 8/8) |
+| `docs/reports/PENTEST_REPORT.md` | "Resultado" de pentest | Placeholder raso, sem pentest real documentado |
+| `docs/reports/HARDENING_REPORT.md` | Hardening da Fase 19 | Descreve estabilização pontual já superada |
+| `docs/reports/RELATORIO_SEGURANCA.md` | Segurança geral (Mass Assignment, ORM) | Placeholder raso |
+| `docs/reports/SECURITY_IMPLEMENTATION_REPORT.md` | Fase 21: JWT/refresh tokens, RBAC/ABAC | Descreve autenticação JWT — stack real hoje é Better Auth (sessão via cookie), migrada depois deste relatório ter sido escrito |
+
+**O que foi corrigido por esta remoção:**
+- `docs/reports/README.md` — as 6 entradas de índice removidas; nota do topo atualizada citando
+  esta segunda leva.
+- `docs/architecture/12-REQUISITOS-ARQUITETURA.md` — a citação a "relatórios de pentest já
+  produzidos em `docs/reports/PENTEST_REPORT.md`" agora aponta para esta página em vez de um
+  arquivo inexistente; nenhum substituto versionado existe hoje (reauditar do zero se a tarefa
+  exigir).
+- `docs/reports/REPOSITORY_CLEANUP_REPORT.md` cita 6 desses nomes como parte do seu próprio
+  registro histórico de limpeza — **não corrigido de propósito**, mesmo critério já usado nesta
+  página para `.agents/runs/**`: é um log de execução passada, não documentação viva.
+
+Os 2 documentos de `docs/security/` que descrevem a MESMA arquitetura JWT/refresh obsoleta mas
+**não** foram removidos (`SECURITY_GUIDE.md`, `THREAT_MODEL.md` — são guias vivos, não relatórios
+de sessão passada) já estavam
+sinalizados como gap de frescor documental — não de processo — em
+`docs/architecture/12-REQUISITOS-ARQUITETURA.md` antes desta remoção; permanecem como item
+separado de atualização, fora do escopo desta limpeza.
