@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+// Onda 43: analyzeConversation agora exige base legal LGPD (assertPiiExternalConsent) antes de
+// ler qualquer mensagem/montar o modelo — concede consentimento geral por padrão pra não quebrar
+// os testes de comportamento normal já existentes; o describe dedicado abaixo desliga isso pra
+// provar a trava.
+const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: '*' };
+vi.mock('../../../../../src/config/env.js', () => ({ env: mockEnv }));
+
 const findMany = vi.fn();
 const create = vi.fn();
 const timelineEventCreate = vi.fn().mockResolvedValue({});
@@ -38,6 +45,7 @@ function aiResponse(content: string) {
 
 afterEach(() => {
     vi.clearAllMocks();
+    mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = '*';
 });
 
 describe('WhatsApp conversation intelligence', () => {
@@ -140,5 +148,39 @@ describe('WhatsApp conversation intelligence', () => {
             }),
         });
         expect(timelineEventCreate).not.toHaveBeenCalled();
+    });
+});
+
+describe('WhatsApp conversation intelligence — trava de consentimento LGPD (Onda 43)', () => {
+    it('bloqueia sem base legal registrada: nunca lê mensagens nem invoca o modelo de IA', async () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
+        findMany.mockResolvedValueOnce([
+            { direction: 'inbound', body: 'Mensagem real do cliente, nunca deveria sair da checagem de consentimento.' },
+        ]);
+
+        await analyzeConversation('lead-1', 'org-sem-consentimento');
+
+        expect(findMany).not.toHaveBeenCalled();
+        expect(invoke).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('libera normalmente quando a organização está na allowlist', async () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = 'org-1';
+        findMany.mockResolvedValueOnce([{ direction: 'inbound', body: 'Oi' }]);
+        invoke.mockResolvedValueOnce(aiResponse(JSON.stringify({
+            intent: 'neutro',
+            urgency: 'baixa',
+            objections: [],
+            budgetMentioned: false,
+            nextStep: null,
+            summary: 'Saudação inicial.',
+            confidence: 0.4,
+        })));
+
+        await analyzeConversation('lead-1', 'org-1');
+
+        expect(invoke).toHaveBeenCalledTimes(1);
+        expect(create).toHaveBeenCalledTimes(1);
     });
 });
