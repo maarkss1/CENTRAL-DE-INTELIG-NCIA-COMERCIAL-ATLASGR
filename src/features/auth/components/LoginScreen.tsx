@@ -20,13 +20,7 @@ import { authClient } from '../../../lib/auth-client';
 import { isAuthorizedLoginEmail, getBrandFromEmail } from '../../../config/access-policy';
 import { Logo } from '../../../components/Logo';
 import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
-import {
-  fadeInUp,
-  staggerContainer,
-  staggerItem,
-  useTilt,
-  useMagnetic,
-} from '../../../lib/motion';
+import { fadeInUp, staggerContainer, staggerItem, useTilt, useMagnetic } from '../../../lib/motion';
 
 // Chunk de ~900kB (@react-three/fiber/three) — importado à parte para não pesar a página de
 // login, a primeira coisa que qualquer usuário (nem autenticado ainda) carrega. Mesmo cuidado do
