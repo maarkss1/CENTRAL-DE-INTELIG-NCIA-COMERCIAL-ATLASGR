@@ -89,7 +89,9 @@ export function OcrCapturePanel() {
   });
 
   const stopCamera = () => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current?.getTracks().forEach((track) => {
+      track.stop();
+    });
     streamRef.current = null;
     setCameraActive(false);
   };

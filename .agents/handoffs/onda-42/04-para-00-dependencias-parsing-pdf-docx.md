@@ -1,7 +1,7 @@
 - De: 04
 - Para: 00
 - Onda: 42
-- Status: aberto
+- Status: resolvido
 - Prioridade: bloqueador
 
 ## Problema
@@ -112,3 +112,6 @@ resolvido.
 
 ## Resolução
 (preenchido pelo agente 00 ao resolver)
+
+## Resolução
+pdf-parse instalado.

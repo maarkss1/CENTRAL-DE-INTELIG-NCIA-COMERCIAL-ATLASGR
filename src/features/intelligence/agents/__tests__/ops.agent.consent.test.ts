@@ -7,6 +7,19 @@ vi.mock('../../../../lib/logger.js', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
+// mem0.ts faz `await import('mem0ai')` de propósito (lazy, mem0ai não é dependência real do
+// projeto — ver comentário em mem0.ts) e trata a ausência do pacote em runtime real via
+// try/catch. Vite/Vitest, porém, tentam resolver o import dinâmico em tempo de transform mesmo
+// assim, o que quebra a suíte antes do try/catch entrar em ação — mockado para não depender do
+// pacote estar instalado neste ambiente de teste.
+vi.mock('../../../../lib/ai/memory/mem0.js', () => ({
+  agentMemory: {
+    search: vi.fn().mockResolvedValue([]),
+    formatForPrompt: vi.fn().mockReturnValue(''),
+    add: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 // Sem leadId, o teste abaixo prova que o Ops passa direto do gate de consentimento (que só se
 // aplica quando há um Contact real em jogo) — isolado de qualquer chamada de rede real ao provedor
 // de IA, que não está disponível neste ambiente de teste. Precisa devolver uma instância real de

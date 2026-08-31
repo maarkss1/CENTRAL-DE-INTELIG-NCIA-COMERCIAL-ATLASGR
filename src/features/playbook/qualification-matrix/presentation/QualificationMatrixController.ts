@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { QualificationMatrixUseCases } from '../application/QualificationMatrixUseCases';
-import { AuthRequest } from '../../../../shared/middlewares/authenticateToken';
+import type { Request, Response, NextFunction } from 'express';
+import type { QualificationMatrixUseCases } from '../application/QualificationMatrixUseCases';
+import type { AuthRequest } from '../../../../shared/middlewares/authenticateToken';
 
 export class QualificationMatrixController {
   constructor(private useCases: QualificationMatrixUseCases) {}

@@ -1,4 +1,4 @@
-import { MarketIntelligenceIcpTier, Prisma } from '@prisma/client';
+import { MarketIntelligenceIcpTier, type Prisma } from '@prisma/client';
 
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';

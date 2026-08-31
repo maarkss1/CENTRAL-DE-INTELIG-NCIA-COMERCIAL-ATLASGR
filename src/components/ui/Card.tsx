@@ -33,7 +33,8 @@ const cardVariants = cva('relative overflow-hidden rounded-card text-ink', {
 });
 
 export interface CardProps
-  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof cardVariants> {
   /** Faixa de destaque laranja→branco no topo do card — assinatura visual da marca Atlas. */
   accentBar?: boolean;
 }

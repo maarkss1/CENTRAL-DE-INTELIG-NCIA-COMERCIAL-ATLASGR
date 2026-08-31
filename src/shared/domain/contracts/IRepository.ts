@@ -14,4 +14,5 @@ import type { IWriteRepository } from './IWriteRepository.js';
  * @typeParam TId - Type of the entity's identifier.
  */
 export interface IRepository<TEntity, TId = string>
-  extends IReadRepository<TEntity, TId>, IWriteRepository<TEntity, TId> {}
+  extends IReadRepository<TEntity, TId>,
+    IWriteRepository<TEntity, TId> {}

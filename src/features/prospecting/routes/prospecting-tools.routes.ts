@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
 
 import { discoverCriteriaSchema } from '../schemas/discoverCriteria.schema.js';
@@ -7,7 +7,7 @@ import type { ProspectCriteria } from '../services/prospecting.service.js';
 import { fetchApolloCandidates } from '../services/apollo.service.js';
 import { findPeopleViaDomainSearch, findEmailViaHunter } from '../services/hunter.service.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
-import { ExclusionSet } from '../utils/exclusionSet.js';
+import type { ExclusionSet } from '../utils/exclusionSet.js';
 import {
   getPaidProspectingKey,
   getProspectingProviderMode,

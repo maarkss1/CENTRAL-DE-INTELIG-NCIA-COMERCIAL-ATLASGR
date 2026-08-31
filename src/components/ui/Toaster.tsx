@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
-import { toast, ToastMessage } from '../../lib/toast';
+import { toast, type ToastMessage } from '../../lib/toast';
 
 // bg-green-600 + text-white (abaixo) mede 3.30:1 contra o mínimo de 4.5:1 exigido pra texto normal
 // (WCAG 2 AA) — achado real, medido com a fórmula oficial de luminância relativa, independente da

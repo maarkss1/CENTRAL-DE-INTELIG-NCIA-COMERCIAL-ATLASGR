@@ -17,7 +17,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { LinkedinIcon as Linkedin } from '../../../components/ui/icons/LinkedinIcon';
-import { Contact } from '../../../types';
+import type { Contact } from '../../../types';
 import { ContactForm } from './ContactForm';
 import { ContactDetail } from './ContactDetail';
 import { useContacts } from '../../../hooks/useDatabase';

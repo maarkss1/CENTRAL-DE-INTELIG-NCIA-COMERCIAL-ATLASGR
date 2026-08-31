@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
-import { readSseStream, SseEvent } from '../../../lib/sse';
+import { readSseStream, type SseEvent } from '../../../lib/sse';
 import { Activity, AlertTriangle } from 'lucide-react';
 
 interface FeedEvent {

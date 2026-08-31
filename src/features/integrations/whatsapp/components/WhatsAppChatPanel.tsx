@@ -62,7 +62,7 @@ export function WhatsAppChatPanel({
     // conteúdo real do modal, não é irmão dele — escondê-lo do teclado/leitor de tela esconderia
     // o modal inteiro. onClick aqui é conveniência de mouse/touch; o botão "Fechar conversa"
     // abaixo é um <button> real, já alcançável por Tab, então não falta caminho de teclado.
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+    // biome-ignore lint/a11y/noStaticElementInteractions: dismiss por overlay, ver comentário acima
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={onClose}
@@ -71,7 +71,7 @@ export function WhatsAppChatPanel({
           painel feche o modal) — não é uma interação em si, então não há ação nova pra dar
           suporte a teclado; o conteúdo interativo real (mensagens, input, botões) já é acessível
           normalmente dentro deste painel. */}
-      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: só interrompe propagação, ver comentário acima */}
       <div
         className="bg-surface border border-line rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}

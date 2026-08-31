@@ -256,7 +256,7 @@ serviço de error tracking (Sentry etc., que este projeto conscientemente não u
 - Captura automática de contexto no momento do envio: URL, rota, marca ativa, user agent,
   viewport, e as últimas 30 entradas `warn`/`error` do `clientLogger` (ring buffer adicionado a
   `src/lib/clientLogger.ts` só para esse fim — `debug`/`info` não entram, são ruído).
-- **Sanitização antes de persistir** (`src/features/bug-reports/bugReport.sanitize.ts`): redige
+- **Sanitização antes de persistir** (`src/features/bug-reports/domain/bugReport.sanitize.ts`): redige
   padrões de segredo comuns (Bearer token, JWT, chave `sk-...`, campos `password`/`token`/`apiKey`)
   tanto na descrição quanto nos logs anexados, e limita tamanho (título 200, descrição 5000, até
   20 entradas de log de até 500 caracteres cada) — reduz o risco de um erro de terceiro vazar um

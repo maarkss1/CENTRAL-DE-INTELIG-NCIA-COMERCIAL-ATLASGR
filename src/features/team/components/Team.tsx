@@ -5,6 +5,7 @@ import {
   Copy,
   KeyRound,
   Loader2,
+  LockKeyholeOpen,
   Shield,
   Trash2,
   UserPlus,
@@ -21,6 +22,14 @@ interface TeamMember {
   role: string;
   mustChangePassword: boolean;
   createdAt: string;
+  /** Bloqueio por tentativas de login (`src/lib/auth.ts`) — nunca era exibido nem tinha ação de
+   * desbloqueio antes do Piloto 024. `null`/data passada = não bloqueado. */
+  lockedUntil: string | null;
+  failedLoginAttempts: number;
+}
+
+function isLocked(member: TeamMember): boolean {
+  return !!member.lockedUntil && new Date(member.lockedUntil).getTime() > Date.now();
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -52,6 +61,7 @@ export function Team() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
+  const [unlockingId, setUnlockingId] = useState<string | null>(null);
   const [resetError, setResetError] = useState('');
 
   const loadMembers = async () => {
@@ -127,6 +137,19 @@ export function Team() {
       setResetError(error instanceof Error ? error.message : 'Falha ao redefinir a senha.');
     } finally {
       setResettingId(null);
+    }
+  };
+
+  const handleUnlock = async (member: TeamMember) => {
+    setUnlockingId(member.id);
+    try {
+      const data = await api.post<{ member: TeamMember }>(`/api/team/${member.id}/unlock`, {});
+      setMembers((prev) => prev.map((m) => (m.id === data.member.id ? data.member : m)));
+      toast.success(`Acesso de ${member.name} desbloqueado.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao desbloquear o usuário.');
+    } finally {
+      setUnlockingId(null);
     }
   };
 
@@ -272,7 +295,7 @@ export function Team() {
           <button
             type="submit"
             disabled={isCreating || !name || !email}
-            className="bg-brand-active text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+            className="bg-brand-active text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-brand-2 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
             {isCreating ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
             {isCreating ? 'Criando...' : 'Criar usuário'}
@@ -313,6 +336,15 @@ export function Team() {
                           senha temporária
                         </span>
                       )}
+                      {isLocked(member) && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-danger/15 text-danger-active dark:text-danger font-bold">
+                          bloqueado até{' '}
+                          {new Date(member.lockedUntil!).toLocaleTimeString('pt-BR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      )}
                     </div>
                     <span className="text-xs text-ink-2">{member.email}</span>
                   </div>
@@ -320,11 +352,32 @@ export function Team() {
                     <span className="text-[10px] px-2.5 py-1 rounded-full bg-info/15 text-info-active dark:text-info font-bold">
                       {ROLE_LABELS[member.role] || member.role}
                     </span>
+                    {isLocked(member) && (
+                      <button
+                        type="button"
+                        onClick={() => void handleUnlock(member)}
+                        disabled={unlockingId === member.id}
+                        title="Desbloquear acesso (zera tentativas de login)"
+                        aria-label={`Desbloquear acesso de ${member.name}`}
+                        className="text-ink-2 hover:bg-warning/10 hover:text-warning-active dark:hover:text-warning p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        {unlockingId === member.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <LockKeyholeOpen size={14} />
+                        )}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleResetPassword(member)}
                       disabled={resettingId === member.id}
                       title={
+                        member.id === currentUser?.id
+                          ? 'Redefinir a sua própria senha'
+                          : `Redefinir a senha de ${member.name}`
+                      }
+                      aria-label={
                         member.id === currentUser?.id
                           ? 'Redefinir a sua própria senha'
                           : `Redefinir a senha de ${member.name}`
@@ -345,6 +398,11 @@ export function Team() {
                         member.id === currentUser?.id
                           ? 'Você não pode remover a própria conta'
                           : 'Remover usuário'
+                      }
+                      aria-label={
+                        member.id === currentUser?.id
+                          ? 'Você não pode remover a própria conta'
+                          : `Remover ${member.name}`
                       }
                       className="text-danger-active dark:text-danger hover:bg-danger/10 p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >

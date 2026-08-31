@@ -1,5 +1,5 @@
-import { Repository } from '../../../shared/domain/Repository';
-import { LeadFunnel, LeadStatus, LeadTemperature } from '@prisma/client';
+import type { Repository } from '../../../shared/domain/Repository';
+import type { LeadFunnel, LeadStatus, LeadTemperature } from '@prisma/client';
 
 export interface Lead {
   id: string;

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { container } from '../../../../shared/di/container.js';
-import { QualificationMatrixController } from '../presentation/QualificationMatrixController.js';
+import type { QualificationMatrixController } from '../presentation/QualificationMatrixController.js';
 import { validateRequest } from '../../../../shared/middlewares/validateRequest.js';
 import { requireRole } from '../../../../shared/middlewares/requireRole.js';
 import { qualificationMatrixItemSchema } from '../../playbook.schema.js';

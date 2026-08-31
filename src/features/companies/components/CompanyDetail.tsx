@@ -21,10 +21,10 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { LinkedinIcon as Linkedin } from '../../../components/ui/icons/LinkedinIcon';
-import { Company } from '../../../types';
+import type { Company } from '../../../types';
 import { api } from '../../../lib/api';
 import { formatCnpj } from '../../../lib/cnpj';
-import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
+import { TechToolLogo, type TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
 import { clientLogger } from '../../../lib/clientLogger';
@@ -312,8 +312,8 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
             {/* Lista de Contatos */}
             <div className="bg-surface p-6 rounded-3xl border border-line shadow-xl space-y-4">
               <h2 className="text-lg font-bold text-ink flex items-center gap-2">
-                <Users className="w-5 h-5 text-ink/70 dark:text-ink-2" />
-                👥 Decisores & Contatos Mapeados ({company.contacts?.length || 0})
+                <Users className="w-5 h-5 text-ink/70 dark:text-ink-2" />👥 Decisores & Contatos
+                Mapeados ({company.contacts?.length || 0})
               </h2>
               {company.contacts && company.contacts.length > 0 ? (
                 <div className="space-y-3">

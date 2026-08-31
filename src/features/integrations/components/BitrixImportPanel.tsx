@@ -349,14 +349,18 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
       setSelected(new Set());
     } else {
       const nextSet = new Set(selected);
-      availableItems.forEach((item) => nextSet.add(item.id));
+      availableItems.forEach((item) => {
+        nextSet.add(item.id);
+      });
       setSelected(nextSet);
     }
   };
 
   const selectAllAvailable = () => {
     const nextSet = new Set(selected);
-    availableItems.forEach((item) => nextSet.add(item.id));
+    availableItems.forEach((item) => {
+      nextSet.add(item.id);
+    });
     setSelected(nextSet);
   };
 

@@ -1,10 +1,10 @@
 import makeWASocket, {
   DisconnectReason,
   Browsers,
-  WASocket,
+  type WASocket,
   fetchLatestBaileysVersion,
 } from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
+import type { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import pino from 'pino';
 import path from 'path';
@@ -222,6 +222,9 @@ export async function initWhatsApp(organizationId: string) {
       fs.rmSync(authFolder, { recursive: true, force: true });
     }
 
+    // useRedisAuthState não é um hook React — é uma função de infra (Baileys/Redis) cujo nome
+    // começa com "use" por coincidência.
+    // biome-ignore lint/correctness/useHookAtTopLevel: ver comentário acima
     const authState = await useRedisAuthState(cacheConnection, organizationId);
     saveCreds = authState.saveCreds;
     const { version } = await withTimeout(fetchLatestBaileysVersion(), 15_000);

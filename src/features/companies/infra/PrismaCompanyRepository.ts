@@ -1,6 +1,6 @@
-import { Company, CompanyRepository } from '../domain/Company';
+import type { Company, CompanyRepository } from '../domain/Company';
 import { prisma } from '../../../lib/prisma';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { env } from '../../../config/env';
 import { searchCompanyIds } from '../../../lib/search/index';
 

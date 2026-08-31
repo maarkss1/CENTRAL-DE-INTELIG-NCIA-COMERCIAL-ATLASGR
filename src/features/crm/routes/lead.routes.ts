@@ -6,7 +6,7 @@ import { requireLeadOwnership } from '../../../shared/middlewares/requireLeadOwn
 import { auditAccessMiddleware } from '../../../lib/security/auditLog.middleware.js';
 import { leadSchema } from '../../../lib/zod.js';
 import { container } from '../../../shared/di/container.js';
-import { LeadController } from '../presentation/LeadController.js';
+import type { LeadController } from '../presentation/LeadController.js';
 
 const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);

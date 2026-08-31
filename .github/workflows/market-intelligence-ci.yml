@@ -6,7 +6,11 @@ on:
       - main
     paths:
       - 'src/features/market-intelligence/**'
+      - 'public/tools/atlas-market-intelligence/**'
+      - 'scripts/market_intelligence/**'
       - 'tests/unit/market-intelligence/**'
+      - 'tests/python/market_intelligence/**'
+      - 'tests/e2e/market-intelligence.spec.ts'
       - 'tsconfig.market-intelligence.json'
       - '.github/workflows/market-intelligence-ci.yml'
   pull_request:
@@ -14,7 +18,11 @@ on:
       - main
     paths:
       - 'src/features/market-intelligence/**'
+      - 'public/tools/atlas-market-intelligence/**'
+      - 'scripts/market_intelligence/**'
       - 'tests/unit/market-intelligence/**'
+      - 'tests/python/market_intelligence/**'
+      - 'tests/e2e/market-intelligence.spec.ts'
       - 'tsconfig.market-intelligence.json'
       - '.github/workflows/market-intelligence-ci.yml'
   workflow_dispatch:
@@ -40,6 +48,9 @@ jobs:
 
       - name: Enforce LDR integrity guard
         run: node scripts/security/check-ldr-integrity.mjs
+
+      - name: Run Market Intelligence Python ETL fixtures
+        run: python3 -m unittest discover -s tests/python/market_intelligence -p 'test_*.py'
 
       - name: Setup Node.js 22
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
