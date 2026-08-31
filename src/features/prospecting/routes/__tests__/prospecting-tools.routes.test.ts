@@ -120,7 +120,9 @@ describe('POST /api/prospecting/tools/github', () => {
 
   it('busca organizações e repassa o resultado', async () => {
     searchGithubOrganizationsMock.mockResolvedValue({
-      organizations: [{ login: 'atlasgr', htmlUrl: 'https://github.com/atlasgr', avatarUrl: 'https://x/a.png' }],
+      organizations: [
+        { login: 'atlasgr', htmlUrl: 'https://github.com/atlasgr', avatarUrl: 'https://x/a.png' },
+      ],
     });
     const app = buildApp();
 
@@ -148,7 +150,16 @@ describe('POST /api/prospecting/tools/github/profile', () => {
 
   it('devolve o perfil encontrado', async () => {
     getGithubOrganizationProfileMock.mockResolvedValue({
-      profile: { login: 'atlasgr', name: 'AtlasGR', description: null, blog: null, location: null, publicRepos: 3, htmlUrl: 'https://github.com/atlasgr', avatarUrl: 'https://x/a.png' },
+      profile: {
+        login: 'atlasgr',
+        name: 'AtlasGR',
+        description: null,
+        blog: null,
+        location: null,
+        publicRepos: 3,
+        htmlUrl: 'https://github.com/atlasgr',
+        avatarUrl: 'https://x/a.png',
+      },
     });
     const app = buildApp();
 
@@ -174,7 +185,12 @@ describe('POST /api/prospecting/tools/news', () => {
 
   it('busca menções de notícias e repassa o resultado', async () => {
     searchCompanyNewsMock.mockResolvedValue([
-      { title: 'Empresa X expande frota', url: 'https://noticia.com/1', domain: 'noticia.com', seenAt: '20260101T000000Z' },
+      {
+        title: 'Empresa X expande frota',
+        url: 'https://noticia.com/1',
+        domain: 'noticia.com',
+        seenAt: '20260101T000000Z',
+      },
     ]);
     const app = buildApp();
 
@@ -192,7 +208,9 @@ describe('POST /api/prospecting/tools/youtube', () => {
   it('rejeita URL inválida antes de consultar o YouTube', async () => {
     const app = buildApp();
 
-    const res = await request(app).post('/api/prospecting/tools/youtube').send({ url: 'não-é-url' });
+    const res = await request(app)
+      .post('/api/prospecting/tools/youtube')
+      .send({ url: 'não-é-url' });
 
     expect(res.status).toBe(400);
     expect(getYoutubeVideoInfoMock).not.toHaveBeenCalled();
@@ -200,7 +218,13 @@ describe('POST /api/prospecting/tools/youtube', () => {
 
   it('devolve os metadados do vídeo', async () => {
     getYoutubeVideoInfoMock.mockResolvedValue({
-      info: { title: 'Vídeo', authorName: 'Canal', authorUrl: 'https://youtube.com/@canal', thumbnailUrl: 'https://x/t.jpg', videoUrl: 'https://youtube.com/watch?v=abc' },
+      info: {
+        title: 'Vídeo',
+        authorName: 'Canal',
+        authorUrl: 'https://youtube.com/@canal',
+        thumbnailUrl: 'https://x/t.jpg',
+        videoUrl: 'https://youtube.com/watch?v=abc',
+      },
     });
     const app = buildApp();
 

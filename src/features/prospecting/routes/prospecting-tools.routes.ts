@@ -6,7 +6,10 @@ import { discoverViaGooglePlaces, fetchKnownExclusions } from '../services/prosp
 import type { ProspectCriteria } from '../services/prospecting.service.js';
 import { fetchApolloCandidates } from '../services/apollo.service.js';
 import { findPeopleViaDomainSearch, findEmailViaHunter } from '../services/hunter.service.js';
-import { searchGithubOrganizations, getGithubOrganizationProfile } from '../services/github.service.js';
+import {
+  searchGithubOrganizations,
+  getGithubOrganizationProfile,
+} from '../services/github.service.js';
 import { searchCompanyNews } from '../services/news.service.js';
 import { getYoutubeVideoInfo } from '../services/youtube.service.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
@@ -49,7 +52,12 @@ const newsSearchSchema = z.object({
 });
 
 const youtubeLookupSchema = z.object({
-  url: z.string().trim().min(1, 'Informe a URL de um vídeo do YouTube').max(500).url('URL inválida'),
+  url: z
+    .string()
+    .trim()
+    .min(1, 'Informe a URL de um vídeo do YouTube')
+    .max(500)
+    .url('URL inválida'),
 });
 
 async function resolveExclusions(req: Request): Promise<ExclusionSet> {
