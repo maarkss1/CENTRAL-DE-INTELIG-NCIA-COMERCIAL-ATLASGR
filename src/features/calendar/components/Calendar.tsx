@@ -92,6 +92,17 @@ function DraggableActivity({
       {...listeners}
       {...attributes}
       onClick={() => onOpen(activity)}
+      // `{...listeners}` do dnd-kit já traz o próprio onKeyDown (Space ativa o pickup de
+      // arrastar) — sobrescrever sem chamá-lo primeiro reproduziria o mesmo bug real já
+      // encontrado e corrigido em CrmBoard.tsx/KanbanCard (onKeyDown customizado apagando o do
+      // dnd-kit, drag por teclado ficava inoperável). Enter abre o detalhe, sem colidir com Space.
+      onKeyDown={(e) => {
+        listeners?.onKeyDown?.(e);
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          onOpen(activity);
+        }
+      }}
       role="button"
       tabIndex={0}
       aria-label={`${activity.type} — ${activitySubject(activity)} — ${activity.status}`}
