@@ -9,6 +9,7 @@ import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
 import { BugReportButton } from '../ui/BugReportButton';
 import { VoiceCommandWidget } from '../ui/VoiceCommandWidget';
 import { CommandPalette } from '../ui/CommandPalette';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { motion } from 'framer-motion';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
 import { useNavigationBusBridge } from '../../hooks/useNavigationBusBridge';
@@ -94,6 +95,9 @@ export function MainLayout({ children }: MainLayoutProps) {
           <AtlasChatbotTrigger />
           <BugReportButton />
           <CommandPalette />
+          <BottomSheet open={false} onOpenChange={() => {}} snapPoints={['50%', '90%']}>
+            <div />
+          </BottomSheet>
         </div>
       </div>
     </div>
