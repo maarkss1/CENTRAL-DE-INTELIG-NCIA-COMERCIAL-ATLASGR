@@ -106,6 +106,31 @@ uma exceção nova" abaixo (violação real corrigida), não uma exceção nova.
 
 **Total atualizado:** 108 violações (109 − 3 obsoletas + 2 novas).
 
+## 2026-08-31 — 2 exceções novas registradas
+
+Duas violações novas apareceram no `main` em commits recentes (features `dashboard` e
+`gamification`), detectadas ao investigar por que o job `build` do CI estava vermelho:
+
+- `dashboard/components/SinglePageDashboard.tsx` → `analytics/components/GlowChart.tsx`: o
+  dashboard consolidado reusa o componente de gráfico de `analytics` diretamente em vez de um
+  gráfico próprio ou de um componente compartilhado em `src/components/ui/`. Tratado como caso 2
+  (decisão de arquitetura aceita, não revertida aqui) — extrair `GlowChart` para `src/components/ui/`
+  resolveria de forma mais limpa, mas é refactor de UI fora do escopo de destravar o gate. Dono:
+  Agente 02 — Produto e UX (`from`, `dashboard`); Agente 04 — CRM e BI (`to`, dono de `analytics`).
+- `gamification/routes/gamification.routes.ts` → `intelligence/services/CentralAISuiteService.ts`:
+  a rota de gamificação chama `aiSuite.sellerCoaching.generateCoachingReport(...)` para gerar o
+  relatório de coaching do vendedor — dependência de negócio real (gamificação precisa do
+  agente de IA de coaching que vive em `intelligence`), não um erro de import. Dono: **sem
+  `AGENTS.md` de governança na pasta** `gamification` (`from`); Agente 07 — IA e Automações (`to`,
+  dono de `intelligence`).
+
+Nenhuma das duas foi escrita por esta sessão — registradas aqui só para destravar o gate
+compartilhado de CI; o dono de cada lado decide, no checkpoint de reavaliação, se vale a pena
+resolver de verdade (ex.: extrair um contrato em `src/shared/` para o caso do `gamification`) ou
+manter como está.
+
+**Total atualizado:** 112 violações.
+
 ## Como adicionar uma exceção nova (crescer a baseline deliberadamente)
 
 Só em dois casos:
