@@ -1,6 +1,6 @@
-import { Contact, ContactRepository } from '../domain/Contact';
+import type { Contact, ContactRepository } from '../domain/Contact';
 import { prisma } from '../../../lib/prisma';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { contactSearchIndexClauses } from '../../../lib/crypto/piiIndex.js';
 
 export class PrismaContactRepository implements ContactRepository {

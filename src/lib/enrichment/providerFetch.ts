@@ -146,7 +146,6 @@ export async function fetchWithProviderRetry(
         `Resposta transitória (${res.status}) de ${providerName} — tentando novamente`,
       );
       await sleep(delay);
-      continue;
     } catch (error) {
       lastError = error;
       const isTimeout = error instanceof HttpTimeoutError;

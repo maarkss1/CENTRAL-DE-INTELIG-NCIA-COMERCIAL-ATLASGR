@@ -1,4 +1,4 @@
-import { Repository } from '../../../shared/domain/Repository';
+import type { Repository } from '../../../shared/domain/Repository';
 import type { AutomationTriggerLabel, AutomationActionLabel } from '../../../lib/enumMap';
 
 export interface Automation {

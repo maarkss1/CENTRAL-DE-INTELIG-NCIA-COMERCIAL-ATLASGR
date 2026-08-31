@@ -1,5 +1,5 @@
 import { StateGraph, Annotation } from '@langchain/langgraph';
-import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { type BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { SDRQualificationAgent } from './sdrQualification.agent.js';

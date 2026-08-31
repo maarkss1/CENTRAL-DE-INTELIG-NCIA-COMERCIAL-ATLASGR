@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import type React from 'react';
+import { useEffect, useRef } from 'react';
 import { X, Filter, Info } from 'lucide-react';
-import { TechToolInfo } from './TechToolLogo';
+import type { TechToolInfo } from './TechToolLogo';
 
 interface ToolTechPopoverProps {
   info: TechToolInfo | null;

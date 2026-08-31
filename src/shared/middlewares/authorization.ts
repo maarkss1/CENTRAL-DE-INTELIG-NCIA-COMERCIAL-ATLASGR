@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuthRequest } from './authenticateToken.js';
+import type { Request, Response, NextFunction } from 'express';
+import type { AuthRequest } from './authenticateToken.js';
 import { logger } from '../../lib/logger.js';
 import { getTenantPrisma } from '../../lib/tenant-prisma.js';
 // Nota de RBAC: este arquivo já teve `requirePermission`/`requireAnyPermission`, baseados num

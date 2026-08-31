@@ -1,6 +1,6 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { cleanAndParseJson, getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
-import { IEnrichedLead } from '../../../types/prospecting';
+import type { IEnrichedLead } from '../../../types/prospecting';
 
 function describeLead(lead: IEnrichedLead): string {
   const parts = [

@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { BugReportUseCases } from '../application/BugReportUseCases.js';
+import type { Request, Response, NextFunction } from 'express';
+import type { BugReportUseCases } from '../application/BugReportUseCases.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 export class BugReportController {

@@ -19,7 +19,7 @@ import {
   PhoneCall,
   MessageCircle,
 } from 'lucide-react';
-import { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
+import type { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
 // LEAD_STATUS é reexportado como tipo em ../../../types (export type {...}) — o array em
 // runtime só existe na fonte original.
 import { LEAD_STATUS } from '../../../lib/zod';

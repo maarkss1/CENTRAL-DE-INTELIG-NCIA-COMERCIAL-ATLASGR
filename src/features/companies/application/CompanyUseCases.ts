@@ -1,5 +1,5 @@
-import { Company, CompanyRepository } from '../domain/Company';
-import { z } from 'zod';
+import type { Company, CompanyRepository } from '../domain/Company';
+import type { z } from 'zod';
 import { companySchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { enrichmentQueue } from '../../../lib/queue/enrichment.queue';

@@ -16,7 +16,7 @@ import {
   ExternalLink,
   WifiOff,
 } from 'lucide-react';
-import { Company } from '../../../types';
+import type { Company } from '../../../types';
 import { formatCnpj } from '../../../lib/cnpj';
 import { CompanyForm } from './CompanyForm';
 import { CompanyDetail } from './CompanyDetail';
@@ -24,7 +24,7 @@ import { useCompanies } from '../../../hooks/useDatabase';
 import { companiesDB } from '../../../lib/db';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Pagination } from '../../../components/ui/Pagination';
-import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
+import { TechToolLogo, type TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
 import { clientLogger } from '../../../lib/clientLogger';

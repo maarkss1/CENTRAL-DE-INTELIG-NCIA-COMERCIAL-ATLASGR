@@ -1,5 +1,5 @@
 import { createId } from '@paralleldrive/cuid2';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
 import { prisma } from '../../../lib/prisma.js';
 import { getCostPerCallUsd, type ProspectingCostProvider } from './providerCostMetrics.js';

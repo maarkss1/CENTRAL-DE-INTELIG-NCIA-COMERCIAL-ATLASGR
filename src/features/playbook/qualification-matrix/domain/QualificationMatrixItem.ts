@@ -1,4 +1,4 @@
-import { Repository } from '../../../../shared/domain/Repository';
+import type { Repository } from '../../../../shared/domain/Repository';
 
 export type QualificationBrand = 'atlasgr' | 'totaltrac';
 export type QualificationFramework = 'SPIN' | 'BANT' | 'MEDDPICC' | 'SNAP' | 'CHALLENGER';

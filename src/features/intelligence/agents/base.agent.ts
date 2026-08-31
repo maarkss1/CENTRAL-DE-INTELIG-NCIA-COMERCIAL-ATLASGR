@@ -1,5 +1,5 @@
 import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
-import { BaseMessage, SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import { type BaseMessage, SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { assertAiBudgetNotExceeded } from '../../../lib/ai/budget.js';
 import { logger } from '../../../lib/logger.js';

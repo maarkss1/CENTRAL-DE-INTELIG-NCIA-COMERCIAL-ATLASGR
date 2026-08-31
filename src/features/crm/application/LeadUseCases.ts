@@ -1,6 +1,6 @@
 import { logger } from '../../../lib/logger.js';
-import { Lead, LeadRepository } from '../domain/Lead';
-import { z } from 'zod';
+import type { Lead, LeadRepository } from '../domain/Lead';
+import type { z } from 'zod';
 import { leadSchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { fromPrismaLeadStatus } from '../../../lib/enumMap';

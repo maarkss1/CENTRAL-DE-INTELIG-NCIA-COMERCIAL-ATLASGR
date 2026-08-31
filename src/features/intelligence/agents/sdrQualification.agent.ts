@@ -5,7 +5,7 @@ import { searchPlaybookTool } from '../tools/playbookTool.js';
 import { marketResearchTool } from '../tools/marketResearchTool.js';
 import { copywriterTool } from '../tools/copywriterTool.js';
 import { summarizeLeadTool } from '../tools/summarizeLeadTool.js';
-import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { type BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId, getUserId } from '../../../lib/async-context.js';
