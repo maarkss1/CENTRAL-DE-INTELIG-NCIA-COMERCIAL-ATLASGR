@@ -76,7 +76,12 @@ export function Carousel({
   const scrollTo = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi]);
 
   return (
-    <div className={`relative w-full ${className}`} aria-roledescription="carousel">
+    <div
+      className={`relative w-full ${className}`}
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Carrossel"
+    >
       {/* Viewport do Embla */}
       <div ref={emblaRef} className="overflow-hidden rounded-2xl">
         <div className={`flex ${slideClassName}`}>{children}</div>

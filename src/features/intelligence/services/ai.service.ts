@@ -343,7 +343,7 @@ export class AIService {
       : TOOL_CONFIG[toolId];
     const model = getAiModel(modelAlias, temperature, toolId);
     const startTime = Date.now();
-    let response;
+    let response: Awaited<ReturnType<typeof model.invoke>>;
     try {
       response = await withRetry(() =>
         model.invoke([new SystemMessage(systemPrompt), new HumanMessage(userPrompt)]),
