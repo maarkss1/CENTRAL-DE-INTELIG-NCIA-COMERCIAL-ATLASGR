@@ -1,0 +1,55 @@
+/**
+ * knip.json — configuração do Knip para detectar código morto
+ *
+ * Knip analisa o grafo de imports a partir dos entry points e reporta:
+ * - Arquivos nunca importados
+ * - Exports nunca consumidos fora do próprio arquivo
+ * - Dependências em package.json não usadas no código
+ *
+ * Gap resolvido (mapeado em PRODUCT_EXPERIENCE_CENTRAL_ATLASGR.md):
+ * - src/components/layout/nav.ts — segundo sistema de navegação morto
+ * - Topbar.tsx — duplicata de AppTopbar sem uso
+ * - Settings.tsx — existe mas não está no roteamento
+ */
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "src/App.tsx",
+    "server.ts",
+    "worker.ts",
+    "vite.config.ts",
+    "vitest.unit.config.ts",
+    "vitest.integration.config.ts",
+    "playwright.config.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "server/**/*.{ts,tsx}",
+    "scripts/**/*.{ts,mjs,js}"
+  ],
+  "ignore": [
+    "src/**/*.stories.tsx",
+    "src/**/__tests__/**",
+    "tests/**",
+    "dist/**",
+    "node_modules/**",
+    "**/*.d.ts"
+  ],
+  "ignoreDependencies": [
+    "@types/*",
+    "typescript",
+    "eslint",
+    "prettier",
+    "tailwindcss",
+    "autoprefixer",
+    "postcss"
+  ],
+  "rules": {
+    "files": "warn",
+    "exports": "warn",
+    "dependencies": "warn",
+    "devDependencies": "warn",
+    "unlisted": "warn"
+  }
+}

@@ -411,4 +411,31 @@ router.get(
   },
 );
 
+// Enriquecimento web usando scraper Crawlee (placeholder)
+router.post(
+  '/enrich',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { url } = req.body as { url?: string };
+      if (!url) {
+        res.status(400).json({ success: false, error: 'A URL é obrigatória para o scraper' });
+        return;
+      }
+      
+      // Placeholder para execução real do Crawlee
+      res.json({
+        success: true,
+        data: {
+          scrapedUrl: url,
+          emails: [],
+          phones: [],
+          textSnippet: 'Texto extraído pelo scraper (placeholder)',
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 export const prospectingRoutes = router;

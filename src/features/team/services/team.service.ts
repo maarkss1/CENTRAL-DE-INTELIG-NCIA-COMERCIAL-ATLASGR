@@ -24,19 +24,27 @@ export interface TeamMember {
   role: string;
   mustChangePassword: boolean;
   createdAt: Date;
+  /** Bloqueio por tentativas de login (`src/lib/auth.ts`) — nunca era selecionado nem exibido
+   * antes do Piloto 024. `null`/data passada = não bloqueado. */
+  lockedUntil: Date | null;
+  failedLoginAttempts: number;
 }
+
+const TEAM_MEMBER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  mustChangePassword: true,
+  createdAt: true,
+  lockedUntil: true,
+  failedLoginAttempts: true,
+} as const;
 
 export async function listTeamMembers(organizationId: string): Promise<TeamMember[]> {
   return prisma.user.findMany({
     where: { organizationId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      mustChangePassword: true,
-      createdAt: true,
-    },
+    select: TEAM_MEMBER_SELECT,
     orderBy: { createdAt: 'asc' },
   });
 }
@@ -110,14 +118,7 @@ export async function createTeamMember(input: {
         },
       },
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      mustChangePassword: true,
-      createdAt: true,
-    },
+    select: TEAM_MEMBER_SELECT,
   });
 
   return { member, tempPassword };
@@ -175,17 +176,35 @@ export async function resetTeamMemberPassword(
   const member = await prisma.user.update({
     where: { id: targetUserId },
     data: { mustChangePassword: true },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      mustChangePassword: true,
-      createdAt: true,
-    },
+    select: TEAM_MEMBER_SELECT,
   });
 
   return { member, tempPassword };
+}
+
+/**
+ * Zera o bloqueio por tentativas de login (`src/lib/auth.ts`, 5 tentativas erradas = 15 min de
+ * lockout). Antes deste piloto, a única forma de destravar um colega bloqueado era esperar os 15
+ * minutos ou mexer direto no banco — o campo existia (`User.lockedUntil`/`failedLoginAttempts`)
+ * mas não tinha nenhuma rota nem ação de UI (achado do Piloto 024).
+ */
+export async function unlockTeamMember(
+  organizationId: string,
+  targetUserId: string,
+): Promise<TeamMember> {
+  const target = await prisma.user.findFirst({
+    where: { id: targetUserId, organizationId },
+    select: { id: true },
+  });
+  if (!target) {
+    throw new TeamServiceError('Usuário não encontrado nesta organização.', 404);
+  }
+
+  return prisma.user.update({
+    where: { id: targetUserId },
+    data: { lockedUntil: null, failedLoginAttempts: 0 },
+    select: TEAM_MEMBER_SELECT,
+  });
 }
 
 export async function deleteTeamMember(
@@ -199,10 +218,26 @@ export async function deleteTeamMember(
 
   const target = await prisma.user.findFirst({
     where: { id: targetUserId, organizationId },
-    select: { id: true },
+    select: { id: true, role: true },
   });
   if (!target) {
     throw new TeamServiceError('Usuário não encontrado nesta organização.', 404);
+  }
+
+  // Auto-exclusão já bloqueada acima, e não existe rota de edição de papel neste módulo — hoje é
+  // impossível zerar os ADMINs de uma organização pela UI só "por acidente" dessas duas
+  // ausências. Trava explícita aqui pra não depender desse acidente continuar valendo se uma
+  // função de editar papel for adicionada no futuro (achado real do Piloto 024).
+  if (target.role === 'ADMIN') {
+    const remainingAdmins = await prisma.user.count({
+      where: { organizationId, role: 'ADMIN' },
+    });
+    if (remainingAdmins <= 1) {
+      throw new TeamServiceError(
+        'Não é possível excluir o único ADMIN da organização. Promova outro usuário a ADMIN antes.',
+        400,
+      );
+    }
   }
 
   // Session/Account têm onDelete: Cascade a partir de User — uma única exclusão basta.

@@ -1,0 +1,404 @@
+## docker-compose.services.yml
+## Serviços adicionais das Ondas OS-3 a OS-7
+##
+## Uso: docker compose -f docker-compose.yml -f docker-compose.opensource.yml -f docker-compose.services.yml up -d
+##
+## IMPORTANTE: este arquivo NÃO substitui o docker-compose.yml nem o docker-compose.opensource.yml.
+## É um arquivo de extensão (overlay) que adiciona apenas os novos serviços open-source.
+## Variáveis de ambiente com valores default de dev — definir em .env para sobrescrever.
+
+services:
+
+  # ───────────────────────────────────────────────────────
+  # OS-3: Flowise — Builder visual de agentes IA
+  # http://localhost:3008
+  # ───────────────────────────────────────────────────────
+  flowise:
+    image: flowiseai/flowise:latest
+    container_name: atlas_flowise
+    environment:
+      PORT: 3008
+      DATABASE_TYPE: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${POSTGRES_DB:-prospectordb}
+      DATABASE_USER: ${POSTGRES_USER:-prospector}
+      DATABASE_PASSWORD: ${APP_DB_PASSWORD:-prospector_app_pass}
+      FLOWISE_USERNAME: ${FLOWISE_USERNAME:-admin}
+      FLOWISE_PASSWORD: ${FLOWISE_PASSWORD:-change-this-flowise-password}
+      FLOWISE_SECRETKEY_OVERWRITE: ${FLOWISE_SECRET_KEY:-change-this-flowise-secret}
+      LOG_LEVEL: info
+      TOOL_FUNCTION_BUILTIN_DEP: crypto,fs
+    ports:
+      - "3008:3008"
+    volumes:
+      - atlas_flowise_data:/root/.flowise
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3008/api/v1/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ───────────────────────────────────────────────────────
+  # OS-3: OpenWebUI — Interface para Ollama + LiteLLM
+  # http://localhost:3009
+  # ───────────────────────────────────────────────────────
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: atlas_openwebui
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY:-sk-atlas-master}
+      WEBUI_AUTH: "true"
+      WEBUI_SECRET_KEY: ${OPENWEBUI_SECRET:-change-this-openwebui-secret}
+      DEFAULT_MODELS: llama3
+    ports:
+      - "3009:8080"
+    volumes:
+      - atlas_openwebui_data:/app/backend/data
+    depends_on:
+      ollama:
+        condition: service_started
+      litellm:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  # ───────────────────────────────────────────────────────
+  # OS-4: n8n — Automações visuais no-code
+  # http://localhost:5678
+  # ───────────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: atlas_n8n
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-prospector}
+      DB_POSTGRESDB_PASSWORD: ${APP_DB_PASSWORD:-prospector_app_pass}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change-this-n8n-key-32chars-min}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678}
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:-change-this-n8n-password}
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      TZ: America/Sao_Paulo
+    ports:
+      - "5678:5678"
+    volumes:
+      - atlas_n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5678/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ───────────────────────────────────────────────────────
+  # OS-4: Temporal — Workflow engine durável
+  # API: localhost:7233 | UI: http://localhost:8088
+  # ───────────────────────────────────────────────────────
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: atlas_temporal
+    environment:
+      DB: postgresql
+      DB_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-prospector}
+      POSTGRES_PWD: ${APP_DB_PASSWORD:-prospector_app_pass}
+      POSTGRES_SEEDS: postgres
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    ports:
+      - "7233:7233"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: atlas_temporal_ui
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8088:8080"
+    depends_on:
+      - temporal
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  # ───────────────────────────────────────────────────────
+  # OS-4: Apache Superset — BI self-hosted
+  # http://localhost:8089 (admin / AtlasGR@2026)
+  # ───────────────────────────────────────────────────────
+  superset:
+    image: apache/superset:latest
+    container_name: atlas_superset
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-change-this-superset-key-256bits}
+      DATABASE_DB: superset
+      DATABASE_HOST: postgres
+      DATABASE_PASSWORD: ${APP_DB_PASSWORD:-prospector_app_pass}
+      DATABASE_USER: ${POSTGRES_USER:-prospector}
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-prospector_redis_pass}
+    ports:
+      - "8089:8088"
+    volumes:
+      - atlas_superset_data:/app/superset_home
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  # ───────────────────────────────────────────────────────
+  # OS-5: Casdoor — SSO / Identity Provider / RBAC
+  # http://localhost:8000 (admin / 123456 — TROCAR em produção)
+  # ───────────────────────────────────────────────────────
+  casdoor:
+    image: casbin/casdoor:latest
+    container_name: atlas_casdoor
+    environment:
+      driverName: postgres
+      dataSourceName: "user=${POSTGRES_USER:-prospector} password=${APP_DB_PASSWORD:-prospector_app_pass} host=postgres port=5432 sslmode=disable dbname=casdoor"
+      runmode: dev
+      sessionConfig: '{"gclifetime":3600}'
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  # ───────────────────────────────────────────────────────
+  # OS-5: Infisical — Gestão de segredos self-hosted
+  # http://localhost:8200
+  # ───────────────────────────────────────────────────────
+  infisical:
+    image: infisical/infisical:latest-postgres
+    container_name: atlas_infisical
+    environment:
+      ENCRYPTION_KEY: ${INFISICAL_ENCRYPTION_KEY:-00000000000000000000000000000000}
+      AUTH_SECRET: ${INFISICAL_AUTH_SECRET:-change-this-infisical-auth-secret}
+      DB_CONNECTION_URI: postgresql://${POSTGRES_USER:-prospector}:${APP_DB_PASSWORD:-prospector_app_pass}@postgres:5432/infisical
+      REDIS_URL: redis://:${REDIS_PASSWORD:-prospector_redis_pass}@redis:6379
+      SITE_URL: http://localhost:8200
+      TELEMETRY_ENABLED: "false"
+    ports:
+      - "8200:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  # ───────────────────────────────────────────────────────
+  # OS-5: OPA — Policy as Code (sidecar de autorização)
+  # http://localhost:8181
+  # ───────────────────────────────────────────────────────
+  opa:
+    image: openpolicyagent/opa:latest
+    container_name: atlas_opa
+    command:
+      - run
+      - --server
+      - --log-level=info
+      - --log-format=json
+      - /policies
+    volumes:
+      - ./infrastructure/opa/policies:/policies:ro
+    ports:
+      - "8181:8181"
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8181/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ───────────────────────────────────────────────────────
+  # OS-5: Qdrant — Vector Database
+  # http://localhost:6333
+  # ───────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: atlas_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - atlas_qdrant_data:/qdrant/storage
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:6333/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ───────────────────────────────────────────────────────
+  # OS-6: LiveKit — Voz/Vídeo WebRTC
+  # http://localhost:7880 | API: localhost:7881
+  # ───────────────────────────────────────────────────────
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: atlas_livekit
+    command: --dev --bind 0.0.0.0
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-devkey}:${LIVEKIT_API_SECRET:-change-this-livekit-secret-min32}"
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  # ───────────────────────────────────────────────────────
+  # OS-6: Chatwoot — Omnichannel inbox
+  # http://localhost:3005
+  # ───────────────────────────────────────────────────────
+  chatwoot:
+    image: chatwoot/chatwoot:latest
+    container_name: atlas_chatwoot
+    command: bundle exec rails s -p 3000 -b 0.0.0.0
+    environment:
+      SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY:-change-this-chatwoot-secret-key-very-long}
+      FRONTEND_URL: http://localhost:3005
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: chatwoot
+      POSTGRES_USERNAME: ${POSTGRES_USER:-prospector}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:-prospector_app_pass}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-prospector_redis_pass}@redis:6379
+      RAILS_ENV: production
+      NODE_ENV: production
+    ports:
+      - "3005:3000"
+    volumes:
+      - atlas_chatwoot_data:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  # ───────────────────────────────────────────────────────
+  # OS-7: Uptime Kuma — Status page de todas as integrações
+  # http://localhost:3003
+  # ───────────────────────────────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: atlas_uptime_kuma
+    ports:
+      - "3003:3001"
+    volumes:
+      - atlas_uptime_kuma_data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "extra/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ───────────────────────────────────────────────────────
+  # OS-7: Pocketbase — Backend leve para Test Harness
+  # http://localhost:8090 (perfil: tools, test)
+  # ───────────────────────────────────────────────────────
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: atlas_pocketbase_test
+    profiles: [tools, test]
+    ports:
+      - "8090:8090"
+    volumes:
+      - atlas_pocketbase_data:/pb_data
+    security_opt:
+      - no-new-privileges:true
+
+  # ───────────────────────────────────────────────────────
+  # OS-7: Plane — Gestão de projetos/ondas
+  # http://localhost:3004
+  # ───────────────────────────────────────────────────────
+  plane-api:
+    image: makeplane/plane-backend:latest
+    container_name: atlas_plane_api
+    environment:
+      DJANGO_SETTINGS_MODULE: plane.settings.production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-prospector}:${APP_DB_PASSWORD:-prospector_app_pass}@postgres:5432/plane
+      REDIS_URL: redis://:${REDIS_PASSWORD:-prospector_redis_pass}@redis:6379
+      SECRET_KEY: ${PLANE_SECRET_KEY:-change-this-plane-secret-key}
+      WEB_URL: http://localhost:3004
+    ports:
+      - "8091:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  plane-frontend:
+    image: makeplane/plane-frontend:latest
+    container_name: atlas_plane_frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8091
+    ports:
+      - "3004:3000"
+    depends_on:
+      - plane-api
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  atlas_flowise_data:
+  atlas_openwebui_data:
+  atlas_n8n_data:
+  atlas_superset_data:
+  atlas_casdoor_data:
+  atlas_infisical_data:
+  atlas_qdrant_data:
+  atlas_chatwoot_data:
+  atlas_uptime_kuma_data:
+  atlas_pocketbase_data:

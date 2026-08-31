@@ -13,6 +13,7 @@ import {
   Cell,
   LabelList,
 } from 'recharts';
+import { BarChart as EChartsBar } from '../../../components/charts';
 import { BarChart3, AlertTriangle, Loader2, RefreshCw, Table2, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -32,6 +33,7 @@ import {
   LostReasonsWidget,
   TmqTile,
 } from './DashboardExtensions';
+import { BarChart as EBarChart } from '../../../components/charts';
 
 /**
  * Paleta validada com o script do guia de data-viz contra a superfície escura dos cards
@@ -648,6 +650,14 @@ export function Analytics() {
               </Card>
             </div>
 
+            <EBarChart title="Prospecção" data={{ categories: ['Jan', 'Fev'], series: [{ name: 'Leads', data: [10, 20] }] }} />
+            <Card padding="sm" className="mb-6">
+              <EChartsBar
+                title="Prospecção"
+                data={{ categories: ['Jan', 'Fev'], series: [{ name: 'Leads', data: [10, 20] }] }}
+              />
+            </Card>
+
             <CohortAnalysis />
           </motion.div>
         )}
@@ -655,3 +665,4 @@ export function Analytics() {
     </div>
   );
 }
+
