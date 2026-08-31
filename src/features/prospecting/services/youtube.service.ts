@@ -73,7 +73,8 @@ async function getYoutubeVideoInfoUncached(
       };
     }
     const data = (await res.json()) as YoutubeOEmbedResponse;
-    if (!data.title) return { info: null, error: 'Resposta do YouTube sem título — tente outro link.' };
+    if (!data.title)
+      return { info: null, error: 'Resposta do YouTube sem título — tente outro link.' };
     return {
       info: {
         title: data.title,

@@ -69,11 +69,9 @@ export async function searchGithubOrganizations(
   if (!trimmed) return { organizations: [] };
 
   const cacheKey = buildProviderCacheKey('github', 'search-orgs', { query: trimmed, limit });
-  return withProviderCache(
-    cacheKey,
-    () => searchGithubOrganizationsUncached(trimmed, limit),
-    { shouldCache: (result) => !result.error },
-  );
+  return withProviderCache(cacheKey, () => searchGithubOrganizationsUncached(trimmed, limit), {
+    shouldCache: (result) => !result.error,
+  });
 }
 
 async function searchGithubOrganizationsUncached(
@@ -130,11 +128,9 @@ export async function getGithubOrganizationProfile(
   if (!trimmed) return { profile: null };
 
   const cacheKey = buildProviderCacheKey('github', 'org-profile', { login: trimmed });
-  return withProviderCache(
-    cacheKey,
-    () => getGithubOrganizationProfileUncached(trimmed),
-    { shouldCache: (result) => !result.error },
-  );
+  return withProviderCache(cacheKey, () => getGithubOrganizationProfileUncached(trimmed), {
+    shouldCache: (result) => !result.error,
+  });
 }
 
 async function getGithubOrganizationProfileUncached(
