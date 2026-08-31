@@ -86,9 +86,7 @@ export function RichTextEditor({
         orderedList: { keepMarks: true, keepAttributes: false },
       }),
       Placeholder.configure({ placeholder }),
-      ...(characterLimit > 0
-        ? [CharacterCount.configure({ limit: characterLimit })]
-        : []),
+      ...(characterLimit > 0 ? [CharacterCount.configure({ limit: characterLimit })] : []),
     ],
     content,
     editable: !readOnly,
@@ -99,9 +97,12 @@ export function RichTextEditor({
 
   if (!editor) return null;
 
-  const charCount = characterLimit > 0
-    ? (editor.storage as { characterCount?: { characters: () => number } }).characterCount?.characters?.() ?? 0
-    : null;
+  const charCount =
+    characterLimit > 0
+      ? ((
+          editor.storage as { characterCount?: { characters: () => number } }
+        ).characterCount?.characters?.() ?? 0)
+      : null;
 
   return (
     <div
@@ -224,7 +225,7 @@ export function RichTextEditor({
       )}
 
       {/* Bubble menu temporariamente removido até resolvermos os types */}
-      
+
       {/* Área de edição */}
       <EditorContent
         editor={editor}

@@ -152,9 +152,7 @@ export function ScriptDocument({ data }: { data: ScriptDocumentData }) {
             {data.companyName ? ` · ${data.companyName}` : ''}
             {data.contactName ? ` · ${data.contactName}` : ''}
           </Text>
-          <Text style={[BASE_STYLES.subtitle, { marginTop: 4 }]}>
-            Gerado em {data.generatedAt}
-          </Text>
+          <Text style={[BASE_STYLES.subtitle, { marginTop: 4 }]}>Gerado em {data.generatedAt}</Text>
         </View>
 
         {/* Abertura */}
@@ -173,7 +171,12 @@ export function ScriptDocument({ data }: { data: ScriptDocumentData }) {
             <Text style={BASE_STYLES.sectionTitle}>🎯 Perguntas de Qualificação</Text>
             {data.qualification.map((q, i) => (
               <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
-                <Text style={[BASE_STYLES.body, { width: 20, color: '#F97316', fontFamily: 'Helvetica-Bold' }]}>
+                <Text
+                  style={[
+                    BASE_STYLES.body,
+                    { width: 20, color: '#F97316', fontFamily: 'Helvetica-Bold' },
+                  ]}
+                >
                   {i + 1}.
                 </Text>
                 <Text style={[BASE_STYLES.body, { flex: 1 }]}>{q}</Text>
@@ -196,7 +199,12 @@ export function ScriptDocument({ data }: { data: ScriptDocumentData }) {
             <Text style={BASE_STYLES.sectionTitle}>🛡️ Tratamento de Objeções</Text>
             {data.objectionHandling.map((item, i) => (
               <View key={i} style={{ marginBottom: 10 }}>
-                <Text style={[BASE_STYLES.body, { fontFamily: 'Helvetica-Bold', color: '#DC2626', marginBottom: 3 }]}>
+                <Text
+                  style={[
+                    BASE_STYLES.body,
+                    { fontFamily: 'Helvetica-Bold', color: '#DC2626', marginBottom: 3 },
+                  ]}
+                >
                   Objeção: {item.objection}
                 </Text>
                 <Text style={[BASE_STYLES.body, { color: '#374151' }]}>
@@ -233,9 +241,10 @@ export function ScriptDocument({ data }: { data: ScriptDocumentData }) {
         {/* Footer */}
         <View style={BASE_STYLES.footer} fixed>
           <Text style={BASE_STYLES.footerText}>AtlasGR — Confidencial</Text>
-          <Text style={BASE_STYLES.footerText} render={({ pageNumber, totalPages }) =>
-            `Página ${pageNumber} de ${totalPages}`
-          } />
+          <Text
+            style={BASE_STYLES.footerText}
+            render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
+          />
         </View>
       </Page>
     </Document>

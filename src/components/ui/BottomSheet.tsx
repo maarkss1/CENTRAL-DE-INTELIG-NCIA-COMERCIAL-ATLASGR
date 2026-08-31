@@ -53,15 +53,16 @@ export function BottomSheet({
           aria-describedby={description ? 'bottom-sheet-description' : undefined}
         >
           {/* Handle de arraste */}
-          <div className="mx-auto mt-3 h-1.5 w-12 flex-shrink-0 rounded-full bg-line" aria-hidden="true" />
+          <div
+            className="mx-auto mt-3 h-1.5 w-12 flex-shrink-0 rounded-full bg-line"
+            aria-hidden="true"
+          />
 
           {/* Header opcional */}
           {(title || description) && (
             <div className="px-6 pb-2 pt-4">
               {title && (
-                <Drawer.Title className="text-base font-bold text-ink">
-                  {title}
-                </Drawer.Title>
+                <Drawer.Title className="text-base font-bold text-ink">{title}</Drawer.Title>
               )}
               {description && (
                 <Drawer.Description

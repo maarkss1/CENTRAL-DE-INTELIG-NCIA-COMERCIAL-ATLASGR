@@ -107,7 +107,14 @@ export function FunnelChart({ data, title, height = 300, className = '' }: Funne
     backgroundColor: theme === 'dark' ? DARK_BG : LIGHT_BG,
     color: ATLAS_COLORS,
     title: title
-      ? { text: title, textStyle: { color: theme === 'dark' ? '#F9FAFB' : '#111827', fontSize: 13, fontWeight: 700 } }
+      ? {
+          text: title,
+          textStyle: {
+            color: theme === 'dark' ? '#F9FAFB' : '#111827',
+            fontSize: 13,
+            fontWeight: 700,
+          },
+        }
       : undefined,
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     series: [
@@ -127,7 +134,13 @@ export function FunnelChart({ data, title, height = 300, className = '' }: Funne
   };
   const ref = useEChart(option, [data, theme]);
   return (
-    <div ref={ref} style={{ height }} className={`w-full ${className}`} role="img" aria-label={title ?? 'Gráfico funil'} />
+    <div
+      ref={ref}
+      style={{ height }}
+      className={`w-full ${className}`}
+      role="img"
+      aria-label={title ?? 'Gráfico funil'}
+    />
   );
 }
 
@@ -145,13 +158,26 @@ interface SankeyChartProps extends BaseChartProps {
   links: SankeyLink[];
 }
 
-export function SankeyChart({ nodes, links, title, height = 350, className = '' }: SankeyChartProps) {
+export function SankeyChart({
+  nodes,
+  links,
+  title,
+  height = 350,
+  className = '',
+}: SankeyChartProps) {
   const { theme } = useTheme();
   const option: EChartsOption = {
     backgroundColor: theme === 'dark' ? DARK_BG : LIGHT_BG,
     color: ATLAS_COLORS,
     title: title
-      ? { text: title, textStyle: { color: theme === 'dark' ? '#F9FAFB' : '#111827', fontSize: 13, fontWeight: 700 } }
+      ? {
+          text: title,
+          textStyle: {
+            color: theme === 'dark' ? '#F9FAFB' : '#111827',
+            fontSize: 13,
+            fontWeight: 700,
+          },
+        }
       : undefined,
     tooltip: { trigger: 'item', triggerOn: 'mousemove' },
     series: [
@@ -168,7 +194,13 @@ export function SankeyChart({ nodes, links, title, height = 350, className = '' 
   };
   const ref = useEChart(option, [nodes, links, theme]);
   return (
-    <div ref={ref} style={{ height }} className={`w-full ${className}`} role="img" aria-label={title ?? 'Gráfico sankey'} />
+    <div
+      ref={ref}
+      style={{ height }}
+      className={`w-full ${className}`}
+      role="img"
+      aria-label={title ?? 'Gráfico sankey'}
+    />
   );
 }
 
@@ -188,12 +220,25 @@ interface HeatmapChartProps extends BaseChartProps {
   maxValue?: number;
 }
 
-export function HeatmapChart({ data, maxValue = 100, title, height = 200, className = '' }: HeatmapChartProps) {
+export function HeatmapChart({
+  data,
+  maxValue = 100,
+  title,
+  height = 200,
+  className = '',
+}: HeatmapChartProps) {
   const { theme } = useTheme();
   const option: EChartsOption = {
     backgroundColor: theme === 'dark' ? DARK_BG : LIGHT_BG,
     title: title
-      ? { text: title, textStyle: { color: theme === 'dark' ? '#F9FAFB' : '#111827', fontSize: 13, fontWeight: 700 } }
+      ? {
+          text: title,
+          textStyle: {
+            color: theme === 'dark' ? '#F9FAFB' : '#111827',
+            fontSize: 13,
+            fontWeight: 700,
+          },
+        }
       : undefined,
     tooltip: {
       position: 'top' as const,
@@ -202,17 +247,44 @@ export function HeatmapChart({ data, maxValue = 100, title, height = 200, classN
         `${WEEKDAYS[params.data[1] as number]} ${HOURS[params.data[0] as number]}: ${params.data[2] as number} atividades`,
     },
     grid: { top: title ? 40 : 10, bottom: 30, left: 40, right: 10 },
-    xAxis: { type: 'category', data: HOURS, splitArea: { show: true }, axisLabel: { fontSize: 10, color: '#6B7280' } },
-    yAxis: { type: 'category', data: WEEKDAYS, splitArea: { show: true }, axisLabel: { fontSize: 10, color: '#6B7280' } },
+    xAxis: {
+      type: 'category',
+      data: HOURS,
+      splitArea: { show: true },
+      axisLabel: { fontSize: 10, color: '#6B7280' },
+    },
+    yAxis: {
+      type: 'category',
+      data: WEEKDAYS,
+      splitArea: { show: true },
+      axisLabel: { fontSize: 10, color: '#6B7280' },
+    },
     visualMap: {
-      min: 0, max: maxValue, calculable: true, orient: 'horizontal', show: false,
+      min: 0,
+      max: maxValue,
+      calculable: true,
+      orient: 'horizontal',
+      show: false,
       inRange: { color: ['#1F2937', '#F97316'] },
     },
-    series: [{ type: 'heatmap', data, label: { show: false }, emphasis: { itemStyle: { shadowBlur: 10, shadowColor: '#F97316' } } }],
+    series: [
+      {
+        type: 'heatmap',
+        data,
+        label: { show: false },
+        emphasis: { itemStyle: { shadowBlur: 10, shadowColor: '#F97316' } },
+      },
+    ],
   };
   const ref = useEChart(option, [data, maxValue, theme]);
   return (
-    <div ref={ref} style={{ height }} className={`w-full ${className}`} role="img" aria-label={title ?? 'Heatmap de atividades'} />
+    <div
+      ref={ref}
+      style={{ height }}
+      className={`w-full ${className}`}
+      role="img"
+      aria-label={title ?? 'Heatmap de atividades'}
+    />
   );
 }
 
@@ -229,20 +301,46 @@ interface BarChartProps extends BaseChartProps {
   horizontal?: boolean;
 }
 
-export function BarChart({ data, horizontal = false, title, height = 280, className = '' }: BarChartProps) {
+export function BarChart({
+  data,
+  horizontal = false,
+  title,
+  height = 280,
+  className = '',
+}: BarChartProps) {
   const { theme } = useTheme();
-  const axisStyle = { axisLabel: { fontSize: 11, color: '#6B7280' }, axisLine: { lineStyle: { color: '#374151' } } };
+  const axisStyle = {
+    axisLabel: { fontSize: 11, color: '#6B7280' },
+    axisLine: { lineStyle: { color: '#374151' } },
+  };
   const option: EChartsOption = {
     backgroundColor: theme === 'dark' ? DARK_BG : LIGHT_BG,
     color: ATLAS_COLORS,
     title: title
-      ? { text: title, textStyle: { color: theme === 'dark' ? '#F9FAFB' : '#111827', fontSize: 13, fontWeight: 700 } }
+      ? {
+          text: title,
+          textStyle: {
+            color: theme === 'dark' ? '#F9FAFB' : '#111827',
+            fontSize: 13,
+            fontWeight: 700,
+          },
+        }
       : undefined,
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { textStyle: { color: '#9CA3AF', fontSize: 11 }, bottom: 0 },
-    grid: { top: title ? 44 : 10, bottom: data.series.length > 1 ? 40 : 20, left: 50, right: 20, containLabel: true },
+    grid: {
+      top: title ? 44 : 10,
+      bottom: data.series.length > 1 ? 40 : 20,
+      left: 50,
+      right: 20,
+      containLabel: true,
+    },
     [horizontal ? 'yAxis' : 'xAxis']: { type: 'category', data: data.categories, ...axisStyle },
-    [horizontal ? 'xAxis' : 'yAxis']: { type: 'value', ...axisStyle, splitLine: { lineStyle: { color: '#1F2937' } } },
+    [horizontal ? 'xAxis' : 'yAxis']: {
+      type: 'value',
+      ...axisStyle,
+      splitLine: { lineStyle: { color: '#1F2937' } },
+    },
     series: data.series.map((s) => ({
       name: s.name,
       type: 'bar' as const,
@@ -255,7 +353,13 @@ export function BarChart({ data, horizontal = false, title, height = 280, classN
   };
   const ref = useEChart(option, [data, horizontal, theme]);
   return (
-    <div ref={ref} style={{ height }} className={`w-full ${className}`} role="img" aria-label={title ?? 'Gráfico de barras'} />
+    <div
+      ref={ref}
+      style={{ height }}
+      className={`w-full ${className}`}
+      role="img"
+      aria-label={title ?? 'Gráfico de barras'}
+    />
   );
 }
 
@@ -272,18 +376,40 @@ interface LineChartProps extends BaseChartProps {
   area?: boolean;
 }
 
-export function LineChart({ data, area = false, title, height = 280, className = '' }: LineChartProps) {
+export function LineChart({
+  data,
+  area = false,
+  title,
+  height = 280,
+  className = '',
+}: LineChartProps) {
   const { theme } = useTheme();
-  const axisStyle = { axisLabel: { fontSize: 11, color: '#6B7280' }, axisLine: { lineStyle: { color: '#374151' } } };
+  const axisStyle = {
+    axisLabel: { fontSize: 11, color: '#6B7280' },
+    axisLine: { lineStyle: { color: '#374151' } },
+  };
   const option: EChartsOption = {
     backgroundColor: theme === 'dark' ? DARK_BG : LIGHT_BG,
     color: ATLAS_COLORS,
     title: title
-      ? { text: title, textStyle: { color: theme === 'dark' ? '#F9FAFB' : '#111827', fontSize: 13, fontWeight: 700 } }
+      ? {
+          text: title,
+          textStyle: {
+            color: theme === 'dark' ? '#F9FAFB' : '#111827',
+            fontSize: 13,
+            fontWeight: 700,
+          },
+        }
       : undefined,
     tooltip: { trigger: 'axis' },
     legend: { textStyle: { color: '#9CA3AF', fontSize: 11 }, bottom: 0 },
-    grid: { top: title ? 44 : 10, bottom: data.series.length > 1 ? 40 : 20, left: 50, right: 20, containLabel: true },
+    grid: {
+      top: title ? 44 : 10,
+      bottom: data.series.length > 1 ? 40 : 20,
+      left: 50,
+      right: 20,
+      containLabel: true,
+    },
     xAxis: { type: 'category', data: data.categories, boundaryGap: false, ...axisStyle },
     yAxis: { type: 'value', ...axisStyle, splitLine: { lineStyle: { color: '#1F2937' } } },
     series: data.series.map((s, i) => ({
@@ -308,6 +434,12 @@ export function LineChart({ data, area = false, title, height = 280, className =
   };
   const ref = useEChart(option, [data, area, theme]);
   return (
-    <div ref={ref} style={{ height }} className={`w-full ${className}`} role="img" aria-label={title ?? 'Gráfico de linha'} />
+    <div
+      ref={ref}
+      style={{ height }}
+      className={`w-full ${className}`}
+      role="img"
+      aria-label={title ?? 'Gráfico de linha'}
+    />
   );
 }
