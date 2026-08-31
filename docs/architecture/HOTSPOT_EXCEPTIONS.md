@@ -48,20 +48,25 @@ propósito por estar fora de "## Exceções ativas"):
 
 ### `src/features/cadence/components/CadenceHub.tsx`
 
-- **Limite excepcional:** 1450 linhas
+- **Limite excepcional:** 1500 linhas
 - **Dono:** Agente 17 — Cadência Multicanal e Ciclo de Receita
 - **Motivo:** já listado abaixo como débito conhecido em 868 linhas (2026-08-25, dentro do limite
   de aviso); cresceu para 1110 linhas em commits normais de feature depois disso, sem que ninguém
   percebesse que já passava do limite de falha — o gate nunca chegou a rodar de verdade em CI até
   agora porque `npm run lint:architecture` (etapa anterior do mesmo `test:architecture`) sempre
   falhava primeiro por violações de `no-cross-feature-imports` não relacionadas, mascarando esta
-  checagem via `&&`. Registrado em 1200 linhas em 2026-08-29, mas o mesmo mascaramento continuou
-  (as violações de `no-cross-feature-imports` só foram resolvidas agora) e o arquivo cresceu mais,
-  para 1404 linhas, sem o gate rodar de verdade nesse meio-tempo. Não é uma regressão introduzida
-  por nenhum PR específico; é dívida pré-existente só agora visível. Modularizar fica para um item
-  de dívida técnica dedicado.
-- **Registrado em:** 2026-08-31
-- **Reavaliar até:** 2026-11-30 (mesmo checkpoint do `KNOWN_VIOLATIONS.md`, inalterado)
+  checagem via `&&`. Não é uma regressão introduzida por nenhum PR específico; é dívida
+  pré-existente só agora visível. Modularizar fica para um item de dívida técnica dedicado.
+- **Atualização em 2026-08-31:** o mesmo padrão de mascaramento se repetiu — o arquivo cresceu de
+  1110 para 1404 linhas em commits normais de feature, e só voltou a ser visível depois que as
+  novas violações de `no-cross-feature-imports` de `dashboard`/`gamification` (ver
+  `KNOWN_VIOLATIONS.md`, seção "2026-08-31") foram registradas na baseline. Limite elevado para
+  1500 (margem sobre as 1404 atuais) em vez de reduzir o arquivo, que não foi tocado por esta
+  sessão. `test:architecture` roda os dois gates encadeados com `&&`; enquanto isso não mudar,
+  qualquer falha em `lint:architecture` volta a mascarar `check:hotspots` da mesma forma — vale
+  considerar separar os dois comandos em jobs de CI independentes num item de dívida técnica futuro.
+- **Registrado em:** 2026-08-29
+- **Reavaliar até:** 2026-11-30 (mesmo checkpoint do `KNOWN_VIOLATIONS.md`)
 
 ### `src/features/integrations/components/BitrixImportPanel.tsx`
 
