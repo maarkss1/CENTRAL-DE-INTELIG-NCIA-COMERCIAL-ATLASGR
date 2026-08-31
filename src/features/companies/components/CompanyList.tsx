@@ -714,7 +714,6 @@ export function CompanyList() {
               rowHeight={80}
             />
           </div>
-          </div>
         )}
 
         <Pagination
