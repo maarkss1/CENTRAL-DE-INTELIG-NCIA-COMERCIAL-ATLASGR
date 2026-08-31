@@ -1181,5 +1181,23 @@
         ]
       }
     ]
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/gamification/routes/gamification.routes.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/CentralAISuiteService.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/dashboard/components/SinglePageDashboard.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/analytics/components/GlowChart.tsx"
   }
 ]

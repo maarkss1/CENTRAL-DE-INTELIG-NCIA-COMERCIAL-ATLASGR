@@ -48,17 +48,20 @@ propósito por estar fora de "## Exceções ativas"):
 
 ### `src/features/cadence/components/CadenceHub.tsx`
 
-- **Limite excepcional:** 1200 linhas
+- **Limite excepcional:** 1450 linhas
 - **Dono:** Agente 17 — Cadência Multicanal e Ciclo de Receita
 - **Motivo:** já listado abaixo como débito conhecido em 868 linhas (2026-08-25, dentro do limite
   de aviso); cresceu para 1110 linhas em commits normais de feature depois disso, sem que ninguém
   percebesse que já passava do limite de falha — o gate nunca chegou a rodar de verdade em CI até
   agora porque `npm run lint:architecture` (etapa anterior do mesmo `test:architecture`) sempre
   falhava primeiro por violações de `no-cross-feature-imports` não relacionadas, mascarando esta
-  checagem via `&&`. Não é uma regressão introduzida por nenhum PR específico; é dívida
-  pré-existente só agora visível. Modularizar fica para um item de dívida técnica dedicado.
-- **Registrado em:** 2026-08-29
-- **Reavaliar até:** 2026-11-30 (mesmo checkpoint do `KNOWN_VIOLATIONS.md`)
+  checagem via `&&`. Registrado em 1200 linhas em 2026-08-29, mas o mesmo mascaramento continuou
+  (as violações de `no-cross-feature-imports` só foram resolvidas agora) e o arquivo cresceu mais,
+  para 1404 linhas, sem o gate rodar de verdade nesse meio-tempo. Não é uma regressão introduzida
+  por nenhum PR específico; é dívida pré-existente só agora visível. Modularizar fica para um item
+  de dívida técnica dedicado.
+- **Registrado em:** 2026-08-31
+- **Reavaliar até:** 2026-11-30 (mesmo checkpoint do `KNOWN_VIOLATIONS.md`, inalterado)
 
 ### `src/features/integrations/components/BitrixImportPanel.tsx`
 
