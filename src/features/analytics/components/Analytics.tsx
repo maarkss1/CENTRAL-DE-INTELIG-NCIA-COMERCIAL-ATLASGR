@@ -32,6 +32,7 @@ import {
   LostReasonsWidget,
   TmqTile,
 } from './DashboardExtensions';
+import { BarChart as EBarChart } from '../../../components/charts';
 
 /**
  * Paleta validada com o script do guia de data-viz contra a superfície escura dos cards
@@ -648,6 +649,7 @@ export function Analytics() {
               </Card>
             </div>
 
+            <EBarChart title="Prospecção" data={{ categories: ['Jan', 'Fev'], series: [{ name: 'Leads', data: [10, 20] }] }} />
             <CohortAnalysis />
           </motion.div>
         )}
@@ -655,3 +657,4 @@ export function Analytics() {
     </div>
   );
 }
+
