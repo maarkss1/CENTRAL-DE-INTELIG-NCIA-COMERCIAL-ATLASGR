@@ -1,6 +1,7 @@
 import { setupDI } from '../shared/di/setup.js';
+import { container } from '../shared/di/container.js';
 import { requestContext } from '../lib/async-context.js';
-import { featureFlagsService } from '../features/feature-flags/featureFlags.service.js';
+import type { FeatureFlagsUseCases } from '../features/feature-flags/application/FeatureFlagsUseCases.js';
 import { logger } from '../lib/logger.js';
 
 /**
@@ -19,7 +20,8 @@ export function bootstrapApplicationServices(): void {
   // request HTTP existir, sem tenant conhecido — ver FeatureFlag em BYPASS_RLS_ALLOWED_MODELS
   // (src/lib/prisma.ts) para o porquê de ser seguro.
   requestContext.run({ bypassRls: true }, () =>
-    featureFlagsService
+    container
+      .resolve<FeatureFlagsUseCases>('FeatureFlagsUseCases')
       .syncRegistry()
       .catch((err) =>
         logger.error({ err }, 'Falha ao sincronizar catálogo de feature flags no boot'),

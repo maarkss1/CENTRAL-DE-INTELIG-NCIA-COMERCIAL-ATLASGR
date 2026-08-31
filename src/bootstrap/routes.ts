@@ -39,7 +39,7 @@ import {
 } from '../features/calendar/routes/booking.routes.js';
 import { accountIntelligenceRoutes } from '../features/market-intelligence/server/accountIntelligence.routes.js';
 import { lgpdRouter } from '../features/lgpd/lgpd.routes.js';
-import { featureFlagsRouter } from '../features/feature-flags/featureFlags.routes.js';
+import { featureFlagsRouter } from '../features/feature-flags/routes/featureFlags.routes.js';
 import { bugReportRouter } from '../features/bug-reports/routes/bugReport.routes.js';
 import { threecxRoutes } from '../features/integrations/threecx/threecx.routes.js';
 import { gamificationRoutes } from '../features/gamification/routes/gamification.routes.js';
