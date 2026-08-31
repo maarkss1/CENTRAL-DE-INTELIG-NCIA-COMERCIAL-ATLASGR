@@ -84,7 +84,9 @@ export function createSpan(name: string, attributes?: Record<string, string | nu
   const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
   const span = tracer.startSpan(name);
   if (attributes) {
-    Object.entries(attributes).forEach(([k, v]) => span.setAttribute(k, v));
+    Object.entries(attributes).forEach(([k, v]) => {
+      span.setAttribute(k, v);
+    });
   }
   return span;
 }

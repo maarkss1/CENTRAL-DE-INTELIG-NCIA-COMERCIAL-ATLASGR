@@ -108,7 +108,7 @@ export function WelcomeScreen() {
           informação que precise de legenda (WCAG 1.2.2 é sobre conteúdo falado/significativo);
           sem `controls` nativo de propósito (o botão de mudo próprio da tela já dá controle ao
           usuário, ver toggleMute acima). */}
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      {/* biome-ignore lint/a11y/useMediaCaption: trilha instrumental sem fala, ver comentário acima */}
       <audio
         ref={audioRef}
         loop

@@ -177,7 +177,7 @@ export class OpsAgent {
     // thread_id prefixado pelo tenant — o checkpointer é compartilhado por todas as
     // organizações do processo.
     const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
-    let finalState;
+    let finalState: Awaited<ReturnType<typeof app.invoke>>;
 
     try {
       // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da

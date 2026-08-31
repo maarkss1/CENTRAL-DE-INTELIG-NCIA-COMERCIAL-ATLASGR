@@ -206,7 +206,7 @@ export class SDRQualificationAgent {
     // TODAS as organizações do processo — sem isto, um `sessionId` coincidente entre duas
     // organizações reaproveitaria o checkpoint de outra.
     const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
-    let finalState;
+    let finalState: Awaited<ReturnType<typeof app.invoke>>;
 
     try {
       // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da

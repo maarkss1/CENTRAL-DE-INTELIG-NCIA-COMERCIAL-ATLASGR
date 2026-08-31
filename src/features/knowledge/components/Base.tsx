@@ -339,6 +339,11 @@ export function Base() {
   );
 
   return (
+    // Zona de drag-and-drop de arquivo: interação só de mouse/touch por natureza (não há
+    // equivalente de teclado real para "arrastar"). Usuários de teclado/leitor de tela têm o
+    // caminho real de upload via input[type=file] + botão (fileInputRef, abaixo), então esta
+    // região não é a única forma de subir um documento.
+    // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop é mouse-only por natureza, ver comentário acima
     <div
       role="presentation"
       className="flex-1 overflow-y-auto bg-transparent p-8"

@@ -86,13 +86,17 @@ export function VirtualTable<T>({
 
   return (
     <div className={`flex flex-col ${className}`} style={{ height }}>
-      {/* Cabeçalho fixo (não virtualizado) */}
+      {/* Cabeçalho fixo (não virtualizado) — cabeçalho não é navegável por teclado (esta tabela
+          não implementa grid ARIA completa com roving tabindex) — débito rastreado, não
+          corrigido aqui para não expandir o escopo desta correção de CI. */}
+      {/* biome-ignore lint/a11y/useFocusableInteractive: ver comentário acima */}
       <div
         className="sticky top-0 z-10 flex shrink-0 border-b border-line bg-surface/90 backdrop-blur-sm"
         role="row"
         aria-rowindex={0}
       >
         {columns.map((col) => (
+          // biome-ignore lint/a11y/useFocusableInteractive: mesmo débito do cabeçalho acima
           <div
             key={col.key}
             role="columnheader"
@@ -112,6 +116,7 @@ export function VirtualTable<T>({
         role="rowgroup"
         // Div não-interativa com scroll — tabIndex é intencional (torna a região focável/rolável
         // via teclado), não um erro de a11y. Mesmo padrão de CrmBoard.tsx.
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: scroll vertical via teclado, ver comentário acima
         tabIndex={0}
         aria-label="Tabela de dados"
       >
@@ -123,7 +128,7 @@ export function VirtualTable<T>({
 
             return (
               <div
-                key={virtualRow.key}
+                key={row !== null ? getRowKey(row, virtualRow.index) : virtualRow.key}
                 role="row"
                 aria-rowindex={virtualRow.index + 1}
                 style={{
