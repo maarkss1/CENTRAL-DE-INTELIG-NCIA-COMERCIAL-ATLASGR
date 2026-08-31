@@ -58,4 +58,3 @@ document.addEventListener('click', (e) => {
     playClickSound();
   }
 });
-

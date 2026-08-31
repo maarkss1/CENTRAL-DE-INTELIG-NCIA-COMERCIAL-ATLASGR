@@ -650,7 +650,10 @@ export function Analytics() {
               </Card>
             </div>
 
-            <EBarChart title="Prospecção" data={{ categories: ['Jan', 'Fev'], series: [{ name: 'Leads', data: [10, 20] }] }} />
+            <EBarChart
+              title="Prospecção"
+              data={{ categories: ['Jan', 'Fev'], series: [{ name: 'Leads', data: [10, 20] }] }}
+            />
             <Card padding="sm" className="mb-6">
               <EChartsBar
                 title="Prospecção"
@@ -665,4 +668,3 @@ export function Analytics() {
     </div>
   );
 }
-
