@@ -261,5 +261,9 @@ export function useAssistantChat(
     searchMode,
     setSearchMode,
     handleSendMessage,
+    // Já era lido internamente (injetado em toda pergunta via `localContext`) mas nunca exposto —
+    // sem isto, o único indício visível de que o copiloto "sabe" o registro aberto era uma frase
+    // na saudação inicial, que rola pra fora da tela (achado do Piloto 010).
+    activeRecord,
   };
 }

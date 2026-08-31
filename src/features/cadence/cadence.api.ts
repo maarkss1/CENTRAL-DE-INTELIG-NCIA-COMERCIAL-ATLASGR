@@ -1,4 +1,5 @@
 import { api } from '../../lib/api';
+import type { CadenceJourneyTemplate } from './domain/cadenceTemplates';
 
 /**
  * Cliente HTTP de `/api/cadence/*` (Agente 17, Onda 10) — mesmo padrão de
@@ -86,6 +87,8 @@ export interface CadenceSequenceDTO {
   id: string;
   organizationId: string;
   name: string;
+  /** Coluna real desde sempre no Prisma, nunca aceita pela rota nem preenchível pela UI antes do Piloto 016. */
+  description?: string | null;
   touches: CadenceTouchInput[];
   active: boolean;
   createdAt: string;
@@ -103,6 +106,11 @@ export interface StartCadenceRunResponse {
   sequenceName: string;
 }
 
+export interface ScheduleMeetingResponse {
+  scheduled: boolean;
+  noteId?: string;
+}
+
 export const cadenceApi = {
   optOuts: () => api.get<OptOutRecordDTO[]>('/api/cadence/opt-outs'),
   runs: (status?: CadenceRunStatus[]) => {
@@ -113,14 +121,16 @@ export const cadenceApi = {
     return api.get<CadenceRunDTO[]>(`/api/cadence/runs${query}`);
   },
   sequences: () => api.get<CadenceSequenceDTO[]>('/api/cadence/sequences'),
-  createSequence: (input: { name: string; touches: CadenceTouchInput[] }) =>
+  createSequence: (input: { name: string; description?: string; touches: CadenceTouchInput[] }) =>
     api.post<CadenceSequenceDTO>('/api/cadence/sequences', input),
   startRun: (input: { leadId: string; sequenceId: string }) =>
     api.post<StartCadenceRunResponse>('/api/cadence/runs', input),
   pauseRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/pause`, {}),
   resumeRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/resume`, {}),
   stopRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/stop`, {}),
-  templates: () => api.get<any[]>('/api/cadence/templates'),
+  templates: () => api.get<CadenceJourneyTemplate[]>('/api/cadence/templates'),
   createSequenceFromTemplate: (templateId: string) =>
     api.post<CadenceSequenceDTO>(`/api/cadence/sequences/from-template/${templateId}`, {}),
+  scheduleMeeting: (leadId: string, input: { proposedStart: string; proposedEnd: string }) =>
+    api.post<ScheduleMeetingResponse>(`/api/cadence/leads/${leadId}/schedule-meeting`, input),
 };

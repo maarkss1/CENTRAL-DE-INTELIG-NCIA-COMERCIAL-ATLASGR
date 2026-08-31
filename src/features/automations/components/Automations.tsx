@@ -12,11 +12,14 @@ import {
   ZapIcon,
   FlaskConical,
   History,
+  Pencil,
 } from 'lucide-react';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { toast } from '../../../lib/toast';
 import {
   automationsApi,
@@ -77,20 +80,50 @@ function VisualNode({
   );
 }
 
-function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: () => void }) {
-  const [name, setName] = useState('');
-  const [trigger, setTrigger] = useState<AutomationTrigger>('Lead mudou de status');
-  const [statusCondition, setStatusCondition] = useState('');
-  const [stagnationDays, setStagnationDays] = useState('');
-  const [action, setAction] = useState<AutomationAction>('Notificar equipe');
+/**
+ * `editing` presente = modo edição (`automationsApi.update`), ausente = criação. O sistema de
+ * versionamento com diff (`AutomationVersionsDialog.tsx`) já existia pronto e testado no backend
+ * pra mostrar "Gatilho: X → Y"/"Condições: A → B"/"Ação: C → D", mas até o Piloto 018 a única
+ * chamada de `update` em todo o front era o toggle ativa/pausa — não existia nenhum jeito de editar
+ * o conteúdo de uma regra pela UI, então esse histórico nunca mostrava nada além de mudança de
+ * status na prática de uso real.
+ */
+function AutomationForm({
+  editing,
+  onCancel,
+  onSaved,
+}: {
+  editing?: Automation | null;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const actionConfig = editing?.actionConfig ?? {};
+  const conditions = editing?.conditions ?? null;
+  const [name, setName] = useState(editing?.name ?? '');
+  const [trigger, setTrigger] = useState<AutomationTrigger>(
+    editing?.trigger ?? 'Lead mudou de status',
+  );
+  const [statusCondition, setStatusCondition] = useState(
+    (typeof conditions?.status === 'string' ? conditions.status : '') || '',
+  );
+  const [stagnationDays, setStagnationDays] = useState(
+    conditions?.daysSinceLastInteraction &&
+      typeof conditions.daysSinceLastInteraction === 'object' &&
+      'gte' in conditions.daysSinceLastInteraction
+      ? String(conditions.daysSinceLastInteraction.gte)
+      : '',
+  );
+  const [action, setAction] = useState<AutomationAction>(editing?.action ?? 'Notificar equipe');
   const acoesDisponiveis = ACTIONS.filter(
     (a) => !ACTIONS_INDISPONIVEIS_POR_GATILHO[trigger]?.includes(a),
   );
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [emailChannel, setEmailChannel] = useState(false);
-  const [emailTo, setEmailTo] = useState('');
-  const [dueInDays, setDueInDays] = useState('1');
+  const [title, setTitle] = useState(typeof actionConfig.title === 'string' ? actionConfig.title : '');
+  const [body, setBody] = useState(typeof actionConfig.body === 'string' ? actionConfig.body : '');
+  const [emailChannel, setEmailChannel] = useState(actionConfig.channel === 'email');
+  const [emailTo, setEmailTo] = useState(typeof actionConfig.to === 'string' ? actionConfig.to : '');
+  const [dueInDays, setDueInDays] = useState(
+    typeof actionConfig.dueInDays === 'number' ? String(actionConfig.dueInDays) : '1',
+  );
   const [saving, setSaving] = useState(false);
 
   const permiteCondicaoStatus = trigger === 'Lead mudou de status' || trigger === 'Lead estagnado';
@@ -118,16 +151,16 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
     }
     setSaving(true);
     try {
-      const conditions: AutomationConditions = {};
-      if (permiteCondicaoStatus && statusCondition) conditions.status = statusCondition;
+      const nextConditions: AutomationConditions = {};
+      if (permiteCondicaoStatus && statusCondition) nextConditions.status = statusCondition;
       if (stagnationThreshold != null)
-        conditions.daysSinceLastInteraction = { gte: stagnationThreshold };
+        nextConditions.daysSinceLastInteraction = { gte: stagnationThreshold };
 
-      await automationsApi.create({
+      const draft = {
         name: name.trim(),
         trigger,
         action,
-        conditions: Object.keys(conditions).length > 0 ? conditions : null,
+        conditions: Object.keys(nextConditions).length > 0 ? nextConditions : null,
         actionConfig:
           action === 'Notificar equipe'
             ? {
@@ -139,8 +172,15 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
             : action === 'Ligar via SDR de Voz'
               ? {}
               : { dueInDays: Number(dueInDays) || 1, type: 'Follow_up' },
-      });
-      toast.success('Automação criada.');
+      };
+
+      if (editing) {
+        await automationsApi.update(editing.id, draft);
+        toast.success('Automação atualizada.');
+      } else {
+        await automationsApi.create(draft);
+        toast.success('Automação criada.');
+      }
       onSaved();
     } catch (err) {
       toast.error((err as Error).message);
@@ -148,6 +188,7 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
       setSaving(false);
     }
   }, [
+    editing,
     name,
     trigger,
     action,
@@ -164,11 +205,14 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
   ]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-6 overflow-y-auto">
       <div className="w-full max-w-2xl bg-surface rounded-2xl shadow-xl overflow-hidden flex flex-col my-auto max-h-full">
         <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-surface-2/50">
-          <h2 className="text-lg font-bold text-ink">Construtor de Automação</h2>
+          <h2 className="text-lg font-bold text-ink">
+            {editing ? 'Editar Automação' : 'Construtor de Automação'}
+          </h2>
           <button
+            type="button"
             onClick={onCancel}
             aria-label="Fechar"
             className="p-1.5 rounded-lg text-ink-2 hover:text-ink hover:bg-line/50 transition-colors"
@@ -346,12 +390,12 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
         </div>
 
         <div className="px-6 py-4 bg-surface-2/30 border-t border-line flex items-center justify-end gap-3">
-          <Button variant="outline" onClick={onCancel} disabled={saving}>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
             Cancelar
           </Button>
-          <Button onClick={() => void submit()} disabled={saving}>
+          <Button type="button" onClick={() => void submit()} disabled={saving}>
             {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Criar
+            {editing ? 'Salvar alterações' : 'Criar'}
           </Button>
         </div>
       </div>
@@ -361,10 +405,17 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
 
 export function Automations() {
   const accent = useBrandAccent();
+  const { currentUser } = useAuth();
+  // Criar/editar/remover/simular/ver-versões exigem ADMIN/GESTOR no backend
+  // (`automation.routes.ts`), mas nenhum desses controles verificava o papel do usuário — SDR/
+  // CLOSER viam todos os botões habilitados e só descobriam a falta de permissão com um 403 depois
+  // de clicar (achado do Piloto 018, mesmo padrão já corrigido no Piloto 017/Playbook).
+  const canManage = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
   const [items, setItems] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editingItem, setEditingItem] = useState<Automation | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [dryRunTarget, setDryRunTarget] = useState<Automation | null>(null);
   const [versionsTarget, setVersionsTarget] = useState<Automation | null>(null);
@@ -432,9 +483,11 @@ export function Automations() {
               </p>
             </div>
           </div>
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Nova automação
-          </Button>
+          {canManage && (
+            <Button type="button" onClick={() => setCreating(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Nova automação
+            </Button>
+          )}
         </div>
 
         <ColdCallStatusCard />
@@ -447,9 +500,9 @@ export function Automations() {
 
         {error && !loading && (
           <Card padding="lg" className="text-center">
-            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
+            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-warning-active dark:text-warning" />
             <p className="text-sm text-ink-2 mb-4">{error}</p>
-            <Button variant="outline" onClick={() => void load()}>
+            <Button type="button" variant="outline" onClick={() => void load()}>
               Tentar novamente
             </Button>
           </Card>
@@ -457,15 +510,17 @@ export function Automations() {
 
         {!loading && !error && items.length === 0 && (
           <Card padding="lg" className="text-center border-dashed">
-            <Zap className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+            <Zap className="w-12 h-12 mx-auto mb-4 text-ink-2" />
             <h3 className="text-lg font-semibold text-ink mb-1">Nenhuma automação ainda</h3>
             <p className="text-sm text-ink-2 max-w-md mx-auto mb-5">
               Regras disparam sozinhas quando um lead é criado, muda de etapa ou uma atividade é
               concluída — avisando a equipe ou agendando o follow-up.
             </p>
-            <Button onClick={() => setCreating(true)}>
-              <Plus className="w-4 h-4 mr-2" /> Criar a primeira
-            </Button>
+            {canManage && (
+              <Button type="button" onClick={() => setCreating(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Criar a primeira
+              </Button>
+            )}
           </Card>
         )}
 
@@ -494,29 +549,46 @@ export function Automations() {
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
+                {canManage && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setDryRunTarget(item)}
+                      title="Simular esta regra antes de confiar nela"
+                      aria-label={`Simular automação ${item.name}`}
+                      className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-line/50 transition-colors"
+                    >
+                      <FlaskConical className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVersionsTarget(item)}
+                      title="Ver histórico de versões desta regra"
+                      aria-label={`Ver histórico de versões de ${item.name}`}
+                      className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-line/50 transition-colors"
+                    >
+                      <History className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingItem(item)}
+                      title="Editar automação"
+                      aria-label={`Editar automação ${item.name}`}
+                      className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-line/50 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
                 <button
-                  onClick={() => setDryRunTarget(item)}
-                  title="Simular esta regra antes de confiar nela"
-                  aria-label={`Simular automação ${item.name}`}
-                  className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-line/50 transition-colors"
-                >
-                  <FlaskConical className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setVersionsTarget(item)}
-                  title="Ver histórico de versões desta regra"
-                  aria-label={`Ver histórico de versões de ${item.name}`}
-                  className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-line/50 transition-colors"
-                >
-                  <History className="w-4 h-4" />
-                </button>
-                <button
+                  type="button"
                   onClick={() => void toggle(item)}
+                  disabled={!canManage}
                   role="switch"
                   aria-checked={item.enabled}
                   aria-label={`${item.enabled ? 'Pausar' : 'Ativar'} ${item.name}`}
-                  className={`w-10 h-5 rounded-full transition-colors relative ${
-                    item.enabled ? accent.bg : 'bg-slate-700'
+                  className={`w-10 h-5 rounded-full transition-colors relative disabled:opacity-40 disabled:cursor-not-allowed ${
+                    item.enabled ? accent.bg : 'bg-surface-2 border border-line'
                   }`}
                 >
                   <span
@@ -525,18 +597,21 @@ export function Automations() {
                     }`}
                   />
                 </button>
-                <button
-                  onClick={() => void remove(item)}
-                  disabled={busyId === item.id}
-                  title="Remover automação"
-                  className="p-2 rounded-lg text-ink-2 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
-                >
-                  {busyId === item.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => void remove(item)}
+                    disabled={busyId === item.id}
+                    title="Remover automação"
+                    className="p-2 rounded-lg text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-40"
+                  >
+                    {busyId === item.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
               </div>
             </Card>
           ))}
@@ -548,6 +623,17 @@ export function Automations() {
           onCancel={() => setCreating(false)}
           onSaved={() => {
             setCreating(false);
+            void load();
+          }}
+        />
+      )}
+
+      {editingItem && (
+        <AutomationForm
+          editing={editingItem}
+          onCancel={() => setEditingItem(null)}
+          onSaved={() => {
+            setEditingItem(null);
             void load();
           }}
         />

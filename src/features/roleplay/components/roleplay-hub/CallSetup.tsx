@@ -1,10 +1,8 @@
 import { motion } from 'framer-motion';
 import { CheckCircle2, Phone, PhoneCall } from 'lucide-react';
-import type { Brand } from '../../../../contexts/BrandContext';
 import type { Persona } from './types';
 
 export function CallSetup({
-  activeBrand,
   currentPersonas,
   selectedPersona,
   setSelectedPersona,
@@ -12,7 +10,6 @@ export function CallSetup({
   setDifficulty,
   onStart,
 }: {
-  activeBrand: Brand;
   currentPersonas: Persona[];
   selectedPersona: string;
   setSelectedPersona: (id: string) => void;
@@ -24,10 +21,7 @@ export function CallSetup({
     <div className="bg-surface/80 backdrop-blur-xl rounded-[3rem] p-8 md:p-12 border border-line shadow-[0_20px_40px_rgba(0,0,0,0.03)] space-y-10">
       <div className="text-center space-y-3">
         <h2 className="text-2xl md:text-3xl font-black text-ink flex items-center justify-center gap-3 tracking-tight">
-          <PhoneCall
-            className={`w-8 h-8 ${activeBrand === 'totaltrac' ? 'text-sky-500' : 'text-atlas-orange'}`}
-          />{' '}
-          Setup da Ligação
+          <PhoneCall className="w-8 h-8 text-brand" /> Setup da Ligação
         </h2>
         <p className="text-ink-2 text-base font-medium max-w-xl mx-auto">
           Escolha quem você vai ligar e o nível de resistência. A IA atende a ligação e simula um
@@ -37,29 +31,25 @@ export function CallSetup({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {currentPersonas.map((p) => (
-          <motion.div
+          <motion.button
+            type="button"
             whileHover={{ y: -5, scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             key={p.id}
             onClick={() => setSelectedPersona(p.id)}
-            className={`p-6 md:p-8 rounded-[2rem] border-2 cursor-pointer transition-all duration-300 relative overflow-hidden flex flex-col justify-between ${
+            aria-pressed={selectedPersona === p.id}
+            className={`w-full text-left p-6 md:p-8 rounded-[2rem] border-2 cursor-pointer transition-all duration-300 relative overflow-hidden flex flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
               selectedPersona === p.id
-                ? activeBrand === 'totaltrac'
-                  ? 'border-sky-500 bg-sky-50/80 shadow-[0_10px_30px_rgba(2,132,199,0.15)]'
-                  : 'border-orange-500 bg-orange-50/80 shadow-[0_10px_30px_rgba(249,115,22,0.15)]'
+                ? 'border-brand bg-brand/10 shadow-brand-sm'
                 : 'border-line hover:border-ink-2/30 bg-surface shadow-sm'
             }`}
           >
             <div className="flex items-start justify-between mb-4">
               <span className="font-black text-lg text-ink leading-tight pr-4">{p.label}</span>
-              {selectedPersona === p.id && (
-                <CheckCircle2
-                  className={`w-6 h-6 shrink-0 ${activeBrand === 'totaltrac' ? 'text-sky-600' : 'text-atlas-orange'}`}
-                />
-              )}
+              {selectedPersona === p.id && <CheckCircle2 className="w-6 h-6 shrink-0 text-brand" />}
             </div>
             <p className="text-sm text-ink-2 leading-relaxed font-medium">{p.desc}</p>
-          </motion.div>
+          </motion.button>
         ))}
       </div>
 
@@ -86,12 +76,9 @@ export function CallSetup({
         </div>
 
         <button
+          type="button"
           onClick={onStart}
-          className={`w-full lg:w-auto px-10 py-4 rounded-[1.75rem] font-black text-white text-sm uppercase tracking-wider shadow-xl shadow-current/20 flex items-center justify-center gap-3 transition-transform hover:scale-105 ${
-            activeBrand === 'totaltrac'
-              ? 'bg-sky-700 hover:bg-sky-800'
-              : 'bg-atlas-orange-active hover:bg-orange-700'
-          }`}
+          className="w-full lg:w-auto px-10 py-4 rounded-[1.75rem] font-black text-white text-sm uppercase tracking-wider shadow-xl shadow-brand-sm flex items-center justify-center gap-3 transition-transform hover:scale-105 bg-brand-active hover:bg-brand-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         >
           <Phone className="w-5 h-5" /> Ligar Agora
         </button>

@@ -5,6 +5,14 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
 
+// GESTOR por padrão: mantém os controles de escrita (enviar arquivo/colar texto/editar/reembed/
+// gerar FAQ/excluir) visíveis pra exercitar os fluxos já cobertos por este arquivo, sem exigir
+// AuthProvider/authClient reais só para montar o componente. Mesmo padrão de
+// `tests/unit/features/automations-ui.test.tsx` — achado do Piloto 019 (`Base.tsx` passou a
+// esconder ações de escrita por papel, ver `hasRequiredRole`).
+const useAuthMock = vi.fn(() => ({ currentUser: { role: 'GESTOR' } }));
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => useAuthMock() }));
+
 // O componente busca a lista de documentos no mount e a busca via POST. Mockamos via MSW na
 // camada HTTP (não a camada de API) para testar o comportamento da tela sem depender de servidor
 // nem de banco.
@@ -42,6 +50,9 @@ function mockList(items: unknown[]) {
 beforeEach(() => {
     listCallCount = 0;
     mockList([]);
+    // `afterEach` chama `vi.restoreAllMocks()`, que zera a implementação de `useAuthMock` (não é
+    // um spy com original a restaurar) — precisa ser re-armado aqui a cada teste.
+    useAuthMock.mockReturnValue({ currentUser: { role: 'GESTOR' } });
 });
 
 afterEach(() => {
@@ -210,5 +221,23 @@ describe('Base de Conhecimento', () => {
         confirmSpy.mockReturnValue(true);
         await user.click(screen.getByTitle('Remover documento'));
         await waitFor(() => expect(removeCalledWith).toBe('doc-1'));
+    });
+
+    it('VISUALIZADOR não vê nenhum controle de escrita (achado do Piloto 019)', async () => {
+        // POST/PUT/reembed/generate-faq exigem ADMIN/GESTOR/CLOSER/SDR no backend; DELETE exige
+        // ADMIN/GESTOR — VISUALIZADOR não está em nenhum dos dois conjuntos.
+        useAuthMock.mockReturnValue({ currentUser: { role: 'VISUALIZADOR' } });
+        mockList([documento]);
+        render(<Base />);
+
+        await screen.findByText('Playbook de Objeções');
+        expect(screen.queryByRole('button', { name: /Colar texto/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Enviar arquivo/ })).toBeNull();
+        expect(screen.queryByTitle('Gerar FAQ Automático com IA')).toBeNull();
+        expect(screen.queryByTitle('Editar documento')).toBeNull();
+        expect(screen.queryByTitle('Regerar embeddings que falharam')).toBeNull();
+        expect(screen.queryByTitle('Remover documento')).toBeNull();
+        // Assistente de Redação IA (EditorIA) também some por completo.
+        expect(screen.queryByText('Assistente de Redação IA')).toBeNull();
     });
 });
