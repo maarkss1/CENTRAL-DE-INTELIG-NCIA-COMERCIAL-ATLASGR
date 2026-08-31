@@ -318,7 +318,7 @@ export function CompanyList() {
                 setSelectedCompany(company);
                 setIsFormOpen(true);
               }}
-              className="p-2 text-ink-2 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
+              className="p-2 text-ink-2 hover:text-brand-active dark:hover:text-brand-2 hover:bg-brand/10 rounded-lg transition-colors"
               title="Editar"
               aria-label={`Editar ${companyLabel}`}
             >
@@ -677,7 +677,7 @@ export function CompanyList() {
                           setSelectedCompany(company);
                           setIsFormOpen(true);
                         }}
-                        className="p-2 text-ink-2 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors"
+                        className="p-2 text-ink-2 hover:text-brand-active dark:hover:text-brand-2 hover:bg-brand/10 rounded-xl transition-colors"
                         title="Editar"
                         aria-label={`Editar ${companyLabel}`}
                       >

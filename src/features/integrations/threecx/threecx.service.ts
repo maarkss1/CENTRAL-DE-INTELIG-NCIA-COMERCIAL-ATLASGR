@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
-import { assertSafeExternalUrl } from '../../../shared/security/urlGuard.js';
+import { assertSafeExternalUrl, safeFetch } from '../../../shared/security/urlGuard.js';
 import { isSuppressed } from '../birth-voice/callSuppression.service.js';
 import { requestContext } from '../../../lib/async-context.js';
 import {
@@ -153,7 +153,8 @@ export async function connect3CX(
  * antes de persistir — sem isto, um DNS rebinding (host resolvia IP público no cadastro, IP
  * privado agora, no momento real do fetch) só seria pego na primeira vez, nunca nos testes de
  * conexão seguintes contra a URL já salva no banco. Mesmo padrão aplicado a `testWebhook`
- * (Bitrix24, `client.ts`).
+ * (Bitrix24, `client.ts`) — usa `safeFetch`, que fixa a conexão real nos MESMOS endereços
+ * validados nesta chamada (nenhuma segunda resolução de DNS entre validar e conectar de verdade).
  */
 export async function test3CXConnection(
   organizationId: string,
@@ -163,13 +164,17 @@ export async function test3CXConnection(
   const conn = connections.find((c) => c.id === connectionId);
   if (!conn) throw new AppError('Conexão 3CX PABX não encontrada.', 404);
 
+  // Fail-fast fora do try/catch de falha de comunicação abaixo — mesmo padrão de `make3CXCall`,
+  // para uma URL reprovada rejeitar com o erro específico do guard, e não virar um
+  // `success:false` genérico. `safeFetch` logo abaixo revalida de novo, desta vez fixando a
+  // conexão real nos endereços validados nesta segunda checagem.
   await assertSafeExternalUrl(conn.pbxUrl);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
     // Teste de ping na API do 3CX (MakeCall API / REST Call Control)
-    const res = await fetch(`${conn.pbxUrl}/api/v1/healthcheck`, {
+    const res = await safeFetch(`${conn.pbxUrl}/api/v1/healthcheck`, {
       method: 'GET',
       signal: controller.signal,
     });
@@ -189,6 +194,10 @@ export async function test3CXConnection(
       pbxUrl: conn.pbxUrl,
     };
   } catch (err) {
+    // Erro do guard de SSRF (URL/host reprovado por `safeFetch`) propaga com sua mensagem
+    // específica, em vez de virar o `success:false` genérico abaixo — mesmo comportamento de
+    // antes desta função usar `safeFetch` (a validação rodava fora deste try/catch).
+    if (err instanceof AppError) throw err;
     const timedOut = controller.signal.aborted;
     logger.warn(
       { err, organizationId, connectionId, pbxUrl: conn.pbxUrl, timedOut },
@@ -287,7 +296,10 @@ export async function make3CXCall(
 
   // Revalida contra SSRF (DNS rebinding) imediatamente antes da chamada de rede real — ver
   // comentário em `test3CXConnection` acima; `conn.pbxUrl` já foi validado uma vez em
-  // `connect3CX`, mas o servidor pode responder outro IP agora.
+  // `connect3CX`, mas o servidor pode responder outro IP agora. Fail-fast aqui (fora do try/catch
+  // de falha de discagem abaixo) para que uma URL reprovada rejeite com o erro específico do
+  // guard, e não vire uma "falha ao discar" genérica; `safeFetch` logo abaixo revalida de novo,
+  // desta vez fixando a conexão real nos endereços validados nesta segunda checagem.
   await assertSafeExternalUrl(conn.pbxUrl);
 
   const callId = `3cx-call-${Date.now()}`;
@@ -296,7 +308,7 @@ export async function make3CXCall(
   let dialSucceeded: boolean;
   let failureReason = '';
   try {
-    const res = await fetch(`${conn.pbxUrl}/api/v1/calls`, {
+    const res = await safeFetch(`${conn.pbxUrl}/api/v1/calls`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ from: conn.extension, to: cleanNumber }),
@@ -305,6 +317,7 @@ export async function make3CXCall(
     dialSucceeded = res.ok;
     if (!res.ok) failureReason = `PABX respondeu HTTP ${res.status}`;
   } catch (err) {
+    if (err instanceof AppError) throw err;
     dialSucceeded = false;
     failureReason = controller.signal.aborted
       ? 'timeout ao comunicar com o PABX'

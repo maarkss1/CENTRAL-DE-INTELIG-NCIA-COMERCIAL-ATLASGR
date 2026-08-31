@@ -36,11 +36,16 @@ vi.mock('@/lib/prisma', () => ({
     },
 }));
 
-// assertSafeExternalUrl faz DNS lookup real — indisponível/instável em ambiente de teste sandboxed
-// (mesmo padrão de src/features/integrations/bitrix/service/__tests__/client.test.ts).
+// assertSafeExternalUrl/safeFetch fazem DNS lookup real — indisponível/instável em ambiente de
+// teste sandboxed (mesmo padrão de src/features/integrations/bitrix/service/__tests__/client.test.ts).
+// `safeFetch` é mockado como um passthrough para o `fetch` global (stubado por teste abaixo) —
+// preserva as asserções existentes sobre com quais argumentos o fetch real foi chamado, sem
+// exercitar a resolução de DNS/pinning de verdade.
 const assertSafeExternalUrlMock = vi.fn().mockResolvedValue(undefined);
+const safeFetchMock = vi.fn((...args: [string, RequestInit?]) => (globalThis.fetch as typeof fetch)(...args));
 vi.mock('@/shared/security/urlGuard', () => ({
     assertSafeExternalUrl: (...args: unknown[]) => assertSafeExternalUrlMock(...args),
+    safeFetch: (...args: [string, RequestInit?]) => safeFetchMock(...args),
 }));
 
 const isSuppressedMock = vi.fn().mockResolvedValue(false);
