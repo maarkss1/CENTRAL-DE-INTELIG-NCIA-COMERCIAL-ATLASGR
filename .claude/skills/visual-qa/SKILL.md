@@ -28,6 +28,23 @@ teclado, primitivo 100%-light-only) que só foram encontrados porque essa infrae
    `command-palette.spec.ts`, `leads-crud.spec.ts`) — rode o(s) spec(s) do fluxo tocado para
    confirmar que a mudança visual não quebrou comportamento (regra visual #10).
 
+## `npx vitest run <path>` sozinho usa o config errado para testes de componente
+
+Achado real do Piloto 009 (`.claude/PILOTS.md`): este repo tem **dois** configs de Vitest —
+`vitest.config.ts` (setup em `tests/helpers/setup.ts`, registra `@testing-library/jest-dom`) e
+`vitest.unit.config.ts` (setup em `tests/mocks/setup.ts`, liga o servidor MSW via
+`server.listen()`). Rodar `npx vitest run tests/unit/...` sem `-c` usa o primeiro por padrão. Para
+qualquer teste de componente que faz `fetch` real (ex.: `Analytics.tsx` via `analyticsApi`), isso
+significa que o MSW nunca intercepta a chamada — o `fetch` vaza pra rede de verdade, pode bater num
+servidor real ouvindo na mesma porta (ex.: outra sessão concorrente) e devolver HTML em vez do JSON
+mockado, produzindo uma falha do tipo "Unexpected token '&lt;'" que **parece** um bug do componente
+mas é só o comando errado. **Sempre rode `npx vitest run -c vitest.unit.config.ts <path>`** para
+qualquer coisa em `tests/unit/`. Ao mesmo tempo, esse config **não** registra `@testing-library/
+jest-dom` nem `globals: true` — matchers como `toBeInTheDocument()`/`toBeEmptyDOMElement()` e o
+auto-cleanup do React Testing Library entre testes não funcionam nele; use os matchers nativos
+(`expect(...).toBeTruthy()`, `container.firstChild`) e declare `afterEach(() => cleanup())`
+explicitamente, como `tests/unit/features/analytics.test.tsx` já faz.
+
 ## Amplitude do QA é proporcional ao risco, não um checklist cego
 
 A "Ordem de verificação recomendada" acima é o teto, não um mínimo fixo pra toda mudança. Antes de

@@ -14,10 +14,12 @@ import {
   Loader2,
   WifiOff,
   MessageCircle,
+  Eye,
 } from 'lucide-react';
 import { LinkedinIcon as Linkedin } from '../../../components/ui/icons/LinkedinIcon';
 import { Contact } from '../../../types';
 import { ContactForm } from './ContactForm';
+import { ContactDetail } from './ContactDetail';
 import { useContacts } from '../../../hooks/useDatabase';
 import { contactsDB } from '../../../lib/db';
 import { getWhatsAppLink } from '../../../shared/utils/contact-links';
@@ -76,6 +78,7 @@ export function ContactList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [detailContactId, setDetailContactId] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -169,6 +172,7 @@ export function ContactList() {
               <Search className="w-4 h-4 text-ink-2 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
+                aria-label="Buscar contatos"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Buscar por nome, cargo, e-mail..."
@@ -176,11 +180,12 @@ export function ContactList() {
               />
             </div>
             <button
+              type="button"
               onClick={() => {
                 setSelectedContact(null);
                 setIsFormOpen(true);
               }}
-              className="flex items-center gap-2 bg-gradient-to-r from-brand to-amber-500 text-white font-black text-xs px-5 py-2.5 rounded-2xl shadow-lg shadow-brand/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-gradient-to-r from-brand to-brand-2 text-white font-black text-xs px-5 py-2.5 rounded-2xl shadow-lg shadow-brand/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Novo Contato
             </button>
@@ -247,11 +252,11 @@ export function ContactList() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: idx * 0.02 }}
-                      className="hover:bg-orange-50/30 transition-colors group"
+                      className="hover:bg-surface-2 transition-colors group"
                     >
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-600 font-black text-sm shrink-0 border border-indigo-100 shadow-sm">
+                          <div className="w-10 h-10 rounded-2xl bg-brand/10 flex items-center justify-center text-brand font-black text-sm shrink-0 border border-brand/20 shadow-sm">
                             {contact.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
@@ -300,10 +305,15 @@ export function ContactList() {
                               </a>
                             )}
                           {contact.linkedin && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-ink-2">
-                              <Linkedin className="w-3 h-3 text-blue-600 shrink-0" />
+                            <a
+                              href={contact.linkedin}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1.5 text-[11px] text-info-active dark:text-info hover:underline"
+                            >
+                              <Linkedin className="w-3 h-3 shrink-0" />
                               <span className="font-medium">LinkedIn</span>
-                            </div>
+                            </a>
                           )}
                         </div>
                       </td>
@@ -319,10 +329,21 @@ export function ContactList() {
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
                           <button
+                            type="button"
+                            onClick={() => setDetailContactId(contact.id)}
+                            className="p-2 rounded-xl bg-surface-2 text-ink-2 border border-line hover:bg-line transition-all cursor-pointer"
+                            title="Ver detalhes"
+                            aria-label={`Ver detalhes de ${contact.name}`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleEnrich(contact.id)}
                             disabled={!!enrichingId}
-                            className="p-2 rounded-xl bg-orange-50 text-brand border border-orange-100 hover:bg-orange-100 transition-all cursor-pointer disabled:opacity-40"
+                            className="p-2 rounded-xl bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 transition-all cursor-pointer disabled:opacity-40"
                             title="Validar e enriquecer contato"
+                            aria-label={`Validar e enriquecer ${contact.name}`}
                           >
                             {enrichingId === contact.id ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -331,19 +352,23 @@ export function ContactList() {
                             )}
                           </button>
                           <button
+                            type="button"
                             onClick={() => {
                               setSelectedContact(contact);
                               setIsFormOpen(true);
                             }}
-                            className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 transition-all cursor-pointer"
+                            className="p-2 rounded-xl bg-info/10 text-info-active dark:text-info border border-info/20 hover:bg-info/20 transition-all cursor-pointer"
                             title="Editar contato"
+                            aria-label={`Editar ${contact.name}`}
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleDelete(contact.id)}
-                            className="p-2 rounded-xl bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 transition-all cursor-pointer"
+                            className="p-2 rounded-xl bg-danger/10 text-danger-active dark:text-danger border border-danger/20 hover:bg-danger/20 transition-all cursor-pointer"
                             title="Excluir contato"
+                            aria-label={`Excluir ${contact.name}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -378,6 +403,8 @@ export function ContactList() {
           onSave={handleSave}
         />
       )}
+
+      <ContactDetail contactId={detailContactId} onClose={() => setDetailContactId(null)} />
     </motion.div>
   );
 }

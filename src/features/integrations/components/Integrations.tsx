@@ -182,31 +182,31 @@ export function Integrations() {
         >
           <button
             onClick={() => setActiveTab('whatsapp')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'whatsapp' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'whatsapp' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <span className="text-lg">💬</span> WhatsApp
           </button>
           <button
             onClick={() => setActiveTab('google')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'google' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'google' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <span className="text-lg">📧</span> Google Workspace
           </button>
           <button
             onClick={() => setActiveTab('bitrix')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'bitrix' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'bitrix' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <span className="text-lg">🔗</span> Bitrix24
           </button>
           <button
             onClick={() => setActiveTab('3cx')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === '3cx' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === '3cx' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <IconWrench className="w-4 h-4 text-sky-500" /> PABX 3CX
           </button>
           <button
             onClick={() => setActiveTab('webhooks')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'webhooks' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'webhooks' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <Activity className="w-4 h-4 text-brand" /> Webhooks & Monitor
           </button>
@@ -285,7 +285,7 @@ export function Integrations() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`w-3 h-3 rounded-full ${status === 'connected' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}
+                      className={`w-3 h-3 rounded-full ${status === 'connected' ? 'bg-success' : status === 'connecting' ? 'bg-warning animate-pulse' : 'bg-danger'}`}
                     ></span>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       {status === 'connected'
@@ -397,7 +397,7 @@ export function Integrations() {
                 </IntegrationTruthBox>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
-                    className={`w-3 h-3 rounded-full ${googleConnected ? 'bg-green-500' : 'bg-red-500'}`}
+                    className={`w-3 h-3 rounded-full ${googleConnected ? 'bg-success' : 'bg-danger'}`}
                   ></span>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {googleConnected ? `Conectado (${googleEmail})` : 'Desconectado'}
@@ -551,41 +551,44 @@ export function Integrations() {
                     {bitrixConnections.map((conn) => (
                       <div
                         key={conn.id}
-                        role="radio"
-                        aria-checked={selectedBitrixConnectionId === conn.id}
-                        tabIndex={0}
-                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${selectedBitrixConnectionId === conn.id ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-500/10 shadow-sm' : 'border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'}`}
-                        onClick={() => setSelectedBitrixConnectionId(conn.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setSelectedBitrixConnectionId(conn.id);
-                          }
-                        }}
+                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${selectedBitrixConnectionId === conn.id ? 'border-brand bg-brand/10 shadow-sm' : 'border-line hover:bg-surface-2'}`}
                       >
-                        <span
-                          className={`w-3 h-3 rounded-full ${selectedBitrixConnectionId === conn.id ? 'bg-green-500' : 'bg-gray-300'} shrink-0`}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                            {conn.label}
-                          </p>
-                          {conn.portalDomain && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                              {conn.portalDomain}
-                            </p>
-                          )}
-                        </div>
+                        {/* Botão real (não <div onClick>) para a seleção — o "desconectar" abaixo
+                            é irmão, não filho, pra evitar botão-dentro-de-botão (achado do
+                            Piloto 011). */}
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleBitrixDisconnect(conn.id);
-                          }}
+                          type="button"
+                          onClick={() => setSelectedBitrixConnectionId(conn.id)}
+                          aria-pressed={selectedBitrixConnectionId === conn.id}
+                          className="flex items-center gap-4 flex-1 min-w-0 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-lg"
+                        >
+                          <span
+                            className={`w-3 h-3 rounded-full ${selectedBitrixConnectionId === conn.id ? 'bg-success' : 'bg-line'} shrink-0`}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-ink truncate">{conn.label}</p>
+                            {conn.portalDomain && (
+                              <p className="text-xs text-ink-2 truncate mt-0.5">
+                                {conn.portalDomain}
+                              </p>
+                            )}
+                            {/* Checkpoint real de importação incremental, nunca exposto aqui antes
+                                (achado do Piloto 011 — dado já existia em connections.ts). */}
+                            <p className="text-[11px] text-ink-2 truncate mt-0.5">
+                              {conn.lastImportedAt
+                                ? `Última sincronização: ${new Date(conn.lastImportedAt).toLocaleString('pt-BR')}`
+                                : 'Nunca sincronizado'}
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleBitrixDisconnect(conn.id)}
                           disabled={bitrixLoading || !canManage}
                           title={
                             canManage ? undefined : 'Requer permissão de Gestor ou Administrador'
                           }
-                          className="shrink-0 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="shrink-0 text-sm font-medium text-danger-active dark:text-danger hover:brightness-110 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           Desconectar
                         </button>

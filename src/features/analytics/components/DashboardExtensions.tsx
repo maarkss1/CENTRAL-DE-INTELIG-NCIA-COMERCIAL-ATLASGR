@@ -1,6 +1,11 @@
 import { type AnalyticsDashboard } from '../analytics.api.js';
+import { SERIES } from '../../../shared/constants/chartPalette';
 
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+/** `SERIES.created` já validado por script de contraste (ver chartPalette.ts) — em rgb() puro
+ * (não hex) porque as células precisam variar a opacidade por intensidade. */
+const HEATMAP_RGB = '57,135,229';
 
 // ─── Heatmap de Ligações ──────────────────────────────────────────────────────
 export function HeatmapWidget({ data }: { data: AnalyticsDashboard['callHeatmap'] }) {
@@ -20,7 +25,15 @@ export function HeatmapWidget({ data }: { data: AnalyticsDashboard['callHeatmap'
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[520px]">
+      {/* Codificação por cor: a alternativa não-visual real é a tabela-gêmea do ChartCard que
+          envolve este widget em Analytics.tsx (achado de acessibilidade, Piloto 009) — este grid
+          fica marcado como imagem/decorativo para não duplicar a mesma informação duas vezes de
+          forma conflitante para leitores de tela. */}
+      <div
+        className="min-w-[520px]"
+        role="img"
+        aria-label="Mapa de calor de ligações por dia e hora — ver tabela para os valores exatos"
+      >
         {/* Eixo de horas */}
         <div className="flex mb-1 ml-10">
           {Array.from({ length: 24 }, (_, h) => (
@@ -41,7 +54,7 @@ export function HeatmapWidget({ data }: { data: AnalyticsDashboard['callHeatmap'
               const bg =
                 count === 0
                   ? 'rgba(255,255,255,0.03)'
-                  : `rgba(57,135,229,${0.15 + intensity * 0.85})`;
+                  : `rgba(${HEATMAP_RGB},${0.15 + intensity * 0.85})`;
               return (
                 <div
                   key={hour}
@@ -60,7 +73,7 @@ export function HeatmapWidget({ data }: { data: AnalyticsDashboard['callHeatmap'
             <div
               key={i}
               className="w-4 h-4 rounded-sm"
-              style={{ backgroundColor: `rgba(57,135,229,${0.15 + v * 0.85})` }}
+              style={{ backgroundColor: `rgba(${HEATMAP_RGB},${0.15 + v * 0.85})` }}
             />
           ))}
           <span className="text-[10px] text-ink-2">Mais</span>
@@ -103,7 +116,7 @@ export function AgentPerformanceWidget({
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${Math.min(agent.conversionRate, 100)}%`,
-                    backgroundColor: agent.isAi ? '#3987e5' : '#199e70',
+                    backgroundColor: agent.isAi ? SERIES.created : SERIES.won,
                   }}
                 />
               </div>

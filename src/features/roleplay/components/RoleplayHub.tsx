@@ -343,8 +343,8 @@ export function RoleplayHub() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-transparent p-4 md:p-8 flex flex-col items-center relative overflow-hidden transition-colors duration-1000">
-      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-orange-400/10 blur-[120px] pointer-events-none" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-400/10 blur-[120px] pointer-events-none" />
+      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-brand/10 blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-brand-2/10 blur-[120px] pointer-events-none" />
 
       <div className="w-full max-w-4xl space-y-12 pb-24 relative z-10">
         <motion.div
@@ -360,11 +360,7 @@ export function RoleplayHub() {
               {brandInfo.badgeText}
             </span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-ink tracking-tight flex items-center gap-3">
-              <PhoneCall
-                className={activeBrand === 'totaltrac' ? 'text-sky-500' : 'text-atlas-orange'}
-                size={40}
-              />{' '}
-              Roleplay
+              <PhoneCall className="text-brand" size={40} /> Roleplay
             </h1>
             <p className="text-ink-2 text-base md:text-lg font-medium max-w-xl">
               Simule uma ligação real de vendas por voz para {brandInfo.name} e receba uma nota +
@@ -375,7 +371,6 @@ export function RoleplayHub() {
 
         {!callActive && !isFinished && (
           <CallSetup
-            activeBrand={activeBrand}
             currentPersonas={currentPersonas}
             selectedPersona={selectedPersona}
             setSelectedPersona={setSelectedPersona}
@@ -408,6 +403,7 @@ export function RoleplayHub() {
             onRestart={startCall}
             audioBlobUrl={audioBlobUrl}
             timestamps={timestamps}
+            turnEvaluations={turnEvaluations}
           />
         )}
       </div>

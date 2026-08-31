@@ -110,7 +110,12 @@ export const rateLimiterConnection = new Redis(redisUrl, {
   commandTimeout: 2_000,
   retryStrategy: rateLimitAuthGuard.retryStrategy,
 });
-observeConnection(rateLimiterConnection, 'rate-limit', () => rateLimitRedisEnabled, rateLimitAuthGuard.onError);
+observeConnection(
+  rateLimiterConnection,
+  'rate-limit',
+  () => rateLimitRedisEnabled,
+  rateLimitAuthGuard.onError,
+);
 registerRedisConnectionForMetrics('rate-limit', rateLimiterConnection, () => rateLimitRedisEnabled);
 
 const cacheAuthGuard = makeAuthGuard(() => redisConfigured);

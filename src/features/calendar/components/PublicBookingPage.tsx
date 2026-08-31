@@ -194,7 +194,10 @@ export function PublicBookingPage() {
           {/* Seleção de Data e Horário */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="booking-date" className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">
+              <label
+                htmlFor="booking-date"
+                className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5"
+              >
                 Data Desejada
               </label>
               <input
@@ -208,7 +211,10 @@ export function PublicBookingPage() {
               />
             </div>
             <div>
-              <label htmlFor="booking-slot" className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">
+              <label
+                htmlFor="booking-slot"
+                className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5"
+              >
                 Horário Disponível
               </label>
               <select
@@ -229,7 +235,10 @@ export function PublicBookingPage() {
 
           <div className="space-y-3 pt-2">
             <div>
-              <label htmlFor="booking-name" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+              <label
+                htmlFor="booking-name"
+                className="block text-[11px] font-bold text-slate-400 uppercase mb-1"
+              >
                 Seu Nome Completo
               </label>
               <div className="relative">
@@ -248,7 +257,10 @@ export function PublicBookingPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label htmlFor="booking-email" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                <label
+                  htmlFor="booking-email"
+                  className="block text-[11px] font-bold text-slate-400 uppercase mb-1"
+                >
                   E-mail Corporativo
                 </label>
                 <div className="relative">
@@ -265,7 +277,10 @@ export function PublicBookingPage() {
                 </div>
               </div>
               <div>
-                <label htmlFor="booking-phone" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                <label
+                  htmlFor="booking-phone"
+                  className="block text-[11px] font-bold text-slate-400 uppercase mb-1"
+                >
                   WhatsApp / Telefone
                 </label>
                 <div className="relative">
@@ -284,7 +299,10 @@ export function PublicBookingPage() {
             </div>
 
             <div>
-              <label htmlFor="booking-company" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+              <label
+                htmlFor="booking-company"
+                className="block text-[11px] font-bold text-slate-400 uppercase mb-1"
+              >
                 Nome da Empresa
               </label>
               <div className="relative">
@@ -301,7 +319,10 @@ export function PublicBookingPage() {
             </div>
 
             <div>
-              <label htmlFor="booking-notes" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+              <label
+                htmlFor="booking-notes"
+                className="block text-[11px] font-bold text-slate-400 uppercase mb-1"
+              >
                 Notas / Assunto (opcional)
               </label>
               <textarea

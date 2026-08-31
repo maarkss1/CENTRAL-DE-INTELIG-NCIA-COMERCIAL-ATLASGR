@@ -509,7 +509,10 @@ export function OcrCapturePanel() {
             <div className="space-y-3">
               {/* Nome da Empresa */}
               <div>
-                <label htmlFor="ocr-trade-name" className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                <label
+                  htmlFor="ocr-trade-name"
+                  className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                >
                   <Building2 className="w-3.5 h-3.5 text-brand" /> Nome Fantasia / Razão Social *
                 </label>
                 <input
@@ -524,7 +527,10 @@ export function OcrCapturePanel() {
 
               {/* CNPJ com Consulta na Receita Federal */}
               <div>
-                <label htmlFor="ocr-cnpj" className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                <label
+                  htmlFor="ocr-cnpj"
+                  className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                >
                   <Search className="w-3.5 h-3.5 text-brand" /> CNPJ
                 </label>
                 <div className="flex items-center gap-2">
@@ -556,7 +562,10 @@ export function OcrCapturePanel() {
               {/* Segmento e Localização */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="ocr-segment" className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-segment"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <Briefcase className="w-3.5 h-3.5 text-brand" /> Segmento
                   </label>
                   <input
@@ -569,7 +578,10 @@ export function OcrCapturePanel() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="ocr-location" className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-location"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <MapPin className="w-3.5 h-3.5 text-brand" /> Cidade / UF
                   </label>
                   <input
@@ -586,7 +598,10 @@ export function OcrCapturePanel() {
               {/* Decisor: Nome e Cargo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="ocr-contact-name" className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-contact-name"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <User className="w-3.5 h-3.5 text-brand" /> Nome do Decisor
                   </label>
                   <input
@@ -599,7 +614,10 @@ export function OcrCapturePanel() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="ocr-contact-role" className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-contact-role"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <Briefcase className="w-3.5 h-3.5 text-brand" /> Cargo
                   </label>
                   <input
@@ -616,7 +634,10 @@ export function OcrCapturePanel() {
               {/* Contatos: Telefone, E-mail, Site */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="ocr-phone" className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-phone"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <Phone className="w-3.5 h-3.5 text-brand" /> Telefone / WhatsApp
                   </label>
                   <div className="flex items-center gap-1.5">
@@ -642,7 +663,10 @@ export function OcrCapturePanel() {
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="ocr-email" className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-email"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <Mail className="w-3.5 h-3.5 text-brand" /> E-mail
                   </label>
                   <input
@@ -658,7 +682,10 @@ export function OcrCapturePanel() {
 
               {/* Website */}
               <div>
-                <label htmlFor="ocr-website" className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                <label
+                  htmlFor="ocr-website"
+                  className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                >
                   <Globe className="w-3.5 h-3.5 text-brand" /> Website
                 </label>
                 <div className="flex items-center gap-1.5">

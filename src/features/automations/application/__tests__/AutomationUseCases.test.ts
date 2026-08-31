@@ -95,6 +95,28 @@ describe('AutomationUseCases', () => {
     );
   });
 
+  it('createAutomation aceita o gatilho "Lead estagnado" com condição de operador numérico (regressão do Piloto 018)', async () => {
+    // 'Lead estagnado' já era oferecido no formulário (`automations.api.ts`), já existia no enum
+    // Prisma e já era disparado de verdade por dois jobs de fundo, mas faltava em
+    // `AUTOMATION_TRIGGERS` — toda submissão com esse gatilho falhava aqui, no
+    // `automationSchema.parse`, antes de chegar no repositório. Nenhum teste cobria esse caminho
+    // contra o schema real (o teste de UI mocka o POST via MSW e não roda o Zod de verdade).
+    repository.create.mockResolvedValue(buildAutomation({ trigger: 'Lead estagnado' }));
+
+    await useCases.createAutomation('org-1', {
+      name: 'Reengajar leads parados',
+      trigger: 'Lead estagnado',
+      action: 'Notificar equipe',
+      conditions: { daysSinceLastInteraction: { gte: 3 } },
+      actionConfig: {},
+    });
+
+    expect(repository.create).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({ trigger: 'Lead estagnado' }),
+    );
+  });
+
   it('createAutomation rejeita nome vazio', async () => {
     await expect(
       useCases.createAutomation('org-1', {
