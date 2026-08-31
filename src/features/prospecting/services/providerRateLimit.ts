@@ -16,7 +16,7 @@
 // comparado a nenhum limite; um limite 100% preciso exigiria um contador compartilhado (Redis,
 // como o cache em providerCache.ts), o que pode ser considerado depois se o volume real justificar.
 
-export type ProspectingRateLimitedProvider = 'apollo' | 'hunter';
+export type ProspectingRateLimitedProvider = 'apollo' | 'hunter' | 'github';
 
 interface TokenBucket {
   tokens: number;
@@ -39,10 +39,17 @@ export const DEFAULT_RATE_LIMIT_PER_MINUTE: Record<ProspectingRateLimitedProvide
   // Hunter.io: o teto real do plano é por cota MENSAL, não por minuto — este número é só uma
   // proteção contra rajada local, bem abaixo de qualquer teto de burst documentado.
   hunter: 30,
+  // GitHub Search API (não autenticada): teto público documentado é 10 req/min por IP — bem mais
+  // baixo que os 60/h do restante da API REST (https://docs.github.com/en/rest/using-the-rest-api/
+  // rate-limits-for-the-rest-api). 8/min fica abaixo desse teto para nunca ser o motivo de um 403
+  // de rate limit real quando múltiplos usuários usam a ferramenta ao mesmo tempo.
+  github: 8,
 };
 
 function envVarNameFor(provider: ProspectingRateLimitedProvider): string {
-  return provider === 'apollo' ? 'APOLLO_RATE_LIMIT_PER_MINUTE' : 'HUNTER_RATE_LIMIT_PER_MINUTE';
+  if (provider === 'apollo') return 'APOLLO_RATE_LIMIT_PER_MINUTE';
+  if (provider === 'hunter') return 'HUNTER_RATE_LIMIT_PER_MINUTE';
+  return 'GITHUB_RATE_LIMIT_PER_MINUTE';
 }
 
 /** Lê o limite configurado (env) para o provider, com fallback ao default documentado acima. */
