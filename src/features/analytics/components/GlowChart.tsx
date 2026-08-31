@@ -25,7 +25,10 @@ export function GlowChart({ data, error }: GlowChartProps) {
   const chartData = data.map((point) => ({ ...point, name: formatMonthLabel(point.month) }));
 
   return (
-    <div className="w-full h-72 bg-white/[0.02] border border-line rounded-2xl p-6 relative group overflow-hidden shadow-2xl">
+    <div
+      data-testid="dashboard-analytics-chart"
+      className="w-full h-72 bg-white/[0.02] border border-line rounded-2xl p-6 relative group overflow-hidden shadow-2xl"
+    >
       {/* Background Glow Effect */}
       <div
         className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[80px] opacity-20 transition-all duration-1000 ${isAtlas ? 'bg-brand' : 'bg-brand-2'} group-hover:opacity-40`}
