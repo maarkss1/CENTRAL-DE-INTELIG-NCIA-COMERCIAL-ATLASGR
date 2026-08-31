@@ -150,6 +150,7 @@
     "tailwind-merge": "^3.6.0",
     "tesseract.js": "^7.0.0",
     "three": "^0.185.1",
+    "undici": "^7.29.0",
     "uuid": "^14.0.1",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"

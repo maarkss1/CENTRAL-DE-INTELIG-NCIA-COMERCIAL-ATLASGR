@@ -1,12 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// assertSafeExternalUrl faz DNS lookup real — indisponível/instável em ambiente de teste
-// sandboxed. A proteção SSRF em si (rejeitar IP privado/loopback) é responsabilidade do Agente 01
-// (src/shared/security/urlGuard.ts); aqui testamos que ela É CHAMADA antes de qualquer
-// requisição, não a reimplementamos.
+// assertSafeExternalUrl/safeFetch fazem DNS lookup real — indisponível/instável em ambiente de
+// teste sandboxed. A proteção SSRF em si (rejeitar IP privado/loopback) é responsabilidade do
+// Agente 01 (src/shared/security/urlGuard.ts); aqui testamos que ela É CHAMADA antes de qualquer
+// requisição, não a reimplementamos. `safeFetch` é mockado chamando `assertSafeExternalUrlMock`
+// antes do `fetch` (globalThis.fetch, espionado por teste abaixo) — espelha a relação real entre
+// as duas funções, então configurar `assertSafeExternalUrlMock` para rejeitar continua simulando
+// uma rejeição de SSRF tanto para `assertSafeExternalUrl` quanto para `safeFetch`.
 const assertSafeExternalUrlMock = vi.fn().mockResolvedValue(undefined);
+const safeFetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+  await assertSafeExternalUrlMock(url);
+  return (globalThis.fetch as typeof fetch)(url, init);
+});
 vi.mock('@/shared/security/urlGuard', () => ({
   assertSafeExternalUrl: (...args: unknown[]) => assertSafeExternalUrlMock(...args),
+  safeFetch: (...args: [string, RequestInit?]) => safeFetchMock(...args),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -261,7 +269,9 @@ describe('testWebhook — revalida SSRF a cada chamada, não só no cadastro', (
 
     const { portalDomain } = await testWebhook(WEBHOOK);
 
-    expect(assertSafeExternalUrlMock).toHaveBeenCalledWith(WEBHOOK);
+    // `testWebhook` valida a URL final (com `profile.json` já anexado) via `safeFetch` — mesmo
+    // host/protocolo da URL base para fins de SSRF, só o caminho difere.
+    expect(assertSafeExternalUrlMock).toHaveBeenCalledWith(`${WEBHOOK}profile.json`);
     expect(fetchMock).toHaveBeenCalledWith(`${WEBHOOK}profile.json`, expect.anything());
     expect(portalDomain).toBe('atlasgr.bitrix24.com.br');
     fetchMock.mockRestore();

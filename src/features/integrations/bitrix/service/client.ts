@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '../../../../lib/prisma.js';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
-import { assertSafeExternalUrl } from '../../../../shared/security/urlGuard.js';
+import { assertSafeExternalUrl, safeFetch } from '../../../../shared/security/urlGuard.js';
 
 export function normalizeWebhookUrl(rawUrl: string): string {
   const trimmed = rawUrl.trim();
@@ -58,22 +58,25 @@ function retryAfterMs(response: Response): number | null {
  * na URL ou um token revogado só apareceria na hora de exportar o primeiro lead, silenciosamente
  * salvo como "conectado".
  *
- * Revalida a URL contra o guard de SSRF (`assertSafeExternalUrl`) aqui dentro, e não só no
- * cadastro (`connectBitrix`) — esta função também é chamada por `testBitrixConnection` para uma
- * conexão JÁ persistida (botão "Testar conexão"), sem revalidação prévia do chamador. Sem isto
- * aqui, um DNS rebinding (host resolvia IP público no cadastro, IP privado agora) só seria pego
- * na primeira vez, nunca nos testes de conexão seguintes.
+ * Revalida a URL contra o guard de SSRF (`safeFetch`, que já embute `assertSafeExternalUrl`) aqui
+ * dentro, e não só no cadastro (`connectBitrix`) — esta função também é chamada por
+ * `testBitrixConnection` para uma conexão JÁ persistida (botão "Testar conexão"), sem revalidação
+ * prévia do chamador. `safeFetch` fixa a conexão real nos MESMOS endereços validados nesta
+ * chamada (nenhuma segunda resolução de DNS entre validar e conectar de verdade) — sem isso, um
+ * DNS rebinding (host resolvia IP público na validação, IP privado na conexão real seguinte) não
+ * seria pego nem na primeira vez, nem nos testes de conexão seguintes.
  */
 export async function testWebhook(webhookUrl: string): Promise<{ portalDomain: string }> {
-  await assertSafeExternalUrl(webhookUrl);
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
 
   let response: Response;
   try {
-    response = await fetch(`${webhookUrl}profile.json`, { signal: controller.signal });
+    response = await safeFetch(`${webhookUrl}profile.json`, { signal: controller.signal });
   } catch (error) {
+    // Erro do guard de SSRF (URL/host reprovado por `safeFetch`) já vem com a mensagem certa —
+    // não reescreve para o genérico de falha de rede abaixo.
+    if (error instanceof AppError) throw error;
     if (controller.signal.aborted) {
       throw new AppError('Tempo limite esgotado ao testar essa URL (timeout 15s).', 504);
     }
@@ -147,7 +150,16 @@ export interface BitrixCallOptions {
   maxAttempts?: number;
 }
 
-/** Um único attempt HTTP contra o Bitrix — sem retry, sem classificação. `callBitrix` orquestra por cima disto. */
+/**
+ * Um único attempt HTTP contra o Bitrix — sem retry, sem classificação. `callBitrix` orquestra por
+ * cima disto.
+ *
+ * Revalida a URL contra o guard de SSRF a CADA attempt (via `safeFetch`, que fixa a conexão real
+ * nos endereços validados nesta mesma chamada) em vez de confiar só na validação única que
+ * `callBitrix` fazia antes do loop de retry — uma conexão de longa duração pode ter até
+ * `BITRIX_MAX_ATTEMPTS` tentativas espalhadas por segundos (backoff exponencial), tempo
+ * suficiente para um DNS rebinding entre a primeira validação e uma tentativa posterior.
+ */
 async function attemptBitrixCall<T>(
   webhookUrl: string,
   method: string,
@@ -158,7 +170,7 @@ async function attemptBitrixCall<T>(
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let response: Response;
   try {
-    response = await fetch(`${webhookUrl}${method}.json`, {
+    response = await safeFetch(`${webhookUrl}${method}.json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params || {}),
@@ -166,6 +178,10 @@ async function attemptBitrixCall<T>(
     });
   } catch (err) {
     clearTimeout(timeout);
+    // Erro do guard de SSRF nunca é transiente/retentável — propaga cru (fora do contrato de
+    // `TransientBitrixError`/`BitrixDefinitiveError`, `callBitrix` já trata isso como erro
+    // inesperado que não deve ser retentado, ver comentário lá).
+    if (err instanceof AppError) throw err;
     if (controller.signal.aborted) {
       throw new TransientBitrixError(
         `Tempo limite esgotado ao comunicar com o Bitrix24 (timeout ${REQUEST_TIMEOUT_MS / 1000}s).`,
