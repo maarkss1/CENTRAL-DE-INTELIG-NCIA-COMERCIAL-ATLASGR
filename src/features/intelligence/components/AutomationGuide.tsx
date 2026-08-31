@@ -421,14 +421,25 @@ if __name__ == "__main__":
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  role="listbox"
                   className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
                 >
                   {TRIGGERS.map((t) => (
                     <div
                       key={t.id}
+                      role="option"
+                      aria-selected={triggerApp === t.id}
+                      tabIndex={0}
                       onClick={() => {
                         setTriggerApp(t.id);
                         setActiveDropdown(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setTriggerApp(t.id);
+                          setActiveDropdown(null);
+                        }
                       }}
                       className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none"
                     >
@@ -464,14 +475,25 @@ if __name__ == "__main__":
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  role="listbox"
                   className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
                 >
                   {ACTIONS.map((a) => (
                     <div
                       key={a.id}
+                      role="option"
+                      aria-selected={actionApp === a.id}
+                      tabIndex={0}
                       onClick={() => {
                         setActionApp(a.id);
                         setActiveDropdown(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setActionApp(a.id);
+                          setActiveDropdown(null);
+                        }
                       }}
                       className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none"
                     >
@@ -505,14 +527,25 @@ if __name__ == "__main__":
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  role="listbox"
                   className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                 >
                   {TOOLS.map((t) => (
                     <div
                       key={t.id}
+                      role="option"
+                      aria-selected={tool === t.id}
+                      tabIndex={0}
                       onClick={() => {
                         setTool(t.id);
                         setActiveDropdown(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setTool(t.id);
+                          setActiveDropdown(null);
+                        }
                       }}
                       className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-yellow-900/30 hover:text-white cursor-pointer flex justify-between items-center"
                     >
@@ -542,14 +575,25 @@ if __name__ == "__main__":
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  role="listbox"
                   className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                 >
                   {AI_LAYERS.map((a) => (
                     <div
                       key={a.id}
+                      role="option"
+                      aria-selected={aiLayer === a.id}
+                      tabIndex={0}
                       onClick={() => {
                         setAiLayer(a.id);
                         setActiveDropdown(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setAiLayer(a.id);
+                          setActiveDropdown(null);
+                        }
                       }}
                       className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-rose-900/30 hover:text-white cursor-pointer flex justify-between items-center"
                     >

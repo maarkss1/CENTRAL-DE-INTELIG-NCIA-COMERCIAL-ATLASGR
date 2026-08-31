@@ -1,9 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
+
+// GESTOR por padrão: mantém os controles de escrita (criar/editar/excluir/simular/versões)
+// visíveis pra exercitar os fluxos já cobertos por este arquivo, sem exigir AuthProvider/
+// authClient reais só para montar o componente. Mesmo padrão de
+// `tests/unit/features/integrations/components/Integrations.test.tsx` — achado do Piloto 018
+// (`Automations.tsx` passou a esconder ações de escrita por papel, ver `hasRequiredRole`).
+const useAuthMock = vi.fn(() => ({ currentUser: { role: 'GESTOR' } }));
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => useAuthMock() }));
 
 import { Automations } from '@/features/automations/components/Automations';
 import { describeAutomation } from '@/features/automations/automations.api';
@@ -34,6 +42,7 @@ function mockList(items: unknown[]) {
 
 beforeEach(() => {
     mockList([]);
+    useAuthMock.mockReturnValue({ currentUser: { role: 'GESTOR' } });
 });
 
 afterEach(() => { cleanup(); server.resetHandlers(); });
@@ -156,6 +165,7 @@ describe('Automações', () => {
 
         await user.click(await screen.findByRole('button', { name: /Criar a primeira/ }));
         await user.type(screen.getByLabelText('Nome'), 'Proposta sem resposta');
+        await user.selectOptions(screen.getByLabelText('Quando'), 'Lead estagnado');
         await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta Enviada');
         await user.type(screen.getByLabelText(/Reavaliar todo dia/), '3');
         await user.click(screen.getByRole('button', { name: 'Criar' }));
@@ -192,5 +202,23 @@ describe('Automações', () => {
         const enviado = createCalledWith as { actionConfig: { channel: string; to: string } };
         expect(enviado.actionConfig.channel).toBe('email');
         expect(enviado.actionConfig.to).toBe('gestor@atlasgr.com.br');
+    });
+
+    it('SDR não vê os controles de escrita (criar/editar/excluir/simular/versões) — achado do Piloto 018', async () => {
+        // POST/PUT/DELETE/dry-run/versions exigem ADMIN/GESTOR no backend (`automation.routes.ts`);
+        // antes deste piloto a UI mostrava esses controles pra qualquer papel autenticado.
+        useAuthMock.mockReturnValue({ currentUser: { role: 'SDR' } });
+        mockList([regra]);
+        render(<Automations />);
+
+        await screen.findByText('Avisar em Proposta Enviada');
+        expect(screen.queryByRole('button', { name: /Nova automação/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Simular automação/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Ver histórico de versões/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Editar automação/ })).toBeNull();
+        expect(screen.queryByTitle('Remover automação')).toBeNull();
+        // O switch de ativar/pausar continua visível (é leitura de estado), mas desabilitado.
+        const toggle = screen.getByRole('switch', { name: /Pausar Avisar em Proposta Enviada/ });
+        expect((toggle as HTMLButtonElement).disabled).toBe(true);
     });
 });

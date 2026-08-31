@@ -30,10 +30,9 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
   // conectar/desconectar integração) não tinha nenhum caminho de navegação até essas telas
   // (achado real desta auditoria: promessa de RBAC do backend sem rota de descoberta no
   // frontend). 'team' continua ADMIN-only porque o backend também é ADMIN-only ali
-  // (team.routes.ts). 'usage' permanece ADMIN-only aqui de propósito — o endpoint
-  // correspondente (GET /api/usage) hoje não tem checagem de papel nenhuma no backend, o que é
-  // o problema oposto (rota administrativa sem autorização real, não frontend escondendo um
-  // acesso que existe) e foi encaminhado para o Agente 01 em vez de resolvido aqui.
+  // (team.routes.ts). 'usage' permanece ADMIN-only aqui pelo mesmo motivo — GET /api/usage já
+  // exige ADMIN no backend (bootstrap/routes.ts); a rota de frontend correspondente não tinha o
+  // mesmo gate (RequireRole), corrigido no Piloto 022 (ver App.tsx).
   const canManageOperations =
     !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
 

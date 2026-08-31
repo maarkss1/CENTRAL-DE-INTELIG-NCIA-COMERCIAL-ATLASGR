@@ -42,6 +42,7 @@ import { lgpdRouter } from '../features/lgpd/lgpd.routes.js';
 import { featureFlagsRouter } from '../features/feature-flags/featureFlags.routes.js';
 import { bugReportRouter } from '../features/bug-reports/bugReport.routes.js';
 import { threecxRoutes } from '../features/integrations/threecx/threecx.routes.js';
+import { gamificationRoutes } from '../features/gamification/routes/gamification.routes.js';
 
 /**
  * Monta todas as rotas de API protegidas (autenticação + tenant + papel, conforme o módulo) e o
@@ -106,6 +107,8 @@ export function mountFeatureRoutes(app: Express): void {
   // já trata este item como admin-only na navegação — este era o lado que faltava (rota
   // administrativa sem autorização real por cargo, achado da Onda 1/Roadmap v2, Agente 02).
   app.use('/api/usage', authenticateToken, requireTenant, requireRole(['ADMIN']), usageRoutes);
+  // Coaching semanal por IA (Piloto 007) — cada vendedor só gera o próprio, sem restrição de papel.
+  app.use('/api/gamification', authenticateToken, requireTenant, gamificationRoutes);
   app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
   app.use('/api/integrations/birth-voice', authenticateToken, requireTenant, birthVoiceRoutes);
   app.use('/api/integrations/3cx', authenticateToken, requireTenant, threecxRoutes);

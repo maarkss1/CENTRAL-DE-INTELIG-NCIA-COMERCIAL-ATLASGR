@@ -20,8 +20,13 @@ import { ClockCalendarWidget } from '../../../components/ui/ClockCalendarWidget'
 import { LiveStatsWidget } from '../../../components/ui/LiveStatsWidget';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useAnalytics, useActivities } from '../../../hooks/useDatabase';
+import { useAnalytics, useActivities, useAnalyticsDashboard } from '../../../hooks/useDatabase';
+import { staggerContainer, staggerItem } from '../../../lib/motion';
 import { RealtimeFeed } from './RealtimeFeed';
+import { GlowChart } from '../../analytics/components/GlowChart';
+import { TeamRankingWidget } from './TeamRankingWidget';
+import { SellerCoachingCard } from './SellerCoachingCard';
+import { AiGatewayShowcase } from './AiGatewayShowcase';
 
 const TYPE_ICONS: Record<string, React.JSX.Element> = {
   ligação: <Phone className="w-4 h-4" />,
@@ -43,7 +48,7 @@ function greeting() {
 export function SinglePageDashboard() {
   const navigate = useNavigate();
   const { activeBrand } = useBrand();
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const isAtlas = activeBrand === 'atlasgr';
 
   const {
@@ -52,6 +57,13 @@ export function SinglePageDashboard() {
     error: statsError,
     refetch: refetchStats,
   } = useAnalytics();
+
+  const {
+    data: dashboard,
+    loading: dashboardLoading,
+    error: dashboardError,
+    refetch: refetchDashboard,
+  } = useAnalyticsDashboard(6);
 
   const today = new Date().toISOString().split('T')[0];
   // `to` é exclusivo em /api/activities (ver findRange em activity.service.ts) — passar a mesma
@@ -139,97 +151,124 @@ export function SinglePageDashboard() {
           </div>
         </div>
 
-        {/* Tiras de KPIs */}
-        {statsError ? (
-          <div className="p-4 rounded-card border border-red-500/30 bg-red-500/10 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 text-sm text-red-300">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              Não foi possível carregar as métricas agora.
-            </div>
-            <button
-              onClick={() => refetchStats()}
-              className="text-xs font-bold text-red-300 hover:underline cursor-pointer shrink-0"
-            >
-              Tentar novamente
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpis.map((kpi) => (
-              <motion.div
-                key={kpi.label}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-5 rounded-card border border-line bg-surface shadow-card"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="p-2 rounded-xl bg-soft text-brand">{kpi.icon}</div>
-                </div>
-                <p className="text-xl font-black text-ink">{statsLoading ? '—' : kpi.value}</p>
-                <p className="text-[11px] font-semibold text-ink-2 mt-1 uppercase tracking-wide">
-                  {kpi.label}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        )}
+        {/* Faixa dominante: tendência mensal real (elemento dominante da tela) + KPIs compactos
+            como resumo ao lado, em vez de 4 tiles idênticos competindo em peso visual (CLAUDE.md
+            regra visual 4/regra de composição 2 — ver Piloto 007 em .claude/PILOTS.md). */}
+        <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-stretch">
+          <GlowChart data={dashboard?.monthly ?? []} error={dashboardError} />
 
-        <RealtimeFeed />
-
-        {/* Agenda de hoje */}
-        <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-black text-ink">Agenda de hoje</h3>
-            <button
-              onClick={() => navigate('/app/activities')}
-              className="text-xs font-bold text-brand hover:underline cursor-pointer"
-            >
-              Ver agenda completa
-            </button>
-          </div>
-
-          {agendaLoading ? (
-            <p className="text-sm text-ink-2">Carregando compromissos...</p>
-          ) : agendaError ? (
-            <div className="flex items-center justify-between gap-3">
+          {statsError ? (
+            <div className="p-4 rounded-card border border-red-500/30 bg-red-500/10 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 text-sm text-red-300">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                Não foi possível carregar a agenda de hoje.
+                Não foi possível carregar as métricas agora.
               </div>
               <button
-                onClick={() => refetchAgenda()}
+                onClick={() => refetchStats()}
                 className="text-xs font-bold text-red-300 hover:underline cursor-pointer shrink-0"
               >
                 Tentar novamente
               </button>
             </div>
-          ) : sortedAgenda.length === 0 ? (
-            <p className="text-sm text-ink-2">Nenhum compromisso agendado para hoje.</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {sortedAgenda.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-start gap-3 p-3.5 rounded-card bg-surface-2 border border-line"
+            <motion.div
+              variants={staggerContainer()}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-2 lg:grid-cols-1 gap-3"
+            >
+              {kpis.map((kpi) => (
+                <motion.div
+                  key={kpi.label}
+                  variants={staggerItem}
+                  className="p-4 rounded-card border border-line bg-surface shadow-card flex items-center gap-3"
                 >
-                  <div className="p-2 rounded-lg bg-surface border border-line text-brand shrink-0">
-                    {TYPE_ICONS[a.type?.toLowerCase()] ?? <ActivityIcon className="w-4 h-4" />}
-                  </div>
+                  <div className="p-2 rounded-xl bg-soft text-brand shrink-0">{kpi.icon}</div>
                   <div className="min-w-0">
-                    <p className="text-xs font-black text-ink-2">{a.time || '—'}</p>
-                    <p className="text-sm font-bold text-ink truncate">
-                      {a.type}
-                      {a.owner ? ` · ${a.owner}` : ''}
+                    <p className="text-lg font-black text-ink leading-tight">
+                      {statsLoading ? '—' : kpi.value}
                     </p>
-                    {a.observations && (
-                      <p className="text-xs text-ink-2 mt-0.5 line-clamp-2">{a.observations}</p>
-                    )}
+                    <p className="text-[10px] font-semibold text-ink-2 uppercase tracking-wide truncate">
+                      {kpi.label}
+                    </p>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
+
+        {/* Feed em tempo real + agenda de hoje: suporte, não abertura de tela — descem de
+            posição porque tendência/KPIs/ranking têm prioridade de decisão maior no dia a dia. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <RealtimeFeed />
+
+          <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-black text-ink">Agenda de hoje</h3>
+              <button
+                onClick={() => navigate('/app/activities')}
+                className="text-xs font-bold text-brand hover:underline cursor-pointer"
+              >
+                Ver agenda completa
+              </button>
+            </div>
+
+            {agendaLoading ? (
+              <p className="text-sm text-ink-2">Carregando compromissos...</p>
+            ) : agendaError ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 text-sm text-red-300">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  Não foi possível carregar a agenda de hoje.
+                </div>
+                <button
+                  onClick={() => refetchAgenda()}
+                  className="text-xs font-bold text-red-300 hover:underline cursor-pointer shrink-0"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : sortedAgenda.length === 0 ? (
+              <p className="text-sm text-ink-2">Nenhum compromisso agendado para hoje.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {sortedAgenda.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-start gap-3 p-3.5 rounded-card bg-surface-2 border border-line"
+                  >
+                    <div className="p-2 rounded-lg bg-surface border border-line text-brand shrink-0">
+                      {TYPE_ICONS[a.type?.toLowerCase()] ?? <ActivityIcon className="w-4 h-4" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-ink-2">{a.time || '—'}</p>
+                      <p className="text-sm font-bold text-ink truncate">
+                        {a.type}
+                        {a.owner ? ` · ${a.owner}` : ''}
+                      </p>
+                      {a.observations && (
+                        <p className="text-xs text-ink-2 mt-0.5 line-clamp-2">{a.observations}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <TeamRankingWidget
+          byOwner={dashboard?.byOwner ?? []}
+          currentUserName={currentUser?.name}
+          loading={dashboardLoading}
+          error={dashboardError}
+          onRetry={refetchDashboard}
+        />
+
+        <SellerCoachingCard />
+
+        {isAdmin && <AiGatewayShowcase />}
 
         <ClockCalendarWidget />
 

@@ -509,10 +509,14 @@ export function OcrCapturePanel() {
             <div className="space-y-3">
               {/* Nome da Empresa */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                <label
+                  htmlFor="ocr-trade-name"
+                  className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                >
                   <Building2 className="w-3.5 h-3.5 text-brand" /> Nome Fantasia / Razão Social *
                 </label>
                 <input
+                  id="ocr-trade-name"
                   type="text"
                   value={formData.tradeName}
                   onChange={(e) => setFormData({ ...formData, tradeName: e.target.value })}
@@ -523,11 +527,15 @@ export function OcrCapturePanel() {
 
               {/* CNPJ com Consulta na Receita Federal */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                <label
+                  htmlFor="ocr-cnpj"
+                  className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                >
                   <Search className="w-3.5 h-3.5 text-brand" /> CNPJ
                 </label>
                 <div className="flex items-center gap-2">
                   <input
+                    id="ocr-cnpj"
                     type="text"
                     value={formData.cnpj}
                     onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
@@ -554,10 +562,14 @@ export function OcrCapturePanel() {
               {/* Segmento e Localização */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-segment"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <Briefcase className="w-3.5 h-3.5 text-brand" /> Segmento
                   </label>
                   <input
+                    id="ocr-segment"
                     type="text"
                     value={formData.segment}
                     onChange={(e) => setFormData({ ...formData, segment: e.target.value })}
@@ -566,10 +578,14 @@ export function OcrCapturePanel() {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-location"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <MapPin className="w-3.5 h-3.5 text-brand" /> Cidade / UF
                   </label>
                   <input
+                    id="ocr-location"
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
@@ -582,10 +598,14 @@ export function OcrCapturePanel() {
               {/* Decisor: Nome e Cargo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-contact-name"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <User className="w-3.5 h-3.5 text-brand" /> Nome do Decisor
                   </label>
                   <input
+                    id="ocr-contact-name"
                     type="text"
                     value={formData.contactName}
                     onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
@@ -594,10 +614,14 @@ export function OcrCapturePanel() {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-contact-role"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <Briefcase className="w-3.5 h-3.5 text-brand" /> Cargo
                   </label>
                   <input
+                    id="ocr-contact-role"
                     type="text"
                     value={formData.contactRole}
                     onChange={(e) => setFormData({ ...formData, contactRole: e.target.value })}
@@ -610,11 +634,15 @@ export function OcrCapturePanel() {
               {/* Contatos: Telefone, E-mail, Site */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-phone"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <Phone className="w-3.5 h-3.5 text-brand" /> Telefone / WhatsApp
                   </label>
                   <div className="flex items-center gap-1.5">
                     <input
+                      id="ocr-phone"
                       type="text"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -635,10 +663,14 @@ export function OcrCapturePanel() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                  <label
+                    htmlFor="ocr-email"
+                    className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                  >
                     <Mail className="w-3.5 h-3.5 text-brand" /> E-mail
                   </label>
                   <input
+                    id="ocr-email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -650,11 +682,15 @@ export function OcrCapturePanel() {
 
               {/* Website */}
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1">
+                <label
+                  htmlFor="ocr-website"
+                  className="text-[11px] font-bold uppercase tracking-wider text-ink-2 flex items-center gap-1.5 mb-1"
+                >
                   <Globe className="w-3.5 h-3.5 text-brand" /> Website
                 </label>
                 <div className="flex items-center gap-1.5">
                   <input
+                    id="ocr-website"
                     type="text"
                     value={formData.website}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}

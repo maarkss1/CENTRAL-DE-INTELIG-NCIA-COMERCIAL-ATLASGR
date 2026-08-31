@@ -465,8 +465,8 @@ export function AISuiteHub() {
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/40 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success-active dark:text-success border border-success/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
               Ollama & Cloud Multi-Engine Ready
             </span>
             <span className="text-xs text-ink-3">20 Motores de IA Ativos</span>
@@ -513,10 +513,12 @@ export function AISuiteHub() {
             const Icon = cap.icon;
             const isSelected = cap.id === selectedId;
             return (
-              <div
+              <button
+                type="button"
                 key={cap.id}
                 onClick={() => handleSelectCapability(cap)}
-                className={`group p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
+                aria-pressed={isSelected}
+                className={`w-full text-left group p-3.5 rounded-xl border cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                   isSelected
                     ? `bg-surface shadow-md ${accent.border} ring-2 ring-primary/20`
                     : `bg-surface/50 hover:bg-surface border-border/50 ${accent.hoverBorder}`
@@ -545,7 +547,7 @@ export function AISuiteHub() {
                     </p>
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -601,7 +603,10 @@ export function AISuiteHub() {
               {/* Editor de Payload */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                  <label
+                    htmlFor="ai-suite-payload"
+                    className="text-xs font-semibold text-ink flex items-center gap-1.5"
+                  >
                     <SlidersHorizontal className="w-3.5 h-3.5 text-ink-3" />
                     Parâmetros de Entrada (JSON Payload):
                   </label>
@@ -616,6 +621,7 @@ export function AISuiteHub() {
                   </button>
                 </div>
                 <textarea
+                  id="ai-suite-payload"
                   value={payloadText}
                   onChange={(e) => setPayloadText(e.target.value)}
                   rows={6}
@@ -627,10 +633,12 @@ export function AISuiteHub() {
               {/* Resultado da Execução */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-ink flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  {/* Não é <label htmlFor>: descreve uma área de resultado somente leitura
+                      (motion.div abaixo), não um controle de formulário. */}
+                  <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-brand" />
                     Resultado do Processamento:
-                  </label>
+                  </span>
                   {executionResult && (
                     <button
                       type="button"
@@ -638,7 +646,7 @@ export function AISuiteHub() {
                       className="text-xs text-ink-2 hover:text-ink flex items-center gap-1 font-medium"
                     >
                       {copied ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <Check className="w-3.5 h-3.5 text-success" />
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
@@ -653,7 +661,7 @@ export function AISuiteHub() {
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="p-3.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs flex items-start gap-2.5"
+                      className="p-3.5 rounded-lg bg-danger/10 border border-danger/20 text-danger-active dark:text-danger text-xs flex items-start gap-2.5"
                     >
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       <div>

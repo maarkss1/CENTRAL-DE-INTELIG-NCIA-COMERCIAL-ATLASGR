@@ -255,6 +255,23 @@ function serializeDocument(doc: Record<string, unknown>): CrmCommercialDocument 
   } as unknown as CrmCommercialDocument;
 }
 
+/**
+ * Onda 43 (achado da auditoria de N+1 da Onda 42, seção "observação relacionada"): esta função é
+ * chamada em TODA leitura do CRM360 (getOverviewData/getPipelines/getBoardLeads — as 3 rotas de
+ * listagem mais usadas do módulo), não só na primeira vez. Antes desta correção, isso significava
+ * um `upsert` (sempre grava uma linha, mesmo sem nenhuma mudança real) + uma releitura completa do
+ * pipeline com estágios, por pipeline, em toda chamada — uma dezena de round-trips de
+ * escrita/leitura desnecessários toda vez que alguém abre o board/pipelines/overview, mesmo quando
+ * o pipeline já está provisionado e nenhum lead legado precisa migrar.
+ *
+ * Fast path: se o pipeline já existe com os estágios certos e as flags que este `update` sempre
+ * grava (`active`/`isDefault`/`entity`/`sortOrder`) já batem, devolve o que já foi lido, sem tocar
+ * em nada. Só cai no caminho antigo (upsert + provisionamento de estágio) quando falta algo de
+ * verdade — primeira vez da organização, ou um estágio novo que a lista `stages` ganhou desde a
+ * última leitura. `attachLegacyRecords` (chamada por quem invoca esta função) continua rodando
+ * sempre, sem alteração — é o mecanismo real de atribuição de pipeline/estágio a lead (todo lead
+ * nasce com `pipelineId: null`; não é uma migração única de dado legado, apesar do nome).
+ */
 async function upsertDefaultPipeline(
   organizationId: string,
   name: string,
@@ -262,6 +279,22 @@ async function upsertDefaultPipeline(
   sortOrder: number,
   stages: DefaultStage[],
 ) {
+  const existing = await prisma.crmPipeline.findUnique({
+    where: { organizationId_name: { organizationId, name } },
+    include: { stages: { orderBy: { sortOrder: 'asc' } } },
+  });
+
+  if (
+    existing &&
+    existing.active &&
+    existing.isDefault &&
+    existing.entity === entity &&
+    existing.sortOrder === sortOrder &&
+    existing.stages.length >= stages.length
+  ) {
+    return existing;
+  }
+
   const pipeline = await prisma.crmPipeline.upsert({
     where: { organizationId_name: { organizationId, name } },
     update: { active: true, isDefault: true, entity, sortOrder },
@@ -278,12 +311,14 @@ async function upsertDefaultPipeline(
     include: { stages: { orderBy: { sortOrder: 'asc' } } },
   });
 
-  if (pipeline.stages.length === 0) {
-    await prisma.crmPipelineStage.createMany({
-      data: stages.map((stage, index) => ({ ...stage, sortOrder: index, pipelineId: pipeline.id })),
-      skipDuplicates: true,
-    });
+  if (pipeline.stages.length >= stages.length) {
+    return pipeline;
   }
+
+  await prisma.crmPipelineStage.createMany({
+    data: stages.map((stage, index) => ({ ...stage, sortOrder: index, pipelineId: pipeline.id })),
+    skipDuplicates: true,
+  });
 
   return prisma.crmPipeline.findFirstOrThrow({
     where: { id: pipeline.id, organizationId },

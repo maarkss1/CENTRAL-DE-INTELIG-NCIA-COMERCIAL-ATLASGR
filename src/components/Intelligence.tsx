@@ -11,7 +11,6 @@ import {
   ShieldAlert,
   Phone,
   MessageCircle,
-  Linkedin,
   PhoneMissed,
   Calculator,
   Search,
@@ -29,6 +28,7 @@ import {
   Fingerprint,
   Workflow,
 } from 'lucide-react';
+import { LinkedinIcon as Linkedin } from './ui/icons/LinkedinIcon';
 import { api } from '../lib/api';
 import type { Lead } from '../types';
 import { PIC_OPTIONS } from '../shared/constants/icp-options';

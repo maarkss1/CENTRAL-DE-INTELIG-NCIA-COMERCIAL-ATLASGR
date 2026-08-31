@@ -49,7 +49,11 @@ const ACTIVITY_STATUS_TO_PRISMA: Record<ActivityStatus, string> = {
 };
 
 export type AutomationTriggerLabel =
-  'Lead criado' | 'Lead mudou de status' | 'Atividade concluída' | 'Lead sem interação';
+  | 'Lead criado'
+  | 'Lead mudou de status'
+  | 'Atividade concluída'
+  | 'Lead sem interação'
+  | 'Lead estagnado';
 export type AutomationActionLabel = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
 
 const AUTOMATION_TRIGGER_TO_PRISMA: Record<AutomationTriggerLabel, string> = {
@@ -57,6 +61,7 @@ const AUTOMATION_TRIGGER_TO_PRISMA: Record<AutomationTriggerLabel, string> = {
   'Lead mudou de status': 'Lead_Mudou_Status',
   'Atividade concluída': 'Atividade_Concluida',
   'Lead sem interação': 'Lead_Sem_Interacao',
+  'Lead estagnado': 'Lead_Estagnado',
 };
 
 const AUTOMATION_ACTION_TO_PRISMA: Record<AutomationActionLabel, string> = {

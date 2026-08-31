@@ -1,55 +1,13 @@
 // Validação de CNPJ com o algoritmo oficial de dígitos verificadores (Receita Federal).
+//
+// A implementação real mora em src/lib/cnpj.ts (Onda 43) — promovida pra lá porque
+// `src/features/companies/` e `src/lib/zod.ts` também precisam normalizar CNPJ, e importar deste
+// arquivo (dentro de `prospecting/`) violaria `no-cross-feature-imports`
+// (.dependency-cruiser.cjs). Reexportado aqui para não quebrar os imports já existentes que
+// apontam para `prospecting/services/cnpj.util`.
+export { sanitizeCnpj, formatCnpj, isValidCnpj, toDeterministicCnpj } from '../../../lib/cnpj.js';
 
-export function sanitizeCnpj(cnpj: string): string {
-  return (cnpj || '').replace(/\D/g, '');
-}
-
-export function formatCnpj(cnpj: string): string {
-  const digits = sanitizeCnpj(cnpj);
-  if (digits.length !== 14) return cnpj;
-  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-}
-
-function calcCheckDigit(base: string): number {
-  const weights =
-    base.length === 12
-      ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-      : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-
-  const sum = base.split('').reduce((acc, digit, idx) => acc + Number(digit) * weights[idx], 0);
-
-  const remainder = sum % 11;
-  return remainder < 2 ? 0 : 11 - remainder;
-}
-
-export function isValidCnpj(cnpj: string): boolean {
-  const digits = sanitizeCnpj(cnpj);
-  if (digits.length !== 14) return false;
-  if (/^(\d)\1{13}$/.test(digits)) return false; // todos os dígitos iguais
-
-  const base = digits.slice(0, 12);
-  const firstCheck = calcCheckDigit(base);
-  const secondCheck = calcCheckDigit(base + firstCheck);
-
-  return digits === base + String(firstCheck) + String(secondCheck);
-}
-
-/**
- * Normaliza um CNPJ (qualquer formato de entrada — com ou sem pontuação) para uma chave de
- * identidade determinística: string de 14 dígitos, só depois de passar pela validação real do
- * dígito verificador (`isValidCnpj`). Devolve `null` quando o CNPJ está ausente, mal formado ou
- * com dígito verificador inválido — nesses casos NÃO existe identidade determinística de empresa
- * disponível, e quem chamar esta função deve cair para um método de resolução heurístico (nunca
- * tratar `null` como "CNPJ igual a vazio").
- *
- * Único ponto usado por toda a resolução de identidade de empresa (`companyIdentity.service.ts`)
- * e pela criação de `Company` em `prospecting.service.ts` — existia duplicado inline nos dois
- * lugares antes desta extração.
- */
-export function toDeterministicCnpj(cnpjRaw?: string | null): string | null {
-  if (!cnpjRaw) return null;
-  return isValidCnpj(cnpjRaw) ? sanitizeCnpj(cnpjRaw) : null;
-}
+import { isValidCnpj } from '../../../lib/cnpj.js';
 
 /** Busca um CNPJ na web pelo nome da empresa (útil quando o usuário só digitou o nome) */
 export async function discoverCnpjByName(companyName: string): Promise<string | null> {

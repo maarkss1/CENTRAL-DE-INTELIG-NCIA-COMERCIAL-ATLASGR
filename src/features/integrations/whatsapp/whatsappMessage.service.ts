@@ -10,18 +10,20 @@ import { decryptField } from '../../../lib/crypto/secretFields.js';
 
 /** Grupos (`@g.us`) e o próprio status (`status@broadcast`) não correspondem a um contato do CRM. */
 function isIndividualChat(remoteJid: string | null | undefined): boolean {
-    return !!remoteJid && remoteJid.endsWith('@s.whatsapp.net');
+  return !!remoteJid && remoteJid.endsWith('@s.whatsapp.net');
 }
 
 /** Extrai o texto de uma mensagem do Baileys, quando ela for de texto simples. */
 export function extractMessageText(message: WAMessage): string | null {
-    const content = message.message;
-    if (!content) return null;
-    return content.conversation
-        || content.extendedTextMessage?.text
-        || content.imageMessage?.caption
-        || content.videoMessage?.caption
-        || null;
+  const content = message.message;
+  if (!content) return null;
+  return (
+    content.conversation ||
+    content.extendedTextMessage?.text ||
+    content.imageMessage?.caption ||
+    content.videoMessage?.caption ||
+    null
+  );
 }
 
 /**
@@ -47,49 +49,54 @@ export function extractMessageText(message: WAMessage): string | null {
  * cifra) podem ser comparadas em SQL cru sem passar pela extensão.
  */
 async function findContactByPhone(organizationId: string, phoneE164: string) {
-    const digits = phoneE164.replace(/\D/g, '');
-    const significant = digits.slice(-9);
-    if (significant.length < 8) return null;
+  const digits = phoneE164.replace(/\D/g, '');
+  const significant = digits.slice(-9);
+  if (significant.length < 8) return null;
 
-    // `email` incluído aqui (além de `id`) para o registro de opt-out unificado abaixo poder casar
-    // por e-mail também — ver contrato em .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md
-    // ("passem email e phoneE164 sempre que o canal já os tiver carregados").
-    const [found] = significant.length >= 9
-        ? await withRlsContext((tx) => tx.$queryRaw<{ id: string; email: string | null }[]>`
+  // `email` incluído aqui (além de `id`) para o registro de opt-out unificado abaixo poder casar
+  // por e-mail também — ver contrato em .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md
+  // ("passem email e phoneE164 sempre que o canal já os tiver carregados").
+  const [found] =
+    significant.length >= 9
+      ? await withRlsContext(
+          (tx) => tx.$queryRaw<{ id: string; email: string | null }[]>`
             SELECT id, email FROM "Contact"
             WHERE "organizationId" = ${organizationId}
               AND ("phoneLast9Index" = ${last9DigitsIndex(significant)} OR "whatsappLast9Index" = ${last9DigitsIndex(significant)})
             LIMIT 1
-        `)
-        : await withRlsContext((tx) => tx.$queryRaw<{ id: string; email: string | null }[]>`
+        `,
+        )
+      : await withRlsContext(
+          (tx) => tx.$queryRaw<{ id: string; email: string | null }[]>`
             SELECT id, email FROM "Contact"
             WHERE "organizationId" = ${organizationId}
               AND ("phoneLast8Index" = ${last8DigitsIndex(significant)} OR "whatsappLast8Index" = ${last8DigitsIndex(significant)})
             LIMIT 1
-        `);
-    if (!found) return null;
-    return { id: found.id, email: found.email ? decryptField(found.email) : null };
+        `,
+        );
+  if (!found) return null;
+  return { id: found.id, email: found.email ? decryptField(found.email) : null };
 }
 
 /** Lead em aberto mais recente deste contato — mensagens ficam associadas a ele quando existir um. */
 async function findOpenLeadForContact(organizationId: string, contactId: string) {
-    return prisma.lead.findFirst({
-        where: {
-            organizationId,
-            contactId,
-            status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, customFields: true, organizationId: true },
-    });
+  return prisma.lead.findFirst({
+    where: {
+      organizationId,
+      contactId,
+      status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, customFields: true, organizationId: true },
+  });
 }
 
 export interface PersistWhatsAppMessageInput {
-    organizationId: string;
-    waMessageId: string;
-    direction: 'inbound' | 'outbound';
-    remoteJid: string | null | undefined;
-    body: string | null;
+  organizationId: string;
+  waMessageId: string;
+  direction: 'inbound' | 'outbound';
+  remoteJid: string | null | undefined;
+  body: string | null;
 }
 
 /**
@@ -100,91 +107,104 @@ export interface PersistWhatsAppMessageInput {
  * após reconexão do Baileys) não duplica o registro nem o evento de timeline.
  */
 export async function persistWhatsAppMessage(input: PersistWhatsAppMessageInput): Promise<void> {
-    if (!isIndividualChat(input.remoteJid)) return;
+  if (!isIndividualChat(input.remoteJid)) return;
 
-    const phoneE164 = toE164BR(input.remoteJid!.replace('@s.whatsapp.net', ''));
-    if (!phoneE164) return;
+  const phoneE164 = toE164BR(input.remoteJid!.replace('@s.whatsapp.net', ''));
+  if (!phoneE164) return;
 
-    const existing = await prisma.whatsAppMessage.findUnique({
-        where: { organizationId_waMessageId: { organizationId: input.organizationId, waMessageId: input.waMessageId } },
-        select: { id: true },
-    });
-    if (existing) return;
+  const existing = await prisma.whatsAppMessage.findUnique({
+    where: {
+      organizationId_waMessageId: {
+        organizationId: input.organizationId,
+        waMessageId: input.waMessageId,
+      },
+    },
+    select: { id: true },
+  });
+  if (existing) return;
 
-    const contact = await findContactByPhone(input.organizationId, phoneE164);
-    const lead = contact ? await findOpenLeadForContact(input.organizationId, contact.id) : null;
+  const contact = await findContactByPhone(input.organizationId, phoneE164);
+  const lead = contact ? await findOpenLeadForContact(input.organizationId, contact.id) : null;
 
-    await prisma.whatsAppMessage.create({
+  await prisma.whatsAppMessage.create({
+    data: {
+      organizationId: input.organizationId,
+      waMessageId: input.waMessageId,
+      direction: input.direction,
+      phoneE164,
+      body: input.body,
+      contactId: contact?.id,
+      leadId: lead?.id,
+    },
+  });
+
+  if (lead && input.direction === 'inbound') {
+    const textLower = (input.body || '').trim().toLowerCase();
+    if (['sair', 'parar', 'stop'].includes(textLower)) {
+      const currentFields = (lead.customFields as Record<string, unknown>) || {};
+      // Mantém o flag legado (`customFields.optOutWhatsApp`) — outros pontos do código já
+      // dependem dele (crm/jobs/followUp.worker.ts, birth-voice/*.webhook.ts) e não são
+      // escopo desta mudança. `recordOptOut` é ADICIONAL, não substituto: registra no
+      // registro unificado (`OptOutRecord`) para que este pedido também bloqueie e-mail/voz
+      // do mesmo lead, não só WhatsApp — ver contrato em
+      // .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md.
+      await prisma.lead.update({
+        where: { id: lead.id },
         data: {
-            organizationId: input.organizationId,
-            waMessageId: input.waMessageId,
-            direction: input.direction,
-            phoneE164,
-            body: input.body,
-            contactId: contact?.id,
-            leadId: lead?.id,
+          customFields: { ...currentFields, optOutWhatsApp: true },
         },
-    });
+      });
+      logger.info({ leadId: lead.id }, 'Lead solicitou opt-out do WhatsApp');
 
-    if (lead && input.direction === 'inbound') {
-        const textLower = (input.body || '').trim().toLowerCase();
-        if (['sair', 'parar', 'stop'].includes(textLower)) {
-            const currentFields = (lead.customFields as Record<string, unknown>) || {};
-            // Mantém o flag legado (`customFields.optOutWhatsApp`) — outros pontos do código já
-            // dependem dele (crm/jobs/followUp.worker.ts, birth-voice/*.webhook.ts) e não são
-            // escopo desta mudança. `recordOptOut` é ADICIONAL, não substituto: registra no
-            // registro unificado (`OptOutRecord`) para que este pedido também bloqueie e-mail/voz
-            // do mesmo lead, não só WhatsApp — ver contrato em
-            // .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md.
-            await prisma.lead.update({
-                where: { id: lead.id },
-                data: {
-                    customFields: { ...currentFields, optOutWhatsApp: true }
-                }
-            });
-            logger.info({ leadId: lead.id }, 'Lead solicitou opt-out do WhatsApp');
-
-            // scope 'global': "sair"/"parar"/"stop" são pedidos genéricos de parar contato, não uma
-            // restrição explícita a um canal ("não me liga mais, pode mandar e-mail") — mesma regra
-            // de interpretação do contrato de opt-out unificado.
-            await recordOptOut(prismaOptOutRepository, {
-                organizationId: input.organizationId,
-                scope: 'global',
-                subject: { leadId: lead.id, email: contact?.email ?? null, phoneE164 },
-                originChannel: 'whatsapp',
-                reason: 'Lead pediu para parar de receber mensagens via WhatsApp',
-                evidence: input.body,
-            }).catch((error) => {
-                // O flag legado já foi salvo acima — a falha aqui não pode apagar essa evidência,
-                // mas precisa ficar visível (não é um catch silencioso).
-                logger.error({ err: error, leadId: lead.id }, 'Falha ao registrar opt-out unificado a partir do WhatsApp.');
-            });
-        }
-
-        await prisma.timelineEvent.create({
-            data: {
-                type: 'whatsapp',
-                description: input.body
-                    ? `Mensagem recebida no WhatsApp: "${input.body.slice(0, 200)}"`
-                    : 'Mensagem recebida no WhatsApp (mídia sem legenda).',
-                leadId: lead.id,
-            },
-        }).catch((error) => {
-            // O registro da mensagem já foi salvo — a falha aqui não pode apagar essa evidência.
-            logger.error({ err: error, leadId: lead.id }, 'Falha ao registrar mensagem de WhatsApp no timeline do lead.');
-        });
-
-        await scheduleConversationAnalysis(lead.id, input.organizationId);
+      // scope 'global': "sair"/"parar"/"stop" são pedidos genéricos de parar contato, não uma
+      // restrição explícita a um canal ("não me liga mais, pode mandar e-mail") — mesma regra
+      // de interpretação do contrato de opt-out unificado.
+      await recordOptOut(prismaOptOutRepository, {
+        organizationId: input.organizationId,
+        scope: 'global',
+        subject: { leadId: lead.id, email: contact?.email ?? null, phoneE164 },
+        originChannel: 'whatsapp',
+        reason: 'Lead pediu para parar de receber mensagens via WhatsApp',
+        evidence: input.body,
+      }).catch((error) => {
+        // O flag legado já foi salvo acima — a falha aqui não pode apagar essa evidência,
+        // mas precisa ficar visível (não é um catch silencioso).
+        logger.error(
+          { err: error, leadId: lead.id },
+          'Falha ao registrar opt-out unificado a partir do WhatsApp.',
+        );
+      });
     }
+
+    await prisma.timelineEvent
+      .create({
+        data: {
+          type: 'whatsapp',
+          description: input.body
+            ? `Mensagem recebida no WhatsApp: "${input.body.slice(0, 200)}"`
+            : 'Mensagem recebida no WhatsApp (mídia sem legenda).',
+          leadId: lead.id,
+        },
+      })
+      .catch((error) => {
+        // O registro da mensagem já foi salvo — a falha aqui não pode apagar essa evidência.
+        logger.error(
+          { err: error, leadId: lead.id },
+          'Falha ao registrar mensagem de WhatsApp no timeline do lead.',
+        );
+      });
+
+    await scheduleConversationAnalysis(lead.id, input.organizationId);
+  }
 }
 
 export interface WhatsAppConversationSummary {
-    phoneE164: string;
-    contactId: string | null;
-    contactName: string | null;
-    lastMessageBody: string | null;
-    lastMessageDirection: 'inbound' | 'outbound';
-    lastMessageAt: Date;
+  phoneE164: string;
+  contactId: string | null;
+  contactName: string | null;
+  lastMessageBody: string | null;
+  lastMessageDirection: 'inbound' | 'outbound';
+  lastMessageAt: Date;
 }
 
 /**
@@ -208,23 +228,26 @@ export interface WhatsAppConversationSummary {
  * contact }` roda dentro da MESMA transação/contexto de RLS da query principal (ver
  * `executeWithRls`), então o isolamento de tenant no JOIN não muda — só o número de queries cai.
  */
-export async function listConversations(organizationId: string, limit = 50): Promise<WhatsAppConversationSummary[]> {
-    const latestPerPhone = await prisma.whatsAppMessage.findMany({
-        where: { organizationId },
-        distinct: ['phoneE164'],
-        orderBy: [{ phoneE164: 'asc' }, { receivedAt: 'desc' }, { id: 'desc' }],
-        include: { contact: { select: { id: true, name: true } } },
-    });
+export async function listConversations(
+  organizationId: string,
+  limit = 50,
+): Promise<WhatsAppConversationSummary[]> {
+  const latestPerPhone = await prisma.whatsAppMessage.findMany({
+    where: { organizationId },
+    distinct: ['phoneE164'],
+    orderBy: [{ phoneE164: 'asc' }, { receivedAt: 'desc' }, { id: 'desc' }],
+    include: { contact: { select: { id: true, name: true } } },
+  });
 
-    return latestPerPhone
-        .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())
-        .slice(0, limit)
-        .map((msg) => ({
-            phoneE164: msg.phoneE164,
-            contactId: msg.contact?.id ?? null,
-            contactName: msg.contact?.name ?? null,
-            lastMessageBody: msg.body ?? null,
-            lastMessageDirection: (msg.direction as 'inbound' | 'outbound') ?? 'inbound',
-            lastMessageAt: msg.receivedAt,
-        }));
+  return latestPerPhone
+    .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())
+    .slice(0, limit)
+    .map((msg) => ({
+      phoneE164: msg.phoneE164,
+      contactId: msg.contact?.id ?? null,
+      contactName: msg.contact?.name ?? null,
+      lastMessageBody: msg.body ?? null,
+      lastMessageDirection: (msg.direction as 'inbound' | 'outbound') ?? 'inbound',
+      lastMessageAt: msg.receivedAt,
+    }));
 }

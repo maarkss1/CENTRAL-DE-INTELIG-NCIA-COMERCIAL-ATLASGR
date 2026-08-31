@@ -566,3 +566,1305 @@ entrada nova.
   não um bloqueio novo).
 - **Aprendizado incorporado**: `design-system/SKILL.md` ganhou os tokens novos na tabela de "tokens
   existentes" (sombra por marca + tipografia), pra próxima sessão não redescobrir nem duplicar.
+
+## Pilot 007 — Dashboard (SinglePageDashboard.tsx, piloto flagship da transformação pedida pelo usuário)
+
+- **Objetivo**: primeira etapa de uma transformação ampla em estética/UX/inovação pedida
+  explicitamente pelo usuário em todo o produto (30 rotas/módulos). Em vez de redesenhar tudo de
+  uma vez, seguido o processo obrigatório da constituição (`CLAUDE.md` seção 12): pilotar uma tela
+  por vez, começando pela mais vista no dia a dia (`src/features/dashboard/components/
+  SinglePageDashboard.tsx`) e pela que concentrava o maior gap real entre backend e UI. As demais
+  telas ficam como roadmap para pilotos futuros (Roleplay, Analytics/Commercial Intelligence,
+  Chatbook, Integrations, AI Suite, e os módulos ainda sem piloto).
+- **Correção de premissa registrada por escrito (achado de leitura de código, antes de
+  implementar)**: o pedido inicial assumia que `GamificationWidget` (o widget "falso", com
+  XP/nível/sequência não reais) era renderizado no dashboard. Não é — só existe em
+  `src/features/prospecting/components/ProspectingHub.tsx:512`, sem props, e nenhum outro arquivo
+  do repositório o importa (confirmado por grep). A tarefa real não foi "substituir gamificação
+  fake do dashboard", foi construir gamificação real nova onde não havia nenhuma. O
+  `GamificationWidget` do `ProspectingHub.tsx` permanece intocado, fora de escopo desta sessão.
+- **Achados de auditoria adicionais (antes de codificar)**:
+  - `src/components/ui/LiveStatsWidget.tsx` usava `text-totaltrack-blue` hardcoded e incondicional
+    no "Valor no Pipeline" — mostrava sempre azul Total Trac mesmo com AtlasGR ativa, violando a
+    regra visual 3 (classe estática de marca fora de tela pré-seleção). Corrigido para `text-brand-2`
+    (token dinâmico, já reescrito em runtime por `BrandContext.tsx`).
+  - `src/components/ui/ClockCalendarWidget.tsx` tinha `animate-pulse` no ícone de relógio e
+    `animate-spin-slow` no ícone de sparkles do rótulo "Fuso Horário Oficial" — loops decorativos
+    sem relação com nenhum estado real (regra visual 6). Removidos. O `animate-pulse` do indicador
+    de "dia com evento" no calendário foi mantido — esse comunica estado real (há compromisso nesse
+    dia), diferente dos dois removidos.
+  - `POST /api/intelligence/suite/coaching/report` (`SellerCoachingService`, real, com fallback
+    determinístico se o LLM falhar) não tinha nenhum consumidor de UI em todo o repositório
+    (confirmado por grep).
+  - `GET /api/usage` (custo/latência/modelo de IA, já usado por `Billing.tsx`) está restrito a
+    `requireRole(['ADMIN'])` no backend — a vitrine nova no dashboard replica essa mesma restrição
+    no frontend (`isAdmin` de `useAuth()`), nunca chamando a rota para quem não é admin.
+- **Decisão de gamificação real (nunca fabricada)**: duas camadas.
+  1. **Ranking Comercial Real** (`TeamRankingWidget.tsx`, primário, zero backend novo): reaproveita
+     `byOwner` já calculado por `GET /api/analytics/dashboard` (sem restrição de role) — a mecânica
+     de jogo é o próprio ranking por negócios fechados reais, sem XP/nível/sequência inventados.
+  2. **Coaching semanal por IA** (`SellerCoachingCard.tsx` + rota nova `POST /api/gamification/
+     coaching/weekly`, complementar, sob demanda): novo `sellerPerformanceAggregator.service.ts`
+     calcula `callsMade`/`meetingsScheduled`/`dealsClosed`/`avgTicket`/`conversionRatePercent`/
+     `topLossReason` a partir de `Activity`/`Lead` reais via Prisma, escopados a
+     `organizationId`+`owner` (nome do vendedor autenticado, resolvido no servidor via
+     `prisma.user.findUnique` — nunca aceito do body). Três campos do contrato original de
+     `SellerPerformanceData` (`connectionsRatePercent`, `proposalsSent`, `role`) não têm fonte real
+     no schema atual (não existe outcome de ligação registrado, tipo de atividade "proposta", nem
+     função de vendas em `User.role`, que é RBAC) — tornados **opcionais** em vez de fabricados,
+     com o system prompt do `SellerCoachingService` ajustado para nunca presumir um campo ausente.
+     `role` vira seletor manual opcional na UI, nunca persistido. Geração é sob demanda (botão),
+     não automática a cada carregamento — respeita o orçamento de IA (`src/lib/ai/budget.ts`).
+- **Decisão da vitrine de AI Gateway** (`AiGatewayShowcase.tsx`): reaproveita 100% `GET /api/usage`
+  (zero rota nova) — custo do mês/período, custo e latência por modelo (`BarChart`) e série diária
+  de chamadas (`AreaChart`), paleta reativa à marca (`var(--brand)`/`var(--brand-2)`, divergência
+  intencional documentada vs. a paleta hex fixa que `Billing.tsx` usa para o mesmo dado). Renderizado
+  só para `isAdmin`. Deliberadamente **sem** um "health score"/gauge de saúde do sistema: não existe
+  endpoint que exponha o teto de orçamento configurado da organização nem o estado do circuit
+  breaker por provedor — fabricar um semáforo sem esse dado real teria sido verdade cenográfica.
+- **Composição**: elemento dominante deixou de ser 4 KPI-tiles idênticos (peso visual nivelado, sem
+  hierarquia) e passou a ser uma faixa assimétrica `lg:grid-cols-[3fr_2fr]` — tendência mensal real
+  (`GlowChart`, componente já existente, reaproveitado sem duplicação) à esquerda, os mesmos 4 KPIs
+  reempilhados como resumo à direita. Feed em tempo real + agenda de hoje passam a ficar lado a
+  lado (suporte, não abertura de tela), seguidos do ranking real, do coaching por IA e da vitrine de
+  IA (condicional). Nenhuma exceção à regra 2 (hero centralizada) foi necessária — a composição já
+  é assimétrica por padrão. Entradas novas usam `staggerContainer`/`staggerItem`/`fadeInUp` de
+  `src/lib/motion.ts` (nenhuma variante nova criada).
+- **Fora de escopo, registrado, não corrigido aqui**: `GamificationWidget.tsx` fake em
+  `ProspectingHub.tsx` continua existindo — sinalizado como tarefa separada, não misturado neste
+  diff.
+- **Verificação**: `npx tsc --noEmit` (0 erros), `npx eslint` nos arquivos tocados (0 erros/
+  warnings novos), `npx vite build` (limpo), `npx vitest run` nos 2 arquivos de teste novos do
+  módulo `gamification` (10/10 passando) e no gate `tests/unit/shared/openapiRouteInventory.test.ts`
+  (7/7 passando, confirma a rota nova documentada em `docs/openapi.yaml`). **Correção registrada no
+  Piloto 009**: esta entrada originalmente afirmava 6 falhas pré-existentes em
+  `tests/unit/features/analytics.test.tsx`, "confirmadas" via `git stash` — era um falso negativo
+  meu, não um bug do repositório: rodei `vitest` sem `-c vitest.unit.config.ts`, então o servidor
+  MSW (`tests/mocks/setup.ts`, que só é registrado nesse config) nunca ligava, e o `fetch` real do
+  componente vazava pra rede, batendo num servidor de verdade (nesta sessão, o de outra sessão
+  concorrente) e recebendo HTML em vez do JSON mockado — daí o erro "Unexpected token '&lt;'".
+  Rodando com o config certo (`npx vitest run -c vitest.unit.config.ts`), a suíte inteira passa
+  8/8, sem nenhuma falha. Suíte `tests/e2e/*.spec.ts` (crm.spec.ts, visual.spec.ts): ver nota abaixo.
+- **QA visual/e2e — suíte oficial rodou de verdade, diferente do padrão de "ambiente sem Docker"
+  dos pilotos anteriores**: Docker estava disponível nesta sessão. Infraestrutura local provisionada
+  (`docker compose -f docker-compose.yml -f docker-compose.opensource.yml up -d`), banco
+  `prospectordb_test` criado, extensão `vector` instalada como superuser, schema sincronizado via
+  `prisma db push --force-reset` (histórico de 80 migrations tinha drift acumulado pré-existente,
+  não relacionado a este piloto, que impedia `migrate deploy` — reset explicitamente confirmado pelo
+  usuário antes de executar, por ser ação destrutiva e o Prisma CLI ter um gate próprio de consentimento
+  para agentes de IA). Servidor Express real (`start:e2e`, webServer do Playwright) subiu contra
+  Postgres/Redis reais. Resultado: **24/24 testes e2e passando** — `crm.spec.ts` (8/8, inclui o botão
+  "Ver agenda completa" e navegação pós-login pro dashboard), `visual.spec.ts` dashboard light+dark
+  (2/2 — a screenshot mudou como esperado pela nova composição; inspecionada visualmente antes de
+  `--update-snapshots`, layout correto nas duas resoluções, máscaras de `data-testid` preservadas),
+  `accessibility.spec.ts` "Painel Central" via axe-core (1/1, sem violações críticas/sérias),
+  `mobile-sweep.spec.ts` em 393×851 (1/1, grid novo colapsa pra 1 coluna sem overflow horizontal),
+  `auth.spec.ts`/`contact-company-forms.spec.ts`/`command-palette.spec.ts`/`leads-crud.spec.ts`
+  (12/12, confirmando ausência de regressão fora do dashboard). Infraestrutura Docker removida
+  (`docker compose down`) ao final da sessão.
+- **Aprendizado incorporado**: reforça o padrão já estabelecido no Pilot 006 de que "vitrine de dado
+  real subaproveitado" (aqui: coaching por IA e custo de IA já existentes sem UI) é uma fonte de
+  inovação genuína mais confiável do que inventar funcionalidade nova do zero — candidato a
+  princípio explícito numa futura revisão de `CLAUDE.md`/`frontend-design/SKILL.md` se o padrão se
+  repetir nos próximos pilotos do roadmap.
+
+## Pilot 008 — Roleplay (segunda etapa do roadmap do Pilot 007)
+
+- **Objetivo**: segunda tela do roadmap de transformação definido no Pilot 007. Escopo
+  deliberadamente restrito a frontend (visual/UX/acessibilidade + uma visualização de dado real já
+  computado) — diferente do Pilot 007, nenhuma rota, schema Prisma ou contrato de API muda.
+- **Achado de arquitetura registrado (não corrigido, fora de escopo)**: existem dois motores de IA
+  paralelos para o roleplay. Só um está de fato ligado à tela real (`POST /api/intelligence/studio`
+  kind=`roleplay` → `generateRoleplay()`, schema-validado, sem fallback falso — lança erro em vez de
+  inventar resposta, `AGENTS.md` da pasta já proíbe isso). O outro
+  (`src/features/roleplay/services/roleplay-ai.service.ts` + rotas `/api/intelligence/suite/roleplay/
+  turn|evaluate`) é órfão, só consumido por um painel interno de demonstração (`AISuiteHub.tsx`), não
+  pela tela de produção. Unificar os dois é decisão de arquitetura de backend, sinalizada como tarefa
+  separada, não misturada neste diff.
+- **Correção de bugs reais encontrados durante a auditoria/implementação (regra visual 3/7 —
+  token de marca estático em vez de dinâmico)**:
+  - `RoleplayHub.tsx`, `CallSetup.tsx`, `ActiveCallView.tsx` tinham o ternário `activeBrand ===
+    'totaltrac' ? '...sky...' : '...orange/atlas...'` repetido em ~10 lugares — substituído por
+    classes de token dinâmico (`text-brand`, `border-brand`, `bg-brand-active`, `bg-brand/10`
+    etc.), que já reagem à marca via `--brand`/`--brand-2` reescritos em runtime por
+    `BrandContext.tsx`. Blur ambiente de `RoleplayHub.tsx` (antes `orange-400`/`blue-400` fixos,
+    sempre essas duas cores independente da marca) agora usa `bg-brand/10`/`bg-brand-2/10`.
+  - `ActiveCallView.tsx`: dentro do painel sempre-escuro (ver exceção abaixo), usa
+    `isAtlas ? 'text-brand' : 'text-brand-2'` para os realces de marca (glow, avatar do bot) —
+    mesma técnica já usada em `GlowChart.tsx`/`useBrandAccent.ts` para o mesmo problema real
+    (o navy da Total Trac, `--brand`, fica pouco visível como glow sobre fundo quase preto; o ciano
+    de acento, `--brand-2`, resolve).
+  - `CallAnalysisReport.tsx`: blocos "O que funcionou"/"Dicas para a próxima ligação" usavam paleta
+    clara fixa (`emerald-50`/`rose-50` com texto `emerald-900`/`rose-900`, sem variante `dark:`) —
+    quebrava visualmente no tema escuro (padrão do produto). Trocados pelos tokens de status já
+    usados em `Badge.tsx`/`LiveStatsWidget.tsx` (`bg-success/10`/`bg-danger/10`,
+    `text-success-active dark:text-success`/`text-danger-active dark:text-danger`). O mesmo bloco
+    de gravação de áudio tinha `bg-white/50` (mesmo defeito, achado só durante a implementação, não
+    na auditoria inicial) — trocado por `bg-surface-2`.
+  - Nota numérica (`scoreColor()`, gradiente `emerald→amber→rose` via `bg-clip-text`) virou cor
+    sólida semântica (`text-success`/`text-warning`/`text-danger`, sem gradiente) — a cor aqui é o
+    sinal da nota, não decoração; gradiente escondia essa leitura.
+- **Acessibilidade real corrigida (seção 10 da constituição)**:
+  - `CallSetup.tsx`: cards de persona eram `<motion.div onClick>` sem `role`/teclado —
+    inacessíveis via Tab/Enter/leitor de tela. Viraram `<motion.button type="button"
+    aria-pressed={...}>` reais, mantendo hover/tap do Framer Motion.
+  - `ActiveCallView.tsx`: os 3 botões-ícone (microfone, enviar, encerrar) só tinham `title` —
+    ganharam `aria-label` explícito e dinâmico (mic alterna "Ativar microfone"/"Desativar
+    microfone" conforme o estado).
+  - `ActiveCallView.tsx`: as duas animações `repeat: Infinity` do indicador de "bot falando" não
+    respeitavam `prefers-reduced-motion` — ganharam guarda via `useReducedMotion()` (mesmo padrão
+    de `src/lib/motion.ts`), ficam estáticas (ainda visíveis) quando o usuário prefere menos
+    movimento.
+- **Exceção justificada documentada (seção 5)**: `ActiveCallView.tsx` permanece sempre escuro
+  (`bg-slate-950`, trocado do hex cru `#0b0f19` — mesmo efeito, valor rastreável) independente do
+  tema claro/escuro do resto do app. Critério: objetivo da tela (simular uma ligação/videochamada
+  real, foco total, sem distração) — convenção real de UI de chamada, não preferência estética
+  isolada.
+- **Inovação real (mesmo padrão do Pilot 007 — vitrine de dado já computado, não inventado)**:
+  `RoleplayHub.tsx` já mantinha `turnEvaluations` (clarity/objectionHandling/total por turno, vindos
+  do backend real) só usado pra calcular 3 frases de média no relatório final. Agora
+  `CallAnalysisReport.tsx` recebe `turnEvaluations` como prop e renderiza um `LineChart` (recharts)
+  com a evolução real de clareza e tratamento de objeções turno a turno — zero chamada de API nova,
+  zero persistência nova, só um estado que já existia um nível acima na árvore de componentes sendo
+  finalmente mostrado. Só renderiza se houver pelo menos 1 turno avaliado.
+- **Preservado (seção 6)**: reconhecimento de voz, síntese de voz, gravação real de áudio
+  (`MediaRecorder`) e reprodução, transcript com timestamps, contrato exato de
+  `/api/intelligence/studio`, texto de todos os personas/dificuldades.
+- **Fora de escopo, registrado, não corrigido aqui**: unificação dos dois motores de IA (ver acima);
+  persistência de sessões de roleplay no Prisma (hoje 100% em memória, perdido ao recarregar);
+  catálogo de personas vindo do backend em vez de hardcoded no frontend.
+- **Verificação**: `npx tsc --noEmit` (0 erros), `npx eslint` nos 4 arquivos tocados (0 erros, 1
+  warning pré-existente — `jsx-a11y/media-has-caption` no `<audio>`, já rebaixado a warn em
+  `eslint.config.mjs`, não introduzido nesta sessão), `npx vite build` (limpo).
+  `accessibility.spec.ts -g "Roleplay"` e `mobile-sweep.spec.ts` reais, ambos 1/1 passando.
+  **Achado de ambiente real durante a execução** (não um bug desta mudança): o banco de teste
+  `prospectordb_test` sobreviveu ao `docker compose down` do Pilot 007 (volume nomeado não removido
+  por `down` sem `-v`) e já estava com schema sincronizado ao reprovisionar Postgres/Redis. A
+  primeira tentativa de rodar `accessibility.spec.ts -g "Roleplay"` falhou consistentemente
+  (2 tentativas) porque a porta 3000 já tinha um processo `LISTENING` de **outra sessão concorrente
+  ativa neste mesmo repositório** (evidenciada por 4 commits novos aparecendo em `git log` durante
+  esta sessão — `4ff7f274`, `b73b31b5`, `18dd900b`, `696c1653` — nenhum deles tocando
+  `LoginScreen.tsx`) — `reuseExistingServer: !process.env.CI` do Playwright reaproveitou esse
+  servidor alheio, servindo uma versão de UI de login diferente da do repositório atual
+  ("Torre de controle"/"Criar conta", texto que não existe em `LoginScreen.tsx`). Resolvido rodando
+  com `PORT=3001` (porta isolada, livre), sem tocar no processo da outra sessão. Por essa mesma
+  razão, a infraestrutura Docker **não foi desligada** ao final desta sessão (diferente do Pilot
+  007) — a outra sessão pode depender do mesmo Postgres/Redis compartilhado.
+- **Aprendizado incorporado**: segunda confirmação (após o Pilot 007) de que o padrão "vitrine de
+  dado real subaproveitado" se repete — vale registrar como princípio explícito numa futura revisão
+  de `frontend-design/SKILL.md`: antes de propor uma feature nova, perguntar se o backend já calcula
+  algo parecido que só falta aparecer na tela. Também confirma que o par `isAtlas ? --brand :
+  --brand-2` (já usado em `GlowChart.tsx`/`useBrandAccent.ts`) é o padrão correto sempre que um
+  elemento precisa de contraste/glow sobre um fundo intencionalmente escuro — vale documentar isso
+  em `design-system/SKILL.md` para não ser redescoberto a cada piloto.
+
+## Pilot 009 — Analytics / Commercial Intelligence (quarta etapa do roadmap)
+
+- **Objetivo**: quarto item do roadmap do Pilot 007 — Analytics (`/app/analytics`, `/app/winloss`)
+  e Commercial Intelligence Hub (`/app/commercial_intelligence`, ADMIN/GESTOR).
+- **Correção de premissa registrada por escrito**: a alegação original do roadmap ("numérico-pesado
+  com poucos gráficos reais") estava parcialmente desatualizada. `Analytics.tsx` já tinha 6 gráficos
+  recharts reais com tabela-gêmea acessível (`ChartCard`/`TableTwin`) e paleta validada por script
+  de contraste (`shared/constants/chartPalette.ts`). O Commercial Intelligence Hub (já piloto no
+  Pilot 003) não tinha "ícone de gráfico fingindo ser gráfico" — são `KpiTile`/tabelas honestas;
+  `recharts` não era usado nesse módulo. O trabalho real deste piloto foi mais estreito e mais
+  cirúrgico do que o roadmap sugeria.
+- **Achados reais (auditoria por 3 agentes + leitura direta dos arquivos)**:
+  - `DashboardExtensions.tsx` (`HeatmapWidget`, `AgentPerformanceWidget`) usava hex cru
+    (`rgba(57,135,229,...)`, `#3987e5`, `#199e70`) que coincidia exatamente com `SINGLE`/`SERIES` já
+    validados por script de contraste em `chartPalette.ts`/`Analytics.tsx` — duplicação não
+    intencional, não uma cor nova.
+  - `HeatmapWidget` codificava intensidade só por cor, com `title` como única pista textual (não
+    confiável para leitor de tela) — sem alternativa equivalente à `TableTwin` que o resto do
+    arquivo já usa.
+  - `activitiesByStatus` (`AnalyticsDashboard`) era buscado pela API e nunca renderizado em
+    `Analytics.tsx` — mesmo padrão de dado real subaproveitado dos Pilotos 007/008.
+  - `WinLossAnalysis.tsx` era 100% prosa de IA — zero número real visível antes (ou sem nunca) rodar
+    a análise cara.
+  - `ExecutiveOverviewTab.tsx`: `trends.points` (série real de até 6 meses de win rate) já era
+    buscado e usado só pra calcular o selo "Win Rate melhorando/piorando" em `ForecastRangeCard.tsx`
+    — nunca visualizado como série.
+- **Decisões**:
+  - Novo export `SERIES` em `chartPalette.ts` (movido do const local de `Analytics.tsx`, mesmos
+    valores validados) — `Analytics.tsx` e `DashboardExtensions.tsx` agora importam da mesma fonte
+    em vez de duplicar hex.
+  - `HeatmapWidget` passou a ser envolvido por `ChartCard` (ganhou `className` opcional para
+    suportar `lg:col-span-2`) com tabela-gêmea real (dia/hora/ligações, só células com `count > 0`)
+    — mesmo padrão de acessibilidade que os outros 6 gráficos já usavam, sem inventar um novo. O
+    grid do heatmap virou `role="img"` com `aria-label` — a tabela é a fonte de verdade acessível.
+  - Novo `ChartCard` "Atividades por status" em `Analytics.tsx`, mesma receita de "Atividades por
+    tipo"/"Temperatura dos leads" (uma medida, uma cor).
+  - `WinLossAnalysis.tsx` ganhou um fetch de `analyticsApi.dashboard(3)` (mesma API já usada por
+    `Analytics.tsx`, zero rota nova) alimentando 3 `Card variant="stat"` (ganhos no mês, perdidos no
+    mês, principal motivo de perda) — sempre visíveis, mesmo antes/sem nunca rodar a IA.
+  - Novo `TrendChartCard.tsx` (Commercial Intelligence Hub) — `LineChart` de Win Rate sobre
+    `trends.points`, renderizado em `ExecutiveOverviewTab.tsx` logo após `ForecastRangeCard` (que já
+    recebe `trends`, zero fetch novo). Filtra pontos com `winRate` nulo em vez de interpolar/
+    fabricar; só renderiza com ≥2 pontos reais (1 ponto não é evolução). Estilizado com
+    `chartPalette.ts` (mesma linguagem visual "de dado sério" de `Analytics.tsx`), deliberadamente
+    diferente do estilo "glow" de `GlowChart.tsx` — decisão documentada: este é um cockpit executivo
+    denso, não uma tela de vitrine como Dashboard/Roleplay.
+- **Fora de escopo, registrado, não corrigido aqui**: nenhum — este piloto não encontrou um item
+  claramente fora de escopo do tamanho dos anteriores (GamificationWidget fake, motor de IA órfão).
+- **Achado de processo importante (não sobre o código, sobre como eu mesmo verifiquei)**: a primeira
+  rodada de `npx vitest run tests/unit/features/analytics.test.tsx` mostrou 6 testes falhando com
+  "Unexpected token '&lt;'" — quase registrei isso como debt pré-existente (mesmo erro que já
+  aparecia assim registrado na entrada do Pilot 007). Investigando a pedido do usuário, a causa real
+  era um erro meu de invocação: faltava `-c vitest.unit.config.ts`, o config que registra o setup do
+  MSW (`tests/mocks/setup.ts`, `server.listen()`); sem ele, o `fetch` real do componente vazava pra
+  rede e batia num servidor de verdade rodando na porta padrão (nesta sessão, o de outra sessão
+  concorrente), recebendo HTML em vez do JSON mockado. **A entrada do Pilot 007 foi corrigida** para
+  não deixar esse falso achado registrado como debt real. Rodando com o config certo, a suíte inteira
+  sempre passou. Lição: neste repo, `npx vitest run <path>` sem `-c` usa o config errado para testes
+  de componente que fazem fetch — sempre `-c vitest.unit.config.ts` para `tests/unit/**`.
+- **Verificação**: `npx tsc --noEmit` (0 erros), `npx eslint` nos arquivos tocados (0 erros),
+  `npx vite build` (limpo). `npx vitest run -c vitest.unit.config.ts` nos arquivos relevantes —
+  **30/30 passando** (incluindo os 4 testes novos de `TrendChartCard.test.tsx`, que por sua vez
+  revelou um bug real no próprio teste: faltava `afterEach(cleanup)` — sem `globals: true` neste
+  config, o React Testing Library não limpa sozinho entre casos — e o teste usava matchers do
+  `jest-dom` (`toBeInTheDocument`), que só é registrado no outro config; corrigido pros matchers
+  nativos que `analytics.test.tsx` já usa). E2E reais (infra Docker desta sessão, porta isolada 3010
+  porque 3000/3001 já estavam ocupadas por processos concorrentes): `accessibility.spec.ts`
+  Analytics/Ganhos-Perdas/Comercial Inteligente (3/3), `commercial-intelligence-rbac.spec.ts` (4/4),
+  `mobile-sweep.spec.ts` (1/1) — **8/8 passando**. Infraestrutura Docker mantida ligada (mesma razão
+  do Pilot 008 — outra sessão concorrente pode depender dela).
+- **Aprendizado incorporado**: reforça pela terceira vez (Pilots 007/008/009) que "vitrine de dado
+  real subaproveitado" é a fonte de inovação mais confiável neste produto — candidato definitivo a
+  princípio explícito em `frontend-design/SKILL.md`. E o achado de processo acima (config certo do
+  Vitest) deveria virar uma nota em `visual-qa/SKILL.md` ou similar, para a próxima sessão não
+  repetir o mesmo diagnóstico errado.
+
+## Pilot 010 — Chatbook (sexta etapa do roadmap)
+
+- **Objetivo**: sexto item do roadmap do Pilot 007 — o copiloto conversacional, em duas superfícies
+  que compartilham o mesmo estado (`useAssistantChat`): a página cheia `/app/chatbook`
+  (`ChatbookHub.tsx`) e o drawer flutuante global (`FloatingChatbook.tsx`/`AtlasChatbotTrigger.tsx`).
+- **Contradição resolvida por leitura direta antes de codificar**: dois agentes de auditoria
+  discordaram sobre o badge "Groq IA" (contraste ruim vs. já corrigido). Confirmado por grep direto:
+  **já estava corrigido** (`bg-success/15 text-success-active dark:text-success`, commit `40b3fb2f`)
+  em ambos os arquivos — não é achado deste piloto, e o relato desatualizado foi descartado sem
+  reabrir a investigação.
+- **Achados reais**:
+  - Violação clara da regra visual 3 (gradiente genérico de IA): avatar do copiloto em ambos os
+    arquivos usava `from-indigo-500 via-brand to-amber-500` — índigo+âmbar cercando a única cor de
+    marca real no meio.
+  - Bug real de reatividade de marca: botão de enviar em `ChatbookHub.tsx` tinha `hover:bg-orange-600`
+    fixo — hover sempre laranja AtlasGR mesmo com Total Trac ativa.
+  - Cor estática repetida sem relação com marca: `bg-indigo-600` (toggle de modo), `text-indigo-400`
+    (indicador "Consultando o motor Groq..."), blur ambiente `bg-orange-400/10`/`bg-blue-400/10` fixo
+    em `ChatbookHub.tsx` (mesmo bug já corrigido em `RoleplayHub.tsx` no Pilot 008), `text-amber-500`
+    no ícone de sparkle do subtítulo.
+  - Acessibilidade: os toggles "IA conversacional"/"Base {marca}" e as 3 abas do drawer
+    (Assistente IA/Roleplay Simulator/Matrizes & Objeções) não tinham `aria-pressed` — inconsistente
+    com o padrão já em `Analytics.tsx`/`CallSetup.tsx` (Pilot 008).
+  - **Vitrine de dado real subaproveitada (quarta confirmação do padrão, Pilots 007-010)**:
+    `ActiveRecordContext` é real e alimentado por 6 telas de detalhe (`CompanyDetail`, `Account360`,
+    `PropostaDetail`, `LeadDetailDrawer`, `ContactForm`, `DealDrillDownDrawer`) via
+    `setActiveRecord(...)`. `useAssistantChat` já lia esse registro e o injetava em toda pergunta
+    (`localContext`), mencionando-o só uma vez na saudação inicial — que rola pra fora da tela.
+- **Decisões**:
+  - Avatar → `from-brand to-brand-2` (gradiente de marca puro). Toggles/abas → `bg-brand-active`
+    (mesmo token já usado nas 3 abas do próprio drawer e nos botões de período de `Analytics.tsx`).
+    Indicador de carregamento → `text-brand`. Blur ambiente e hover do botão de enviar em
+    `ChatbookHub.tsx` → tokens dinâmicos de marca.
+  - `useAssistantChat.ts` passou a **retornar** `activeRecord` (já lido internamente via
+    `useActiveRecord()`, só faltava expor). Ambos os componentes renderizam um chip persistente
+    ("Contexto: {label}", ícone `Link2`, tokens `bg-brand/10 border-brand/20 text-brand`) sempre que
+    há um registro ativo — visível durante toda a conversa, não só na saudação. Zero fetch novo, zero
+    mudança de contrato.
+  - `aria-pressed` adicionado aos 2 toggles de modo em cada arquivo e às 3 abas do drawer.
+- **Fora de escopo, documentado**: a aba "Roleplay Simulator" do drawer usa âmbar/verde
+  extensivamente (aviso, seleção de persona, badge "Simulação Ativa") — não é uma cor fingindo
+  representar a marca, é acento de status/aviso, e a aba já redireciona para o módulo dedicado
+  `/app/roleplay` (Pilot 008) para o fluxo completo. Não tocado para não espalhar o escopo deste
+  piloto sobre uma tela já pilotada. `meeting-synthesis.service.ts` (real, funcional) permanece
+  desconectado do Chatbook, servindo só o `AISuiteHub.tsx` — não é um gap deste módulo. RAG
+  (`hybridSearch`, `src/features/knowledge`) permanece não-conectado ao copiloto — conectá-lo mudaria
+  a lógica do backend (prompt/tool-calling), fora do escopo de um piloto de UI.
+- **Preservado**: streaming SSE, persistência real (`AssistantMessage`), `ActiveRecordContext`,
+  matching de objeção/qualificação, todo texto e comportamento existentes.
+- **Verificação**: `npx tsc --noEmit` (0 erros), `npx eslint` nos 3 arquivos tocados (0 erros),
+  `npx vite build` (limpo). Nenhum teste unitário toca estes arquivos (confirmado por grep). E2E
+  reais (infra Docker desta sessão, porta isolada 3013 — 3000 ocupada por sessão concorrente):
+  `accessibility.spec.ts -g "Chatbook"` (1/1, sem violações críticas/sérias) e `mobile-sweep.spec.ts`
+  (1/1). Infraestrutura Docker mantida ligada (mesma razão dos Pilots 008/009).
+- **Aprendizado incorporado**: quarta confirmação seguida (Pilots 007-010) do padrão "vitrine de
+  dado real subaproveitado" — agora definitivamente um princípio a formalizar em
+  `frontend-design/SKILL.md`: antes de desenhar uma feature nova, perguntar que estado/contexto já
+  real e já lido no código nunca ganhou uma representação visual persistente.
+
+## Pilot 011 — Integrations (oitava etapa do roadmap)
+
+- **Objetivo**: oitavo item do roadmap do Pilot 007 — `/app/integrations` (5 abas: WhatsApp, Google
+  Workspace, Bitrix24, PABX 3CX, Webhooks & Monitor) + `WebhookMonitor.tsx`.
+- **Correção de premissa registrada por escrito**: a alegação original do roadmap ("automação real,
+  UI básica") estava só parcialmente certa. Este módulo já tem um padrão deliberado de "integrações
+  honestas" (`CapabilityBadge`/`IntegrationTruthBox`, Onda 3) que rotula cada capacidade como
+  `connected/read/write/stub/error/pending` em vez de fingir que tudo funciona, e
+  `WebhookMonitor.tsx` já teve um bug real de dado fabricado corrigido antes (4 eventos inventados,
+  comentário no próprio arquivo documenta o achado da Onda 1). Escopo calibrado por
+  proporcionalidade: não retokenizadas as ~890 linhas do arquivo inteiro (usa `bg-white
+  dark:bg-white/5` pareado corretamente — funciona nos dois temas, é debt de consistência, não bug
+  visível; mexer nisso tudo seria desproporcional a um piloto).
+- **Achados reais**:
+  - Barra de navegação das 5 abas usava `bg-orange-50 text-orange-700` (ativo)/`text-gray-600
+    hover:bg-gray-50` (inativo) **sem nenhuma variante `dark:`** — quebrava de verdade no tema
+    escuro (diferente do resto do arquivo, que pareia corretamente). Laranja fixo como "ativo"
+    também é a mesma classe de bug já corrigida nos Pilots 008/009/010 (UI do próprio produto
+    deveria reagir a `--brand`, não ser uma cor de marca de terceiro).
+  - Indicadores de status conectado/desconectado (WhatsApp, Google, seletor Bitrix) usavam
+    `bg-green-500`/`bg-red-500`/`bg-yellow-500` crus em vez dos tokens semânticos
+    `success`/`danger`/`warning` já usados em todo o resto do produto.
+  - Linha de conexão Bitrix selecionável era um `<div onClick>` sem `role`/teclado — mesma classe de
+    bug já corrigida em `CallSetup.tsx` (Pilot 008).
+  - `WebhookMonitor.tsx`: campo de busca sem `aria-label` (só placeholder); modal de inspeção era
+    HTML bruto (`<div className="fixed inset-0...">`) reimplementando foco/backdrop/Escape que o
+    primitivo `Dialog` (`src/components/ui/Dialog.tsx`, `<dialog>` nativo) já resolve.
+  - **Vitrine de dado real subaproveitada (quinta confirmação do padrão, Pilots 007-011)**:
+    `BitrixConnection.lastImportedAt` é real, já **lido** por
+    `PrismaCommercialIntelligenceRepository` (métrica "última sincronização" do Comercial
+    Inteligente) e já **escrito** desde a Onda 41, mas `listBitrixConnections` — a query que
+    alimenta a própria tela de Integrações — não o selecionava. A tela nunca mostrava quando cada
+    portal sincronizou pela última vez, apesar do dado já existir.
+- **Decisões**:
+  - Nav de abas → `bg-brand/10 text-brand` (ativo) / `text-ink-2 hover:bg-surface-2` (inativo).
+    Status dots → `bg-success`/`bg-danger`/`bg-warning animate-pulse`.
+  - Linha de conexão Bitrix: `<div onClick>` → `<button type="button" aria-pressed>` real. Como já
+    havia um botão "Desconectar" aninhado dentro do div original, a conversão preservou os dois como
+    **irmãos** (não filho-de-botão) — um botão pra seleção envolvendo label+domínio+última
+    sincronização, outro separado pra desconectar.
+  - `BitrixConnectionSummary` (interface, backend em `connections.ts` e a cópia duplicada em
+    `useBitrixIntegration.ts`) ganhou `lastImportedAt`; os dois `select` de
+    `listBitrixConnections` (inicial + pós-autoconnect) e o `.map()` final passaram a incluí-lo.
+    Renderizado como "Última sincronização: {data}" / "Nunca sincronizado" na linha de conexão.
+  - `WebhookMonitor.tsx`: campo de busca ganhou `aria-label`; modal reescrito com `<Dialog isOpen
+    onClose title maxWidth="max-w-xl">` — resolveu o gap de acessibilidade e reduziu código
+    duplicado de graça.
+- **Fora de escopo, documentado**: WhatsApp/Google/3CX não têm métricas agregadas além de um
+  booleano de conexão (confirmado por auditoria de backend) — nada inventado para essas três.
+  `ThreeCXCallEvent` existe no banco (webhook grava de verdade) mas nenhuma rota GET o expõe hoje —
+  exigiria rota nova, não incluído. Birth Voice, Email e Signature não têm NENHUMA UI hoje (só
+  webhooks/backend) — construir 3 painéis novos do zero é projeto de feature, não redesenho visual;
+  sinalizado como item de roadmap separado.
+- **Preservado**: textos exatos de `tests/unit/features/integrations/components/Integrations.test.tsx`
+  (frases de "integração honesta"), `IntegrationStatusBadge.tsx`, `BitrixExtractionPanel.tsx`,
+  `BitrixImportPanel.tsx`, `BitrixSyncRulesPanel.tsx`, `WhatsAppWebPanel.tsx`/`WhatsAppChatPanel.tsx`
+  intocados (já bons, confirmado pela auditoria).
+- **Verificação**: `npx tsc --noEmit` (0 erros), `npx eslint` nos 4 arquivos tocados (0 erros),
+  `npx vite build` (limpo). `npx vitest run -c vitest.unit.config.ts tests/unit/features/integrations`
+  — **117/117 passando** (12 arquivos, inclui as 6 asserções de copy de `Integrations.test.tsx`,
+  nenhuma tocada). E2E reais (infra Docker desta sessão, porta isolada 3020 — 3000 ocupada):
+  `accessibility.spec.ts -g "Bitrix|Integrações"` (2/2) e `mobile-sweep.spec.ts` (1/1).
+- **Aprendizado incorporado**: quinta confirmação seguida (Pilots 007-011) do padrão "vitrine de
+  dado real subaproveitado" — desta vez um caso interessante de dado que já atravessa dois módulos
+  (`lastImportedAt` já era consumido pelo Comercial Inteligente) mas nunca chegou na tela mais óbvia
+  para ele. Vale, numa auditoria futura, checar se um campo já lido em OUTRO lugar do produto não
+  está faltando na tela "dona" do próprio dado.
+
+## Pilot 012 — AI Suite (nona etapa do roadmap)
+
+- **Objetivo**: nono item do roadmap do Pilot 007 — `/app/intelligence` (`IntelligenceHub.tsx`,
+  11 abas: AI Suite, Swarm Dashboard, Metodologias, Config de IA, Superagent Creator, Gerador de
+  Scripts, Automation Guide, Ações Pendentes, B2B Generator, Ferramentas, RAG).
+- **Correção de premissa registrada por escrito**: a alegação do roadmap ("boa UI, densa/
+  utilitária") só se confirmou em parte — a maioria das telas já usa dado real e tokens
+  corretamente (`SwarmDashboard.tsx` é o padrão-ouro do módulo, comentário no próprio código:
+  "nunca número fabricado"). O achado real deste piloto foi outro, maior: um harness inteiro de
+  avaliação de qualidade dos agentes — 9 dimensões (`GET /api/agent/evaluation-metrics`), 6 com
+  dado real de produção (custo, latência, override humano, taxa de fallback, corretude de
+  ferramenta, taxa de vazamento de PII) e 3 honestamente reportadas como indisponíveis
+  (factualidade, aderência ao playbook, alucinação — exigem o Golden Dataset como referência,
+  `AI-005`), mais o próprio resumo do Golden Dataset versionado
+  (`GET /api/agent/golden-dataset/summary`) — **nenhum dos dois endpoints tinha qualquer
+  consumidor de frontend** (confirmado por grep, zero `.tsx` referenciava qualquer um deles).
+  Sexta confirmação do padrão "vitrine de dado real subaproveitado" (Pilots 007-012), e a mais
+  substancial até agora: um sistema inteiro de avaliação de qualidade, real e testado, invisível
+  para qualquer usuário.
+- **Achados secundários reais**:
+  - `AISuiteHub.tsx`: lista de 20 capacidades era `<div onClick>` sem teclado — mesma classe de
+    bug já corrigida em `CallSetup.tsx` (Pilot 008) e na linha de conexão Bitrix (Pilot 011). Badge
+    de status "Ready", ícone de sparkle, feedback de cópia e painel de erro usavam
+    `emerald-500`/`amber-500`/`red-500` crus em vez dos tokens semânticos já usados no resto do
+    produto.
+  - `SwarmDashboard.tsx`: só faltava `aria-label` no botão de cancelar missão (já tinha `title`).
+- **Decisões**:
+  - Novo `AgentQualityPanel.tsx` — busca os 2 endpoints já existentes (zero rota nova), renderiza as
+    6 dimensões disponíveis como tiles reais (com a nota de cobertura/proxy do backend visível, não
+    escondida) e as 3 indisponíveis explicitamente como "Indisponível — {motivo real}", nunca
+    escondidas ou fabricadas com um número — mesmo princípio de honestidade de
+    `IntegrationTruthBox` (Pilot 011). Segunda seção resume o Golden Dataset (versão, total de
+    casos, contagem por categoria, validação real de casos de uso de ferramenta contra o schema).
+    Nova aba "Qualidade do Enxame" em `IntelligenceHub.tsx` → `TOOL_TABS`, mesmo padrão das outras
+    11. Sem restrição de papel no frontend — os 2 endpoints não têm `requireRole` no backend além de
+    tenant, então nenhuma restrição foi inventada.
+  - `AISuiteHub.tsx`: `<div onClick>` → `<button type="button" aria-pressed>`; cores de status →
+    tokens `success`/`brand`/`danger` (mantido o `animate-pulse` do badge "Ready" — comunica sistema
+    ativo, real, não decorativo).
+  - `SwarmDashboard.tsx`: `aria-label="Cancelar missão"` adicionado ao botão que já tinha `title`.
+- **Fora de escopo, documentado (achados de arquitetura, não corrigidos)**:
+  - `PromptStudio.tsx` — órfão, sem rota, não importado em lugar nenhum navegável (confirmado por
+    `tabMeta.ts`). Reestilizar uma tela inalcançável não teria nenhum efeito real.
+  - `AiToolBuilder.tsx` — órfão (zero importadores) e 100% cenográfico: "criar ferramenta" só
+    empurra num array `useState` local, nunca persiste. Mesma classe do `GamificationWidget` fake
+    (Pilot 007) — candidato a task separada, não misturado aqui.
+  - Painel de resultado sempre-escuro do `SuperagentCreator.tsx` — exceção justificada (seção 5):
+    convenção de terminal/saída de código, mesmo raciocínio do painel sempre-escuro de
+    `ActiveCallView.tsx` (Pilot 008).
+  - Cores fixas por papel de agente (`SLO_ROLE_COLOR`) em `SwarmDashboard.tsx` — identidade visual
+    distinta por agente, não uma tentativa de representar a marca; mesma categoria de decisão já
+    tomada para Bitrix/3CX (Pilot 011).
+  - Retokenização mais ampla de `AIPendingActions.tsx` (indigo/âmbar/azul/esmeralda, todos já
+    pareados com `dark:` corretamente) — debt de consistência, não bug visível; desproporcional a
+    este piloto.
+  - Métrica de custo/latência por agente individual — `AILog` não tem coluna `agentRole`, gap já
+    documentado no próprio código-fonte do serviço; não inventado aqui.
+- **Preservado**: nenhum texto/contrato de `ReportsHub.test.tsx`, `agent.routes.slo.test.ts` ou
+  `aiPendingAction.service.test.ts` tocado. `AIConfigCenter.tsx` (já token-consistente) intocado.
+- **Verificação**: `npx tsc --noEmit` (0 erros), `npx eslint` nos 4 arquivos tocados (0 erros —
+  os 2 warnings pré-existentes de `label-has-associated-control` em `AISuiteHub.tsx`, já rebaixados
+  a warn, não foram tocados nem aumentados), `npx vite build` (limpo).
+  `npx vitest run -c vitest.unit.config.ts tests/unit/features/intelligence` — **88/88 passando**
+  (15 arquivos, nenhum backend regredido). E2E reais (infra Docker desta sessão, porta isolada 3030
+  — 3000 ocupada por sessão concorrente): `accessibility.spec.ts -g "Central de Inteligência"` (1/1,
+  sem violações críticas/sérias) e `mobile-sweep.spec.ts` (1/1, rota `intelligence` já coberta).
+- **Aprendizado incorporado**: sexta confirmação seguida (Pilots 007-012) do padrão "vitrine de
+  dado real subaproveitado" — desta vez o caso mais substancial: um harness de avaliação inteiro
+  (9 dimensões + Golden Dataset), não um único campo ou gráfico. Reforça que vale a pena, ao entrar
+  num módulo novo, procurar deliberadamente por rotas GET já existentes e testadas no backend sem
+  nenhum `.tsx` que as chame — é o sinal mais confiável encontrado até agora deste padrão.
+
+## Pilot 013 — Contacts (primeiro módulo sem piloto documentado)
+
+- **Objetivo**: primeiro dos módulos "ainda sem piloto" do roadmap do Pilot 007 — `/app/contacts`
+  (nav "Decisores").
+- **O achado principal**: `ContactDetail.tsx` era um stub morto (`return <div />`), nunca importado
+  por nenhuma rota — já documentado como intencional em `PRODUCT_EXPERIENCE_CENTRAL_ATLASGR.md`
+  ("Contatos usa formulário modal, não tela de detalhe"). Mas `GET /api/contacts/:id` **já existia
+  e já devolvia** `{...contact, company: CompanyCompleta, leads: Lead[]}`
+  (`PrismaContactRepository`/`ContactController`), inclusive `contactsDB.get(id)` já existia em
+  `src/lib/db.ts`. Sétima confirmação do padrão "vitrine de dado real subaproveitado"
+  (Pilots 007-013) — e a primeira vez que o dado subaproveitado é uma tela inteira, não um campo ou
+  gráfico. Zero rota nova precisou ser criada.
+- **Achado secundário de tipagem**: a interface `Contact` compartilhada (`src/types/index.ts`) não
+  declarava `leads`/`aiProcessingConsent`, embora ambos já fossem reais no schema e no contrato de
+  API de detalhe — mesma classe de achado do `lastImportedAt` no Pilot 011 (dado real que atravessa
+  camadas mas falta no tipo/tela certa). Corrigido como campos opcionais (só vêm no detalhe, não na
+  listagem).
+- **Achados reais em `ContactList.tsx`**:
+  - Botão "Novo Contato": `from-brand to-amber-500` — âmbar fixo misturado com token dinâmico de
+    marca (mesma classe de bug de Chatbook/Roleplay).
+  - Hover de linha: `hover:bg-orange-50/30` — sem variante `dark:`, quebrava no tema escuro.
+  - Avatar (inicial do nome): gradiente indigo/purple sem relação com marca ou design system.
+  - Botão "enriquecer": `bg-orange-50 text-brand` — mistura estática+dinâmica.
+  - Botões editar/excluir: `blue-50`/`red-50` crus em vez de tokens `info`/`danger`.
+  - LinkedIn era texto, nunca um link real, ao lado do WhatsApp que já era.
+  - Campo de busca e botões de ação sem `aria-label` (só `title`).
+- **Decisões**:
+  - Todos os itens acima corrigidos com tokens dinâmicos/semânticos, mesmo padrão já estabelecido
+    nos 6 pilotos anteriores.
+  - `ContactDetail.tsx` reconstruído como gaveta real usando o primitivo `Drawer` já existente
+    (foco/Escape/backdrop resolvidos ali) em vez do padrão bespoke maior de `LeadDetailDrawer.tsx`.
+    Busca `contactsDB.get(id)` (zero rota nova) e mostra: campos hoje invisíveis em qualquer lugar
+    (departamento, data de nascimento, origem, status do e-mail, observações), consentimento de
+    IA/LGPD (`aiProcessingConsent`, nunca mostrado em nenhuma tela antes), resumo da empresa
+    vinculada, e lista real de negócios vinculados (`leads[]`) — hoje não havia NENHUMA forma de ver
+    que negócios um contato tem. Registra `ActiveRecord` enquanto aberta, mesmo padrão das outras 6
+    telas que já fazem isso (o copiloto do Pilot 010 já lê esse contexto).
+  - Nova ação "Ver detalhes" (ícone `Eye`) na linha da tabela abre a gaveta.
+- **Fora de escopo, documentado**: `DecisionMaker`/`whatsAppMessages` não vêm na query de detalhe
+  atual (exigiriam join novo) — não adicionados, a gaveta já tem conteúdo real substancial sem
+  isso. Exclusão "dura" de contato (`PrismaContactRepository.delete` faz `prisma.contact.delete`
+  real, ignorando as colunas de soft-delete que o schema já tem) — achado real, mas é decisão de
+  integridade de dado/LGPD, não tarefa de UI; sinalizado, não corrigido aqui. `companyId`/`status`
+  ignorados silenciosamente por `ContactController.getContacts` — sem sintoma hoje porque
+  `ContactList.tsx` nunca envia esses parâmetros (não existe filtro de empresa/status na UI).
+  `SENIORITY_COLORS` mantida — codificação categórica legítima, mesma categoria de decisão de
+  Bitrix/3CX (Pilot 011) e per-agente (Pilot 012).
+- **Bloqueio real de ambiente, registrado com transparência (protocolo de `visual-qa/SKILL.md`)**:
+  outra sessão está no meio de uma remoção grande da integração Bitrix (todo
+  `src/features/integrations/bitrix/*` deletado, referências ainda pendentes em ~15 arquivos não
+  relacionados a Contacts). Isso deixa o projeto inteiro num estado transitório quebrado: `npx tsc
+  --noEmit` mostra ~20 erros, todos em módulos bitrix/mesa-tratamento/prospecting/crm não tocados
+  por este piloto (confirmado por grep — zero menção a `contacts` nos erros); `npx vite build`
+  falha ao resolver `bitrix.api` a partir de `CrmBoard.tsx`; o próprio `server.ts` não sobe
+  (`ERR_MODULE_NOT_FOUND` em `bitrix.webhook.js`), bloqueando **toda** a suíte e2e, não só a deste
+  piloto. Não é um bug deste diff, e não tentei consertar o trabalho em andamento de outra sessão.
+  Verificação alternativa executada: `npx eslint` nos 3 arquivos tocados (0 erros) e
+  `npx vitest run -c vitest.unit.config.ts tests/unit/features/contacts` (8/8 passando,
+  `ContactForm.test.tsx`/`ContactUseCases.test.ts`/`contact.service.test.ts` — nenhum toca os
+  arquivos deste piloto diretamente, mas confirma que a mudança de tipo em `Contact` não quebrou
+  nada no módulo). **E2E real (`contact-company-forms.spec.ts`) e verificação manual no navegador
+  continuam pendentes** — não fingido como feito, registrado aqui como pendente de confirmação
+  assim que o ambiente estiver estável.
+- **Aprendizado incorporado**: sétima confirmação do padrão "vitrine de dado real subaproveitado",
+  a primeira em escala de tela inteira — reforça o princípio já registrado em
+  `frontend-design/SKILL.md` (Pilot 010) de procurar por endpoints reais sem consumidor antes de
+  propor uma feature nova, agora também aplicável a "existe uma tela morta com o fetch certo do
+  lado, só falta o componente real". Também primeiro caso desta série em que o próprio ambiente de
+  verificação fica bloqueado por trabalho concorrente de outra sessão — vale manter o hábito de
+  checar `git status`/`git log` no início de cada piloto (já parte do processo) e, quando o bloqueio
+  for descoberto só na hora de verificar, documentá-lo com a mesma transparência de um bloqueio de
+  infraestrutura (Docker/Postgres ausente), não tratá-lo como "quase terminado, deve estar ok".
+
+## Pilot 014 — Companies
+
+- **Objetivo**: segundo módulo do roadmap pós-aprovação do usuário para seguir todos os pilotos
+  restantes em sequência, sem pausar para confirmar entre eles.
+- **Achado principal — inconsistência entre os dois arquivos do mesmo módulo**: `CompanyList.tsx`
+  já tinha passado por uma rodada real de correção de contraste (27 ocorrências de `dark:`,
+  comentários citando verificação via axe-core), mas `CompanyDetail.tsx` — o perfil completo da
+  empresa, embutido como troca de view dentro da própria `CompanyList` — tinha só 4 ocorrências de
+  `dark:` em 425 linhas: `blue-400`/`blue-500`/`blue-600` cru em quase todo ícone informativo
+  (CNPJ, localização, segmento, Wrench, Users, ShieldCheck, Radar), `purple-950/40` fixo (sem par
+  claro) nas chips de palavra-chave, `amber-950/30` fixo (sem par claro) na caixa de observações da
+  IA, badge de status "Ativo" reintroduzindo exatamente o bug de contraste que `CompanyList.tsx` já
+  tinha documentado e corrigido (`text-green-400` puro em vez do padrão já auditado
+  `text-emerald-700 dark:text-success`), e um gradiente `amber-500 → orange-500 → amber-600` com
+  `text-yellow-300` no botão principal de "Enriquecer com IA" sem nenhuma verificação de contraste,
+  enquanto o mesmo botão em `CompanyList.tsx` (individual e em massa) já usava um tom âmbar
+  auditado (`bg-amber-500/15 text-amber-700 dark:text-amber-400`).
+- **`CompanyDetail.tsx` não é stub morto** (diferente do `ContactDetail.tsx` do Piloto 013) — é uma
+  tela real de 425 linhas, ativamente renderizada. Ainda assim, confirmou-se a oitava aparição do
+  padrão "vitrine de dado real subaproveitado": `company.businessHours.openNow`/
+  `weekdayDescriptions` já vinham da API (Google Places), mas só a existência do objeto era checada
+  para decidir se o card "Google Meu Negócio" aparecia — o horário de funcionamento em si nunca era
+  renderizado. `employeeCount`/`estimatedRevenue` (schema real, já na resposta da API) nunca
+  apareciam em nenhuma tela do módulo Companies — só indiretamente, para a empresa de um Lead
+  vinculado, em `LeadDetailDrawer.tsx`.
+- **Decisões**:
+  - Retokenização completa de `CompanyDetail.tsx` para o mesmo sistema já usado em `CompanyList.tsx`:
+    ícones informativos → `text-ink/70 dark:text-ink-2` (CNPJ/local/segmento/Users/ShieldCheck),
+    avatar/bolha de ícone → `bg-soft border-brand/30 text-brand` / `bg-brand/10 border-brand/20
+    text-brand` (mesmo padrão de bolha usado em Contacts), chips de link externo (site/LinkedIn) →
+    token `info`, badge "Ativo" → cópia exata do padrão já auditado em `CompanyList.tsx`
+    (`bg-success/10 text-emerald-700 dark:text-success`), botão "Enriquecer com IA" → mesma
+    combinação âmbar auditada de `CompanyList.tsx` (preserva a categoria "âmbar = ação de IA", já
+    estabelecida e testada nesse arquivo vizinho, em vez de inventar um gradiente novo), caixa de
+    observações da IA e alerta de "tecnologias não detectadas" → token `warning` (existe em
+    `globals.css`, não precisou de token novo), chips de palavra-chave → neutras
+    (`bg-surface-2 text-ink-2`, sem cor categórica real associada).
+  - `aria-label` adicionado a todos os botões só-ícone sem ele: toggle Cards/Tabela, enriquecer/
+    editar/excluir (grid e tabela) em `CompanyList.tsx`, link "Ligar" do contato em
+    `CompanyDetail.tsx`.
+  - Nova seção de horário de funcionamento (badge "Aberto agora"/"Fechado agora" + lista dos dias
+    da semana) dentro do card "Google Meu Negócio", e novos campos "Funcionários (estimado)" e
+    "Faturamento estimado" dentro de "Dados Cadastrais" — ambos usando dado já presente na resposta
+    de `GET /api/companies/:id`, zero rota nova.
+  - Estrelas de avaliação do Google (`amber-400`) mantidas como estão — **exceção justificada**
+    (constituição §5): convenção universal de rating em estrelas, independente de identidade de
+    marca, mesma categoria já aceita para WhatsApp verde/Bitrix laranja/3CX azul-céu em pilotos
+    anteriores.
+- **Fora de escopo, documentado**:
+  - `confirm()` nativo no `handleDelete` de `CompanyList.tsx` — não é específico deste módulo (usado
+    em outros 11 arquivos do app, incluindo o próprio `ContactList.tsx` do Piloto 013); substituir
+    por um diálogo de confirmação estilizado exigiria um componente novo compartilhado e tocaria
+    muitos arquivos — mais adequado como tarefa própria do que correção pontual aqui.
+  - `apolloOrgId`, `stateRegistration`, `zipCode`, `customFields`, `owner`, `twitter`, `facebook` —
+    campos reais nunca renderizados, mas sem um lugar de UI óbvio que justifique inventar uma seção
+    nova só para exibi-los; `businessHours`/`employeeCount`/`estimatedRevenue` foram os únicos
+    escolhidos por terem valor comercial claro e direto (dado que ajuda quem liga pra empresa).
+  - Filtros `status`/`segment`/`city` aceitos por `companiesDB.list` mas ignorados
+    silenciosamente pelo backend (`CompanyController.getCompanies` só lê `page`/`limit`/`q`) — sem
+    sintoma hoje porque `CompanyList.tsx` nunca envia esses parâmetros (não existe filtro de
+    status/segmento/cidade na UI). Mesma categoria dos achados de parâmetro morto já registrados
+    em pilotos anteriores.
+  - Gap de tipagem no backend: `src/features/companies/domain/Company.ts` (interface do domínio)
+    não declara vários campos que o Prisma já retorna e a UI já consome (`technologies`,
+    `keywords`, `logoUrl`, `apolloOrgId` etc.), contornado hoje com `as unknown as Company` no
+    repositório. Achado real, mas é uma limpeza de tipagem backend sem efeito visível na UI —
+    registrado, não corrigido neste diff (nenhuma das telas tocadas por este piloto precisou
+    desse tipo para compilar, já que consomem o tipo de frontend em `src/types/index.ts`, que já
+    tem os campos corretos).
+- **Preservado**: nenhuma rota nova, nenhuma migração. Textos exatos exigidos por
+  `tests/e2e/contact-company-forms.spec.ts` e `tests/unit/features/companies/**` (`"Nova Empresa"`,
+  `"Empresa criada."`, mensagens de validação de CNPJ/Razão Social) — `CompanyForm.tsx` não foi
+  tocado.
+- **Achado ambiental durante a implementação — colisão real com sessão concorrente**: no meio da
+  implementação, um `npx eslint` acusou `'Linkedin' is not defined` em `CompanyDetail.tsx` mesmo com
+  o import aparentemente correto — investigação mostrou que outra sessão está no meio de uma
+  migração de major version do `lucide-react` (v1.38.0, que removeu ícones de marca como
+  `Linkedin`/Facebook/Github da lib — mudança real, documentada em lucide.dev/guide/react/migration)
+  para um componente local (`src/components/ui/icons/LinkedinIcon.tsx`), e editou este exato arquivo
+  no meio da minha própria edição. Um `eslint --no-cache` logo em seguida já veio limpo — o erro era
+  o estado transitório do arquivo no instante exato da corrida entre as duas edições, não um bug
+  real. Essa mesma migração automática já tinha alcançado `ContactList.tsx`/`ContactDetail.tsx`
+  (Piloto 013) antes de eu verificar, então nenhuma ação foi necessária da minha parte além de
+  confirmar a compatibilidade. Diferente do bloqueio do Piloto 013 (Bitrix), desta vez o projeto
+  inteiro compilou limpo (`tsc` 0 erros, `vite build` ok) — a outra sessão parece ter concluído o
+  trabalho que antes bloqueava tudo (o bundle final ainda inclui `useBitrixIntegration`, então a
+  integração foi mantida, não removida).
+- **Verificação**: `npx eslint --no-cache` nos 2 arquivos (limpo), `npx tsc --noEmit -p .` (0 erros
+  no projeto inteiro), `npx vite build` (sucesso), `npx vitest run -c vitest.unit.config.ts
+  tests/unit/features/companies` (10/10 passando), `PORT=3050 npx playwright test
+  tests/e2e/contact-company-forms.spec.ts` (3/3 passando). Primeira verificação totalmente completa
+  (sem bloqueio de ambiente) desde o Piloto 012.
+- **Aprendizado incorporado**: oitava confirmação do padrão "vitrine de dado real subaproveitado" —
+  desta vez dentro de uma tela que já existia e já era usada, não um stub morto: o dado (horário de
+  funcionamento, porte da empresa) já chegava do backend mas nunca tinha um pedaço de UI dedicado a
+  mostrá-lo, mesmo com a tela ao redor dele já "pronta". Reforça que vale procurar esse padrão
+  também dentro de telas ativas, campo a campo, não só via endpoints sem nenhum consumidor. Segundo
+  aprendizado: duas telas do mesmo módulo podem estar em estágios de correção de tokens/contraste
+  completamente diferentes mesmo sendo vizinhas e compartilhando o mesmo domínio — vale sempre
+  comparar o tratamento de cor entre arquivos irmãos do mesmo módulo antes de assumir que um já
+  reflete o padrão do outro.
+
+## Pilot 015 — Activities
+
+- **Objetivo**: terceiro módulo do roadmap, seguido em sequência sem pausar para confirmação
+  (aprovação do usuário para rodar os pilotos restantes de forma contínua).
+- **Achado principal — bug funcional real, não cosmético**: o formulário "Nova Atividade" de
+  `ActivityList.tsx` — a **única tela de criação de atividade em todo o aplicativo** (confirmado por
+  busca exaustiva: nenhum outro lugar do código chama `createActivity`/`POST /api/activities` a
+  partir de UI) — nunca teve um campo para vincular a atividade a um Lead. `leadId` é obrigatório no
+  schema Prisma (`String`, sem `?`, FK não-nula) e no Zod (`activitySchema.leadId: z.string()`), mas
+  o form sempre enviava `leadId: form.leadId || undefined` com `form.leadId` permanentemente `''`
+  (nenhum input o preenchia). Ou seja: **toda submissão desse formulário sempre falhava** na
+  validação Zod antes de tocar o banco — a funcionalidade central da tela nunca funcionou de fato.
+  Corrigido adicionando um campo de busca de Lead (combobox com debounce de 300ms, mesmo padrão já
+  usado em `CompanyList.tsx`), reaproveitando `GET /api/leads?q=...` — que **já existia e já
+  suportava busca por texto no backend** (`LeadController.getLeads` já lê `req.query.q`), mas
+  `leadsDB.list()` no frontend nunca expunha esse parâmetro (adicionado em `src/lib/db.ts`, mesmo
+  padrão de `q` já usado por `companiesDB`/`contactsDB`). `handleSubmit` agora bloqueia o envio com
+  toast de erro se nenhum negócio foi selecionado, em vez de deixar a API rejeitar silenciosamente.
+- **Achado secundário — endpoint órfão + duplicação de dado**: `GET /api/activities/templates`
+  (`ActivityUseCases.getFollowUpTemplates`) já existia, íntegro, sem nenhum consumidor — a tela
+  duplicava a mesma lista como constante local `FOLLOW_UP_TEMPLATES`, já divergente em um dos
+  textos do backend vs. frontend ("Diagnóstico de Frota" vs. "Diagnóstico Operacional de Frota").
+  Corrigido: o modal agora busca do endpoint real (sob demanda, ao abrir), eliminando a duplicação
+  e dando o nono uso confirmado do padrão "vitrine de dado real subaproveitado" — desta vez uma
+  rota GET testada e pronta, mas nunca chamada pela UI.
+- **Retokenização de `ActivityList.tsx`**: as 7 cores categóricas de tipo de atividade
+  (`TYPE_COLORS`) foram mantidas — **exceção justificada** (constituição §5): são mais distinções
+  do que os tokens semânticos do projeto cobrem, e diferenciar 7 tipos de atividade por cor é
+  informação real, não decoração. O bug real era a ausência total de par `dark:` em todas as 7 —
+  adicionado (`dark:bg-*-950/30 dark:text-*-300 dark:border-*-900` por matiz). Já `STATUS_STYLES`
+  (pendente/concluída) tinha significado semântico direto e foi migrado para os tokens
+  `warning`/`success` já auditados (mesmo badge de `CompanyDetail.tsx`, Piloto 014) — `cancelled`
+  já usava tokens corretamente, preservado. Banner de erro, hover de "Reabrir"/"Marcar Concluída" e
+  botão excluir migrados para `danger`/`warning`/`success` tokens (antes usavam `red-*`/`amber-*`/
+  `emerald-*` crus, a maioria sem par `dark:`). Ícones decorativos (`Sparkles` de "Modelos Rápidos",
+  `Download` de "Baixar Agenda") tinham `amber-500`/`sky-500` arbitrários sem significado — como
+  âmbar já é a cor categórica de "ação de IA/enriquecimento" estabelecida em Contacts/Companies e
+  esses dois ícones não são ações de IA, foram normalizados para `text-ink-2` (evita sobrecarregar
+  o mesmo tom com dois significados diferentes no app). Gradiente do botão salvar
+  (`from-brand to-amber-500`) corrigido para `from-brand to-brand-2` — mesmo bug já corrigido em
+  outros 3 pilotos anteriores.
+- **Acessibilidade**: `type="button"` adicionado a 9 botões que não declaravam (Modelos Rápidos,
+  Baixar Agenda, Nova Atividade, Tentar novamente, Criar Primeira Atividade, toggle de status,
+  excluir, fechar modal de templates, fechar modal de nova atividade) — nenhum causava bug de
+  submit hoje (nenhum estava de fato dentro do `<form>`), mas era inconsistente com o resto do
+  arquivo. O card de template (`<div role="button" tabIndex={0}>`, já parcialmente acessível via
+  teclado) foi convertido para `<button type="button">` nativo, alinhado à exigência de semântica
+  HTML antes de `role`/`aria-*` (constituição §10).
+- **Fora de escopo, documentado**:
+  - `Timeline.tsx` — componente completo e funcional (busca `GET /api/leads/:id`, renderiza
+    histórico de eventos), mas **órfão**: não é importado por nenhuma rota ou componente ativo do
+    projeto. Tem 4 cores categóricas hardcoded sem par `dark:` (`blue-100`/`orange-100`/
+    `green-100`/`purple-100`). Não corrigido neste piloto: seu lugar natural seria dentro de
+    `LeadDetailDrawer.tsx` (módulo CRM/Leads), fora do escopo de um piloto de Activities — e como
+    está completamente inacessível hoje, retocar suas cores não teria nenhum efeito observável.
+    Sinalizado para um piloto futuro do módulo CRM/Leads.
+  - `deletedAt`/`deletedBy`/`deleteReason` — colunas reais de soft-delete no schema do model
+    `Activity`, nunca lidas/escritas em lugar nenhum (`delete()` faz hard delete puro). Mesma
+    categoria dos achados de hard-delete já sinalizados em Contacts (Piloto 013) — decisão de
+    integridade de dado/LGPD, não tarefa de UI.
+  - `confirm()` nativo em `handleDelete` — mesmo padrão já registrado como fora de escopo no
+    Piloto 014 (usado em 12+ arquivos do app inteiro, não específico deste módulo).
+  - `lead` (relação populada, incluindo `company`/`contact`) já vem em cada atividade retornada por
+    `GET /api/activities`, mas o card na grade não mostra a qual negócio/empresa a atividade
+    pertence. Não adicionado neste piloto por escopo (o card já ficou mais denso com a correção do
+    bug de criação); fica sinalizado como próximo incremento natural do mesmo card.
+- **Preservado**: nenhuma migração. Textos exatos exigidos por
+  `tests/unit/features/activities/application/ActivityUseCases.test.ts` e
+  `services/activity.service.test.ts` (regex `/não é um responsável real/` do `ownerGuard`) e por
+  `tests/e2e/accessibility.spec.ts` (`'Atividades não tem violações críticas/sérias'`, rota
+  `/app/activities`) — nenhum desses textos foi tocado.
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo, após corrigir uma entidade
+  HTML não escapada), `npx tsc --noEmit -p .` (0 erros no projeto inteiro), `npx vite build`
+  (sucesso), `npx vitest run -c vitest.unit.config.ts tests/unit/features/activities` (14/14
+  passando), `PORT=3060 npx playwright test tests/e2e/accessibility.spec.ts -g "Atividades"` (1/1
+  passando). **Bloqueio real de ambiente**: a verificação manual no navegador do novo fluxo de
+  busca/seleção de Lead (a parte mais arriscada deste piloto, por ser lógica nova sem teste
+  automatizado) não pôde ser concluída — o servidor de dev desta sessão (`prospector-dev-uxcheck`,
+  porta 3009) ficou preso na inicialização (só o banner do `tsx watch server.ts`, sem log de
+  "listening", por mais de 30s) e a navegação do Browser pane foi recusada, coerente com o aviso já
+  visto nesta sessão de que "outra sessão já está com um servidor de dev rodando nesta pasta" — os
+  dois processos `tsx watch` provavelmente disputam o mesmo cache/lock de build. Servidor parado
+  para não deixar processo órfão. A lógica do combobox foi revisada cuidadosamente por leitura de
+  código (debounce, cancelamento de request obsoleto via `cancelled`, reset de estado ao
+  aplicar template/fechar modal/submeter) mas não foi exercitada interativamente — registrado como
+  pendente, não fingido como verificado.
+- **Aprendizado incorporado**: primeiro achado desta série que não é cosmético/de token, mas um bug
+  funcional real que tornava a única tela de criação do módulo inutilizável — reforça que a
+  auditoria inicial de cada piloto deve sempre conferir se o fluxo de escrita (criar/editar) declarado
+  pelo formulário realmente bate com os campos obrigatórios do schema/Zod, não só o fluxo de leitura.
+  Confirma pela segunda vez (depois do Piloto 013) que um endpoint GET real e testado sem consumidor
+  de UI pode ser tanto "dado subaproveitado" quanto, como aqui, a peça que faltava pra consertar uma
+  duplicação de lógica já existente na própria tela.
+
+## Pilot 016 — Cadence
+
+- **Objetivo**: quarto módulo do roadmap, seguido em sequência sem pausar para confirmação.
+- **Achado principal (Alta prioridade) — rota de escrita completa sem NENHUM ponto de acionamento
+  na UI**: `POST /api/cadence/leads/:leadId/schedule-meeting` (CYC-004) já existia, testado (8 casos
+  de integração cobrindo confirmação verificável, RLS, `requireRole`, horário passado, ISO
+  inválido), cria `Note` + evento de calendário reais — mas nenhum vendedor conseguia registrar uma
+  reunião confirmada a partir da tela de Cadência: `cadence.api.ts` nem declarava um método cliente
+  para essa rota. Corrigido: novo botão "Agendar reunião confirmada" (ícone `CalendarClock`) nas
+  ações de cada execução ativa/pausada, abrindo `ScheduleMeetingDialog` com início/fim (datetime-
+  local) → `cadenceApi.scheduleMeeting(leadId, {...})` (método novo). Mesma classe de achado do
+  Piloto 015 (endpoint real de escrita sem consumidor), mas em regra de negócio mais elaborada.
+- **Achados médios**:
+  - `GET /api/cadence/templates` — real, testado, mas `JourneyTemplatesDialog` importava a mesma
+    constante `CADENCE_JOURNEY_TEMPLATES` diretamente do domínio backend em vez de chamar a API
+    (mesmo padrão de rota órfã confirmado em Contacts/Companies/Activities). Corrigido: busca sob
+    demanda ao abrir o modal; a constante agora só é importada como `type` (zero-custo em bundle).
+  - `CadenceTouchInput.maxAttempts` (retry de toque, até 5 tentativas) existia no tipo e no domínio
+    mas não tinha nenhum input no formulário "Nova sequência" — toda sequência criada pela tela
+    nascia sem retry. Adicionado campo "Tentativas se falhar" (1-5) por toque.
+  - `OptOutRecord.evidence` — coletado deliberadamente ("texto/trecho real da mensagem que motivou
+    o opt-out"), já trafegava até o cliente (inclusive já estava na fixture do teste unitário
+    existente!), mas nunca era renderizado na tabela de opt-outs. Adicionada coluna "Evidência".
+- **Achados baixos, corrigidos com mudança mínima de backend**: `CadenceSequence.description` é
+  coluna real do Prisma desde sempre, mas a rota `POST /sequences` nunca a aceitava
+  (`createSequenceSchema` só tinha `name`+`touches`) nem a UI tinha campo para preenchê-la —
+  inacessível nos dois lados. Corrigido: `description` adicionada ao schema Zod (opcional, max 500),
+  repassada ao `prisma.cadenceSequence.create`, exposta em `CadenceSequenceDTO`, e um textarea
+  opcional adicionado ao formulário "Nova sequência".
+- **UX, não bug**: campo "ID do lead" em `StartRunDialog` era texto livre puro — nenhum vendedor
+  sabe de cor o `cuid` de um lead. Adicionado combobox de busca por nome/empresa (mesmo padrão de
+  debounce 300ms de `ActivityList.tsx`, Piloto 015), mas **preservando exatamente** o mesmo `id`,
+  `label` ("ID do lead") e comportamento de digitação livre do campo original — o teste E2E oficial
+  já automatiza `getByLabel('ID do lead').fill(leadId)` direto, então a busca é só uma lista de
+  sugestões abaixo do mesmo input, nunca um campo substituto que quebraria esse fluxo.
+- **Cosmético**: ícone `Sparkles` do botão "Modelos de Jornada" tinha `text-amber-500` hardcoded sem
+  significado categórico nem par `dark:` — removido, agora herda a cor do próprio `Button` (mesmo
+  padrão do botão vizinho "Nova sequência"). Resto do arquivo já usava tokens corretamente (27+
+  ocorrências corretas de `dark:`/tokens semânticos já auditadas em rodada anterior) — não havia
+  outra dívida de cor real no módulo.
+- **Fora de escopo, documentado**: `CadenceSequence.active`/`deletedAt` existem e são filtrados nas
+  queries, mas não há nenhuma ação de desativar/excluir sequência na UI — exigiria rota backend nova
+  (`DELETE`/`PATCH`), não só front-end; sinalizado para task futura. `CadenceTouchAttempt.
+  providerMessageId` (id da mensagem no provedor, coletado para depuração) não exibido na tabela de
+  tentativas expandida — valor limitado sem uma ferramenta de suporte que o consuma, não crítico
+  como os achados acima. `CadenceRun.calendarEvents` (relação criada pela rota de agendamento) ainda
+  sem visualização própria na tela — resolvido parcialmente ao dar à rota um ponto de entrada, mas
+  ver os eventos já criados fica para incremento futuro. Limite de 720h de `delayHoursFromPrevious`
+  agora espelhado no `max` do input (pequeno ajuste feito de passagem, já que o campo estava sendo
+  editado de qualquer forma).
+- **Preservado**: nenhuma migração. Textos exatos de `tests/e2e/cadence.spec.ts` (`'Cadência'`,
+  `'Nome da sequência'`, `/Conteúdo da mensagem/`, `'Criar sequência'`, `'Iniciar cadência'`,
+  `'ID do lead'`, `'Iniciar'`, `'Ativa'`/`'Pausada'`/`'Encerrada'`, `'Parada manual'`, os
+  `aria-label`s dinâmicos de pausar/retomar/parar) e de `tests/unit/.../CadenceHub.test.tsx`
+  (inclusive a fixture que já continha `evidence: 'transcrição real'`, nunca antes exibida)
+  intactos — nenhuma coluna/ação existente foi removida ou reordenada, só adicionada.
+- **Verificação**: `npx eslint --no-cache` nos 3 arquivos tocados (limpo, após remover um
+  `eslint-disable` que ficou desnecessário), `npx tsc --noEmit -p .` (0 erros no projeto inteiro),
+  `npx vite build` (sucesso), `npx vitest run -c vitest.unit.config.ts tests/unit/features/cadence
+  src/features/cadence/__tests__` (200/200 passando), `PORT=3070 npx playwright test
+  tests/e2e/cadence.spec.ts` (2/2 passando), `npx vitest run -c vitest.integration.config.ts
+  tests/integration/cadence-start.routes.test.ts tests/integration/cadence-schedule-meeting.routes.test.ts`
+  (22/23 passando — 1 falha real mas **pré-existente e confirmada não relacionada a este piloto**:
+  `git stash` das minhas mudanças reproduziu a mesma falha idêntica em
+  `cadence-start.routes.test.ts`, "409 quando o lead já tem uma cadência ativa" recebendo 201 em vez
+  de 409, provavelmente um índice único parcial do Postgres não aplicado/drift no banco de teste —
+  meu diff não toca a rota `/runs` nem esse índice; registrado com transparência, não escondido nem
+  atribuído a este piloto).
+- **Aprendizado incorporado**: primeira vez nesta série em que uma correção de UX (busca de lead)
+  precisou ser desenhada para **não** copiar um padrão já usado em outro pilote recente (Activities)
+  ao pé da letra — lá o campo era novo e sem teste; aqui já existia um E2E oficial fixando o
+  `id`/`label`/comportamento exato do campo. Reforça a regra da constituição (§4, regra 10): antes
+  de "modernizar" um input, checar se algum teste já grava seu contrato de nome/id/comportamento —
+  a melhoria certa é aditiva (sugestões por cima), não uma substituição que quebra o que já
+  funciona. Segunda vez confirmando que um bug real de teste de integração pode já estar quebrado
+  antes mesmo de eu tocar o arquivo — vale sempre isolar com `git stash` antes de assumir
+  responsabilidade por uma falha inesperada.
+
+## Pilot 017 — Playbook (Matriz de Qualificação + Matriz de Objeções)
+
+- **Objetivo**: quinto módulo do roadmap, seguido em sequência sem pausar para confirmação.
+- **Diferente dos 4 pilotos anteriores**: os dois formulários (`QualificationItemForm.tsx`,
+  `ObjectionItemForm.tsx`) batem exatamente com o schema Zod compartilhado (`playbook.schema.ts`,
+  reusado front+back) e com os campos obrigatórios do Prisma — nenhum campo obrigatório órfão,
+  nenhuma rota de escrita sem consumidor. Primeiro módulo desta série sem bug funcional estrutural.
+- **Achado real de RBAC**: `DELETE` das duas rotas exige `ADMIN`/`GESTOR` no backend
+  (`qualification-matrix.routes.ts`, `objection-matrix.routes.ts`), mas nenhuma das duas telas lia
+  o papel do usuário — um SDR/CLOSER (que podem criar/editar) via o botão "Excluir" e recebia um
+  403 sem explicação ao clicar. Corrigido: `canDelete = hasRequiredRole(currentUser.role, ['ADMIN',
+  'GESTOR'])` (mesmo padrão já usado em `Integrations.tsx`/`BitrixSyncRulesPanel.tsx`/
+  `BitrixImportPanel.tsx`) esconde o botão para quem não tem permissão, nas duas telas.
+- **Achado de cor**: `ObjectionsMatrixPage.tsx` tinha `text-amber-500` cru no ícone de
+  `AlertTriangle` do título de cada objeção — coincidentemente o mesmo hex do token
+  `--color-warning`, mas sem o par `--warning-active`/`dark:` que o próprio arquivo já usa 15 linhas
+  abaixo (`text-warning-active dark:text-warning` no "Diferencial-chave"), reintroduzindo dentro do
+  mesmo componente um problema de contraste que o design system já tinha resolvido. Corrigido para
+  o mesmo token.
+- **Vitrine de dado real subaproveitado**: `framework` (SPIN/BANT/MEDDPICC) já aparecia em destaque
+  no badge de cada card da Matriz de Qualificação, mas não era filtrável — só `segment`/`persona`
+  tinham `<select>` de filtro. Adicionado filtro de framework, terceira confirmação nesta série do
+  padrão "dado já exibido, mas sem controle de UI pra usá-lo como filtro/ação".
+- **Acessibilidade**: `type="button"` adicionado aos 8 botões das duas páginas de listagem (Nova
+  Pergunta/Objeção, Copiar, Editar, Excluir em cada) — nenhum causava bug hoje (nenhum estava dentro
+  de `<form>`), mas divergia do padrão já correto dentro dos dois modais de formulário.
+- **Fora de escopo, documentado**:
+  - `confirm()` nativo em `handleDelete` das duas páginas — mesmo padrão já registrado como fora de
+    escopo nos Pilotos 014/015 (usado em 12+ arquivos do app inteiro).
+  - Paginação real implementada nos dois repositórios Prisma (`meta: {total, page, limit,
+    totalPages}`), mas os use cases sempre chamam `findAll(..., 1, 200)` fixo e o client HTTP
+    descarta `meta` (`.then(res => res.data)`) — se uma organização passar de 200 perguntas/objeções
+    por marca, os itens excedentes somem silenciosamente da tela. Sem sintoma visível hoje (nenhuma
+    organização real chegou perto desse volume), mas é um bug latente real; corrigir exigiria mudar
+    o use case (parâmetro de página) e adicionar UI de paginação/"carregar mais" nas duas telas —
+    escopo maior que um ajuste pontual, sinalizado para task futura.
+  - `createdAt`/`updatedAt` de cada item (Prisma real, já na resposta da API) nunca exibidos — valor
+    baixo (ordenação por data não é um pedido óbvio para uma matriz de referência), não adicionado.
+  - `questionCategory` (Matriz de Qualificação) não é filtrável — mesma categoria do achado de
+    `framework`, mas de menor prioridade (já filtrável indiretamente pela busca textual, que já
+    inclui esse campo no haystack); não adicionado para não empilhar filtros demais na mesma barra.
+  - Serviço `PlaybookAiService.generatePlaybookChapter` (mora em `playbook/services/`) é consumido
+    fora do módulo de tela do Playbook, só por `AISuiteHub.tsx` — observação arquitetural, não um
+    achado de UI deste piloto.
+- **Preservado**: nenhuma migração. Rotas/textos exatos de `tests/e2e/accessibility.spec.ts`
+  (`'Matriz de Qualificação não tem violações críticas/sérias'`, `'Matriz de Objeções não tem
+  violações críticas/sérias'`, `/app/qualification_matrix`, `/app/objections_matrix`) e do array
+  `MODULES` de `tests/e2e/mobile-sweep.spec.ts` intactos.
+- **Verificação**: `npx eslint --no-cache` nos 2 arquivos (limpo), `npx tsc --noEmit -p .` (0 erros
+  no projeto inteiro), `npx vite build` (sucesso), `PORT=3085 npx playwright test
+  tests/e2e/accessibility.spec.ts -g "Matriz de Qualifica|Matriz de Objeç"` (2/2 passando). Não
+  existe `tests/unit/features/playbook/**` no repositório (pasta inexistente) — nada rodado ali por
+  não haver o que rodar, não por bloqueio.
+- **Aprendizado incorporado**: primeiro módulo desta série de 5 pilotos sem bug funcional
+  estrutural — reforça que a verificação funcional (schema Zod vs. campos do formulário) precisa
+  continuar sendo feita em TODO módulo mesmo quando o resultado é "está tudo certo", porque só
+  auditando dá pra saber. Primeiro achado de RBAC UI vs. backend desalinhado nesta série — vale
+  incorporar ao checklist de auditoria dos próximos módulos: sempre que uma rota tiver
+  `requireRole`, checar se a tela correspondente esconde a ação para quem não tem o papel exigido,
+  em vez de deixar o usuário descobrir por um 403.
+
+## Pilot 018 — Automations
+
+- **Objetivo**: sexto módulo do roadmap, seguido em sequência sem pausar para confirmação.
+- **Achado principal — bug funcional real (prioridade máxima)**: o gatilho **"Lead estagnado"**
+  aparecia no formulário "Nova Automação" (o próprio `automations.api.ts` já tinha o tipo, a
+  constante `TRIGGERS` e o campo dedicado "Reavaliar todo dia se ficar parado por (dias)"), mas
+  `AUTOMATION_TRIGGERS` no backend (`AutomationUseCases.ts`) **não incluía esse valor** — toda
+  submissão com esse gatilho falhava com 400 no `automationSchema.parse` antes mesmo de chegar no
+  controller. O valor é real e usado de verdade em todo o resto do sistema: existe no enum Prisma
+  (`Lead_Estagnado`), no motor (`automation.engine.ts`) e é disparado por dois jobs de fundo
+  (`stagnation-scanner.service.ts`, `stalledLead.worker.ts`) — ou seja, **o único jeito de uma
+  organização ter uma regra de "Lead estagnado" funcionando antes deste piloto era inserir direto
+  no banco**, nunca pela UI. Corrigido adicionando o valor a `AUTOMATION_TRIGGERS` — como
+  `GET /api/automations/options` deriva da mesma constante, ficou corrigido nos dois lugares de uma
+  vez. Adicionado teste de regressão em `AutomationUseCases.test.ts` que exercita o
+  `automationSchema` real com esse gatilho (o teste de UI existente mocka o `POST` via MSW e nunca
+  rodava o Zod de verdade — por isso o bug passou despercebido antes).
+- **Achado de RBAC — segunda confirmação do mesmo padrão do Piloto 017**: `POST`/`PUT`/`DELETE` +
+  `dry-run`/`versions` exigem `ADMIN`/`GESTOR` no backend (`automation.routes.ts`), mas
+  `Automations.tsx` não lia o papel do usuário — SDR/CLOSER (os papéis mais numerosos numa operação
+  comercial) viam todos os controles de escrita habilitados e só descobriam a falta de permissão
+  com um 403 genérico ao clicar. Corrigido com o mesmo `canManage = hasRequiredRole(currentUser.role,
+  ['ADMIN', 'GESTOR'])` já usado em Playbook/Integrations/BitrixSyncRulesPanel — esconde "Nova
+  automação", simular, versões, editar e excluir; o switch ativa/pausa continua visível (é leitura
+  de estado) mas fica desabilitado. Novo teste unitário cobre exatamente esse cenário (papel `SDR`).
+- **Vitrine de dado real subaproveitado, versão "capacidade" em vez de "campo"**: o sistema de
+  versionamento com diff textual (`AutomationVersionsDialog.tsx`, `automation-versioning.service.ts`)
+  já existia pronto e testado no backend para mostrar "Gatilho: X → Y"/"Condições: A → B"/
+  "Ação: C → D" — mas em toda a UI a única chamada de `update` era o toggle ativa/pausa
+  (`{ enabled: !item.enabled }`). Não existia nenhum jeito de editar o conteúdo de uma regra pela
+  tela; o histórico de versões nunca mostrava, na prática, nada além de mudança de status. Corrigido:
+  `AutomationForm` agora aceita uma automação existente (`editing`), pré-preenche todos os campos
+  (inclusive decodificando `actionConfig`/`conditions` de volta para os inputs) e chama `update` com
+  o payload completo; novo botão "Editar" (ícone `Pencil`) nas ações de cada regra.
+- **Cosmético**: `bg-slate-950/80` (backdrop do modal, escrito à mão) → `bg-ink/50` (mesmo token do
+  backdrop do `Dialog` compartilhado); `text-amber-400` (ícone de erro em `Automations.tsx` e 2
+  ocorrências em `ColdCallStatusCard.tsx`) → `text-warning-active dark:text-warning` (o próprio
+  módulo já usa esse par corretamente em `AutomationDryRunDialog.tsx`); `text-gray-600` (ícone do
+  estado vazio) → `text-ink-2`; `hover:text-red-400 hover:bg-red-500/10` (botão excluir) →
+  `hover:text-danger-active dark:hover:text-danger hover:bg-danger/10`; trilho do switch "desligado"
+  (`bg-slate-700`) → `bg-surface-2 border border-line` (cópia exata do switch já tokenizado de
+  `FeatureFlagsPanel.tsx`). `type="button"` adicionado a todos os botões do módulo sem ele.
+- **Fora de escopo, documentado**:
+  - `POST /api/automations/stagnation-scan` (varredura manual sob demanda, `ADMIN`-only) — rota
+    real, testada, sem nenhum consumidor de UI. Não adicionado um botão "Rodar agora" neste piloto
+    por escopo (o achado de maior impacto real, o bug de criação, já consumiu o orçamento principal
+    deste piloto); sinalizado para incremento futuro.
+  - Histórico de execuções por automação (`correlationId`, `retryCount`, `durationMs`, erro
+    sanitizado — tudo gravado por `automation-history.service.ts` em `AuditLog`) não tem nenhuma
+    tela dedicada dentro do módulo; o único consumidor de `AuditLog` é a aba LGPD de Settings, sem
+    filtro por automação e limitada às 100 linhas mais recentes de todo o tenant. Achado real e
+    válido, mas construir um painel novo de "ver histórico de execuções desta regra" é escopo de
+    feature nova, não ajuste pontual — sinalizado para task futura.
+  - `ColdCallRun.skipped{MaxAttempts,Cooldown,NoPhone,Suppressed,Error}` já vêm discriminados da API
+    mas `ColdCallStatusCard.tsx` só mostra a soma (`skippedTotal`) — motivo específico de cada lead
+    pulado não é visível. Valor menor que os achados acima, não corrigido.
+  - `confirm()` nativo em `remove()` — mesmo padrão já registrado fora de escopo nos Pilotos
+    014/015/017 (usado em 12+ arquivos do app inteiro).
+- **Preservado**: nenhuma migração. Nenhum teste e2e dedicado existe para este módulo (confirmado
+  por busca — só `mobile-sweep.spec.ts` toca a rota genericamente, sem asserts de conteúdo); os 8
+  testes pré-existentes de `automations-ui.test.tsx` continuam intactos (textos exatos:
+  `'Nenhuma automação ainda'`, `/Criar a primeira/`, `'Avisar em Proposta Enviada'`,
+  `/Quando "Lead mudou de status"/`, `'ainda não disparou'`, `'1 regra · 1 ativa(s)'`, `getByRole
+  ('switch', {name: /Pausar .../})`, `getByLabelText('Nome')`/`getByLabelText(/Somente na etapa/)`).
+- **Achado ambiental durante a implementação — teste quebrado pela minha própria correção,
+  corrigido no mesmo diff**: ao adicionar `useAuth()` a `Automations.tsx` para o RBAC, os 8 testes
+  de `automations-ui.test.tsx` que renderizam `<Automations />` passaram a falhar com "useAuth deve
+  ser usado dentro de um AuthProvider" (o wrapper de teste local só envolvia `BrandProvider`).
+  Corrigido seguindo o padrão já estabelecido em
+  `tests/unit/features/integrations/components/Integrations.test.tsx`
+  (`vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => useAuthMock() }))`, papel `GESTOR`
+  por padrão) — não é um bloqueio de ambiente alheio como nos Pilotos 013/016, é uma quebra real
+  causada pela minha própria mudança, corrigida como parte do mesmo trabalho, com dois testes novos
+  (regressão do bug do schema + verificação de RBAC) adicionados no processo.
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo), `npx tsc --noEmit -p .`
+  (0 erros no projeto inteiro), `npx vite build` (sucesso), `npx vitest run -c
+  vitest.unit.config.ts` em todo o escopo de testes do módulo Automations — unit, engine, dry-run,
+  versionamento, idempotência, scanners, controller (132/132 passando, incluindo os 2 testes novos
+  deste piloto).
+- **Aprendizado incorporado**: primeira vez nesta série em que a própria correção de um piloto
+  quebra um teste pré-existente (não um bloqueio externo) — reforça que qualquer mudança que
+  introduza `useAuth()`/`hasRequiredRole` num componente sem esse hook antes precisa checar se há
+  teste de componente renderizando-o sem `AuthProvider`/mock, e que o padrão certo já está
+  estabelecido em `Integrations.test.tsx` (mock de `useAuth` via `vi.mock`, não `AuthProvider` real)
+  — vale aplicar esse mesmo padrão preventivamente em qualquer piloto futuro que adicione RBAC a um
+  componente com teste de UI existente. Terceira confirmação seguida (Pilotos 016-018) de que vale
+  sempre perguntar "o que o backend já sabe fazer que a UI nunca chama?" antes de assumir que um
+  módulo está completo — desta vez a resposta foi tanto um valor de enum inteiro quanto um sistema
+  de versionamento inteiro.
+
+## Pilot 019 — Knowledge Base
+
+- **Objetivo**: sétimo módulo do roadmap, seguido em sequência sem pausar para confirmação.
+- **Achado de RBAC — terceira confirmação seguida do mesmo padrão (Pilotos 017-019)**: `Base.tsx`
+  não fazia nenhuma verificação de papel. `POST`/`PUT`/reembed/gerar-FAQ exigem `ADMIN`/`GESTOR`/
+  `CLOSER`/`SDR` no backend (`writeRoles`); `DELETE` é mais restrito (`ADMIN`/`GESTOR`). Um
+  `VISUALIZADOR` via todos os controles de escrita habilitados — "Enviar arquivo", "Colar texto",
+  os 3 botões por documento, e até o "Assistente de Redação IA" (`EditorIA`) — e ao clicar recebia
+  um 403 **em inglês** (`requireRole.ts`: `"Insufficient permissions. Required: ADMIN or GESTOR..."`)
+  solto como toast numa UI 100% em pt-BR. Corrigido com `canWrite`/`canDelete` (mesmo padrão de
+  `hasRequiredRole` dos Pilotos 017/018): esconde upload/colar-texto/EditorIA/gerar-FAQ/editar/
+  reembed para quem não tem `writeRoles`, e o botão de excluir especificamente para quem não é
+  `ADMIN`/`GESTOR` (mesmo com escrita liberada) — reflete exatamente os dois conjuntos de papel
+  diferentes que o backend já aplica.
+- **Achado principal — funcionalidade de backend pronta sem nenhum ponto de acionamento na UI**:
+  `PUT /api/knowledge/:id` já existia, testado (reindexa e incrementa `Document.version` só quando
+  o conteúdo muda — campo criado na Onda 40 especificamente para responder "esse documento é a
+  versão mais recente?"), mas `knowledgeApi` não expunha nem `get`/`update`, e não havia nenhum
+  botão "Editar" em lugar nenhum. Único jeito de "corrigir" um documento já indexado era excluir o
+  documento inteiro (perdendo `id`/`createdAt`) e reingerir do zero — destrutivo, apesar de a rota
+  correta já existir pronta. Corrigido: novos métodos `knowledgeApi.get(id)`/`knowledgeApi.update`,
+  novo botão "Editar" (ícone `Pencil`, só para `canWrite`) que reabre o mesmo modal de "Colar texto"
+  em modo edição — busca o conteúdo completo via `GET /:id` (com loading próprio), pré-preenche
+  título/conteúdo, e no submit chama `update` em vez de `ingestText`.
+- **Vitrine de dado real subaproveitado**: `Document.version` (mesmo campo do achado acima) nunca
+  era sequer selecionado na query de listagem (`ingestion.service.ts:list`, `select` não incluía a
+  coluna) nem exibido — adicionado ao `select` e um badge "editado · vN" aparece quando `version >
+  1`. `sourceType` já estava no tipo do frontend mas nunca renderizado — como só `sourceName` (nulo
+  para texto colado) aparecia, não havia como distinguir visualmente "documento colado" de "arquivo
+  enviado" na listagem; agora mostra "· texto colado" quando não há `sourceName`.
+- **Cosmético**: `<mark>` de destaque de busca (`bg-amber-400/25 text-amber-100`) — **exceção
+  justificada** (constituição §5): âmbar é a convenção universal de "trecho realçado" (mesma cor do
+  `<mark>` nativo do navegador), independente de marca, mesma categoria de exceção já aceita para
+  estrelas de rating (Piloto 014). O bug real ali era só a falta de par claro/escuro (texto claro
+  demais para funcionar em tema claro) — corrigido mantendo âmbar mas com os dois pares. Já o aviso
+  "Busca semântica fora do ar" (`text-amber-300 bg-amber-500/10`) É um estado de warning real do
+  produto (não um highlight) — convertido para os tokens `warning`/`warning-active`. `text-gray-600`
+  (3 ocorrências, ícones/texto de estado vazio) → `text-ink-2`; botão excluir
+  (`hover:text-red-400 hover:bg-red-500/10`) → `danger`/`danger-active`; os dois backdrops
+  `bg-slate-950/80` (overlay de arrastar-e-soltar e modal de texto) → `bg-ink/50`/`bg-ink/60`
+  (mesmo token já usado no Piloto 018 para o backdrop de Automations). `aria-label` adicionado aos
+  3 botões que só tinham `title` — **sem remover o `title`**, porque o teste existente usa
+  `getByTitle('Remover documento')`. `type="button"` adicionado em todos os botões/`Button` sem ele
+  em `Base.tsx` e `EditorIA.tsx`.
+- **Fora de escopo, documentado**:
+  - `rerankScore` (pontuação 0-100 do reranking via LLM, DEC-11) já vem no tipo
+    `KnowledgeSearchHit` mas o card de resultado só mostra `similarity` — sem indicação visual de
+    que a ordem foi reordenada por IA quando o reranking está ligado. Valor real mas menor, não
+    corrigido.
+  - Copiloto Técnico RAG (`knowledge-copilot.service.ts`) tem consumidor real, mas fora do módulo —
+    só é acionável de dentro do "AI Suite Hub" (`AISuiteHub.tsx`), não a partir da própria tela de
+    busca da Base de Conhecimento. Observação arquitetural, não corrigida (integrar um ponto de
+    entrada do copiloto dentro de `Base.tsx` seria escopo de feature nova, cross-module).
+  - `metadata.truncated`/`originalChunkCount` (grava quando um documento gigante excede o limite de
+    chunks e perde conteúdo silenciosamente) nunca é comunicado ao usuário — achado real, mas
+    exigiria uma UI de aviso nova; não corrigido aqui.
+  - `content`, `createdBy` do documento nunca exibidos em nenhuma tela — sem uma tela de detalhe
+    dedicada (o modal de edição agora mostra `content`, mas só durante a edição, não como
+    visualização somente-leitura); `createdBy` (autoria) segue sem exibição.
+  - `confirm()` nativo em `handleDelete` — mesmo padrão já registrado fora de escopo nos Pilotos
+    014/015/017/018 (usado em 12+ arquivos do app inteiro), e já é o comportamento coberto pelo
+    teste existente (`spyOn(window, 'confirm')`), então trocar exigiria atualizar esse teste também.
+- **Preservado**: nenhuma migração. Textos exatos de `tests/unit/features/knowledge-base.test.tsx`
+  (`'Nenhum documento ainda'`, `/12 trechos · .* · playbook\.docx/`, `/1 documento · 12 trechos
+  indexados/`, `'Banco indisponível'`, payloads exatos de busca/ingestão, `getByTitle('Remover
+  documento')`) intactos; `tests/e2e/accessibility.spec.ts` (`'Base de Conhecimento não tem
+  violações críticas/sérias'`, rota `/app/knowledge`) intacto.
+- **Achado ambiental — mesma quebra do Piloto 018, corrigida da mesma forma**: adicionar `useAuth()`
+  a `Base.tsx` quebrou os 8 testes existentes de `knowledge-base.test.tsx`
+  ("useAuth deve ser usado dentro de um AuthProvider"), corrigido com o mesmo
+  `vi.mock('@/contexts/AuthContext', ...)` + `useAuthMock.mockReturnValue(...)` no `beforeEach`
+  (necessário porque este arquivo já chama `vi.restoreAllMocks()` no `afterEach`, que zera a
+  implementação do mock entre testes). Um teste novo de RBAC (papel `VISUALIZADOR`) adicionado no
+  mesmo diff.
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo), `npx tsc --noEmit -p .`
+  (0 erros no projeto inteiro), `npx vite build` (sucesso), `npx vitest run -c
+  vitest.unit.config.ts` em `knowledge-base.test.tsx` (9/9, incluindo o teste novo) + todo o resto
+  do módulo (`chunking`, `vector-support`, `reranker.service`, `knowledge-copilot.service`,
+  extração de texto — 63/63 passando), `PORT=3090 npx playwright test
+  tests/e2e/accessibility.spec.ts -g "Base de Conhecimento"` (1/1 passando).
+- **Aprendizado incorporado**: quarta confirmação seguida (Pilotos 016-019) do princípio "o que o
+  backend já sabe fazer que a UI nunca chama" — desta vez um sistema de versionamento por
+  freshness inteiro (campo + rota + serviço) ficou órfão desde a Onda 40 até este piloto. Segunda
+  vez seguida (depois do Piloto 018) em que adicionar RBAC a um componente exige o mesmo ajuste
+  preventivo no teste de UI existente — vale já esperar isso como parte do checklist de qualquer
+  piloto futuro que adicione `useAuth()`/`hasRequiredRole` a uma tela com teste de componente
+  prévio, em vez de descobrir a quebra só depois de rodar os testes.
+
+## Pilot 020 — Calendar (Agenda + Links de Agendamento públicos)
+
+- **Objetivo**: oitavo módulo do roadmap, seguido em sequência sem pausar para confirmação.
+- **Achado principal — bug funcional real, dois leads podiam agendar o mesmo horário**:
+  `GET /api/calendar/book/:slug` devolve `availableSlots` como uma lista fixa (`standardSlots`,
+  09:00–18:00) que nunca consulta a agenda real do vendedor — nenhum horário já ocupado é removido,
+  e o `POST` correspondente também nunca checava conflito antes de criar a reunião. Dois clientes
+  diferentes agendando o mesmo horário com o mesmo vendedor criavam duas `Activity` sobrepostas
+  silenciosamente. Corrigido no backend: checagem de conflito (`Activity` do mesmo `owner`/`date`/
+  `time`, status ≠ Cancelada) logo no início da transação de agendamento, antes de criar Company/
+  Contact/Lead — devolve 409 com mensagem em pt-BR ("Este horário acabou de ser reservado por
+  outra pessoa...") em vez de aceitar silenciosamente. Não alterei o `GET` para pré-filtrar horários
+  ocupados (exigiria receber `date` como query param e mudar o fluxo de UX do date-picker) — a
+  correção mínima e suficiente para o dado real (evitar o double-booking) foi no `POST`.
+- **Achado de RBAC — quarta confirmação seguida (Pilotos 017-020)**: `PUT /api/activities/:id`
+  (arrastar card pra remarcar, "Cancelar"/"Concluir") exige `ADMIN`/`GESTOR`/`CLOSER`/`SDR`;
+  `VISUALIZADOR` fica de fora, mas `Calendar.tsx` nunca checava papel — o cursor `cursor-grab`
+  sugeria que arrastar funcionava, e os botões de ação apareciam sempre habilitados, para só falhar
+  com 403 depois do clique (revertendo a posição/status na tela). Corrigido com `canWrite`
+  (`hasRequiredRole`, mesmo padrão dos 3 pilotos anteriores): `useDraggable({ disabled: !canWrite
+  })` desliga o drag pelo próprio dnd-kit (não só via CSS), e os botões "Cancelar"/"Concluir" do
+  modal de detalhe somem por completo. O botão "Links de Agendamento" e o CRUD dentro do modal
+  **não** foram alterados — `privateBookingRouter` não tem `requireRole` (qualquer papel autenticado
+  gerencia os próprios links), então UI e backend já concordavam, sem desalinhamento real ali.
+- **Achado de arquitetura, documentado como fora de escopo**: `PublicBookingLink.active` é aceito
+  na criação (`bookingLinkSchema`), mas não existe nenhuma rota `PUT`/`PATCH` para alterá-lo depois
+  — "desativar temporariamente um link sem apagá-lo" é uma capacidade que o schema modela mas nunca
+  foi implementada em nenhuma camada (nem backend, nem UI). `docs/openapi.yaml` chega a descrever o
+  `DELETE` como "desativa ou remove", mas o código só tem exclusão definitiva. Diferente dos achados
+  de "capacidade órfã" dos Pilotos 016/018/019 (onde a rota/serviço já existia pronta, só faltava o
+  botão), aqui a rota em si nunca foi construída — implementá-la exigiria desenhar um endpoint novo
+  do zero, não só religar um já existente; fica sinalizado para task futura, não construído aqui.
+- **Achado de marca, avaliado e documentado como não-corrigível dentro do escopo de UI**:
+  `PublicBookingPage.tsx` (página pública, sem `AuthProvider`/tema) usa uma paleta âmbar/laranja
+  fixa em toda a tela, sempre — um lead da Total Trac agendando com um vendedor Total Trac vê a
+  página inteira em laranja/AtlasGR, sem nenhuma pista de qual marca realmente está atendendo.
+  Investigado a fundo: **não há onde armazenar a marca do vendedor** — `Brand` só existe em
+  `localStorage` do navegador de quem está logado (`BrandContext.tsx`), nunca em `User` nem em
+  `Organization` no schema Prisma. Corrigir de verdade exigiria uma migração de schema (campo de
+  marca em `User`/`Organization` ou no próprio `PublicBookingLink`) — fora do escopo de um piloto de
+  UI; a cor fixa em si não é o bug, a ausência do dado é. Documentado com essa distinção para não
+  ser "descoberto" de novo como se fosse um `dark:` faltando.
+- **Cosmético**: `text-sky-500` (ícone Download em `Calendar.tsx`, ícone Globe em
+  `BookingLinksModal.tsx`) → removido/`text-ink-2` (cor decorativa sem propósito categórico, herda
+  a cor do próprio `Button` ou vira neutra); `text-amber-400` no estado de erro de `Calendar.tsx`
+  → `text-danger-active dark:text-danger` (é erro, não aviso); `text-gray-600` (3 ocorrências) →
+  `text-ink-2`; backdrops `bg-slate-950/80` (`Calendar.tsx`) e `bg-black/60` (`BookingLinksModal.tsx`)
+  — duas cores diferentes pra mesma função dentro do mesmo módulo → unificados em `bg-ink/50` (mesmo
+  token dos Pilotos 018/019); botão de copiar (`bg-emerald-500`) e botão de excluir (`bg-red-50
+  text-red-500`) em `BookingLinksModal.tsx` → tokens `success`/`danger`. `aria-label` adicionado ao
+  botão de fechar (X) e ao botão de excluir de `BookingLinksModal.tsx` (mantendo o `title` em
+  ambos). `type="button"` adicionado em todos os botões/`Button` sem ele em `Calendar.tsx`.
+- **Erro cometido e corrigido no mesmo diff — regressão de contraste real introduzida por mim**: ao
+  trocar `text-gray-600` do número do dia fora do mês por `text-ink-2/60` (dimming via opacidade),
+  o e2e de acessibilidade (`assertNoBlockingViolations`) pegou uma violação séria real: 2.46:1 de
+  contraste, abaixo do mínimo 4.5:1 — a opacidade de 60% sobre `--ink-2` não sustenta o par
+  claro/escuro do token. Corrigido removendo a diferenciação de opacidade (dias fora do mês agora
+  usam o mesmo `text-ink-2` cheio dos dias do mês corrente — a distinção visual "fora do mês" já é
+  comunicada pelo fundo mais claro da célula, `bg-surface-2/40`). Fica registrado como lembrete
+  concreto: **opacidade sobre um token de texto não é gratuita** — pode furar o contraste que o
+  próprio token já foi calibrado para cumprir; qualquer `/NN` aplicado a `text-ink`/`text-ink-2`
+  precisa ser conferido contra o mesmo crivo de contraste do token cheio, não assumido como "mais
+  claro é só estético".
+- **Preservado**: nenhuma migração. Textos exatos de `tests/unit/features/calendar.test.tsx`
+  (`'Nenhuma atividade neste mês'`, `'Transportes Vale'`, `getByLabelText(/Reunião — Transportes
+  Vale/)`, `getByRole('button', {name: /Concluir/})`) e de
+  `tests/unit/features/calendar/booking.routes.test.ts` (todas as 8 asserções de RLS/tenancy/owner
+  já existentes) intactos; `tests/e2e/accessibility.spec.ts` (`'Agenda não tem violações críticas/
+  sérias'`, rota `/app/calendar`) intacto.
+- **Achado ambiental — mesma quebra dos Pilotos 018/019, corrigida da mesma forma**: adicionar
+  `useAuth()` a `Calendar.tsx` quebrou o teste de componente existente
+  (`'useAuth deve ser usado dentro de um AuthProvider'`), corrigido com o mesmo padrão
+  `vi.mock('@/contexts/AuthContext', ...)`. Além disso, minha checagem de conflito de horário
+  (`prisma.activity.findFirst`) quebrou 5 dos testes de `booking.routes.test.ts` porque o mock de
+  `prisma` daquele arquivo não declarava `activity.findFirst` (`TypeError`, capturado como 500
+  genérico) — corrigido adicionando o mock que faltava (`activityFindFirst`, default `null` = sem
+  conflito) e um teste novo de regressão (409 quando já existe uma Activity no mesmo horário).
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo), `npx tsc --noEmit -p .`
+  (0 erros no projeto inteiro), `npx vite build` (sucesso), `npx vitest run -c
+  vitest.unit.config.ts` em `calendar.test.tsx` (9/9, incluindo o teste novo de RBAC),
+  `calendar/booking.routes.test.ts` (14/14, incluindo o teste novo de conflito de horário) e
+  `src/features/calendar/__tests__` (calendar.util, 11/11) — 34/34 no total, `PORT=3096 npx
+  playwright test tests/e2e/accessibility.spec.ts -g "Agenda"` (1/1 passando, depois de corrigir a
+  regressão de contraste introduzida e detectada pelo próprio teste).
+- **Aprendizado incorporado**: quinta confirmação seguida (Pilotos 017-020) do padrão de RBAC
+  desalinhado — já é previsível o suficiente para checar por padrão em qualquer módulo novo, não
+  mais tratado como surpresa. Primeira vez nesta série em que o próprio e2e de acessibilidade
+  (não um teste unitário) pegou uma regressão introduzida pela minha correção — reforça o valor de
+  rodar a suíte e2e de acessibilidade mesmo em pilotos que "só" mexem em cor, e o cuidado extra
+  necessário sempre que uma correção usa opacidade (`/NN`) sobre um token de texto em vez do token
+  cheio. Primeira vez em que uma correção de backend (checagem de conflito) exigiu atualizar um mock
+  de teste existente por adicionar uma chamada Prisma nova (`findFirst`) — o mesmo cuidado de "toda
+  chamada Prisma nova precisa existir no mock" que já vale para `create`/`update`/`delete` também
+  vale para `findFirst`/`findMany` adicionados a um handler já coberto por teste.
+
+## Pilot 021 — Notifications
+
+- **Objetivo**: nono módulo do roadmap, seguido em sequência sem pausar para confirmação.
+- **Achado principal — bug real de integridade de dado, mesma classe do double-booking do Piloto
+  020**: `Notification.userId: null` significa "para toda a organização" (broadcast), mas o schema
+  não tem tabela de leitura por-destinatário — `readAt` é uma única coluna na própria linha.
+  `markRead`/`remove` tratavam broadcast como "todo mundo é dono" (`OR: [{userId}, {userId:null}]`),
+  e **nenhum dos 5 pontos reais de criação de notificação do sistema jamais define `userId`** — ou
+  seja, 100% das notificações reais hoje são broadcast. Consequência: **qualquer usuário podia
+  excluir permanentemente um alerta de equipe** (ex.: "Importação do Bitrix24 bloqueada", alerta
+  crítico de Inteligência Comercial) antes que os outros o vissem — a própria notificação criada
+  pra avisar todo mundo podia ser silenciada por qualquer um deles com um clique, sem confirmação
+  nenhuma. Corrigido no backend: `remove()` agora recebe `canManageBroadcast` (calculado via
+  `hasRequiredRole(role, ['ADMIN','GESTOR'])` na rota) e só inclui `{userId: null}` no filtro de
+  posse quando o ator tem esse papel — notificação pessoal continua removível só pelo próprio dono,
+  qualquer papel. **Não fiz a correção completa** (tabela de leitura por-destinatário, que
+  resolveria também o problema mais brando de "marcar como lida" silenciar o badge pra todo mundo)
+  — exigiria migração de schema nova, fora do escopo deste piloto; documentado abaixo.
+- **Achado de UX/segurança secundário**: excluir notificação era a única ação destrutiva do módulo
+  sem `confirm()` nenhum (nem nativo) — diferente do padrão do resto do app. Adicionado
+  `window.confirm()` antes de excluir, e o botão de excluir agora só aparece quando o usuário pode
+  de fato executar a ação (`canDelete = !isBroadcast || canManageBroadcast`), calculado a partir do
+  novo campo `userId` (adicionado ao `select` do `list()` e ao tipo `NotificationItem` — antes nem
+  chegava ao cliente, então a UI não tinha como saber se uma notificação era pessoal ou broadcast).
+- **Achado real de acessibilidade (WCAG 2.1.1, falha de teclado)**: o card clicável de cada
+  notificação era um `<div>` (via `Card`) com `onClick` mas sem `role`/`tabIndex`/`onKeyDown` — um
+  usuário de teclado não conseguia nem alcançar (Tab pula) nem ativar (Enter/Espaço não fazem nada)
+  a ação de marcar como lida. O e2e de acessibilidade (axe-core) não pega esse tipo de falha por
+  padrão (sem `role` declarado, não há nada pro linter de ARIA reclamar) — só um teste funcional de
+  teclado revela o problema, por isso ele nunca apareceu como falha antes. Corrigido com o mesmo
+  padrão já usado em `DraggableActivity`/`Calendar.tsx` (Piloto 020): `role="button"`,
+  `tabIndex={0}`, `onKeyDown` tratando Enter/Espaço. Novo teste unitário cobre o fluxo via teclado.
+- **Vitrine de dado real subaproveitado, avaliado e não corrigido por escopo**: `entity`/`entityId`
+  (schema comenta explicitamente: "para a notificação poder levar o usuário ao lead/atividade que a
+  gerou") já chegam até o cliente, mas `Notifications.tsx` nunca os lê — clicar numa notificação só
+  marca como lida, nunca navega até a origem. Investigado: não existe hoje nenhum mecanismo de
+  "abrir lead/atividade específico por id" no app (`CrmBoard.tsx` não aceita um `leadId` inicial via
+  URL/state para auto-abrir o drawer de detalhe) — implementar a navegação exigiria construir esse
+  deep-link dentro de `CrmBoard.tsx`, um módulo diferente e maior, não só ler um campo já presente
+  em `Notifications.tsx`. Diferente dos achados de "capacidade órfã" mais simples desta série
+  (Cadence/Automations/Knowledge Base), aqui a peça que falta é cross-module — fica sinalizado para
+  task futura, não construído aqui.
+- **Achado de arquitetura, documentado, não é bug**: `sse.service.ts` mora na mesma pasta
+  `features/notifications/` e no mesmo prefixo `/api/notifications/stream`, mas é um sistema
+  completamente à parte (evento efêmero de qualificação por voz, `voiceResult.webhook.ts`) — nunca
+  passa por `notificationService`, nunca aparece na tela `/app/notifications`, nunca conta pro
+  badge do sino. Só é consumido por `CrmBoard.tsx` (toast + refetch do Kanban). Não é um bug (os
+  dois sistemas funcionam isoladamente), mas é uma armadilha de manutenção real — documentado para
+  não ser confundido como "o mesmo sistema" numa reestruturação futura.
+- **Cosmético**: `KIND_STYLE` (mapa de ícone por severidade) usava `text-sky-300`/`emerald-300`/
+  `amber-300`/`red-300` — tons feitos pra fundo escuro, nunca medidos contra `--surface` claro,
+  exatamente o padrão que `globals.css` já documenta ter reprovado 4.5:1 no passado (comentário
+  DQA sobre `--color-info` cru). Convertidos para os tokens semânticos com par `-active`
+  (`info-active`/`success-active`/`warning-active`/`danger-active`). `text-gray-600` (estado vazio)
+  → `text-ink-2`; `text-amber-400` (erro) → `danger` (é erro, não aviso); botão de excluir
+  (`hover:text-red-400 hover:bg-red-500/10`) → `danger`/`danger-active`. `aria-label` adicionado ao
+  botão de excluir (mantendo o `title`). `type="button"` adicionado nos botões de filtro/marcar
+  todas/tentar novamente.
+- **Preservado**: nenhuma migração. Textos exatos de `tests/unit/features/notifications.test.tsx`
+  (`'Nenhuma notificação ainda'`, `'Lead chegou em Proposta'`, `'Tudo em dia'`, `'1 não lida'`,
+  `getByRole('button', {name: 'Não lidas'})`) e de `tests/unit/features/notification-service.test.ts`
+  (regras de posse/tenant já existentes) intactos; `tests/e2e/accessibility.spec.ts`
+  (`'Notificações não tem violações críticas/sérias'`, rota `/app/notifications`) intacto.
+- **Achado ambiental — mesma quebra dos Pilotos 018/019/020, corrigida da mesma forma**: adicionar
+  `useAuth()` a `Notifications.tsx` quebrou 6 dos 10 testes de componente existentes, corrigido com
+  o mesmo `vi.mock('@/contexts/AuthContext', ...)`. Diferente dos pilotos anteriores, aqui a
+  mudança de assinatura de `remove()` (novo parâmetro `canManageBroadcast`) também exigiu atualizar
+  um teste de serviço que fazia uma asserção estrutural sobre o `where.OR` da query — corrigido
+  passando o novo parâmetro explicitamente nos 2 testes existentes e adicionando 2 novos (com/sem
+  permissão de gerenciar broadcast).
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo), `npx tsc --noEmit -p .`
+  (0 erros no projeto inteiro), `npx vite build` (sucesso), `npx vitest run -c
+  vitest.unit.config.ts` em `notifications.test.tsx` (12/12, incluindo os 2 testes novos) e
+  `notification-service.test.ts` (16/16, incluindo os 2 testes novos de `remove`) — 24/24 no
+  total (mais os que já rodavam antes do piloto), `PORT=3100 npx playwright test
+  tests/e2e/accessibility.spec.ts -g "Notificações"` (1/1 passando).
+- **Aprendizado incorporado**: primeira vez nesta série em que o achado de maior severidade não é
+  "UI oferece ação que o backend sempre rejeita" (padrão dos Pilotos 017-020) nem "campo/rota
+  órfã", mas uma regra de posse real que estava genuinamente errada para o caso de uso majoritário
+  do sistema (broadcast, não notificação pessoal) — vale continuar perguntando, pra cada `OR`/regra
+  de "dono ou null", **qual dos dois braços é o caso comum na prática**, não só se a query compila.
+  Segunda vez confirmando (depois do Piloto 020) que um teste de acessibilidade automático
+  (axe-core) não é suficiente sozinho para pegar falhas de teclado quando o elemento não declara
+  `role` nenhum — vale considerar, pra elementos clicáveis não-semânticos descobertos em pilotos
+  futuros, testar Tab+Enter manualmente ou via teste unitário, não só confiar no e2e de a11y.
+
+## Pilot 022 — Billing (tela "Consumo de IA")
+
+- **Objetivo**: décimo módulo do roadmap, seguido em sequência sem pausar para confirmação.
+- **Confirmado antes de qualquer coisa**: não há pagamento real neste módulo — o próprio código já
+  documenta isso explicitamente (`usage.service.ts:4-10`, banner de UI em `Billing.tsx:128-137`):
+  não existe plano, assinatura nem provedor de pagamento no sistema; o que existe é `AILog` (custo
+  estimado de chamadas de IA a partir de uma tabela de preços interna). Sem Stripe/checkout/cartão
+  em lugar nenhum — seguro tratar como tela de telemetria de custo, não como fluxo financeiro.
+- **Achado principal — RBAC ao contrário do padrão usual desta série**: nos Pilotos 017-021 o
+  problema sempre foi "UI mostra ação que o backend rejeita". Aqui o backend já protege
+  corretamente (`GET /api/usage` exige `ADMIN` desde uma auditoria anterior,
+  `bootstrap/routes.ts:109`) e a Sidebar já escondia o item de menu — mas a **rota de frontend**
+  (`src/App.tsx:265`) nunca tinha o gate `<RequireRole>` que as outras duas rotas ADMIN-only do
+  mesmo arquivo (`team`, `commercial_intelligence`) já usam. Resultado real: um usuário não-ADMIN
+  que digitasse `/app/usage` direto na URL via a casca inteira da tela renderizar, a chamada de API
+  falhar com 403, e a mensagem de erro **em inglês cru** do `requireRole` aparecer dentro do card
+  de erro — em vez da tela "Acesso restrito" em PT-BR que `RequireRole` já resolve exatamente para
+  esse cenário (o próprio componente documenta esse bug como motivo de sua existência). Corrigido
+  envolvendo a rota `usage` em `<RequireRole allowedRoles={['ADMIN']}>`, idêntico ao padrão de
+  `team`. Também corrigido um comentário desatualizado em `Sidebar.tsx` que ainda afirmava
+  "GET /api/usage hoje não tem checagem de papel nenhuma no backend" — checagem já existia, só o
+  comentário nunca foi atualizado no mesmo commit que a introduziu.
+- **Vitrine de dado real subaproveitado — décima confirmação**: `AILog.promptId` (ex.:
+  `'meeting-synthesis'`, `'churn-prediction-analysis'`, `'knowledge-rerank'`) já é gravado em toda
+  chamada real de IA (17+ pontos de chamada catalogados em `prompt-registry.ts`), mas a consulta de
+  consumo (`usage.service.ts`) nunca selecionava nem agrupava por essa dimensão — só por `model`,
+  escondendo qual **funcionalidade do produto** gastou o quê (ex.: dá pra saber que "gpt-4o-mini"
+  custou X, mas não que "resumo de reunião" custou Y e "análise de churn" custou Z). Adicionado
+  `prisma.aILog.groupBy({ by: ['promptId'] })` (mesmo padrão do `groupBy` por `model` já existente)
+  e uma nova seção "Por funcionalidade (prompt)" na tela, com chamadas sem prompt registrado
+  rotuladas como "Não identificado" em vez de somem do relatório (mesmo raciocínio já usado para
+  `unattributedCalls`).
+- **Cosmético**: badge/barra de cota de tokens usava `amber-500`/`emerald-500` **exatos** (mesmo
+  hex de `--color-warning`/`--color-success`, confirmado em `globals.css`) só que via classe
+  Tailwind crua, perdendo o ajuste de contraste `-active` que o próprio design system já calibrou
+  pro tema claro — convertido para `warning`/`warning-active`/`success`/`success-active`.
+  `text-amber-400` (ícone de erro) → `danger` (é erro, não aviso); `text-gray-600` (estado vazio) →
+  `text-ink-2`. `type="button"` adicionado aos botões de período e ao botão de recarregar. Corrigido
+  de passagem: `text-red-300` em `AiGatewayShowcase.tsx` (outro consumidor da mesma rota
+  `/api/usage`, fora da pasta do módulo mas mesmo achado) → `danger`/`danger-active`.
+- **Fora de escopo, documentado**: `usage.routes.test.ts` monta seu próprio Express sem o
+  middleware `requireRole` real (injeta `role: 'ADMIN'` manualmente no teste) — a proteção
+  ADMIN-only da rota em produção não tem nenhum teste automatizado dedicado que exercite o
+  middleware de verdade. Não corrigido neste piloto (é uma lacuna de teste de infraestrutura, não
+  um bug de UI); sinalizado para task futura.
+- **Preservado**: nenhuma migração. Textos exatos de `tests/unit/features/billing/components/
+  Billing.test.tsx` (`'Consumo de IA'`, `'US$ 12.35'`, `'gpt-4o-mini'`, `'Nenhuma chamada de IA no
+  período'`, `'Tentar novamente'`, rótulo `'7d'`) e de `usage.routes.test.ts` (saturação 7/90 dias,
+  propagação de erro) intactos — nenhum já dependia da ausência de `byPrompt`, e o novo campo foi
+  adicionado com checagem nula (`data.byPrompt && ...`) para não quebrar se algum mock antigo não
+  o incluir. `tests/e2e/accessibility.spec.ts` (`'Uso/Faturamento não tem violações críticas/
+  sérias'`) intacto — confirmado que `signUp()` do e2e sempre cria um `ADMIN` (primeiro usuário de
+  uma organização nova), então o novo `RequireRole` não interfere no caminho feliz do teste.
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo), `npx tsc --noEmit -p .`
+  (0 erros no projeto inteiro), `npx vite build` (sucesso), `npx vitest run -c
+  vitest.unit.config.ts tests/unit/features/billing` (12/12 passando, sem nenhuma quebra —
+  `Billing.tsx` não usa `useAuth()` diretamente, o RBAC vive inteiramente no roteamento via
+  `RequireRole`, então não houve a quebra de `AuthProvider` vista nos Pilotos 018-021), `PORT=3105
+  npx playwright test tests/e2e/accessibility.spec.ts -g "Uso"` (1/1 passando).
+- **Aprendizado incorporado**: primeiro módulo desta série em que o achado de RBAC é "rota de
+  frontend sem guarda" em vez de "UI mostra ação que o backend rejeita" — mesma família de bug
+  (usuário vê algo que não devia), mas o mecanismo de correção certo já existe pronto no próprio
+  código (`RequireRole`, cujo comentário documenta exatamente esse padrão de bug) — vale, em
+  qualquer piloto futuro, checar `App.tsx` por rotas ADMIN-only sem `RequireRole` como parte do
+  checklist de RBAC, não só o componente da tela em si. Confirma pela quinta vez a heurística mais
+  simples desta série inteira: "que dado real já existe no schema/log mas nunca vira uma dimensão
+  de agrupamento na tela" continua sendo a pergunta mais barata e mais produtiva a fazer em
+  qualquer módulo novo.

@@ -192,11 +192,17 @@ export function LiveStatsWidget() {
           <div className="mt-4 pt-4 border-t border-line grid grid-cols-3 gap-4">
             <div className="text-center">
               <p className="text-xs text-ink-2 font-medium">Fechados este Mês</p>
-              <p className="text-lg font-black text-ok">{stats.closedThisMonth}</p>
+              <p className="text-lg font-black text-ok-active dark:text-ok">
+                {stats.closedThisMonth}
+              </p>
             </div>
             <div className="text-center">
               <p className="text-xs text-ink-2 font-medium">Valor no Pipeline</p>
-              <p className="text-lg font-black text-totaltrack-blue">
+              {/* var(--brand-2) fixo, não token de marca dinâmico: este número sempre aparecia
+                  azul Total Trac mesmo com AtlasGR ativa (`text-totaltrack-blue` é uma classe
+                  estática de marca, proibida fora de tela pré-seleção — CLAUDE.md regra visual
+                  3). Achado e corrigido no Piloto 007, ver .claude/PILOTS.md. */}
+              <p className="text-lg font-black text-brand-2">
                 {stats.pipelineValue != null && stats.pipelineValue > 0
                   ? `R$ ${(stats.pipelineValue / 1000).toFixed(0)}k`
                   : 'R$ —'}

@@ -15,6 +15,9 @@ export interface BitrixConnectionSummary {
   webhookReceiverUrl: string;
   hasWebhookSecret: boolean;
   inboundEventsEnabled: boolean;
+  /** Checkpoint da última importação incremental bem-sucedida (Onda 41, extraction.ts) — ISO
+   * string (cruza a API HTTP) ou `null` quando a conexão nunca importou. */
+  lastImportedAt: string | null;
 }
 
 function buildWebhookReceiverUrl(connectionId: string): string {
@@ -47,6 +50,7 @@ export async function listBitrixConnections(
       webhookUrl: true,
       webhookSecret: true,
       inboundEventsEnabled: true,
+      lastImportedAt: true,
     },
     orderBy: { createdAt: 'asc' },
   });
@@ -80,6 +84,7 @@ export async function listBitrixConnections(
             webhookUrl: true,
             webhookSecret: true,
             inboundEventsEnabled: true,
+            lastImportedAt: true,
           },
           orderBy: { createdAt: 'asc' },
         });
@@ -99,6 +104,7 @@ export async function listBitrixConnections(
     webhookReceiverUrl: buildWebhookReceiverUrl(c.id),
     hasWebhookSecret: Boolean(c.webhookSecret),
     inboundEventsEnabled: c.inboundEventsEnabled,
+    lastImportedAt: c.lastImportedAt ? c.lastImportedAt.toISOString() : null,
   }));
 }
 

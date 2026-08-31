@@ -2742,6 +2742,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
 
+  /gamification/coaching/weekly:
+    post:
+      tags: [Gamification]
+      summary: >-
+        Gera o coaching semanal por IA do vendedor autenticado, a partir de dados reais de
+        atividades e negócios (Piloto 007, .claude/PILOTS.md) — nunca de outro vendedor, o nome
+        usado vem sempre da sessão autenticada.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  description: >-
+                    Função de vendas informada manualmente pelo próprio usuário (opcional, não
+                    persistida) — não existe campo de função de vendas no cadastro do usuário.
+                  enum:
+                    - SDR / Hunter
+                    - Closer / Executivo de Contas
+                    - Account Manager / Farmer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
   # ───────────────────────────── Cadence ─────────────────────────────
   /cadence/opt-outs:
     get:
