@@ -101,7 +101,7 @@ export abstract class BaseAgent {
     const compiled = graph.compile({ checkpointer: memory });
     const config = { configurable: { thread_id: sid } };
 
-    let finalState;
+    let finalState: Awaited<ReturnType<typeof compiled.invoke>>;
     try {
       finalState = await compiled.invoke(
         { messages: [new HumanMessage(this.buildHumanMessage(inputData))] },
@@ -116,10 +116,12 @@ export abstract class BaseAgent {
       // `{error}` honesto igual a uma falha do grafo, não uma exceção não tratada.
       await this.updateMemory(
         sid,
-        messages.map((m: BaseMessage): SerializedMessage => ({
-          role: m.type,
-          content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-        })),
+        messages.map(
+          (m: BaseMessage): SerializedMessage => ({
+            role: m.type,
+            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+          }),
+        ),
       );
 
       return {
@@ -204,10 +206,12 @@ export abstract class BaseAgent {
 
       await this.updateMemory(
         sid,
-        messages.map((m): SerializedMessage => ({
-          role: m._getType(),
-          content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-        })),
+        messages.map(
+          (m): SerializedMessage => ({
+            role: m._getType(),
+            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+          }),
+        ),
       );
 
       return { output: lastMessage.content as string, sessionId: sid };

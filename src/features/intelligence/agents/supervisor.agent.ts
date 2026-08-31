@@ -738,7 +738,8 @@ export class SwarmOrchestrator {
       for await (const chunk of stream) {
         const nodeName = Object.keys(chunk)[0];
         const nodeData = chunk[nodeName as keyof typeof chunk] as
-          { messages?: BaseMessage[] } | undefined;
+          | { messages?: BaseMessage[] }
+          | undefined;
         const msgs = nodeData?.messages;
         if (msgs && msgs.length > 0) {
           const lastMsg = msgs[msgs.length - 1] as AIMessage;

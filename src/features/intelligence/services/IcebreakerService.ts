@@ -34,7 +34,7 @@ export class IcebreakerService {
     const chromium = await getChromium();
     if (!chromium) return '';
 
-    let browser;
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
     try {
       // Scraping headless robusto para contornar bloqueios de bots simples
       browser = await chromium.launch({ headless: true });

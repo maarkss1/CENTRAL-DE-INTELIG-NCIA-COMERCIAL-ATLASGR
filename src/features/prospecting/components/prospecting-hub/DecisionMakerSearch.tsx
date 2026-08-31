@@ -360,10 +360,15 @@ export function DecisionMakerSearch({
       </div>
 
       <div className="mb-4">
-        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">
+        {/* Não é um <label> de formulário de verdade (rotula um grupo de botões, não um único
+            controle) — vira legenda do grupo via role="group"/aria-labelledby abaixo. */}
+        <span
+          id="persona-group-label"
+          className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2"
+        >
           Personas {brandInfo.name} (Playbook de Pré-Vendas)
-        </label>
-        <div className="flex flex-wrap gap-1.5">
+        </span>
+        <div role="group" aria-labelledby="persona-group-label" className="flex flex-wrap gap-1.5">
           {personaOptions.map((persona) => {
             const active = isPersonaActive(persona);
             return (

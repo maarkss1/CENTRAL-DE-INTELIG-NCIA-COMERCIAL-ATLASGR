@@ -1,18 +1,40 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
 
+// jsdom não implementa canvas 2D — echarts.init() (usado por src/components/charts/index.tsx)
+// precisa de um canvas real para renderizar. Como este teste só verifica dados/interação (não
+// o desenho do gráfico em si), substitui só `init` por uma instância stub com os métodos que
+// useEChart() chama (setOption/resize/dispose) — mantém o resto de echarts/core real (`use`,
+// e os módulos de gráfico importados em echarts/charts continuam intactos).
+vi.mock('echarts/core', async () => {
+    const actual = await vi.importActual<typeof import('echarts/core')>('echarts/core');
+    return {
+        ...actual,
+        init: vi.fn(() => ({
+            setOption: vi.fn(),
+            resize: vi.fn(),
+            dispose: vi.fn(),
+        })),
+    };
+});
+
 import { Analytics } from '@/features/analytics/components/Analytics';
 import { formatMonthLabel } from '@/features/analytics/analytics.api';
 import { BrandProvider } from '@/contexts/BrandContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 const DASHBOARD_URL = '/api/analytics/dashboard';
 
 function render(ui: React.ReactElement) {
-    return rtlRender(<BrandProvider>{ui}</BrandProvider>);
+    return rtlRender(
+        <ThemeProvider>
+            <BrandProvider>{ui}</BrandProvider>
+        </ThemeProvider>,
+    );
 }
 
 const dashboardCheio = {

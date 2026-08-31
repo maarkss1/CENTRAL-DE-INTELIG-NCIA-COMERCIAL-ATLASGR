@@ -175,7 +175,12 @@ export function DataSubjectRights() {
 
         {selected && (
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={() => void handleExport()} disabled={exporting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleExport()}
+              disabled={exporting}
+            >
               {exporting ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (

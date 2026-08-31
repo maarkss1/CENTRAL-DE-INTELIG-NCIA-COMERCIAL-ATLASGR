@@ -20,9 +20,20 @@ import { toast } from '../../../lib/toast';
 
 type ExtractionEntity = 'lead' | 'deal' | 'company' | 'contact' | 'activity' | 'user';
 type ExtractionPeriod =
-  'today' | 'last7days' | 'thisMonth' | 'thisQuarter' | 'thisSemester' | 'all' | 'custom';
+  | 'today'
+  | 'last7days'
+  | 'thisMonth'
+  | 'thisQuarter'
+  | 'thisSemester'
+  | 'all'
+  | 'custom';
 type ExtractionStatus =
-  'queued' | 'running' | 'completed' | 'completed_partial' | 'failed' | 'cancelled';
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'completed_partial'
+  | 'failed'
+  | 'cancelled';
 
 const ENTITY_OPTIONS: { value: ExtractionEntity; label: string }[] = [
   { value: 'lead', label: 'Leads' },

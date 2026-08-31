@@ -76,7 +76,12 @@ export function Carousel({
   const scrollTo = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi]);
 
   return (
-    <div className={`relative w-full ${className}`} aria-roledescription="carousel">
+    <div
+      className={`relative w-full ${className}`}
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Carrossel"
+    >
       {/* Viewport do Embla */}
       <div ref={emblaRef} className="overflow-hidden rounded-2xl">
         <div className={`flex ${slideClassName}`}>{children}</div>
@@ -110,7 +115,11 @@ export function Carousel({
 
       {/* Dots de paginação */}
       {showDots && scrollSnaps.length > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2" role="tablist" aria-label="Slides">
+        <div
+          className="mt-4 flex items-center justify-center gap-2"
+          role="tablist"
+          aria-label="Slides"
+        >
           {scrollSnaps.map((_, idx) => (
             <button
               key={idx}
@@ -120,10 +129,7 @@ export function Carousel({
               aria-label={`Ir para slide ${idx + 1}`}
               onClick={() => scrollTo(idx)}
               className={`h-2 rounded-full transition-all duration-300
-                ${idx === selectedIndex
-                  ? 'w-6 bg-brand'
-                  : 'w-2 bg-line hover:bg-ink-2'
-                }`}
+                ${idx === selectedIndex ? 'w-6 bg-brand' : 'w-2 bg-line hover:bg-ink-2'}`}
             />
           ))}
         </div>

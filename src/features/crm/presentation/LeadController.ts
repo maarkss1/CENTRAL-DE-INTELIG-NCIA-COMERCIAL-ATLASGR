@@ -78,7 +78,9 @@ export class LeadController {
     try {
       const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
       const leadId = req.params.id;
-      let lead;
+      let lead:
+        | Awaited<ReturnType<typeof this.leadUseCases.updateLeadStatus>>
+        | Awaited<ReturnType<typeof this.leadUseCases.updateLead>>;
       let statusMudou = false;
       if (req.body.status && Object.keys(req.body).length === 1) {
         lead = await this.leadUseCases.updateLeadStatus(

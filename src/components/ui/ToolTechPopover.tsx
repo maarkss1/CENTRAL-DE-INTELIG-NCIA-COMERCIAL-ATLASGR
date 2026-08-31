@@ -42,7 +42,7 @@ export const ToolTechPopover: React.FC<ToolTechPopoverProps> = ({
     // equivalente de teclado é o Escape (tratado no useEffect acima) — o padrão de dismiss
     // por overlay não-focável é o mesmo endossado pelas ARIA Authoring Practices para diálogos,
     // por isso o disable pontual abaixo (mesmo raciocínio já documentado em CrmBoard.tsx).
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+    // biome-ignore lint/a11y/noStaticElementInteractions: dismiss por overlay, ver comentário acima
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
       onClick={(event) => {
