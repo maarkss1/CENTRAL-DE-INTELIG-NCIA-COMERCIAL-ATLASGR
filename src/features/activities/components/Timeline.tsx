@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TimelineEvent } from '../../../types';
+import type { TimelineEvent } from '../../../types';
 import { History, Activity, MessageCircle, ArrowRight, User } from 'lucide-react';
 import { clientLogger } from '../../../lib/clientLogger';
 

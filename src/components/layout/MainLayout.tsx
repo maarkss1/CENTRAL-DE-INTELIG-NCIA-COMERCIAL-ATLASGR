@@ -1,9 +1,9 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { AppTopbar } from './AppTopbar';
 import { OfflineBanner } from './OfflineBanner';
-import { TabType } from './tabMeta';
+import type { TabType } from './tabMeta';
 import { Toaster } from '../ui/Toaster';
 import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
 import { BugReportButton } from '../ui/BugReportButton';

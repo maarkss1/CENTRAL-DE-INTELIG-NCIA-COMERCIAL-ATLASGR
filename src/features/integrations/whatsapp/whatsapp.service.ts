@@ -1,10 +1,10 @@
 import makeWASocket, {
   DisconnectReason,
   Browsers,
-  WASocket,
+  type WASocket,
   fetchLatestBaileysVersion,
 } from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
+import type { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import pino from 'pino';
 import path from 'path';

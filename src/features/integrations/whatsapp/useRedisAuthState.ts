@@ -1,10 +1,10 @@
 import {
   initAuthCreds,
   BufferJSON,
-  AuthenticationState,
-  AuthenticationCreds,
+  type AuthenticationState,
+  type AuthenticationCreds,
 } from '@whiskeysockets/baileys';
-import { Redis } from 'ioredis';
+import type { Redis } from 'ioredis';
 
 /**
  * Adaptador de estado de autenticação do Baileys (WhatsApp) para o Redis.

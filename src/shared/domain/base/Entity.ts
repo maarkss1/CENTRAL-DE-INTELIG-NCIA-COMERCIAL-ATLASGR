@@ -3,7 +3,7 @@
  * @description Base class for every Entity, encapsulating identity and equality semantics.
  */
 
-import { UniqueEntityID } from './UniqueEntityID.js';
+import type { UniqueEntityID } from './UniqueEntityID.js';
 
 /**
  * Base class reused by every Domain Entity.

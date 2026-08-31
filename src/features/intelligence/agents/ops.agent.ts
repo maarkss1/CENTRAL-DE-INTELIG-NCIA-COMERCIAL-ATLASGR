@@ -6,7 +6,7 @@ import { searchPlaybookTool } from '../tools/playbookTool.js';
 // LLM, mas em vez de executar direto elas registram uma `AIPendingAction` e a execução real só
 // acontece após aprovação humana (ver `opsPendingActions.tool.ts` para o raciocínio completo).
 import { createFollowUpTaskTool, notifyTeamTool } from './opsPendingActions.tool.js';
-import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { type BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId, getUserId } from '../../../lib/async-context.js';

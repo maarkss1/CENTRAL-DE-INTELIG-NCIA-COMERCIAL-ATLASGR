@@ -21,10 +21,10 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { LinkedinIcon as Linkedin } from '../../../components/ui/icons/LinkedinIcon';
-import { Company } from '../../../types';
+import type { Company } from '../../../types';
 import { api } from '../../../lib/api';
 import { formatCnpj } from '../../../lib/cnpj';
-import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
+import { TechToolLogo, type TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
 import { clientLogger } from '../../../lib/clientLogger';

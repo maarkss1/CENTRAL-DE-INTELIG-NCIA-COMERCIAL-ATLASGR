@@ -4,7 +4,7 @@ import { validateRequest } from '../../../shared/middlewares/validateRequest.js'
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { noteSchema } from '../../../lib/zod.js';
 import { container } from '../../../shared/di/container.js';
-import { NoteController } from '../presentation/NoteController.js';
+import type { NoteController } from '../presentation/NoteController.js';
 
 const router = Router({ mergeParams: true }); // mergeParams to access :leadId from parent router
 

@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { LeadUseCases } from '../application/LeadUseCases';
-import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import type { Request, Response, NextFunction } from 'express';
+import type { LeadUseCases } from '../application/LeadUseCases';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import { automationEngine } from '../../automations/automation.engine';
 import { logger } from '../../../lib/logger';
 import type { LeadFunnel } from '@prisma/client';

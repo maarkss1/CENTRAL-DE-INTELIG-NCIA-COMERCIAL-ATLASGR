@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { auth } from '../../lib/auth.js';
 import { logger } from '../../lib/logger.js';
 import { fromNodeHeaders } from 'better-auth/node';
