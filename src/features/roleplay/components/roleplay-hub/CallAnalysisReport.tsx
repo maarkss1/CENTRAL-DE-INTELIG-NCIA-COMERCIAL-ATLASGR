@@ -1,14 +1,6 @@
 import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, Phone, RotateCcw, ShieldCheck } from 'lucide-react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import type { CallAnalysisResult } from './types';
 
@@ -130,8 +122,8 @@ export function CallAnalysisReport({
         <div className="bg-surface border border-line p-8 rounded-[2rem] space-y-4 relative z-10">
           <h3 className="font-black text-xl text-ink tracking-tight">Evolução da Ligação</h3>
           <p className="text-sm text-ink-2">
-            Clareza e tratamento de objeções em cada resposta sua, avaliados pela IA em tempo real
-            — não uma média, o histórico real desta ligação.
+            Clareza e tratamento de objeções em cada resposta sua, avaliados pela IA em tempo real —
+            não uma média, o histórico real desta ligação.
           </p>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -153,7 +145,8 @@ export function CallAnalysisReport({
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: theme === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)',
+                    backgroundColor:
+                      theme === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)',
                     borderRadius: '12px',
                     border: '1px solid rgba(255,255,255,0.1)',
                   }}
@@ -191,7 +184,10 @@ export function CallAnalysisReport({
           </h3>
           <ul className="space-y-4">
             {analysisResult.strengths.map((s, idx) => (
-              <li key={idx} className="flex items-start gap-3 text-base text-ink font-medium leading-relaxed">
+              <li
+                key={idx}
+                className="flex items-start gap-3 text-base text-ink font-medium leading-relaxed"
+              >
                 <span className="w-2 h-2 mt-2 rounded-full bg-success shrink-0" /> {s}
               </li>
             ))}
@@ -207,7 +203,10 @@ export function CallAnalysisReport({
           </h3>
           <ul className="space-y-4">
             {analysisResult.improvements.map((imp, idx) => (
-              <li key={idx} className="flex items-start gap-3 text-base text-ink font-medium leading-relaxed">
+              <li
+                key={idx}
+                className="flex items-start gap-3 text-base text-ink font-medium leading-relaxed"
+              >
                 <span className="w-2 h-2 mt-2 rounded-full bg-danger shrink-0" /> {imp}
               </li>
             ))}
