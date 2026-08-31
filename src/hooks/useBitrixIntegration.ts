@@ -9,6 +9,10 @@ interface BitrixConnectionSummary {
   webhookReceiverUrl: string;
   hasWebhookSecret: boolean;
   inboundEventsEnabled: boolean;
+  /** Checkpoint da última importação incremental bem-sucedida (Onda 41) — ISO string ou `null`
+   * quando a conexão nunca importou. Espelha BitrixConnectionSummary em
+   * bitrix/service/connections.ts (ver comentário no topo deste arquivo). */
+  lastImportedAt: string | null;
 }
 
 /** Estado/ações das conexões Bitrix24 na tela de Integrações — extraído de Integrations.tsx (FRONT-006). */
