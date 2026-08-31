@@ -1270,7 +1270,7 @@ function JourneyTemplatesDialog({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-extrabold text-sm text-ink">{tpl.name}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand-active dark:text-brand-2">
                           {tpl.category}
                         </span>
                       </div>

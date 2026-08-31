@@ -216,7 +216,7 @@ export function CompanyBranchesView({
                           type="button"
                           onClick={() => handleApprove(f.cnpj)}
                           disabled={approvingCnpj === f.cnpj}
-                          className="px-2.5 py-1 rounded-lg bg-brand/10 hover:bg-brand text-brand hover:text-white text-[11px] font-bold transition-all"
+                          className="px-2.5 py-1 rounded-lg bg-brand/10 hover:bg-brand-active text-brand-active dark:text-brand-2 hover:text-white text-[11px] font-bold transition-all"
                         >
                           {approvingCnpj === f.cnpj ? 'Aprovando...' : 'Aprovar'}
                         </button>

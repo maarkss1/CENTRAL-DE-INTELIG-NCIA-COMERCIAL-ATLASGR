@@ -252,7 +252,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
         <div className="bg-surface p-6 md:p-8 rounded-3xl border border-line shadow-xl space-y-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-brand/10 border border-brand/20 text-brand">
+              <div className="p-2.5 rounded-2xl bg-brand/10 border border-brand/20 text-brand-active dark:text-brand-2">
                 <Wrench className="w-6 h-6" />
               </div>
               <div>
