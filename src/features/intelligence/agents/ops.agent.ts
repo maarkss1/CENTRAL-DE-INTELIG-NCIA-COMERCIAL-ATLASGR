@@ -63,16 +63,21 @@ interface SerializedMessage {
 async function callModel(state: typeof MessagesAnnotation.State) {
   const tenantId = getTenantId() || 'system';
   const userId = getUserId() || 'system';
-  
-  const humanMessages = state.messages.filter(m => (typeof m.getType === 'function' && m.getType() === 'human') || m.type === 'human');
+
+  const humanMessages = state.messages.filter(
+    (m) => (typeof m.getType === 'function' && m.getType() === 'human') || m.type === 'human',
+  );
   const lastHumanMessage = humanMessages[humanMessages.length - 1];
-  const query = lastHumanMessage && typeof lastHumanMessage.content === 'string' ? lastHumanMessage.content : 'operação';
+  const query =
+    lastHumanMessage && typeof lastHumanMessage.content === 'string'
+      ? lastHumanMessage.content
+      : 'operação';
 
   const memories = await agentMemory.search(query, {
     userId: `${tenantId}:${userId}`,
     agentId: 'ops',
   });
-  
+
   const memoryContext = agentMemory.formatForPrompt(memories);
   const systemPrompt = new SystemMessage(
     `${SWARM_IDENTITY} Você é o Agente de Operações (Ops): PROPÕE ações concretas nas ferramentas do sistema a partir de uma instrução, nunca apenas descreve o que deveria ser feito — mas, assim como os demais agentes do enxame (SDR/BDR/Closer/CRM), toda ação com efeito real fica pendente de aprovação humana antes de ser executada de fato; você mesmo nunca envia/cria nada diretamente.
@@ -172,7 +177,7 @@ export class OpsAgent {
     // thread_id prefixado pelo tenant — o checkpointer é compartilhado por todas as
     // organizações do processo.
     const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
-    let finalState;
+    let finalState: Awaited<ReturnType<typeof app.invoke>>;
 
     try {
       // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da

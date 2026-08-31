@@ -158,7 +158,6 @@ export function CompanyList() {
     }
   };
 
-
   const columns: ColumnDef<Company>[] = [
     {
       key: 'checkbox',
@@ -200,11 +199,7 @@ export function CompanyList() {
               className="w-10 h-10 rounded-xl bg-soft border border-brand/30 flex items-center justify-center text-brand shrink-0 font-bold overflow-hidden cursor-pointer"
             >
               {company.logoUrl ? (
-                <img
-                  src={company.logoUrl}
-                  alt=""
-                  className="w-full h-full object-contain p-1"
-                />
+                <img src={company.logoUrl} alt="" className="w-full h-full object-contain p-1" />
               ) : (
                 <Building2 className="w-5 h-5" />
               )}
@@ -267,9 +262,7 @@ export function CompanyList() {
       header: <span className="hidden md:inline">Segmento</span>,
       width: '15%',
       render: (company) => (
-        <div className="hidden md:block text-sm text-ink-2">
-          {company.segment || '-'}
-        </div>
+        <div className="hidden md:block text-sm text-ink-2">{company.segment || '-'}</div>
       ),
     },
     {

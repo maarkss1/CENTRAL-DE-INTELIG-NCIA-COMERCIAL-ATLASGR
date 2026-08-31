@@ -43,7 +43,12 @@ interface AccountIntelligenceSummary {
 }
 
 type TabId =
-  'overview' | 'signals' | 'decision-makers' | 'economic-group' | 'crm' | 'recommendations';
+  | 'overview'
+  | 'signals'
+  | 'decision-makers'
+  | 'economic-group'
+  | 'crm'
+  | 'recommendations';
 
 // Cada aba não-overview lê de um endpoint real de accountIntelligence.routes.ts. "CRM / Histórico"
 // usa /evidence (fatos com proveniência CRM.Company) — não existe endpoint de timeline dedicado.

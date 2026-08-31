@@ -23,13 +23,13 @@ describe('Dialog', () => {
     const content = React.createElement('p', null, 'Dialog content');
     // createElement's component overload requires the mandatory Dialog prop in this object.
     render(
-      // A regra reporta na linha onde a CHAMADA a React.createElement começa, não na linha da
-      // prop `children` — o disable precisa ficar imediatamente aqui, não antes de `render(`.
-      // eslint-disable-next-line react/no-children-prop
+      // React.createElement exige children como prop do objeto — o canônico do React aceita
+      // isso via argumento extra, não como chave do objeto, daí o aviso do linter aqui.
       React.createElement(Dialog, {
         isOpen: false,
         onClose: vi.fn(),
         title: 'Example',
+        // biome-ignore lint/correctness/noChildrenProp: ver comentário acima
         children: content,
       }),
     );

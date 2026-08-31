@@ -294,16 +294,18 @@ export function Analytics() {
               ])}
             >
               <BarChart
-  horizontal={true}
-  height={260}
-  data={{
-    categories: data.funnel.map(s => s.label),
-    series: [{
-      name: 'Leads',
-      data: data.funnel.map(s => s.count)
-    }]
-  }}
-/>
+                horizontal={true}
+                height={260}
+                data={{
+                  categories: data.funnel.map((s) => s.label),
+                  series: [
+                    {
+                      name: 'Leads',
+                      data: data.funnel.map((s) => s.count),
+                    },
+                  ],
+                }}
+              />
             </ChartCard>
 
             {/* Evolução mensal — único gráfico multi-série, com legenda */}
@@ -314,16 +316,16 @@ export function Analytics() {
               tableRows={monthlyData.map((p) => [p.label, p.created, p.won, p.lost])}
             >
               <LineChart
-  height={260}
-  data={{
-    categories: monthlyData.map(d => d.label),
-    series: [
-      { name: 'Criados', data: monthlyData.map(d => d.created) },
-      { name: 'Ganhos', data: monthlyData.map(d => d.won) },
-      { name: 'Perdidos', data: monthlyData.map(d => d.lost) }
-    ]
-  }}
-/>
+                height={260}
+                data={{
+                  categories: monthlyData.map((d) => d.label),
+                  series: [
+                    { name: 'Criados', data: monthlyData.map((d) => d.created) },
+                    { name: 'Ganhos', data: monthlyData.map((d) => d.won) },
+                    { name: 'Perdidos', data: monthlyData.map((d) => d.lost) },
+                  ],
+                }}
+              />
             </ChartCard>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -334,15 +336,17 @@ export function Analytics() {
                 tableRows={data.activitiesByType.map((s) => [s.label, s.count])}
               >
                 <BarChart
-  height={220}
-  data={{
-    categories: data.activitiesByType.map(s => s.label),
-    series: [{
-      name: 'Atividades',
-      data: data.activitiesByType.map(s => s.count)
-    }]
-  }}
-/>
+                  height={220}
+                  data={{
+                    categories: data.activitiesByType.map((s) => s.label),
+                    series: [
+                      {
+                        name: 'Atividades',
+                        data: data.activitiesByType.map((s) => s.count),
+                      },
+                    ],
+                  }}
+                />
               </ChartCard>
 
               {/* Buscado pela API mas nunca exibido antes desta sessão (achado do Piloto 009) —
@@ -353,15 +357,17 @@ export function Analytics() {
                 tableRows={data.activitiesByStatus.map((s) => [s.label, s.count])}
               >
                 <BarChart
-  height={220}
-  data={{
-    categories: data.activitiesByStatus.map(s => s.label),
-    series: [{
-      name: 'Atividades',
-      data: data.activitiesByStatus.map(s => s.count)
-    }]
-  }}
-/>
+                  height={220}
+                  data={{
+                    categories: data.activitiesByStatus.map((s) => s.label),
+                    series: [
+                      {
+                        name: 'Atividades',
+                        data: data.activitiesByStatus.map((s) => s.count),
+                      },
+                    ],
+                  }}
+                />
               </ChartCard>
 
               <ChartCard
@@ -371,16 +377,18 @@ export function Analytics() {
                 tableRows={data.byOwner.map((o) => [o.label, o.count, o.won])}
               >
                 <BarChart
-  horizontal={true}
-  height={220}
-  data={{
-    categories: data.byOwner.map(s => s.label),
-    series: [{
-      name: 'Leads',
-      data: data.byOwner.map(s => s.count)
-    }]
-  }}
-/>
+                  horizontal={true}
+                  height={220}
+                  data={{
+                    categories: data.byOwner.map((s) => s.label),
+                    series: [
+                      {
+                        name: 'Leads',
+                        data: data.byOwner.map((s) => s.count),
+                      },
+                    ],
+                  }}
+                />
               </ChartCard>
 
               <ChartCard
@@ -389,15 +397,17 @@ export function Analytics() {
                 tableRows={data.byTemperature.map((s) => [s.label, s.count])}
               >
                 <BarChart
-  height={200}
-  data={{
-    categories: data.byTemperature.map(s => s.label),
-    series: [{
-      name: 'Leads',
-      data: data.byTemperature.map(s => s.count)
-    }]
-  }}
-/>
+                  height={200}
+                  data={{
+                    categories: data.byTemperature.map((s) => s.label),
+                    series: [
+                      {
+                        name: 'Leads',
+                        data: data.byTemperature.map((s) => s.count),
+                      },
+                    ],
+                  }}
+                />
               </ChartCard>
 
               <ChartCard
@@ -406,16 +416,18 @@ export function Analytics() {
                 tableRows={data.bySource.map((s) => [s.label, s.count])}
               >
                 <BarChart
-  horizontal={true}
-  height={200}
-  data={{
-    categories: data.bySource.map(s => s.label),
-    series: [{
-      name: 'Leads',
-      data: data.bySource.map(s => s.count)
-    }]
-  }}
-/>
+                  horizontal={true}
+                  height={200}
+                  data={{
+                    categories: data.bySource.map((s) => s.label),
+                    series: [
+                      {
+                        name: 'Leads',
+                        data: data.bySource.map((s) => s.count),
+                      },
+                    ],
+                  }}
+                />
               </ChartCard>
             </div>
 
@@ -470,9 +482,6 @@ export function Analytics() {
               </Card>
             </div>
 
-            
-            
-
             <CohortAnalysis />
           </motion.div>
         )}
@@ -480,4 +489,3 @@ export function Analytics() {
     </div>
   );
 }
-

@@ -253,10 +253,13 @@ describe('studio/shared', () => {
     });
 
     it('cai para invokeText (sem streaming) quando o gerador falha ANTES do primeiro chunk', async () => {
+      // biome-ignore-start lint/correctness/noUnreachable: generator precisa do yield pra TS inferir
+      // o tipo de retorno correto — o teste depende justamente do throw acontecer antes dele.
       streamChatCompletionMock.mockImplementationOnce(async function* () {
         throw new Error('LiteLLM indisponível');
         yield { delta: 'nunca chega aqui' };
       });
+      // biome-ignore-end lint/correctness/noUnreachable: fim do bloco
       invokeMock.mockResolvedValueOnce(aiResult('resposta de fallback sem streaming'));
       const chunks: string[] = [];
 

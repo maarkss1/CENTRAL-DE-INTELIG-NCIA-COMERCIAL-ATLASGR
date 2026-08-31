@@ -15,7 +15,10 @@ export interface SanitizedLeadData {
   commercialName: string; // Nome fantasia amigável para mensagens (ex: "TransLog" ao invés de "TRANSLOG TRANSPORTES RODOVIARIOS LTDA ME")
   standardizedJobTitle: string;
   seniorityLevel:
-    'C-Level / Diretoria' | 'Gerência' | 'Coordenação / Supervisão' | 'Operacional / Analista';
+    | 'C-Level / Diretoria'
+    | 'Gerência'
+    | 'Coordenação / Supervisão'
+    | 'Operacional / Analista';
   inferredSegment: string;
   dataCompletenessScore: number; // 0 a 100
   missingFields: string[];

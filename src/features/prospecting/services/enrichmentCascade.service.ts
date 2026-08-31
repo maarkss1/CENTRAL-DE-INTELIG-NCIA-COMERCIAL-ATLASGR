@@ -230,8 +230,8 @@ export async function runEnrichmentCascade(
 
   // ────────────────────────── PASSO 3: GOOGLE PLACES ──────────────────────────
   // Se a empresa ainda não tiver telefone, endereço detalhado ou avaliação do Google Maps
-  let placePhone: string | undefined ;
-  let placeRating: number | undefined ;
+  let placePhone: string | undefined;
+  let placeRating: number | undefined;
 
   if (!company.phones?.length || !company.googleRating) {
     try {

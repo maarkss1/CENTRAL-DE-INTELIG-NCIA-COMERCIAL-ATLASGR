@@ -1028,6 +1028,40 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /prospecting/enrich:
+    post:
+      tags: [Prospecting]
+      summary: >-
+        Enriquecimento web de uma URL via scraper Crawlee — placeholder (não persiste dados,
+        implementação real do scraper ainda pendente)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+      responses:
+        '200':
+          description: Dados extraídos da URL (placeholder)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      scrapedUrl: { type: string }
+                      emails: { type: array, items: { type: string } }
+                      phones: { type: array, items: { type: string } }
+                      textSnippet: { type: string }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /prospecting/promote:
     post:
       tags: [Prospecting]
@@ -3992,6 +4026,28 @@ paths:
                     properties:
                       member: { type: object }
                       tempPassword: { type: string }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /team/{id}/unlock:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Equipe]
+      summary: Desbloqueia um membro da equipe travado por excesso de tentativas de login (somente ADMIN)
+      responses:
+        '200':
+          description: Desbloqueado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      member: { type: object }
         '403':
           $ref: '#/components/responses/Forbidden'
 
