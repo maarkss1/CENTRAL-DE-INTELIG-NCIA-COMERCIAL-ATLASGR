@@ -228,12 +228,10 @@ async function handleInboundEmail(req: Request, res: Response): Promise<void> {
   const body = asString(payload.body);
 
   if (!organizationId || !providerMessageId || !fromEmail) {
-    res
-      .status(400)
-      .json({
-        success: false,
-        error: 'organizationId, providerMessageId e fromEmail são obrigatórios.',
-      });
+    res.status(400).json({
+      success: false,
+      error: 'organizationId, providerMessageId e fromEmail são obrigatórios.',
+    });
     return;
   }
 

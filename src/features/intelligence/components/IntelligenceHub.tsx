@@ -17,8 +17,10 @@ import {
   Loader2,
   AlertTriangle,
   ArrowUpRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { AIPendingActions } from './AIPendingActions';
+import { AgentQualityPanel } from './AgentQualityPanel';
 import { B2BGenerator } from './B2BGenerator';
 import { Intelligence } from '../../../components/Intelligence';
 import { SuperagentCreator } from './SuperagentCreator';
@@ -47,7 +49,8 @@ export type IntelligenceTab =
   | 'actions'
   | 'generator'
   | 'tools'
-  | 'rag';
+  | 'rag'
+  | 'quality';
 
 interface IntelligenceHubProps {
   initialTab?: IntelligenceTab;
@@ -135,6 +138,13 @@ const TOOL_TABS: {
     label: 'Conhecimento Vetorial (RAG)',
     icon: Database,
     description: 'Base de embeddings que o Agente SDR consulta para gerar abordagens contextuais.',
+  },
+  {
+    id: 'quality',
+    label: 'Qualidade do Enxame',
+    icon: ShieldCheck,
+    description:
+      'Harness real de avaliação (custo, latência, override humano, fallback, corretude, PII) e resumo do Golden Dataset.',
   },
 ];
 
@@ -250,6 +260,7 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
       <motion.div key={activeTab} initial="hidden" animate="show" variants={fadeInUp}>
         {activeTab === 'ai_suite' && <AISuiteHub />}
         {activeTab === 'swarm' && <SwarmDashboard />}
+        {activeTab === 'quality' && <AgentQualityPanel />}
         {activeTab === 'methodologies' && <SalesMethodologyStudio />}
         {activeTab === 'ai_config' && <AIConfigCenter />}
         {activeTab === 'superagent' && <SuperagentCreator />}

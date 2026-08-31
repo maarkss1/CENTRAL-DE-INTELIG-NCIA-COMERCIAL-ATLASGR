@@ -780,6 +780,20 @@ export interface CommercialIntelligenceRepository {
     from: Date,
     to: Date,
   ): Promise<number>;
+  /**
+   * Datas das reuniões concluídas no intervalo (Onda 43) — usado por Leading Indicators pra
+   * buscar uma vez só (janela cheia das 4 semanas + semana atual/anterior) e filtrar em memória
+   * pelas 6 janelas que `buildPoint` precisa, em vez de 6 chamadas a `countCompletedMeetings`
+   * (uma por janela) toda vez que o relatório é gerado.
+   */
+  findCompletedMeetingDates(organizationId: string, from: Date, to: Date): Promise<Date[]>;
+  /** Datas dos eventos de timeline por tipo no intervalo — mesmo motivo de `findCompletedMeetingDates`, pra "oportunidades qualificadas". */
+  findTimelineEventDatesByType(
+    organizationId: string,
+    type: string,
+    from: Date,
+    to: Date,
+  ): Promise<Date[]>;
   /** Histórico de etapa de um conjunto de leads (para aging por etapa e sales cycle). */
   findStageHistory(
     organizationId: string,

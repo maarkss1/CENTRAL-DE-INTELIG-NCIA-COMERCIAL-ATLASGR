@@ -1,0 +1,105 @@
+FASE 7 — DESIGN FINAL, QA, SEGURANÇA, PERFORMANCE E RELEASE
+
+COORDENAÇÃO
+Agente 00 coordena.
+
+AGENTES PRINCIPAIS
+- 03 Design e Acessibilidade
+- 08 QA e Release
+- 14 Test Harness
+- 15 Segurança Aplicada
+- 10 Infraestrutura/Observabilidade
+- 01/01A Dados quando necessário
+- 02 Produto/UX
+- 18 API
+
+MISSÃO
+Validar o LDR como produto real de ponta a ponta. Não aceitar conclusão baseada apenas em typecheck/build.
+
+JORNADA E2E OBRIGATÓRIA
+1. autenticar como usuário permitido;
+2. entrar em Market Intelligence;
+3. pesquisar empresa real;
+4. abrir Account 360;
+5. consultar dados cadastrais;
+6. visualizar ICP/score;
+7. visualizar sinais;
+8. visualizar decisores;
+9. visualizar evidências;
+10. atualizar inteligência;
+11. gerar recomendação;
+12. criar ação Bitrix permitida;
+13. confirmar persistência e externalRef;
+14. retornar ao Account 360 e visualizar status da ação;
+15. validar responsividade/mobile.
+
+GATES
+- typecheck
+- lint
+- unit tests
+- integration tests
+- E2E
+- build
+- secret scan
+- npm audit conforme política atual
+- verify integrations se existente
+- verify AI se existente
+
+SEGURANÇA
+- authorization/RBAC/RLS;
+- PII;
+- logs sem segredo;
+- webhooks autenticados;
+- SSRF/input validation onde aplicável;
+- rate limiting;
+- exposição de fornecedores/APIs;
+- injection em prompts/conteúdo web;
+- ações externas respeitam approval/guardrails.
+
+PERFORMANCE
+- Account 360 deve carregar estrutura principal sem depender de todas as fontes externas em tempo real;
+- usar snapshots/cache quando apropriado;
+- coleta pesada assíncrona;
+- paginação;
+- índices;
+- evitar N+1;
+- medir latência de APIs críticas.
+
+DESIGN/A11Y
+- hierarquia visual;
+- legibilidade;
+- contraste;
+- teclado;
+- labels;
+- estados de foco;
+- mobile;
+- estados vazios/erro/loading;
+- não confundir INFERRED com VERIFIED.
+
+OBSERVABILIDADE
+Validar dashboards/logs/métricas de:
+- refresh;
+- source failures;
+- worker failures;
+- Bitrix;
+- recommendations;
+- actions.
+
+VEREDITO
+Agente 08 só pode emitir:
+RELEASE APPROVED
+ou
+RELEASE BLOCKED
+
+Se BLOCKED, listar:
+- bug;
+- severidade;
+- passos para reproduzir;
+- agente dono;
+- teste esperado após correção.
+
+ENTREGÁVEL
+.agents/runs/ldr-fase-7-release.md
+
+CRITÉRIO DE SAÍDA
+O fluxo EMPRESA REAL → ACCOUNT 360 → SCORE → SINAIS → DECISORES → RECOMENDAÇÃO → BITRIX funciona ponta a ponta, com dados persistidos, autorização, testes, observabilidade e sem mocks usados como produção.

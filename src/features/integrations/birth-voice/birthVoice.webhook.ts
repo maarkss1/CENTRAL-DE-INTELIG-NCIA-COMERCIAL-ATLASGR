@@ -15,6 +15,10 @@ import {
 } from './birthVoice.helpers.js';
 import { recordOptOut } from './callSuppression.service.js';
 import { sendWhatsAppMessage } from '../whatsapp/whatsapp.service.js';
+import {
+  claimWebhookDelivery,
+  webhookDeliveryFingerprint,
+} from '../../../shared/security/webhookReplayGuard.js';
 
 type RecordOutcome = 'recorded' | 'duplicate' | 'lead-not-found';
 
@@ -161,9 +165,21 @@ async function handleWebhook(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  if (!isValidSignature(rawBody, req.header('x-birthvoices-signature'), secret)) {
+  const signature = req.header('x-birthvoices-signature');
+  if (!isValidSignature(rawBody, signature, secret)) {
     logger.warn('Webhook do SDR de voz com assinatura inválida — descartado.');
     res.status(401).json({ success: false, error: 'Assinatura inválida.' });
+    return;
+  }
+
+  // A assinatura já é função do corpo cru — reenvio idêntico (retry legítimo ou captura repetida)
+  // produz o mesmo fingerprint. Ver webhookReplayGuard.ts para o raciocínio completo.
+  const replayCheck = await claimWebhookDelivery(
+    'birth-voice',
+    webhookDeliveryFingerprint(signature),
+  );
+  if (replayCheck === 'replay') {
+    res.status(200).json({ success: true, outcome: 'duplicate-delivery' });
     return;
   }
 

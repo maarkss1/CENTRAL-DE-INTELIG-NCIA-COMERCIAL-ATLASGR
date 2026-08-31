@@ -149,6 +149,11 @@ export function ResetPasswordScreen() {
                   placeholder="••••••••"
                   minLength={8}
                   required
+                  /* página de propósito único, acessada só via link de e-mail de redefinição de
+                     senha (nunca navegação livre); focar o único campo relevante da página é o
+                     padrão esperado deste fluxo (mesmo comportamento usado por GitHub/Google em
+                     telas equivalentes). */
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                 />
               </div>

@@ -12,10 +12,16 @@ import {
   type DryRunResult,
 } from '../automation-dry-run.service.js';
 
+// 'Lead estagnado' faltava aqui (achado do Piloto 018) apesar de já existir no enum Prisma
+// (Lead_Estagnado), no formulário da UI (`automations.api.ts` já oferecia a opção), no motor
+// (`automation.engine.ts`) e ser disparado de verdade por dois jobs de fundo
+// (`stagnation-scanner.service.ts`/`stalledLead.worker.ts`) — toda submissão com esse gatilho pela
+// tela sempre falhava aqui, no `automationSchema.parse`, antes mesmo de chegar no controller.
 export const AUTOMATION_TRIGGERS = [
   'Lead criado',
   'Lead mudou de status',
   'Atividade concluída',
+  'Lead estagnado',
 ] as const;
 export const AUTOMATION_ACTIONS = [
   'Notificar equipe',

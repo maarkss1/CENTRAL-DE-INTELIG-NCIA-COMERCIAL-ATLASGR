@@ -70,13 +70,18 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
 
 ## Débito conhecido, fora do escopo deste waiver (severidade abaixo do gate)
 
-- `uuid` (via `exceljs`, dependência direta) — `GHSA-w5hq-g745-h8pq`, severidade **moderate**, fix
-  disponível só via upgrade major (`exceljs@4`, breaking change). Não bloqueia
-  `--audit-level=high` porque é moderate, não high/critical — não precisa de waiver formal, mas
-  segue rastreado em `.agents/completion/01-bloqueadores.md` para decisão de quando migrar
-  `exceljs`.
+_(nenhum no momento — ver Histórico abaixo para o item resolvido em 30/08/2026)_
 
 ## Histórico
+
+- 2026-08-30 (Onda 43) — `uuid` (via `exceljs`, dependência direta) — `GHSA-w5hq-g745-h8pq`,
+  severidade moderate, listada aqui desde 2026-08-25 como débito rastreado (fix só disponível via
+  upgrade major, `exceljs@4`). **Resolvido**: `exceljs` atualizado de `3.10.0` para `4.4.0`
+  (`npm audit`/`npm audit --omit=dev` confirmam zero achados moderate depois da atualização, só os
+  3 `high` já waivados acima). Único ponto de uso no código
+  (`src/features/integrations/bitrix/service/extractionFiles.ts`, `new ExcelJS.Workbook()`) não
+  precisou de nenhuma mudança — API usada é estável entre as duas majors. Testes afetados (11/11),
+  `tsc`/lint/build sem erro novo.
 
 - 2026-08-25 — ITEM-10, correção pós-CI real (PR #269): o job `trivy-fs-pr-gate` novo (descrito
   na entrada abaixo) falhou na primeira execução real em CI — `trivy fs` reportou HIGH em

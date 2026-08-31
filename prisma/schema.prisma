@@ -257,6 +257,7 @@ model Company {
 
   contacts                    Contact[]
   leads                       Lead[]
+  prospects                   Prospect[]
   commercialDocuments         CrmCommercialDocument[]
   enrichmentLogs              EnrichmentLog[]
   intelligenceSnapshots       AccountIntelligenceSnapshot[]
@@ -276,6 +277,16 @@ model Company {
   // Permite FKs compostas nas tabelas de Account Intelligence: uma linha tenant-scoped nunca
   // pode apontar para uma Company de outra organizacao, mesmo sob bypass administrativo.
   @@unique([id, organizationId])
+  // Garante em nível de banco que uma organização não tem duas empresas com o mesmo CNPJ —
+  // antes só a aplicação evitava isso (companyIdentity.service.ts), sem nenhuma trava no schema
+  // (achado real, Onda 43: um segundo write path já criava duplicata silenciosa por comparar
+  // formatos diferentes do mesmo CNPJ). Só funciona porque todo write path de `cnpj` agora
+  // normaliza pra dígitos puros antes de gravar (src/lib/cnpj.ts) — Postgres não deduplica
+  // "12.345.678/0001-99" e "12345678000199" sozinho. NULL nunca colide com outro NULL (empresas
+  // sem CNPJ continuam livres), e a constraint cobre inclusive linhas com soft delete
+  // (`deletedAt` preenchido) de propósito — mesmo comportamento que `resolveCompanyIdentity` já
+  // usa pra achar duplicata (não reabre o CNPJ de uma empresa só porque foi soft-deletada).
+  @@unique([organizationId, cnpj])
   @@index([organizationId])
   @@index([cnpj])
   @@index([legalName])
@@ -623,6 +634,7 @@ model Lead {
   commercialDocuments   CrmCommercialDocument[]
   stageHistory          LeadStageHistory[]
   optOutRecords         OptOutRecord[]
+  prospects             Prospect[]
   // Onda 10 (Agente 01A) — ver proposta do Agente 17, itens 2/3/4/5.
   cadenceRuns           CadenceRun[]
   emailMessages         EmailMessage[]
@@ -767,7 +779,7 @@ model Organization {
   qualificationMatrixItems      QualificationMatrixItem[]
   objectionMatrixItems          ObjectionMatrixItem[]
   aiPendingActions              AIPendingAction[]
-  knowledgeChunks               KnowledgeChunk[]
+
   prompts                       Prompt[]
   agentMemories                 AgentMemory[]
   callSuppressions              CallSuppression[]
@@ -1331,25 +1343,7 @@ model CrmCommercialDocument {
   @@index([leadId])
 }
 
-model KnowledgeChunk {
-  id        String                      @id @default(cuid())
-  content   String                      @db.Text
-  // Metadados para filtrar por tenant, lead, etc. Mantido por compatibilidade; o isolamento real
-  // de tenant passou a usar a coluna organizationId abaixo (RLS depende de uma coluna, não de JSON).
-  metadata  Json?
-  // Embedding gerado pelo modelo text-embedding (ex: Gemini/OpenAI), com 768 dimensões.
-  embedding Unsupported("vector(768)")?
 
-  // Nullable porque linhas legadas (inseridas antes desta coluna existir) não têm como ser
-  // atribuídas com segurança a um tenant — ficam órfãs e, por design, invisíveis sob RLS.
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([organizationId])
-}
 
 model Session {
   id        String   @id
@@ -1651,6 +1645,7 @@ enum AutomationTrigger {
   Lead_Criado         @map("Lead criado")
   Lead_Mudou_Status   @map("Lead mudou de status")
   Atividade_Concluida @map("Atividade concluída")
+  Lead_Estagnado      @map("Lead estagnado")
 }
 
 /// O que a automação faz quando dispara.
@@ -2256,6 +2251,12 @@ model Prospect {
   status   String  @default("NEW") // NEW, ENRICHING, READY, EXPORTED
   bitrixId String?
 
+  // Relações com o CRM Principal
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
   // Controle de Tenant
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
@@ -2265,6 +2266,8 @@ model Prospect {
 
   @@index([organizationId])
   @@index([status])
+  @@index([companyId])
+  @@index([leadId])
 }
 
 // ─── Feature Flags (governança de 12 requisitos — item 7: Loja de Apps / Feature Flags) ────

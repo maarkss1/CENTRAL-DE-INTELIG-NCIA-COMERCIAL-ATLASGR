@@ -4,14 +4,6 @@ import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 
-/** Cross-feature import de `prospecting/services/cnpj.util.ts` violaria a regra
- * `no-cross-feature-imports` do dependency-cruiser — cópia local da mesma formatação. */
-function formatCnpj(cnpj: string): string {
-  const digits = cnpj.replace(/\D/g, '');
-  if (digits.length !== 14) return cnpj;
-  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-}
-
 export const CNPJ_CATALOG_PATTERN = /^[A-Z0-9]{12}[0-9]{2}$/;
 const ICP_TIERS = new Set(Object.values(MarketIntelligenceIcpTier));
 const PAGE_SIZE_MAX = 100;
@@ -321,10 +313,15 @@ export async function approveToPipeline(
   if (!catalogCompany)
     throw new AppError('Empresa não encontrada no catálogo de inteligência.', 404);
 
-  const formattedCnpj = formatCnpj(normalizeCatalogCnpj(cnpjInput));
+  // Company.cnpj é gravado normalizado sem pontuação em todo write path (Onda 43, achado: 3
+  // formatos diferentes coexistiam no banco — ver src/lib/cnpj.ts) — antes esta função gravava e
+  // buscava pelo formato PONTUADO (formatCnpj), então uma Company já criada via outro fluxo
+  // (dígitos puros) nunca era encontrada aqui, e uma segunda linha para o mesmo CNPJ real era
+  // criada silenciosamente.
+  const normalizedCnpj = normalizeCatalogCnpj(cnpjInput);
 
   let company = await prisma.company.findFirst({
-    where: { cnpj: formattedCnpj, organizationId, deletedAt: null },
+    where: { cnpj: normalizedCnpj, organizationId, deletedAt: null },
     include: { leads: true },
   });
 
@@ -334,7 +331,7 @@ export async function approveToPipeline(
         organizationId,
         legalName: catalogCompany.razaoSocial || 'Empresa sem Razão Social',
         tradeName: catalogCompany.nomeFantasia || catalogCompany.razaoSocial || 'Empresa',
-        cnpj: formattedCnpj,
+        cnpj: normalizedCnpj,
         segment: catalogCompany.cnaePrincipalDescricao || undefined,
         cnae: catalogCompany.cnaePrincipal || undefined,
         city: catalogCompany.municipioNome || undefined,
@@ -368,7 +365,7 @@ export async function approveToPipeline(
   }
 
   logger.info(
-    { organizationId, cnpj: formattedCnpj, companyId: company.id, leadId: lead.id, userId },
+    { organizationId, cnpj: normalizedCnpj, companyId: company.id, leadId: lead.id, userId },
     'Conta aprovada com 1-clique para o Pipeline',
   );
 

@@ -13,14 +13,17 @@ import {
   Wrench,
   Tag,
   Globe,
-  Linkedin,
   Phone,
   ShieldCheck,
   AlertTriangle,
   Radar,
+  Clock,
+  DollarSign,
 } from 'lucide-react';
+import { LinkedinIcon as Linkedin } from '../../../components/ui/icons/LinkedinIcon';
 import { Company } from '../../../types';
 import { api } from '../../../lib/api';
+import { formatCnpj } from '../../../lib/cnpj';
 import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
@@ -31,6 +34,14 @@ import { toast } from '../../../lib/toast';
 interface CompanyDetailProps {
   companyId: string;
   onBack: () => void;
+}
+
+function formatEstimatedRevenue(amount: number): string {
+  return amount.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    maximumFractionDigits: 0,
+  });
 }
 
 export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
@@ -138,7 +149,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
 
         {/* Header Card da Empresa */}
         <div className="bg-surface p-6 md:p-8 rounded-3xl border border-line shadow-xl backdrop-blur-xl flex flex-col md:flex-row items-start gap-6 relative overflow-hidden">
-          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 overflow-hidden shadow-inner">
+          <div className="w-24 h-24 rounded-3xl bg-soft border border-brand/30 flex items-center justify-center text-brand shrink-0 overflow-hidden shadow-inner">
             {company.logoUrl ? (
               <img src={company.logoUrl} alt="" className="w-full h-full object-contain p-2" />
             ) : (
@@ -160,25 +171,28 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                   onClick={() => navigate(`/app/market-intelligence/accounts/${company.id}`)}
                   className="flex items-center gap-2 bg-surface-2 border border-line text-ink px-5 py-2.5 rounded-2xl font-black text-sm hover:bg-surface transition-all cursor-pointer"
                 >
-                  <Radar className="w-4 h-4 text-blue-400" />
+                  <Radar className="w-4 h-4 text-ink-2" />
                   Account 360
                 </button>
+                {/* Âmbar é a cor categórica de "ação de enriquecimento por IA" já estabelecida e
+                    auditada em CompanyList.tsx (individual + em massa) — reaproveitada aqui em vez
+                    do gradiente amber/orange/yellow-300 sem contraste verificado que existia antes. */}
                 <button
                   onClick={handleEnrich}
                   disabled={enriching}
-                  className="flex items-center gap-2 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white px-5 py-2.5 rounded-2xl font-black text-sm hover:scale-105 transition-all shadow-lg hover:shadow-orange-500/25 disabled:opacity-60 cursor-pointer"
+                  className="flex items-center gap-2 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-700 dark:text-amber-400 px-5 py-2.5 rounded-2xl font-black text-sm transition-all disabled:opacity-60 cursor-pointer"
                 >
                   {enriching ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Sparkles className="w-4 h-4 text-yellow-300" />
+                    <Sparkles className="w-4 h-4" />
                   )}
                   {enriching ? 'Enriquecendo Lead...' : '✨ Enriquecer com IA'}
                 </button>
                 <span
                   className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold border ${
                     company.status === 'Ativo'
-                      ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                      ? 'bg-success/10 text-emerald-700 dark:text-success border-success/20'
                       : 'bg-surface-2 text-ink/70 dark:text-ink-2 border-line'
                   }`}
                 >
@@ -191,13 +205,13 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
             <div className="flex flex-wrap gap-4 pt-2 text-xs text-ink-2">
               {company.cnpj && (
                 <div className="flex items-center gap-1.5 bg-surface-2 px-3 py-1.5 rounded-xl border border-line">
-                  <FileText className="w-3.5 h-3.5 text-blue-400" />
-                  <span>{company.cnpj}</span>
+                  <FileText className="w-3.5 h-3.5 text-ink/70 dark:text-ink-2" />
+                  <span>{formatCnpj(company.cnpj)}</span>
                 </div>
               )}
               {(company.city || company.state) && (
                 <div className="flex items-center gap-1.5 bg-surface-2 px-3 py-1.5 rounded-xl border border-line">
-                  <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                  <MapPin className="w-3.5 h-3.5 text-ink/70 dark:text-ink-2" />
                   <span>
                     {company.city}
                     {company.state ? `, ${company.state}` : ''}
@@ -206,7 +220,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
               )}
               {company.segment && (
                 <div className="flex items-center gap-1.5 bg-surface-2 px-3 py-1.5 rounded-xl border border-line">
-                  <Activity className="w-3.5 h-3.5 text-blue-400" />
+                  <Activity className="w-3.5 h-3.5 text-ink/70 dark:text-ink-2" />
                   <span>{company.segment}</span>
                 </div>
               )}
@@ -215,7 +229,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                   href={company.website}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-1.5 rounded-xl border border-blue-500/30 transition-colors font-medium"
+                  className="flex items-center gap-1.5 bg-info/10 hover:bg-info/20 text-info-active dark:text-info px-3 py-1.5 rounded-xl border border-info/20 transition-colors font-medium"
                 >
                   <Globe className="w-3.5 h-3.5" /> Site oficial
                 </a>
@@ -225,7 +239,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                   href={company.linkedin}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 px-3 py-1.5 rounded-xl border border-blue-600/30 transition-colors font-medium"
+                  className="flex items-center gap-1.5 bg-info/10 hover:bg-info/20 text-info-active dark:text-info px-3 py-1.5 rounded-xl border border-info/20 transition-colors font-medium"
                 >
                   <Linkedin className="w-3.5 h-3.5" /> LinkedIn
                 </a>
@@ -238,7 +252,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
         <div className="bg-surface p-6 md:p-8 rounded-3xl border border-line shadow-xl space-y-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-blue-500/20 border border-blue-500/30 text-blue-400">
+              <div className="p-2.5 rounded-2xl bg-brand/10 border border-brand/20 text-brand">
                 <Wrench className="w-6 h-6" />
               </div>
               <div>
@@ -275,13 +289,13 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                 />
               ))
             ) : (
-              <div className="w-full rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-100 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-300 shrink-0 mt-0.5" />
+              <div className="w-full rounded-2xl border border-warning/30 bg-warning/10 p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-warning-active dark:text-warning shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="text-sm font-black">
+                  <p className="text-sm font-black text-warning-active dark:text-warning">
                     Tecnologias ainda não detectadas para esta empresa.
                   </p>
-                  <p className="text-xs leading-relaxed text-amber-100/80">
+                  <p className="text-xs leading-relaxed text-ink-2">
                     Este painel só exibe ferramentas confirmadas pelo cadastro ou por
                     enriquecimento. Nenhum logo demonstrativo foi usado para evitar confundir
                     exemplo visual com dado real.
@@ -298,7 +312,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
             {/* Lista de Contatos */}
             <div className="bg-surface p-6 rounded-3xl border border-line shadow-xl space-y-4">
               <h2 className="text-lg font-bold text-ink flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-400" />
+                <Users className="w-5 h-5 text-ink/70 dark:text-ink-2" />
                 👥 Decisores & Contatos Mapeados ({company.contacts?.length || 0})
               </h2>
               {company.contacts && company.contacts.length > 0 ? (
@@ -306,7 +320,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                   {company.contacts.map((contact) => (
                     <div
                       key={contact.id}
-                      className="p-4 bg-surface-2 border border-line rounded-2xl hover:border-blue-500/40 transition-colors flex justify-between items-center"
+                      className="p-4 bg-surface-2 border border-line rounded-2xl hover:border-brand/40 transition-colors flex justify-between items-center"
                     >
                       <div>
                         <p className="font-bold text-ink">{contact.name}</p>
@@ -318,8 +332,9 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                       {contact.phone && (
                         <a
                           href={`tel:${contact.phone}`}
-                          className="p-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 rounded-xl transition-colors"
+                          className="p-2 bg-info/10 hover:bg-info/20 text-info-active dark:text-info rounded-xl transition-colors"
                           title="Ligar"
+                          aria-label={`Ligar para ${contact.name}`}
                         >
                           <Phone className="w-4 h-4" />
                         </a>
@@ -339,14 +354,14 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
             {company.keywords && company.keywords.length > 0 && (
               <div className="bg-surface p-6 rounded-3xl border border-line shadow-xl space-y-3">
                 <h2 className="text-sm font-bold text-ink-2 uppercase tracking-wider flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-purple-400" />
+                  <Tag className="w-4 h-4 text-ink-2" />
                   Palavras-Chave de Atuação
                 </h2>
                 <div className="flex flex-wrap gap-2">
                   {company.keywords.map((k, i) => (
                     <span
                       key={i}
-                      className="bg-purple-950/40 border border-purple-500/30 text-purple-300 px-3 py-1 rounded-xl text-xs font-medium"
+                      className="bg-surface-2 border border-line text-ink-2 px-3 py-1 rounded-xl text-xs font-medium"
                     >
                       #{k}
                     </span>
@@ -364,7 +379,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                   <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                   Google Meu Negócio
                 </h2>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {company.googleRating != null && (
                     <div className="flex items-center gap-2">
                       <span className="text-2xl font-black text-ink">
@@ -378,13 +393,36 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                       </span>
                     </div>
                   )}
+                  {/* businessHours.openNow/weekdayDescriptions já vinham na resposta da API mas
+                      nunca eram renderizados — só a existência do objeto era checada para decidir
+                      se este card aparecia (achado do Piloto 014). */}
+                  {company.businessHours?.openNow != null && (
+                    <div
+                      className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg w-fit ${
+                        company.businessHours.openNow
+                          ? 'bg-success/10 text-emerald-700 dark:text-success'
+                          : 'bg-surface-2 text-ink/70 dark:text-ink-2'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      {company.businessHours.openNow ? 'Aberto agora' : 'Fechado agora'}
+                    </div>
+                  )}
+                  {company.businessHours?.weekdayDescriptions &&
+                    company.businessHours.weekdayDescriptions.length > 0 && (
+                      <ul className="text-[11px] text-ink-2 space-y-0.5 pt-1 border-t border-line">
+                        {company.businessHours.weekdayDescriptions.map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
                 </div>
               </div>
             )}
 
             <div className="bg-surface p-6 rounded-3xl border border-line shadow-xl space-y-3">
               <h2 className="text-xs font-bold text-ink-2 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-blue-400" />
+                <ShieldCheck className="w-4 h-4 text-ink/70 dark:text-ink-2" />
                 Dados Cadastrais
               </h2>
               <div className="space-y-3 text-xs">
@@ -396,6 +434,28 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                   <span className="text-ink-2">Porte da Empresa:</span>
                   <p className="font-bold text-ink mt-0.5">{company.size || 'Não informado'}</p>
                 </div>
+                {/* employeeCount/estimatedRevenue já existiam no schema e na resposta da API,
+                    mas nenhuma tela do módulo Companies os mostrava — só apareciam indiretamente
+                    via a empresa vinculada a um Lead (LeadDetailDrawer), nunca no perfil da
+                    própria empresa (achado do Piloto 014). */}
+                {company.employeeCount != null && (
+                  <div>
+                    <span className="text-ink-2 flex items-center gap-1">
+                      <Users className="w-3 h-3" /> Funcionários (estimado):
+                    </span>
+                    <p className="font-bold text-ink mt-0.5">{company.employeeCount}</p>
+                  </div>
+                )}
+                {company.estimatedRevenue != null && (
+                  <div>
+                    <span className="text-ink-2 flex items-center gap-1">
+                      <DollarSign className="w-3 h-3" /> Faturamento estimado:
+                    </span>
+                    <p className="font-bold text-ink mt-0.5">
+                      {formatEstimatedRevenue(company.estimatedRevenue)}
+                    </p>
+                  </div>
+                )}
                 {company.address && (
                   <div>
                     <span className="text-ink-2">Endereço:</span>
@@ -406,12 +466,12 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
             </div>
 
             {company.observations && (
-              <div className="bg-amber-950/30 p-6 rounded-3xl border border-amber-500/30 space-y-2">
-                <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+              <div className="bg-warning/10 p-6 rounded-3xl border border-warning/20 space-y-2">
+                <h3 className="text-xs font-bold text-warning-active dark:text-warning uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4" />
                   Observações da IA Atlas
                 </h3>
-                <p className="text-xs text-amber-200/90 leading-relaxed whitespace-pre-wrap">
+                <p className="text-xs text-ink-2 leading-relaxed whitespace-pre-wrap">
                   {company.observations}
                 </p>
               </div>

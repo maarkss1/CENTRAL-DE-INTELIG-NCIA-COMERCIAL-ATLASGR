@@ -1,0 +1,115 @@
+FASE 3 — INTELIGÊNCIA, SCORE, SINAIS, DECISORES E EVIDÊNCIAS
+
+COORDENAÇÃO
+Agente 00 coordena.
+
+AGENTES PRINCIPAIS
+- 07 IA e Automações — orquestração de inteligência
+- 05 Prospecção — ICP, decisores e prioridade
+- 01 Dados — persistência/evidência
+- 04 CRM e BI — sinais internos e relacionamento
+- 18 API — contratos
+- 15 Segurança Aplicada — PII e segredos quando necessário
+- 08 + 14 — testes
+
+MISSÃO
+Transformar fontes reais existentes em inteligência comercial estruturada, explicável e persistente.
+
+PIPELINE OBRIGATÓRIO
+1. carregar empresa real;
+2. consultar fontes habilitadas;
+3. normalizar fatos;
+4. deduplicar;
+5. anexar evidências;
+6. classificar fatos observados vs inferidos;
+7. identificar sinais;
+8. identificar decisores;
+9. calcular score;
+10. gerar resumo e recomendação;
+11. persistir snapshot;
+12. registrar falhas de fontes sem invalidar o restante.
+
+FONTES
+Reutilize apenas integrações já existentes/habilitadas no projeto, por exemplo CNPJ/Receita/BrasilAPI, Apollo, Bitrix, pesquisa web, Apify/Perplexity ou equivalentes encontrados na auditoria.
+
+SINAIS
+Implementar taxonomia versionada de sinais. Exemplos válidos apenas quando sustentados por dados reais:
+- expansão/unidade nova;
+- alteração cadastral relevante;
+- contratação de liderança relevante;
+- vagas relacionadas a logística/GR/segurança;
+- notícia de crescimento/investimento;
+- mudança de executivo;
+- interação recente com AtlasGR;
+- oportunidade aberta;
+- avanço/estagnação no CRM;
+- nova relação empresarial verificada.
+
+DECISORES
+Classificar contatos em buying committee, quando possível:
+- Champion potencial
+- Influenciador
+- Usuário
+- Técnico
+- Compras
+- Decisor econômico
+- Executivo
+
+Não inventar papel. Se for inferido, marcar como INFERRED e armazenar confiança.
+
+ACCOUNT SCORE
+Score total 0–100 composto por dimensões versionadas:
+- FIT / ICP
+- TIMING
+- INTENT
+- RELATIONSHIP
+
+Cada cálculo precisa gerar reasons, por exemplo:
++ CNAE prioritário
++ porte aderente
++ RNTRC/indicador logístico quando aplicável
++ sinal recente
++ decisor relevante identificado
+- sem contato verificável
+- sem movimentação recente
+
+Não permitir score opaco sem explicação.
+
+RESUMO IA
+A IA deve receber dados estruturados e evidências, e retornar JSON validado com:
+- executiveSummary
+- opportunities[]
+- risks[]
+- keySignals[]
+- suggestedDecisionMakers[]
+- nextBestAction
+- confidence
+
+A IA não deve substituir a base factual.
+
+NEXT BEST ACTION
+Gerar ação concreta:
+- RESEARCH_MORE
+- CREATE_BITRIX_TASK
+- START_SDR_CADENCE
+- START_BDR_CADENCE
+- CONTACT_DECISION_MAKER
+- REVIEW_WITH_CLOSER
+- WAIT_AND_MONITOR
+- DISQUALIFY
+
+Cada recomendação precisa de rationale e evidência.
+
+TESTES
+- score reproduzível;
+- mesma entrada/versão = score consistente;
+- falha de uma fonte não apaga dados válidos;
+- evidências ligadas aos fatos;
+- nenhuma recomendação inventa campo inexistente;
+- PII tratada conforme regras do projeto.
+
+ENTREGÁVEL
+.agents/runs/ldr-fase-3-intelligence.md
+
+CRITÉRIO DE SAÍDA
+Ao atualizar uma empresa real, o sistema consegue gerar e persistir inteligência explicável com score, sinais, decisores, evidências e Next Best Action.

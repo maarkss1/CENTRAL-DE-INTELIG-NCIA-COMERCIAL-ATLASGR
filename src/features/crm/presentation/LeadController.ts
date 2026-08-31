@@ -230,12 +230,10 @@ export class LeadController {
         return;
       }
       if (!updates || typeof updates !== 'object') {
-        res
-          .status(400)
-          .json({
-            success: false,
-            error: 'updates deve ser um objeto com as alterações desejadas.',
-          });
+        res.status(400).json({
+          success: false,
+          error: 'updates deve ser um objeto com as alterações desejadas.',
+        });
         return;
       }
       const result = await this.leadUseCases.batchUpdateLeads(orgId, leadIds, updates, actorUserId);

@@ -31,6 +31,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
 import gzip
 import json
@@ -216,6 +217,14 @@ def build_template() -> tuple[str, str]:
         "a.download='campinas-sp-icp-personas-atlasgr.csv'",
         "a.download='__DOWNLOAD_FILENAME__'",
     )
+    suffix = suffix.replace(
+        "filtered=DATA;render();",
+        "(async()=>{try{const _bin=atob(DATA_GZ_B64);const _bytes=new Uint8Array(_bin.length);"
+        "for(let i=0;i<_bin.length;i++)_bytes[i]=_bin.charCodeAt(i);"
+        "DATA=await new Response(new Blob([_bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).json()}"
+        "catch(e){document.querySelector('#status').textContent='Erro ao carregar dados: '+e;DATA=[]}"
+        "filtered=DATA;render()})();",
+    )
     return prefix, suffix
 
 
@@ -254,7 +263,7 @@ def render_report(
     marketing_panel = f"""<section class="panel">
     <h2>Processo de marketing preparado</h2>
     <div class="profiles">
-      <article class="profile"><h3>Onda 1 — validar PIC 1</h3><p><b>{fmt_int(wave1)} contas</b> com fit estrutural confirmado e hipótese de complexidade/expansão.</p></article>
+      <article class="profile"><h3>Onda 1 — validar PIC 1</h3><p><b>{fmt_int(wave1)} contas</b> com fit acionável (RNTRC ativo ou pendente) e hipótese de complexidade/expansão.</p></article>
       <article class="profile"><h3>Pesquisa antes do contato</h3><p><b>{fmt_int(research)} contas</b> cujo contexto exige validação antes de qualquer abordagem.</p></article>
       <article class="profile"><h3>Nurture sem nova evidência</h3><p><b>{fmt_int(nurture)} contas</b> com aderência apenas setorial; não priorizar outbound agora.</p><span>Requer nova fonte ou sinal comercial.</span></article>
       <article class="profile"><h3>Plano e governança</h3><p>Cadência preliminar de 15 dias úteis, personas, canais e bloqueios nacionais — ver <code>campinas-sp-marketing-plano.json</code> na pasta reports/ como referência metodológica.</p></article>
@@ -288,8 +297,9 @@ def render_report(
         clean = {k: v for k, v in r.items() if not k.startswith("_")}
         data_rows.append(clean)
     data_json = json.dumps(data_rows, ensure_ascii=False, separators=(",", ":"))
+    data_gz_b64 = base64.b64encode(gzip.compress(data_json.encode("utf-8"), compresslevel=9)).decode("ascii")
 
-    return f"{prefix}const DATA={data_json};{suffix}"
+    return f'{prefix}let DATA=[];const DATA_GZ_B64="{data_gz_b64}";{suffix}'
 
 
 def process_uf(
@@ -400,7 +410,7 @@ def process_uf(
                 "influenciadoresSugeridos": message["influenciadoresSugeridos"],
                 "validacoesPendentes": message["validacoesPendentes"],
                 "cnpjFormatado": fmt_cnpj(cnpj),
-                "fitAlto": "TIER_A_MODELADO",
+                "fitAlto": "TIER_A_CNAE_NAO_CALIBRADO",
                 "_bucket": bucket,
             }
             if only_fit and bucket != "wave1":
@@ -468,11 +478,11 @@ def build_index_html(index_entries: list[dict], only_fit: bool, generated_at: st
         uf_sections.append(
             f'<section class="panel" id="uf-{uf}"><h2>{uf} — {len(entries)} município(s)</h2>'
             f'<div class="table-wrap"><table><thead><tr><th>Município</th><th>Empresas no relatório</th>'
-            f'<th>Fit confirmado (wave1)</th></tr></thead><tbody>{rows_html}</tbody></table></div></section>'
+            f'<th>Fit acionável (wave1)</th></tr></thead><tbody>{rows_html}</tbody></table></div></section>'
         )
 
     escopo = (
-        "Somente empresas com fit ICP confirmado (RNTRC ativo/pendente + hipótese comercial real — bucket wave1)."
+        "Somente empresas com fit ICP acionável (RNTRC ativo ou pendente + hipótese comercial real — bucket wave1; inclui confirmado estrutural e potencial setorial)."
         if only_fit
         else "Todas as empresas Tier A (wave1 + pesquisa + nurture)."
     )
@@ -514,7 +524,7 @@ def build_index_html(index_entries: list[dict], only_fit: bool, generated_at: st
     <div class="card"><small>UFs cobertas</small><strong>{len(by_uf)}</strong></div>
     <div class="card"><small>Municípios com relatório</small><strong>{fmt_br(total_municipios)}</strong></div>
     <div class="card"><small>Empresas nos relatórios</small><strong>{fmt_br(total_empresas)}</strong></div>
-    <div class="card"><small>Fit confirmado (wave1)</small><strong>{fmt_br(total_wave1)}</strong></div>
+    <div class="card"><small>Fit acionável (wave1)</small><strong>{fmt_br(total_wave1)}</strong></div>
   </section>
   <div class="uf-grid">{"".join(uf_cards)}</div>
   {"".join(uf_sections)}

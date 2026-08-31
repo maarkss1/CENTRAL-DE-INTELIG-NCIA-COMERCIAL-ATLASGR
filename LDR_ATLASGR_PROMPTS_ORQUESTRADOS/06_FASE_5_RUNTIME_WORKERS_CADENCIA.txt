@@ -1,0 +1,95 @@
+FASE 5 — RUNTIME, WORKERS, CADÊNCIA E AUTONOMIA
+
+COORDENAÇÃO
+Agente 00 coordena.
+
+AGENTES PRINCIPAIS
+- 16 Runtime, Workers e Escala — filas/workers
+- 13 Enxame Autônomo Runtime — Supervisor/SDR/BDR/Closer/Ops/Learning
+- 17 Cadência Multicanal e Ciclo de Receita
+- 07 IA e Automações
+- 10 Infraestrutura/Observabilidade
+- 06 Bitrix
+- 15 Segurança
+- 08 + 14 QA
+
+MISSÃO
+Transformar o LDR de ferramenta sob demanda em motor operacional que atualiza contas, detecta sinais e entrega ações aos agentes comerciais.
+
+JOBS NECESSÁRIOS
+Reutilizar BullMQ/filas existentes quando disponíveis.
+Criar/adaptar jobs equivalentes a:
+- refresh-account-intelligence
+- process-account-signals
+- recalculate-account-score
+- generate-account-recommendation
+- sync-account-bitrix
+- dispatch-approved-commercial-action
+
+REGRAS DE FILA
+- idempotência;
+- retries com backoff;
+- dead-letter/failure tracking;
+- timeout;
+- concurrency configurável;
+- observabilidade;
+- sem processamento duplicado da mesma conta/versão;
+- sem bloquear API síncrona com coleta pesada.
+
+SCHEDULER
+Implementar políticas por prioridade:
+- contas HOT/prioritárias: maior frequência;
+- contas WARM: frequência intermediária;
+- contas COLD: menor frequência;
+- contas desqualificadas: não reprocessar sem motivo.
+
+Não inventar frequência fixa se o repo já possui scheduler/configuração. Integrar ao mecanismo existente.
+
+ENXAME RUNTIME
+Supervisor recebe Account Intelligence e decide, dentro dos guardrails:
+- SDR pesquisar/qualificar;
+- BDR trabalhar conta outbound;
+- Closer revisar oportunidade;
+- CRM/Ops higienizar/atualizar;
+- Learning registrar resultado e aprendizado.
+
+CADÊNCIA
+Agente 17 deve consumir ações aprovadas e criar cadência utilizando canais realmente integrados no projeto.
+Não simular envio.
+
+FEEDBACK LOOP
+Registrar resultado de ações:
+- accepted
+- rejected
+- executed
+- converted
+- no-response
+- disqualified
+- won/lost quando disponível
+
+Usar o feedback para métricas e melhoria futura, sem autoalterar pesos críticos sem versionamento/aprovação.
+
+OBSERVABILIDADE
+Métricas mínimas:
+- jobs queued/running/succeeded/failed
+- processing time
+- source failures
+- refresh age
+- actions generated/executed
+- retry rate
+- Bitrix errors
+
+TESTES
+- job ponta a ponta;
+- retry/idempotência;
+- worker restart;
+- fila indisponível;
+- fonte externa indisponível;
+- ação não aprovada não executa;
+- ação aprovada executa uma vez.
+
+ENTREGÁVEL
+.agents/runs/ldr-fase-5-runtime.md
+
+CRITÉRIO DE SAÍDA
+Contas prioritárias podem ser atualizadas e reprocessadas de forma assíncrona, gerando sinais, score e ações sem depender de clique manual e sem disparar ações externas fora dos guardrails.

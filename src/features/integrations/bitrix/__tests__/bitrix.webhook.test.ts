@@ -7,6 +7,19 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
+// Testes de unidade não devem depender do Redis real (CI sobe um serviço `redis:7-alpine` para o
+// job de application gate — ver .github/workflows/ci.yml). Sem este mock, múltiplos `it()` deste
+// arquivo reenviando o mesmo payload/assinatura colidem no mesmo fingerprint de
+// `claimWebhookDelivery` (dedupe de entrega, Task 5) e um teste posterior é tratado como replay de
+// um teste anterior — comportamento nunca visto localmente porque sem `REDIS_URL` o guard sempre
+// faz fail-open ('unavailable'). A dedupe de entrega em si já tem sua própria cobertura (ver
+// webhookReplayGuard.test.ts); aqui só precisa estar neutra para não interferir nos cenários deste
+// arquivo (idempotência de negócio, RLS, métricas de falha).
+vi.mock('@/shared/security/webhookReplayGuard', () => ({
+  claimWebhookDelivery: vi.fn().mockResolvedValue('fresh'),
+  webhookDeliveryFingerprint: vi.fn(() => 'fingerprint-de-teste'),
+}));
+
 const contextStore: { tenantId?: string; bypassRls?: boolean }[] = [];
 vi.mock('@/lib/async-context', () => ({
   requestContext: {

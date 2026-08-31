@@ -12,11 +12,14 @@ import {
   Type,
   RefreshCw,
   FileQuestion,
+  Pencil,
 } from 'lucide-react';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { toast } from '../../../lib/toast';
 import {
   knowledgeApi,
@@ -47,7 +50,15 @@ function Highlighted({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, i) =>
         lowered.includes(part.toLowerCase()) ? (
-          <mark key={i} className="bg-amber-400/25 text-amber-100 rounded px-0.5">
+          // Amber é a convenção universal de "trecho realçado" (mesma cor do <mark> nativo do
+          // navegador), independente de marca — exceção justificada (constituição §5), diferente
+          // do achado real abaixo (aviso de busca semântica indisponível, que É estado de warning
+          // do produto). O bug real aqui era faltar o par claro/escuro: amber-100 sozinho só lê bem
+          // em fundo escuro.
+          <mark
+            key={i}
+            className="bg-amber-200/70 text-amber-950 dark:bg-amber-400/25 dark:text-amber-100 rounded px-0.5"
+          >
             {part}
           </mark>
         ) : (
@@ -68,6 +79,15 @@ function formatDate(iso: string) {
 
 export function Base() {
   const accent = useBrandAccent();
+  const { currentUser } = useAuth();
+  // POST/PUT/reembed/generate-faq exigem ADMIN/GESTOR/CLOSER/SDR no backend (`writeRoles` em
+  // `knowledge.routes.ts`); DELETE é mais restrito (só ADMIN/GESTOR). Nenhuma dessas ações era
+  // escondida por papel — um VISUALIZADOR via todos os controles habilitados e só descobria a
+  // falta de permissão com um 403 em inglês (`requireRole.ts`) solto numa UI em pt-BR (achado do
+  // Piloto 019, mesmo padrão dos Pilotos 017/018).
+  const canWrite =
+    !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
+  const canDelete = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
 
   const [documents, setDocuments] = useState<KnowledgeDocumentSummary[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
@@ -82,6 +102,12 @@ export function Base() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteTitle, setPasteTitle] = useState('');
   const [pasteContent, setPasteContent] = useState('');
+  // `editingDoc` presente = o modal "Adicionar texto à base" está editando este documento em vez
+  // de criar um novo. PUT /:id já existia, testado (reindexa e incrementa `version` quando o
+  // conteúdo muda), mas sem nenhum consumidor de UI — o único jeito de "corrigir" um documento era
+  // excluir e reingerir do zero, perdendo id/createdAt (achado do Piloto 019).
+  const [editingDoc, setEditingDoc] = useState<KnowledgeDocumentSummary | null>(null);
+  const [loadingEditContent, setLoadingEditContent] = useState(false);
   const [busyDocId, setBusyDocId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -184,6 +210,36 @@ export function Base() {
     [query],
   );
 
+  const closePasteModal = useCallback(() => {
+    setPasteOpen(false);
+    setEditingDoc(null);
+    setPasteTitle('');
+    setPasteContent('');
+  }, []);
+
+  const openCreateModal = useCallback(() => {
+    setEditingDoc(null);
+    setPasteTitle('');
+    setPasteContent('');
+    setPasteOpen(true);
+  }, []);
+
+  const handleEdit = useCallback(async (doc: KnowledgeDocumentSummary) => {
+    setEditingDoc(doc);
+    setPasteTitle(doc.title);
+    setPasteContent('');
+    setPasteOpen(true);
+    setLoadingEditContent(true);
+    try {
+      const full = await knowledgeApi.get(doc.id);
+      setPasteContent(full.content);
+    } catch (err) {
+      toast.error((err as Error).message || 'Falha ao carregar o conteúdo do documento.');
+    } finally {
+      setLoadingEditContent(false);
+    }
+  }, []);
+
   const handlePasteSubmit = useCallback(async () => {
     if (!pasteTitle.trim() || !pasteContent.trim()) {
       toast.error('Preencha o título e o conteúdo.');
@@ -191,18 +247,24 @@ export function Base() {
     }
     setUploading(true);
     try {
-      const result = await knowledgeApi.ingestText(pasteTitle.trim(), pasteContent.trim());
-      reportIngestion(result.title, result.chunkCount, result.embeddingFailures);
-      setPasteOpen(false);
-      setPasteTitle('');
-      setPasteContent('');
+      if (editingDoc) {
+        await knowledgeApi.update(editingDoc.id, {
+          title: pasteTitle.trim(),
+          content: pasteContent.trim(),
+        });
+        toast.success(`"${pasteTitle.trim()}" atualizado.`);
+      } else {
+        const result = await knowledgeApi.ingestText(pasteTitle.trim(), pasteContent.trim());
+        reportIngestion(result.title, result.chunkCount, result.embeddingFailures);
+      }
+      closePasteModal();
       await loadDocuments();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
       setUploading(false);
     }
-  }, [pasteTitle, pasteContent, loadDocuments, reportIngestion]);
+  }, [pasteTitle, pasteContent, editingDoc, loadDocuments, reportIngestion, closePasteModal]);
 
   const handleDelete = useCallback(
     async (doc: KnowledgeDocumentSummary) => {
@@ -281,11 +343,12 @@ export function Base() {
       role="presentation"
       className="flex-1 overflow-y-auto bg-transparent p-8"
       onDragOver={(e) => {
+        if (!canWrite) return;
         e.preventDefault();
         setDragging(true);
       }}
       onDragLeave={() => setDragging(false)}
-      onDrop={handleDrop}
+      onDrop={canWrite ? handleDrop : undefined}
     >
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Cabeçalho */}
@@ -306,19 +369,21 @@ export function Base() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setPasteOpen(true)} disabled={uploading}>
-              <Type className="w-4 h-4 mr-2" /> Colar texto
-            </Button>
-            <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-              {uploading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4 mr-2" />
-              )}
-              {uploading ? 'Indexando…' : 'Enviar arquivo'}
-            </Button>
-          </div>
+          {canWrite && (
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={openCreateModal} disabled={uploading}>
+                <Type className="w-4 h-4 mr-2" /> Colar texto
+              </Button>
+              <Button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                {uploading ? 'Indexando…' : 'Enviar arquivo'}
+              </Button>
+            </div>
+          )}
         </div>
 
         <input
@@ -364,6 +429,7 @@ export function Base() {
                   : `${results.hits.length} trecho${results.hits.length === 1 ? '' : 's'} relevante${results.hits.length === 1 ? '' : 's'}`}
               </h2>
               <button
+                type="button"
                 onClick={() => {
                   setResults(null);
                   setQuery('');
@@ -375,7 +441,7 @@ export function Base() {
             </div>
 
             {!results.semanticAvailable && (
-              <div className="flex items-center gap-2 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2 text-xs text-warning-active dark:text-warning bg-warning/10 border border-warning/20 rounded-xl px-4 py-3">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 Busca semântica fora do ar — estes resultados vieram só de palavra-chave.
               </div>
@@ -419,7 +485,7 @@ export function Base() {
 
             {results.hits.length === 0 && (
               <Card padding="lg" className="text-center">
-                <Search className="w-10 h-10 mx-auto mb-3 text-gray-600" />
+                <Search className="w-10 h-10 mx-auto mb-3 text-ink-2" />
                 <p className="text-sm text-ink-2">
                   Nada encontrado para “{results.query}”. Tente outras palavras ou envie mais
                   documentos.
@@ -430,9 +496,11 @@ export function Base() {
         )}
 
         {/* Editor IA */}
-        <div className="pt-2">
-          <EditorIA />
-        </div>
+        {canWrite && (
+          <div className="pt-2">
+            <EditorIA />
+          </div>
+        )}
 
         {/* Documentos */}
         <div className="space-y-3 pt-6 border-t border-line">
@@ -446,9 +514,9 @@ export function Base() {
 
           {loadError && !loadingDocs && (
             <Card padding="lg" className="text-center">
-              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
+              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-warning-active dark:text-warning" />
               <p className="text-sm text-ink-2 mb-4">{loadError}</p>
-              <Button variant="outline" onClick={() => void loadDocuments()}>
+              <Button type="button" variant="outline" onClick={() => void loadDocuments()}>
                 Tentar novamente
               </Button>
             </Card>
@@ -456,23 +524,27 @@ export function Base() {
 
           {!loadingDocs && !loadError && documents.length === 0 && (
             <Card padding="lg" className="text-center border-dashed">
-              <Database className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+              <Database className="w-12 h-12 mx-auto mb-4 text-ink-2" />
               <h3 className="text-lg font-semibold text-ink mb-1">Nenhum documento ainda</h3>
               <p className="text-sm text-ink-2 mb-5 max-w-md mx-auto">
                 Envie propostas, playbooks, tabelas de preço ou apresentações. O conteúdo vira busca
                 semântica para toda a equipe comercial.
               </p>
-              <div className="flex items-center justify-center gap-2">
-                <Button onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="w-4 h-4 mr-2" /> Enviar arquivo
-                </Button>
-                <Button variant="outline" onClick={() => setPasteOpen(true)}>
-                  <Type className="w-4 h-4 mr-2" /> Colar texto
-                </Button>
-              </div>
-              <p className="text-[11px] text-gray-600 mt-4">
-                Aceita {ACCEPTED_EXTENSIONS.join(', ')} — ou arraste os arquivos para esta tela.
-              </p>
+              {canWrite && (
+                <>
+                  <div className="flex items-center justify-center gap-2">
+                    <Button type="button" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="w-4 h-4 mr-2" /> Enviar arquivo
+                    </Button>
+                    <Button type="button" variant="outline" onClick={openCreateModal}>
+                      <Type className="w-4 h-4 mr-2" /> Colar texto
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-ink-2 mt-4">
+                    Aceita {ACCEPTED_EXTENSIONS.join(', ')} — ou arraste os arquivos para esta tela.
+                  </p>
+                </>
+              )}
             </Card>
           )}
 
@@ -481,47 +553,82 @@ export function Base() {
               <div className="flex items-center gap-3 min-w-0">
                 <FileText className="w-5 h-5 text-ink-2 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-ink truncate">{doc.title}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-ink truncate">{doc.title}</p>
+                    {/* version >1 só acontece quando o conteúdo foi editado (updateDocument
+                        incrementa só nesse caso) — campo real do schema (Onda 40, auditoria
+                        "RAG: document version/freshness ausente") nunca exibido antes deste
+                        piloto. */}
+                    {doc.version > 1 && (
+                      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-info/15 text-info-active dark:text-info shrink-0">
+                        editado · v{doc.version}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-ink-2">
                     {doc.chunkCount} trecho{doc.chunkCount === 1 ? '' : 's'} ·{' '}
                     {formatDate(doc.createdAt)}
-                    {doc.sourceName && ` · ${doc.sourceName}`}
+                    {doc.sourceName
+                      ? ` · ${doc.sourceName}`
+                      : doc.sourceType === 'text' && ' · texto colado'}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => void handleGenerateFaq(doc)}
-                  disabled={busyDocId === doc.id}
-                  title="Gerar FAQ Automático com IA"
-                  className="p-2 rounded-lg text-ink-2 hover:text-brand hover:bg-brand/10 transition-colors disabled:opacity-40"
-                >
-                  {busyDocId === doc.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <FileQuestion className="w-4 h-4" />
-                  )}
-                </button>
-                <button
-                  onClick={() => void handleReembed(doc)}
-                  disabled={busyDocId === doc.id}
-                  title="Regerar embeddings que falharam"
-                  className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors disabled:opacity-40"
-                >
-                  {busyDocId === doc.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4" />
-                  )}
-                </button>
-                <button
-                  onClick={() => void handleDelete(doc)}
-                  disabled={busyDocId === doc.id}
-                  title="Remover documento"
-                  className="p-2 rounded-lg text-ink-2 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {canWrite && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void handleGenerateFaq(doc)}
+                      disabled={busyDocId === doc.id}
+                      title="Gerar FAQ Automático com IA"
+                      aria-label={`Gerar FAQ automático para ${doc.title}`}
+                      className="p-2 rounded-lg text-ink-2 hover:text-brand hover:bg-brand/10 transition-colors disabled:opacity-40"
+                    >
+                      {busyDocId === doc.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <FileQuestion className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleEdit(doc)}
+                      disabled={busyDocId === doc.id}
+                      title="Editar documento"
+                      aria-label={`Editar ${doc.title}`}
+                      className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors disabled:opacity-40"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleReembed(doc)}
+                      disabled={busyDocId === doc.id}
+                      title="Regerar embeddings que falharam"
+                      aria-label={`Regerar embeddings de ${doc.title}`}
+                      className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors disabled:opacity-40"
+                    >
+                      {busyDocId === doc.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                    </button>
+                  </>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(doc)}
+                    disabled={busyDocId === doc.id}
+                    title="Remover documento"
+                    aria-label={`Remover ${doc.title}`}
+                    className="p-2 rounded-lg text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-40"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </Card>
           ))}
@@ -531,24 +638,27 @@ export function Base() {
       {/* Overlay de arrastar-e-soltar */}
       {dragging && (
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm border-4 border-dashed ${accent.border} pointer-events-none`}
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm border-4 border-dashed ${accent.border} pointer-events-none`}
         >
           <div className="text-center">
             <Upload className={`w-16 h-16 mx-auto mb-4 ${accent.text}`} />
             <p className="text-xl font-bold text-white">Solte para indexar</p>
-            <p className="text-sm text-gray-400 mt-1">{ACCEPTED_EXTENSIONS.join(', ')}</p>
+            <p className="text-sm text-white/70 mt-1">{ACCEPTED_EXTENSIONS.join(', ')}</p>
           </div>
         </div>
       )}
 
-      {/* Modal de texto colado */}
+      {/* Modal de texto colado / edição de documento existente */}
       {pasteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-6">
           <Card className="w-full max-w-2xl" accentBar>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-ink">Adicionar texto à base</h2>
+              <h2 className="text-lg font-bold text-ink">
+                {editingDoc ? 'Editar documento' : 'Adicionar texto à base'}
+              </h2>
               <button
-                onClick={() => setPasteOpen(false)}
+                type="button"
+                onClick={closePasteModal}
                 aria-label="Fechar"
                 className="p-1 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
               >
@@ -561,27 +671,44 @@ export function Base() {
                 value={pasteTitle}
                 onChange={(e) => setPasteTitle(e.target.value)}
                 placeholder="Título — ex: Playbook de objeções 2026"
-                className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-brand transition-colors"
+                disabled={loadingEditContent}
+                className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-brand transition-colors disabled:opacity-60"
               />
-              <textarea
-                value={pasteContent}
-                onChange={(e) => setPasteContent(e.target.value)}
-                rows={12}
-                placeholder="Cole aqui o conteúdo que a equipe precisa consultar…"
-                className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-brand transition-colors resize-none"
-              />
+              {loadingEditContent ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-ink-2 py-10">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Carregando conteúdo…
+                </div>
+              ) : (
+                <textarea
+                  value={pasteContent}
+                  onChange={(e) => setPasteContent(e.target.value)}
+                  rows={12}
+                  placeholder="Cole aqui o conteúdo que a equipe precisa consultar…"
+                  className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-brand transition-colors resize-none"
+                />
+              )}
               <p className="text-xs text-ink-2">
                 {pasteContent.length.toLocaleString('pt-BR')} caracteres
               </p>
             </div>
 
             <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-line">
-              <Button variant="outline" onClick={() => setPasteOpen(false)} disabled={uploading}>
+              <Button type="button" variant="outline" onClick={closePasteModal} disabled={uploading}>
                 Cancelar
               </Button>
-              <Button onClick={() => void handlePasteSubmit()} disabled={uploading}>
+              <Button
+                type="button"
+                onClick={() => void handlePasteSubmit()}
+                disabled={uploading || loadingEditContent}
+              >
                 {uploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {uploading ? 'Indexando…' : 'Indexar'}
+                {uploading
+                  ? editingDoc
+                    ? 'Salvando…'
+                    : 'Indexando…'
+                  : editingDoc
+                    ? 'Salvar alterações'
+                    : 'Indexar'}
               </Button>
             </div>
           </Card>

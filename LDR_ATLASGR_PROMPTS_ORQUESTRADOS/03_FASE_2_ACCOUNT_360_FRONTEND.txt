@@ -1,0 +1,106 @@
+FASE 2 — ACCOUNT INTELLIGENCE 360 / EXPERIÊNCIA LDR
+
+COORDENAÇÃO
+Agente 00 coordena.
+
+AGENTES PRINCIPAIS
+- 02 Produto e UX — dono da jornada
+- 03 Design e Acessibilidade — acabamento visual e a11y
+- 18 Contratos/API — paridade frontend/backend
+- 05 Prospecção — requisitos comerciais
+- 04 CRM e BI — contexto CRM
+- 08 QA — acceptance
+- 14 Test Harness — smoke/E2E
+
+MISSÃO
+Criar a experiência Account 360 diretamente dentro do Market Intelligence, usando dados reais da Fase 1.
+
+ROTA
+Preferir uma rota coerente com o projeto atual, equivalente a:
+/market-intelligence/company/:id
+ou
+/market-intelligence/accounts/:id
+
+NÃO CRIAR OUTRO PRODUTO
+A tela precisa fazer parte da Central existente, reutilizando layout, autenticação, design system, navegação e permissões.
+
+CABEÇALHO DA CONTA
+Exibir quando disponível:
+- razão social/nome fantasia
+- CNPJ
+- domínio
+- cidade/UF
+- CNAE/segmento
+- porte
+- responsável comercial
+- status no Bitrix
+- última atualização de inteligência
+- botão Atualizar Inteligência
+
+CARDS PRINCIPAIS
+- ICP / Fit
+- Timing
+- Intent
+- Relationship
+- Account Score total
+- quantidade de novos sinais
+
+ABAS
+1. Visão Geral
+2. Sinais
+3. Decisores
+4. Grupo Econômico
+5. CRM / Histórico
+6. Recomendações / Ações
+7. Fontes / Evidências
+
+VISÃO GERAL
+Exibir:
+- resumo executivo IA;
+- motivos do score;
+- oportunidades AtlasGR;
+- riscos/objeções;
+- principais sinais;
+- principais decisores;
+- próxima melhor ação.
+
+ESTADOS OBRIGATÓRIOS
+- loading
+- vazio
+- parcial
+- erro de fonte
+- expirado/desatualizado
+- não disponível
+- permission denied
+
+REGRAS DE UX
+- Nunca transformar ausência de dado em zero.
+- Mostrar claramente o que é inferência.
+- Mostrar data da última atualização.
+- Não esconder fonte de informação sensível/estratégica quando a proveniência for relevante.
+- A tela deve funcionar em desktop e mobile responsivo.
+- Não bloquear a página inteira porque uma única fonte falhou.
+
+AÇÕES DISPONÍVEIS
+Preparar UI para:
+- Atualizar inteligência
+- Criar tarefa Bitrix
+- Abrir/atualizar lead ou deal
+- Iniciar cadência
+- Solicitar nova pesquisa
+- Marcar recomendação como aceita/descartada
+
+TESTES
+- abrir empresa real a partir do Market Intelligence;
+- renderizar dados reais da API;
+- navegar entre abas;
+- estados loading/error/empty;
+- mobile;
+- accessibility básica;
+- sem mocks em produção.
+
+ENTREGÁVEL
+.agents/runs/ldr-fase-2-account-360.md
+
+CRITÉRIO DE SAÍDA
+O usuário consegue sair da lista de empresas do Market Intelligence, abrir uma empresa real e visualizar Account Intelligence 360 com score, resumo, sinais, decisores, CRM e evidências, mesmo quando algumas fontes estiverem indisponíveis.

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sanitizeCnpj } from './cnpj.js';
 
 // ─── Enums de Domínio ───────────────────────────────────────────────────────
 // Ao invés de strings livres, definimos os valores aceitos explicitamente.
@@ -52,7 +53,21 @@ export type ContactStatus = (typeof CONTACT_STATUS)[number];
 export const companySchema = z.object({
   legalName: z.string().min(1, 'Razão Social é obrigatória'),
   tradeName: z.string().min(1, 'Nome Fantasia é obrigatório'),
-  cnpj: z.string().optional().nullable(),
+  // Normaliza pra dígitos puros antes de persistir — Company.cnpj já foi gravado em pelo menos 3
+  // formatos diferentes (dígitos, pontuado, o que o usuário digitou) por caminhos de código
+  // diferentes (Onda 43, achado real). Sem normalizar aqui, o `@@unique([organizationId, cnpj])`
+  // do schema não pega duas empresas com o mesmo CNPJ gravado em formatos diferentes. String
+  // vazia/só espaço vira `null` (nunca `''`) — um `@@unique` trataria `''` como valor igual entre
+  // si, e duas empresas sem CNPJ colidiriam; `null` não colide com outro `null`.
+  cnpj: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((v) => {
+      if (!v) return null;
+      const digits = sanitizeCnpj(v);
+      return digits.length > 0 ? digits : null;
+    }),
   stateRegistration: z.string().optional().nullable(),
   segment: z.string().optional().nullable(),
   cnae: z.string().optional().nullable(),

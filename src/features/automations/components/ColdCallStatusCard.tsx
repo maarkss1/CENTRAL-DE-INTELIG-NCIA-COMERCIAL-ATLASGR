@@ -58,7 +58,7 @@ export function ColdCallStatusCard() {
   if (error || !status) {
     return (
       <Card padding="lg" className="text-sm text-ink-2 flex items-center gap-2">
-        <AlertTriangle className="w-4 h-4 text-amber-400" />
+        <AlertTriangle className="w-4 h-4 text-warning-active dark:text-warning" />
         {error || 'Não foi possível carregar o status da campanha fria.'}
       </Card>
     );
@@ -69,7 +69,7 @@ export function ColdCallStatusCard() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center ${status.enabled ? 'bg-ok/15 text-ok' : 'bg-surface-2 text-ink-2'}`}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center ${status.enabled ? 'bg-ok/15 text-ok-active dark:text-ok' : 'bg-surface-2 text-ink-2'}`}
           >
             <Phone className="w-5 h-5" />
           </div>
@@ -130,7 +130,7 @@ export function ColdCallStatusCard() {
                     </span>
                   </div>
                   {halted ? (
-                    <span className="text-amber-400">{halted}</span>
+                    <span className="text-warning-active dark:text-warning">{halted}</span>
                   ) : (
                     <span>
                       {run.scanned} examinado(s) · {run.called} ligação(ões) · {skippedTotal}{' '}

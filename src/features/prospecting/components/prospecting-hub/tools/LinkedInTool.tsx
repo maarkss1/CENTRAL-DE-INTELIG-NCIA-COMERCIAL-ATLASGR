@@ -3,7 +3,6 @@ import {
   Building2,
   CheckCircle2,
   ExternalLink,
-  Linkedin,
   Loader2,
   Search,
   ShieldCheck,
@@ -11,6 +10,7 @@ import {
   Users,
   Wand2,
 } from 'lucide-react';
+import { LinkedinIcon as Linkedin } from '../../../../../components/ui/icons/LinkedinIcon';
 import { api } from '../../../../../lib/api';
 import { useBrand } from '../../../../../contexts/BrandContext';
 import {
