@@ -551,8 +551,17 @@ export function Integrations() {
                     {bitrixConnections.map((conn) => (
                       <div
                         key={conn.id}
-                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${selectedBitrixConnectionId === conn.id ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-500/10 shadow-sm' : 'border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                        role="radio"
+                        aria-checked={selectedBitrixConnectionId === conn.id}
+                        tabIndex={0}
+                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer ${selectedBitrixConnectionId === conn.id ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-500/10 shadow-sm' : 'border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'}`}
                         onClick={() => setSelectedBitrixConnectionId(conn.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedBitrixConnectionId(conn.id);
+                          }
+                        }}
                       >
                         <span
                           className={`w-3 h-3 rounded-full ${selectedBitrixConnectionId === conn.id ? 'bg-green-500' : 'bg-gray-300'} shrink-0`}
