@@ -182,31 +182,31 @@ export function Integrations() {
         >
           <button
             onClick={() => setActiveTab('whatsapp')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'whatsapp' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'whatsapp' ? 'bg-brand/10 text-brand-active dark:text-brand-2' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <span className="text-lg">💬</span> WhatsApp
           </button>
           <button
             onClick={() => setActiveTab('google')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'google' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'google' ? 'bg-brand/10 text-brand-active dark:text-brand-2' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <span className="text-lg">📧</span> Google Workspace
           </button>
           <button
             onClick={() => setActiveTab('bitrix')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'bitrix' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'bitrix' ? 'bg-brand/10 text-brand-active dark:text-brand-2' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <span className="text-lg">🔗</span> Bitrix24
           </button>
           <button
             onClick={() => setActiveTab('3cx')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === '3cx' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === '3cx' ? 'bg-brand/10 text-brand-active dark:text-brand-2' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <IconWrench className="w-4 h-4 text-sky-500" /> PABX 3CX
           </button>
           <button
             onClick={() => setActiveTab('webhooks')}
-            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'webhooks' ? 'bg-brand/10 text-brand' : 'text-ink-2 hover:bg-surface-2'}`}
+            className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'webhooks' ? 'bg-brand/10 text-brand-active dark:text-brand-2' : 'text-ink-2 hover:bg-surface-2'}`}
           >
             <Activity className="w-4 h-4 text-brand" /> Webhooks & Monitor
           </button>
