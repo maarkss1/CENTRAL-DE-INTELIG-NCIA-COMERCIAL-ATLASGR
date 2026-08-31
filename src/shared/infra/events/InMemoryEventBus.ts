@@ -1,5 +1,5 @@
-import { EventBus } from '../../domain/events/EventBus';
-import { DomainEvent } from '../../domain/events/DomainEvent';
+import type { EventBus } from '../../domain/events/EventBus';
+import type { DomainEvent } from '../../domain/events/DomainEvent';
 import { logger } from '../../../lib/logger';
 
 export class InMemoryEventBus implements EventBus {

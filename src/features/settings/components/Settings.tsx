@@ -13,17 +13,24 @@ import { IconSliders } from '../../../components/icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useBrand, BRAND_CONFIGS, type Brand } from '../../../contexts/BrandContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { FeatureFlagsPanel } from '../../feature-flags/components/FeatureFlagsPanel';
 import { Team } from '../../team/components/Team';
 import { Integrations } from '../../integrations/components/Integrations';
 import { AuditLogs } from '../../lgpd/components/AuditLogs';
+import { DataSubjectRights } from '../../lgpd/components/DataSubjectRights';
 
 const BRAND_OPTIONS: Brand[] = ['atlasgr', 'totaltrac'];
 
 export function Settings() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setThemeMode } = useTheme();
   const { activeBrand, setActiveBrand } = useBrand();
   const { currentUser, isAdmin } = useAuth();
+  // GESTOR também pode ler auditoria no backend (`lgpd.routes.ts`, `requireRole(['ADMIN',
+  // 'GESTOR'])`, já coberto por teste), mas a aba só checava `isAdmin` — GESTOR nunca tinha como
+  // chegar numa ação que o próprio backend autoriza (achado do Piloto 025, mesmo tipo de bug de
+  // RBAC dos pilotos anteriores, só que na direção oposta: esconder em vez de mostrar demais).
+  const canViewAudit = hasRequiredRole(currentUser?.role ?? '', ['ADMIN', 'GESTOR']);
 
   const [activeTab, setActiveTab] = useState<
     'profile' | 'users' | 'integrations' | 'featureFlags' | 'audit'
@@ -95,7 +102,7 @@ export function Settings() {
                 <Flag size={16} /> Feature Flags
               </button>
             )}
-            {isAdmin && (
+            {canViewAudit && (
               <button
                 type="button"
                 onClick={() => setActiveTab('audit')}
@@ -161,7 +168,8 @@ export function Settings() {
                     <div role="group" aria-labelledby="settings-theme-label" className="flex gap-4">
                       <button
                         type="button"
-                        onClick={toggleTheme}
+                        onClick={() => setThemeMode('dark')}
+                        aria-pressed={theme === 'dark'}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl border font-bold text-sm transition-all ${
                           theme === 'dark'
                             ? 'border-brand bg-brand/10 text-ink'
@@ -172,7 +180,8 @@ export function Settings() {
                       </button>
                       <button
                         type="button"
-                        onClick={toggleTheme}
+                        onClick={() => setThemeMode('light')}
+                        aria-pressed={theme === 'light'}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl border font-bold text-sm transition-all ${
                           theme === 'light'
                             ? 'border-brand bg-brand/10 text-ink'
@@ -260,9 +269,10 @@ export function Settings() {
           </div>
         )}
 
-        {activeTab === 'audit' && isAdmin && (
+        {activeTab === 'audit' && canViewAudit && (
           <div className="p-6 sm:p-8">
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-5xl mx-auto space-y-6">
+              <DataSubjectRights />
               <AuditLogs />
             </div>
           </div>

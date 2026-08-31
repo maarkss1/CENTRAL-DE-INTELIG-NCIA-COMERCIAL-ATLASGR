@@ -1,6 +1,6 @@
 import { logger } from '../../../lib/logger.js';
-import { Lead, LeadRepository } from '../domain/Lead';
-import { z } from 'zod';
+import type { Lead, LeadRepository } from '../domain/Lead';
+import type { z } from 'zod';
 import { leadSchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { fromPrismaLeadStatus } from '../../../lib/enumMap';
@@ -328,7 +328,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
       'Média de Contratações Mês',
     ];
 
-    const escape = (value: unknown) => {
+    const escapeCsvValue = (value: unknown) => {
       const s = value == null ? '' : String(value);
       return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
@@ -401,10 +401,10 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
       cols[100] = qual.viagensPorMes || '';
       cols[101] = phone;
       cols[102] = company?.observations || '';
-      return cols.map(escape).join(';');
+      return cols.map(escapeCsvValue).join(';');
     });
 
-    return [headers.map(escape).join(';'), ...rows].join('\n');
+    return [headers.map(escapeCsvValue).join(';'), ...rows].join('\n');
   }
 
   async exportLeadToBitrix(
@@ -421,8 +421,9 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
 
   async importRecentBitrixLeads(organizationId: string) {
     const { prisma } = await import('../../../lib/prisma.js');
-    const { findUnimportedBitrixLeadIds, importSelectedBitrixLeads, connectBitrix } =
-      await import('../../integrations/bitrix/bitrix.service.js');
+    const { findUnimportedBitrixLeadIds, importSelectedBitrixLeads, connectBitrix } = await import(
+      '../../integrations/bitrix/bitrix.service.js'
+    );
 
     let connection = await prisma.bitrixConnection.findFirst({
       where: { organizationId },

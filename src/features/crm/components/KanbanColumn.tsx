@@ -1,5 +1,5 @@
 import React from 'react';
-import { LeadStatus, Lead } from '../../../types';
+import type { LeadStatus, Lead } from '../../../types';
 import { KanbanCard } from './KanbanCard';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';

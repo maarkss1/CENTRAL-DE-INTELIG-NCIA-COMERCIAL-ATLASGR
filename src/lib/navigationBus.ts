@@ -21,7 +21,7 @@ export const navigationBus = {
 };
 
 function isKnownTab(tab: string): tab is TabType {
-  return Object.prototype.hasOwnProperty.call(TAB_ROUTE_SET, tab);
+  return Object.hasOwn(TAB_ROUTE_SET, tab);
 }
 
 const TAB_ROUTE_SET: Record<TabType, true> = {

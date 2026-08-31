@@ -131,7 +131,7 @@ export class AiBudgetExceededError extends Error {
 // RLS documentado no topo do arquivo), o teto por organização é uma leitura ESCOPADA à própria
 // organização — roda dentro do `requestContext` já ativo da chamada (tenantId == organizationId
 // sendo checado), então RLS comum já restringe a leitura sem precisar de bypass nenhum: mesmo
-// padrão já usado por `usageService.summary()` (src/features/billing/usage.service.ts).
+// padrão já usado por `UsageUseCases.summary()` (src/features/billing/application/UsageUseCases.ts).
 //
 // Qualquer erro de leitura (Postgres indisponível) é tratado como "sem teto configurado" —
 // fail-OPEN nesse erro, nunca um teto implícito.

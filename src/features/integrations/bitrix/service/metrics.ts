@@ -24,7 +24,8 @@ import client from 'prom-client';
  */
 export const bitrixSyncFailuresTotal =
   (client.register.getSingleMetric('bitrix_sync_failures_total') as
-    client.Counter<'tenant' | 'entity'> | undefined) ??
+    | client.Counter<'tenant' | 'entity'>
+    | undefined) ??
   new client.Counter({
     name: 'bitrix_sync_failures_total',
     help: 'Total de falhas de sincronização com o Bitrix24 (push ou pull), por organização (tenant) e tipo de entidade.',
@@ -42,7 +43,8 @@ export const bitrixSyncFailuresTotal =
  */
 export const bitrixExtractionFailuresTotal =
   (client.register.getSingleMetric('bitrix_extraction_failures_total') as
-    client.Counter<'tenant' | 'entity'> | undefined) ??
+    | client.Counter<'tenant' | 'entity'>
+    | undefined) ??
   new client.Counter({
     name: 'bitrix_extraction_failures_total',
     help: 'Total de falhas do serviço de Extrações Bitrix (BitrixExtractionRun), por organização (tenant) e entidade.',
@@ -62,7 +64,8 @@ export const bitrixExtractionFailuresTotal =
  */
 export const bitrixExtractionPartialTotal =
   (client.register.getSingleMetric('bitrix_extraction_partial_total') as
-    client.Counter<'tenant' | 'entity'> | undefined) ??
+    | client.Counter<'tenant' | 'entity'>
+    | undefined) ??
   new client.Counter({
     name: 'bitrix_extraction_partial_total',
     help: 'Total de extrações concluídas de forma PARCIAL (teto de segurança de páginas atingido para ao menos uma entidade), por organização (tenant) e entidade.',

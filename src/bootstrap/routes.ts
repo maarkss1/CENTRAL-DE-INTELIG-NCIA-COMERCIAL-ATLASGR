@@ -31,7 +31,7 @@ import { agentRoutes } from '../features/intelligence/routes/agent.routes.js';
 import { knowledgeRoutes } from '../features/knowledge/knowledge.routes.js';
 import { notificationRoutes } from '../features/notifications/notification.routes.js';
 import { automationRoutes } from '../features/automations/routes/automation.routes.js';
-import { usageRoutes } from '../features/billing/usage.routes.js';
+import { usageRoutes } from '../features/billing/routes/usage.routes.js';
 import { cadenceRoutes } from '../features/cadence/cadence.routes.js';
 import {
   publicBookingRouter,
@@ -39,7 +39,7 @@ import {
 } from '../features/calendar/routes/booking.routes.js';
 import { accountIntelligenceRoutes } from '../features/market-intelligence/server/accountIntelligence.routes.js';
 import { lgpdRouter } from '../features/lgpd/lgpd.routes.js';
-import { featureFlagsRouter } from '../features/feature-flags/featureFlags.routes.js';
+import { featureFlagsRouter } from '../features/feature-flags/routes/featureFlags.routes.js';
 import { bugReportRouter } from '../features/bug-reports/routes/bugReport.routes.js';
 import { threecxRoutes } from '../features/integrations/threecx/threecx.routes.js';
 import { gamificationRoutes } from '../features/gamification/routes/gamification.routes.js';
@@ -106,7 +106,13 @@ export function mountFeatureRoutes(app: Express): void {
   // ADMIN-only: consumo/custo de IA da organização. A Sidebar (src/components/layout/Sidebar.tsx)
   // já trata este item como admin-only na navegação — este era o lado que faltava (rota
   // administrativa sem autorização real por cargo, achado da Onda 1/Roadmap v2, Agente 02).
-  app.use('/api/usage', authenticateToken, requireTenant, requireRole(['ADMIN']), usageRoutes);
+  app.use(
+    '/api/usage',
+    authenticateToken,
+    requireTenant,
+    requireRole(['ADMIN', 'GESTOR']),
+    usageRoutes,
+  );
   // Coaching semanal por IA (Piloto 007) — cada vendedor só gera o próprio, sem restrição de papel.
   app.use('/api/gamification', authenticateToken, requireTenant, gamificationRoutes);
   app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);

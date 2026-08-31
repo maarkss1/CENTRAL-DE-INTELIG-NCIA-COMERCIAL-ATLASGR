@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import { Lightbulb, ChevronRight, X, Sparkles } from 'lucide-react';
 
 interface ContextualTipProps {

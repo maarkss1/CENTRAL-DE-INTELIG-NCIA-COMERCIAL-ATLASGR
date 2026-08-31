@@ -1,4 +1,4 @@
-import { Queue, Worker, Job } from 'bullmq';
+import { Queue, Worker, type Job } from 'bullmq';
 import type { Prisma } from '@prisma/client';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';

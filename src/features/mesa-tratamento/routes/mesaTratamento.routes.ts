@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import type { Prisma } from '@prisma/client';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';

@@ -17,7 +17,9 @@ const listeners = new Set<Listener>();
 
 function emit(kind: ToastKind, text: string) {
   const message: ToastMessage = { id: nextId++, kind, text };
-  listeners.forEach((l) => l(message));
+  listeners.forEach((l) => {
+    l(message);
+  });
 }
 
 export const toast = {
