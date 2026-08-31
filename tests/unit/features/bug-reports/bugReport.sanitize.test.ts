@@ -4,7 +4,7 @@ import {
     sanitizeTitle,
     sanitizeDescription,
     sanitizeRecentLogs,
-} from '../../../../src/features/bug-reports/bugReport.sanitize';
+} from '../../../../src/features/bug-reports/domain/bugReport.sanitize';
 
 describe('bugReport.sanitize', () => {
     describe('redactText', () => {
