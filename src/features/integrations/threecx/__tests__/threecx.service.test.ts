@@ -29,9 +29,18 @@ const prismaMock = {
 };
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
 
+// `safeFetch` é mockado chamando `assertSafeExternalUrlMock` antes do `fetch` global (stubado por
+// teste) — espelha a relação real entre as duas funções em src/shared/security/urlGuard.ts, então
+// configurar `assertSafeExternalUrlMock` para rejeitar continua simulando uma rejeição de SSRF
+// tanto para `assertSafeExternalUrl` quanto para `safeFetch`.
 const assertSafeExternalUrlMock = vi.fn().mockResolvedValue(undefined);
+const safeFetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+  await assertSafeExternalUrlMock(url);
+  return (globalThis.fetch as typeof fetch)(url, init);
+});
 vi.mock('../../../../shared/security/urlGuard.js', () => ({
   assertSafeExternalUrl: assertSafeExternalUrlMock,
+  safeFetch: safeFetchMock,
 }));
 
 const isSuppressedMock = vi.fn().mockResolvedValue(false);
