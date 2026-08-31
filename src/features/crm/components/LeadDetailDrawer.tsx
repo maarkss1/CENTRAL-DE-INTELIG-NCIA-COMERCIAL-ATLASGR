@@ -348,7 +348,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
             <div className="p-6 border-b border-line bg-surface-2/50 shrink-0">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center shrink-0 border border-brand/20">
+                  <div className="w-12 h-12 rounded-2xl bg-brand/10 text-brand-active dark:text-brand-2 flex items-center justify-center shrink-0 border border-brand/20">
                     <Building2 size={24} />
                   </div>
                   <div>
@@ -374,7 +374,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                     onClick={handleEnrich}
                     disabled={enriching}
                     title="Enriquecer dados via IA"
-                    className="p-2 rounded-xl text-ink-2 hover:text-brand hover:bg-brand/10 transition-colors disabled:opacity-50"
+                    className="p-2 rounded-xl text-ink-2 hover:text-brand-active dark:hover:text-brand-2 hover:bg-brand/10 transition-colors disabled:opacity-50"
                   >
                     {enriching ? (
                       <Loader2 className="w-5 h-5 animate-spin" />

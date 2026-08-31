@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
  * `assertSafeExternalUrl` (promovido de `src/lib/adapters/crm/Bitrix24Adapter.ts`, onde nasceu só
@@ -120,5 +120,59 @@ describe('assertSafeExternalUrl — aceita URL pública normal', () => {
         const { assertSafeExternalUrl } = await import('@/shared/security/urlGuard');
         await expect(assertSafeExternalUrl('https://webhook.exemplo.com/rest/1/token/')).resolves.toBeUndefined();
         expect(lookupMock).toHaveBeenCalledWith('webhook.exemplo.com', { all: true });
+    });
+});
+
+/**
+ * `safeFetch` reaproveita a MESMA validação de `assertSafeExternalUrl` (mesmo `resolveSafe`
+ * interno) mas fixa a conexão real nos endereços já validados — ver o comentário do próprio
+ * `safeFetch` em `urlGuard.ts` para a lacuna de DNS rebinding que isso fecha (a resolução de DNS
+ * usada para abrir a conexão de verdade é a MESMA já validada, não uma segunda chamada
+ * independente a `dns.lookup`). Estes testes cobrem o contrato observável sem depender de rede
+ * real: rejeita antes de qualquer `fetch`, e devolve uma `Response` utilizável (`status`/`ok`/
+ * corpo) quando a URL é aprovada.
+ */
+describe('safeFetch — mesmo guard de SSRF, conexão real fixada nos endereços já validados', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('rejeita IP privado sem nunca chamar fetch', async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        const { safeFetch } = await import('@/shared/security/urlGuard');
+
+        await expect(safeFetch('https://10.0.0.1/')).rejects.toThrow(/não permitido/i);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('rejeita hostname com DNS rebinding (resolve para IP privado) sem nunca chamar fetch', async () => {
+        lookupMock.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        const { safeFetch } = await import('@/shared/security/urlGuard');
+
+        await expect(safeFetch('https://webhook.exemplo.com/')).rejects.toThrow(/não permitido/i);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('busca a URL de verdade e devolve uma Response utilizável quando o guard aprova', async () => {
+        lookupMock.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+        const { safeFetch } = await import('@/shared/security/urlGuard');
+
+        const res = await safeFetch('https://webhook.exemplo.com/profile.json');
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock.mock.calls[0][0]).toBe('https://webhook.exemplo.com/profile.json');
+        expect(res.status).toBe(200);
+        expect(res.ok).toBe(true);
+        await expect(res.json()).resolves.toEqual({ ok: true });
+        // A validação (que já fez o `dns.lookup`) e a conexão real fixada não disparam uma
+        // segunda resolução de DNS — só a checagem inicial.
+        expect(lookupMock).toHaveBeenCalledTimes(1);
     });
 });

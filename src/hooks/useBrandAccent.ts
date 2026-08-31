@@ -13,7 +13,14 @@ export function useBrandAccent() {
   return {
     isAtlas,
     brandName: isAtlas ? 'Atlas' : 'Total Trac',
-    text: isAtlas ? 'text-atlas-orange' : 'text-totaltrack-blue',
+    // Texto direto (não decorativo) sobre bg-bg/bg-surface: a cor crua da marca cai a 3.02:1
+    // (laranja) / 3.42:1 (azul) no claro, abaixo de 4.5:1 (achado do axe-core na LoginScreen,
+    // PR #309). Mesmo padrão já usado neste hook pra bg/solidBg e no restante do app pra
+    // text-danger-active dark:text-danger: -active (mais escura) no claro, cor crua no escuro
+    // (a crua já é clara o bastante contra o --bg escuro quase preto, ~6:1 nos dois casos).
+    text: isAtlas
+      ? 'text-atlas-orange-active dark:text-atlas-orange'
+      : 'text-totaltrack-blue-active dark:text-totaltrack-blue',
     textSoft: isAtlas ? 'text-orange-300' : 'text-totaltrac-light',
     // bg/solidBg usam a versão -active (mais escura): todo consumidor que as usa emparelha
     // com texto branco em cima (Calendar "hoje", filtro de período do Billing, abas do

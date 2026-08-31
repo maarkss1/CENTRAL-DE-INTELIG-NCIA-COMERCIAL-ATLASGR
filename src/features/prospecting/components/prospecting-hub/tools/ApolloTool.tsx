@@ -80,7 +80,7 @@ export function ApolloTool({ configured }: { configured: boolean }) {
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
       <div className="xl:col-span-4 bg-surface p-6 rounded-2xl border border-line shadow-sm space-y-4 max-h-[800px] overflow-y-auto">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
+          <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand-active dark:text-brand-2">
             <Building2 size={18} />
           </div>
           <h2 className="font-black text-lg text-ink">Apollo.io</h2>

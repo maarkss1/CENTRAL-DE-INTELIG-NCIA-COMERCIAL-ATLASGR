@@ -111,7 +111,7 @@ export function FeatureFlagsPanel() {
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-bold text-ink font-mono">{flag.key}</p>
                   {flag.isOverridden && (
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-brand bg-brand/10 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-brand-active dark:text-brand-2 bg-brand/10 px-1.5 py-0.5 rounded">
                       Personalizado
                     </span>
                   )}

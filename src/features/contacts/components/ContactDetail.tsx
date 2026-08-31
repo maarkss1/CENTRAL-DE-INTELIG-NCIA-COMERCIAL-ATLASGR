@@ -112,7 +112,7 @@ export function ContactDetail({ contactId, onClose }: ContactDetailProps) {
               Empresa
             </h4>
             <div className="p-4 rounded-card border border-line bg-surface-2 flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-brand/10 text-brand shrink-0">
+              <div className="p-2 rounded-xl bg-brand/10 text-brand-active dark:text-brand-2 shrink-0">
                 <Building2 className="w-4 h-4" />
               </div>
               <div className="min-w-0">
