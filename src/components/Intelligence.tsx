@@ -309,7 +309,7 @@ export function Intelligence() {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand mb-3"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand-active dark:text-brand-2 mb-3"
             >
               <Sparkles className="w-4 h-4" />
               <span className="text-xs font-bold uppercase tracking-wider">Premium AI Suite</span>

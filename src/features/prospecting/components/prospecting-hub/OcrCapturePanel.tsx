@@ -493,7 +493,7 @@ export function OcrCapturePanel() {
           <div className="lg:col-span-7 bg-surface border border-line rounded-3xl p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-brand/10 text-brand">
+                <div className="p-1.5 rounded-lg bg-brand/10 text-brand-active dark:text-brand-2">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
@@ -503,7 +503,7 @@ export function OcrCapturePanel() {
                   </p>
                 </div>
               </div>
-              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-brand/10 text-brand border border-brand/20">
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-brand/10 text-brand-active dark:text-brand-2 border border-brand/20">
                 Score: {formData.fitScoreEstimate}%
               </span>
             </div>
@@ -548,7 +548,7 @@ export function OcrCapturePanel() {
                     type="button"
                     onClick={handleCnpjEnrich}
                     disabled={enrichingCnpj || !formData.cnpj}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-surface-2 border border-line text-brand hover:bg-brand/10 hover:border-brand/40 transition-colors disabled:opacity-40 cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-surface-2 border border-line text-brand-active dark:text-brand-2 hover:bg-brand/10 hover:border-brand/40 transition-colors disabled:opacity-40 cursor-pointer"
                     title="Consultar dados oficiais na Receita Federal via BrasilAPI"
                   >
                     {enrichingCnpj ? (
