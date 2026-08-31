@@ -14,6 +14,7 @@ import { CommercialIntelligenceAiService } from '../../features/commercial-intel
 import { PrismaCrm360Repository } from '../../features/crm360/infra/PrismaCrm360Repository';
 import { PrismaQualificationMatrixRepository } from '../../features/playbook/qualification-matrix/infra/PrismaQualificationMatrixRepository';
 import { PrismaObjectionMatrixRepository } from '../../features/playbook/objection-matrix/infra/PrismaObjectionMatrixRepository';
+import { PrismaBugReportRepository } from '../../features/bug-reports/infra/PrismaBugReportRepository';
 
 // Use Cases
 import { NoteUseCases } from '../../features/notes/application/NoteUseCases';
@@ -27,6 +28,7 @@ import { CommercialIntelligenceUseCases } from '../../features/commercial-intell
 import { Crm360UseCases } from '../../features/crm360/application/Crm360UseCases';
 import { QualificationMatrixUseCases } from '../../features/playbook/qualification-matrix/application/QualificationMatrixUseCases';
 import { ObjectionMatrixUseCases } from '../../features/playbook/objection-matrix/application/ObjectionMatrixUseCases';
+import { BugReportUseCases } from '../../features/bug-reports/application/BugReportUseCases';
 
 // Controllers
 import { NoteController } from '../../features/notes/presentation/NoteController';
@@ -40,6 +42,7 @@ import { CommercialIntelligenceController } from '../../features/commercial-inte
 import { Crm360Controller } from '../../features/crm360/presentation/Crm360Controller';
 import { QualificationMatrixController } from '../../features/playbook/qualification-matrix/presentation/QualificationMatrixController';
 import { ObjectionMatrixController } from '../../features/playbook/objection-matrix/presentation/ObjectionMatrixController';
+import { BugReportController } from '../../features/bug-reports/presentation/BugReportController';
 
 export function setupDI() {
   // 1. Shared
@@ -58,6 +61,7 @@ export function setupDI() {
   const crm360Repository = new PrismaCrm360Repository();
   const qualificationMatrixRepository = new PrismaQualificationMatrixRepository();
   const objectionMatrixRepository = new PrismaObjectionMatrixRepository();
+  const bugReportRepository = new PrismaBugReportRepository();
 
   container.register('NoteRepository', noteRepository);
   container.register('ActivityRepository', activityRepository);
@@ -70,6 +74,7 @@ export function setupDI() {
   container.register('Crm360Repository', crm360Repository);
   container.register('QualificationMatrixRepository', qualificationMatrixRepository);
   container.register('ObjectionMatrixRepository', objectionMatrixRepository);
+  container.register('BugReportRepository', bugReportRepository);
 
   // 3. Use Cases
   const noteUseCases = new NoteUseCases(noteRepository);
@@ -90,6 +95,7 @@ export function setupDI() {
     qualificationMatrixRepository,
   );
   const objectionMatrixUseCases = new ObjectionMatrixUseCases(objectionMatrixRepository);
+  const bugReportUseCases = new BugReportUseCases(bugReportRepository);
 
   container.register('NoteUseCases', noteUseCases);
   container.register('ActivityUseCases', activityUseCases);
@@ -102,6 +108,7 @@ export function setupDI() {
   container.register('Crm360UseCases', crm360UseCases);
   container.register('QualificationMatrixUseCases', qualificationMatrixUseCases);
   container.register('ObjectionMatrixUseCases', objectionMatrixUseCases);
+  container.register('BugReportUseCases', bugReportUseCases);
 
   // 4. Controllers
   container.register('NoteController', new NoteController(noteUseCases));
@@ -127,4 +134,5 @@ export function setupDI() {
     'ObjectionMatrixController',
     new ObjectionMatrixController(objectionMatrixUseCases),
   );
+  container.register('BugReportController', new BugReportController(bugReportUseCases));
 }
