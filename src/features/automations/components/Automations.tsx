@@ -117,10 +117,14 @@ function AutomationForm({
   const acoesDisponiveis = ACTIONS.filter(
     (a) => !ACTIONS_INDISPONIVEIS_POR_GATILHO[trigger]?.includes(a),
   );
-  const [title, setTitle] = useState(typeof actionConfig.title === 'string' ? actionConfig.title : '');
+  const [title, setTitle] = useState(
+    typeof actionConfig.title === 'string' ? actionConfig.title : '',
+  );
   const [body, setBody] = useState(typeof actionConfig.body === 'string' ? actionConfig.body : '');
   const [emailChannel, setEmailChannel] = useState(actionConfig.channel === 'email');
-  const [emailTo, setEmailTo] = useState(typeof actionConfig.to === 'string' ? actionConfig.to : '');
+  const [emailTo, setEmailTo] = useState(
+    typeof actionConfig.to === 'string' ? actionConfig.to : '',
+  );
   const [dueInDays, setDueInDays] = useState(
     typeof actionConfig.dueInDays === 'number' ? String(actionConfig.dueInDays) : '1',
   );
@@ -324,7 +328,9 @@ function AutomationForm({
               {action === 'Notificar equipe' ? (
                 <div className="space-y-3 mt-3 p-3 bg-soft rounded-xl border border-line">
                   <div>
-                    <label className={labelClass} htmlFor="auto-notify-title">Título do aviso</label>
+                    <label className={labelClass} htmlFor="auto-notify-title">
+                      Título do aviso
+                    </label>
                     <input
                       id="auto-notify-title"
                       value={title}
@@ -334,7 +340,9 @@ function AutomationForm({
                     />
                   </div>
                   <div>
-                    <label className={labelClass} htmlFor="auto-notify-body">Detalhe (opcional)</label>
+                    <label className={labelClass} htmlFor="auto-notify-body">
+                      Detalhe (opcional)
+                    </label>
                     <input
                       id="auto-notify-body"
                       value={body}
@@ -374,7 +382,9 @@ function AutomationForm({
                 </p>
               ) : (
                 <div className="mt-3 p-3 bg-soft rounded-xl border border-line">
-                  <label className={labelClass} htmlFor="auto-followup-days">Criar follow-up em (dias)</label>
+                  <label className={labelClass} htmlFor="auto-followup-days">
+                    Criar follow-up em (dias)
+                  </label>
                   <input
                     id="auto-followup-days"
                     type="number"

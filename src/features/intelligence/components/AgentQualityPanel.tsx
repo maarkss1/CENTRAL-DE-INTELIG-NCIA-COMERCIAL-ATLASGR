@@ -158,7 +158,9 @@ export function AgentQualityPanel() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Falha ao carregar as métricas de qualidade.');
+        setError(
+          err instanceof Error ? err.message : 'Falha ao carregar as métricas de qualidade.',
+        );
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

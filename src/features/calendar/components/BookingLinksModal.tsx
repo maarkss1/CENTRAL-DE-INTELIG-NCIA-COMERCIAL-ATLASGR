@@ -129,7 +129,10 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label htmlFor="booking-link-title" className="block text-[11px] font-bold text-ink-2 mb-1">
+                <label
+                  htmlFor="booking-link-title"
+                  className="block text-[11px] font-bold text-ink-2 mb-1"
+                >
                   Título da Reunião
                 </label>
                 <input
@@ -143,7 +146,10 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                 />
               </div>
               <div>
-                <label htmlFor="booking-link-slug" className="block text-[11px] font-bold text-ink-2 mb-1">
+                <label
+                  htmlFor="booking-link-slug"
+                  className="block text-[11px] font-bold text-ink-2 mb-1"
+                >
                   Link Personalizado (/book/...)
                 </label>
                 <div className="flex items-center">
@@ -170,7 +176,10 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label htmlFor="booking-link-duration" className="block text-[11px] font-bold text-ink-2 mb-1">
+                <label
+                  htmlFor="booking-link-duration"
+                  className="block text-[11px] font-bold text-ink-2 mb-1"
+                >
                   Duração (minutos)
                 </label>
                 <select
@@ -186,7 +195,12 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                 </select>
               </div>
               <div>
-                <label htmlFor="booking-link-description" className="block text-[11px] font-bold text-ink-2 mb-1">Descrição</label>
+                <label
+                  htmlFor="booking-link-description"
+                  className="block text-[11px] font-bold text-ink-2 mb-1"
+                >
+                  Descrição
+                </label>
                 <input
                   id="booking-link-description"
                   type="text"

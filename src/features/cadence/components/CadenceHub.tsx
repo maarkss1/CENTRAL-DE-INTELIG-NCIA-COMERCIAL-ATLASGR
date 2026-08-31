@@ -1259,74 +1259,74 @@ function JourneyTemplatesDialog({
               <Loader2 className="w-5 h-5 animate-spin" />
             </div>
           ) : (
-          templates.map((tpl) => {
-            const isExpanded = expandedTemplate === tpl.id;
-            return (
-              <div
-                key={tpl.id}
-                className="rounded-2xl border border-line bg-surface-2/40 p-4 space-y-3 transition-colors"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-sm text-ink">{tpl.name}</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand">
-                        {tpl.category}
+            templates.map((tpl) => {
+              const isExpanded = expandedTemplate === tpl.id;
+              return (
+                <div
+                  key={tpl.id}
+                  className="rounded-2xl border border-line bg-surface-2/40 p-4 space-y-3 transition-colors"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-ink">{tpl.name}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand">
+                          {tpl.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-ink-2">{tpl.description}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setExpandedTemplate(isExpanded ? null : tpl.id)}
+                      >
+                        {isExpanded ? 'Ocultar' : `Ver ${tpl.touches.length} Toques`}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={instantiating === tpl.id}
+                        onClick={() => handleUseTemplate(tpl.id)}
+                      >
+                        {instantiating === tpl.id ? 'Criando…' : 'Usar Modelo'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="space-y-2 pt-2 border-t border-line">
+                      <span className="text-[11px] font-bold uppercase text-ink-2">
+                        Roteiro de Toques da Jornada:
                       </span>
-                    </div>
-                    <p className="text-xs text-ink-2">{tpl.description}</p>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setExpandedTemplate(isExpanded ? null : tpl.id)}
-                    >
-                      {isExpanded ? 'Ocultar' : `Ver ${tpl.touches.length} Toques`}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={instantiating === tpl.id}
-                      onClick={() => handleUseTemplate(tpl.id)}
-                    >
-                      {instantiating === tpl.id ? 'Criando…' : 'Usar Modelo'}
-                    </Button>
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className="space-y-2 pt-2 border-t border-line">
-                    <span className="text-[11px] font-bold uppercase text-ink-2">
-                      Roteiro de Toques da Jornada:
-                    </span>
-                    <div className="space-y-1.5">
-                      {tpl.touches.map((t) => (
-                        <div
-                          key={t.order}
-                          className="p-2.5 rounded-xl bg-surface border border-line text-xs space-y-1"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-ink">
-                              Toque {t.order}: {t.stepTitle} ({CHANNEL_LABEL[t.channel]})
-                            </span>
-                            <span className="text-[10px] text-ink-2 font-mono">
-                              +{t.delayHoursFromPrevious}h
-                            </span>
+                      <div className="space-y-1.5">
+                        {tpl.touches.map((t) => (
+                          <div
+                            key={t.order}
+                            className="p-2.5 rounded-xl bg-surface border border-line text-xs space-y-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-ink">
+                                Toque {t.order}: {t.stepTitle} ({CHANNEL_LABEL[t.channel]})
+                              </span>
+                              <span className="text-[10px] text-ink-2 font-mono">
+                                +{t.delayHoursFromPrevious}h
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-ink-2 whitespace-pre-wrap">
+                              {t.templateRef}
+                            </p>
                           </div>
-                          <p className="text-[11px] text-ink-2 whitespace-pre-wrap">
-                            {t.templateRef}
-                          </p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       </div>
