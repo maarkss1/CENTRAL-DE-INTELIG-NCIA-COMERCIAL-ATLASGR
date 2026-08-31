@@ -106,6 +106,9 @@ const envSchema = z
     // acesso por padrão (fail-closed) — ver src/shared/middlewares/requirePlatformOperator.ts.
     PLATFORM_OPERATOR_TOKEN: z.string().min(16).optional(),
 
+    INFISICAL_TOKEN: z.string().optional(),
+    VAULT_ADDR: z.string().optional(),
+
     // ── SDR de voz (Birth Voices Hub) ────────────────────────────────────────
     // Todas opcionais: sem elas a integração fica inerte (nenhuma ligação é disparada e o webhook
     // responde 503), em vez de impedir a aplicação inteira de subir.
