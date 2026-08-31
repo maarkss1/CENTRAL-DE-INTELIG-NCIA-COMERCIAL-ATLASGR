@@ -9,7 +9,11 @@ import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
 import { BugReportButton } from '../ui/BugReportButton';
 import { VoiceCommandWidget } from '../ui/VoiceCommandWidget';
 import { CommandPalette } from '../ui/CommandPalette';
+<<<<<<< HEAD
 import { BottomSheet } from '@/components/ui/BottomSheet';
+=======
+import { BottomSheet } from '../ui/BottomSheet';
+>>>>>>> agente/02-ui-integration
 import { motion } from 'framer-motion';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
 import { useNavigationBusBridge } from '../../hooks/useNavigationBusBridge';
