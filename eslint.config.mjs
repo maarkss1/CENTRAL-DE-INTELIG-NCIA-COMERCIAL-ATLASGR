@@ -29,18 +29,17 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
       'react/prop-types': 'off', // TypeScript já cobre isso — regra de projetos JS puro
-      // Downgradadas de 'error' pra 'warn' na introdução do jsx-a11y: cada uma tem dezenas de
-      // ocorrências espalhadas por telas de negócio e exigem revisão caso a caso (adicionar
-      // role/tabIndex/onKeyDown a um <div> com onClick pode mudar comportamento de interação;
-      // associar <label> a um controle às vezes exige reestruturar o campo, não só adicionar
-      // htmlFor). DESIGN_QA_CENTRAL_ATLASGR.md, que rastreava o backlog de correção incremental,
-      // foi removido do controle de versão em 22/08/2026 — ver docs/REMOVED-DOCS.md.
-      'jsx-a11y/label-has-associated-control': 'warn',
-      'jsx-a11y/click-events-have-key-events': 'warn',
-      'jsx-a11y/no-static-element-interactions': 'warn',
-      'jsx-a11y/no-noninteractive-element-interactions': 'warn',
-      'jsx-a11y/no-autofocus': 'warn', // autoFocus em SwarmDashboard.tsx é UX intencional — avaliar caso a caso, não remover às cegas
-      'jsx-a11y/media-has-caption': 'warn', // exige uma trilha de legenda de verdade (asset), não é algo que lint --fix resolve
+      // As 6 regras jsx-a11y abaixo foram rebaixadas de 'error' pra 'warn' na introdução do
+      // plugin (dezenas de ocorrências não revisadas). Onda 43: todas as ocorrências foram
+      // revisadas caso a caso (role/tabIndex/onKeyDown adicionados sem quebrar comportamento
+      // existente — inclusive preservando onKeyDown do dnd-kit em Calendar.tsx — e as exceções
+      // genuínas documentadas com eslint-disable pontual e justificativa: backdrop de modal com
+      // Escape/botão de fechar já cobrindo teclado, <dialog> nativo, autoFocus em modal/página de
+      // propósito único, áudio decorativo sem fala, e transcrição textual completa já exibida ao
+      // lado da gravação). Voltam ao 'error' padrão do plugin (sem override aqui) — a lista
+      // explícita ficava sem propósito depois da correção; DESIGN_QA_CENTRAL_ATLASGR.md, que
+      // rastreava o backlog anterior, foi removido do controle de versão em 22/08/2026 — ver
+      // docs/REMOVED-DOCS.md.
       // As regras do React Compiler (set-state-in-effect/purity/immutability/use-memo) exigem
       // eslint-plugin-react-hooks >=6; o projeto está fixado em v5.2.0 (revert de v7 — ver
       // git log "fix(08): react-hooks v7 sem migração"), que não as possui. Reintroduzir junto

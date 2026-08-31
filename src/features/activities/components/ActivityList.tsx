@@ -536,7 +536,15 @@ export function ActivityList() {
               {FOLLOW_UP_TEMPLATES.map((tpl) => (
                 <div
                   key={tpl.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleApplyTemplate(tpl)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleApplyTemplate(tpl);
+                    }
+                  }}
                   className="p-3.5 rounded-2xl bg-surface-2/50 hover:bg-brand/10 border border-line hover:border-brand transition-all cursor-pointer space-y-1"
                 >
                   <div className="flex items-center justify-between">

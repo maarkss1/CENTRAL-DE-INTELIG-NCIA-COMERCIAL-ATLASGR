@@ -299,6 +299,12 @@ export function CommandPalette() {
   let groupCursor = '';
 
   return (
+    // role="dialog" é um papel de "janela", não de controle interativo — o jsx-a11y sinaliza
+    // qualquer onClick/onKeyDown aqui como se fosse indevido num elemento não-interativo, mas o
+    // uso real é o padrão "clicar fora fecha" (só dispara quando e.target === e.currentTarget,
+    // nunca em clique nos itens internos) + Escape já tratado abaixo — equivalente de teclado já
+    // existe, não falta suporte.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className="fixed inset-0 z-[1000] flex items-start justify-center bg-black/50 sm:px-4 sm:pt-[12vh] backdrop-blur-sm"
       role="dialog"
