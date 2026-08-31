@@ -5,7 +5,7 @@ import express, { type Express } from 'express';
 import { prisma } from '../../src/lib/prisma';
 import { authenticateToken } from '../../src/shared/middlewares/authenticateToken';
 import { requireTenant } from '../../src/shared/middlewares/authorization';
-import { bugReportRouter } from '../../src/features/bug-reports/bugReport.routes';
+import { bugReportRouter } from '../../src/features/bug-reports/routes/bugReport.routes';
 import { errorHandler } from '../../src/shared/middlewares/errorHandler';
 import { withRlsBypass, withTenant, signUpRealUser, type RealSessionUser } from '../helpers/rbac-e2e-helpers';
 
