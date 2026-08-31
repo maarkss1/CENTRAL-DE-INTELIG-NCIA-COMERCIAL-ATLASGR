@@ -178,6 +178,15 @@ Existe confiança alta em vários componentes Core, mas isso não equivale a con
 
 # Revalidação dos 16 clusters históricos
 
+> **Atualização 2026-08:** esta lista de 16 clusters era uma revalidação de hipóteses sem
+> pontuação ("sem bônus"). Ela foi superada pelo ranking de oportunidade em
+> `RANKING_OPORTUNIDADE_GR_2026_08.md`, que pontua os 5.566 municípios do país com o mesmo
+> critério automatizado (RNTRC + CNPJ/ICP + fluxo ANTT/CIOT + concorrência mapeada por CNPJ). O
+> novo candidato líder é **Paranaguá/PR — score 94,1/100** (fluxo máximo + concorrência quase
+> nula), seguido por Navegantes/SC, Ribeirão das Neves/MG, Cambé/PR e Lages/SC — nenhuma das
+> cidades do Top 5 novo estava nesta lista de 16 hipóteses. A lista abaixo fica como registro
+> histórico do que era hipótese antes do ranking com fonte de dado rastreável.
+
 Continuam como **hipóteses**, sem bônus:
 
 1. Luís Eduardo Magalhães / Barreiras;
