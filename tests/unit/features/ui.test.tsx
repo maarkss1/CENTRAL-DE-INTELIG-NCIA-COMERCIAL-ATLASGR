@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { CompanyList } from '@/features/companies/components/CompanyList';
 import { ContactList } from '@/features/contacts/components/ContactList';
+import { ActiveRecordProvider } from '@/contexts/ActiveRecordContext';
 
 // CompanyList/ContactList disparam fetch de dados no useEffect de montagem. O `waitFor(() => {})`
 // antigo só esperava um tick e desmontava — mas sem handler MSW para /api/companies e
@@ -28,7 +29,16 @@ describe('UI Components', () => {
   });
 
   it('should render ContactList without crashing', async () => {
-    const { unmount } = render(<MemoryRouter><ContactList /></MemoryRouter>);
+    // ContactList sempre monta ContactDetail (mesmo com contactId null, só de gaveta fechada — ver
+    // Drawer), e ContactDetail registra o contato em edição no ActiveRecordContext (copiloto de IA
+    // global, mesmo padrão de ContactForm/CompanyDetail). Sem o Provider aqui, useActiveRecord() lança.
+    const { unmount } = render(
+      <MemoryRouter>
+        <ActiveRecordProvider>
+          <ContactList />
+        </ActiveRecordProvider>
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.queryByText(/Carregando/i)).toBeNull();
     });

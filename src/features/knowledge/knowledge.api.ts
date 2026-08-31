@@ -9,8 +9,15 @@ export interface KnowledgeDocumentSummary {
   sourceType: string;
   sourceName: string | null;
   chunkCount: number;
+  /** Incrementado só quando o conteúdo muda (ver `updateDocument`) — >1 indica que já foi editado. */
+  version: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Documento completo, com o conteúdo — só vem de `GET /:id`, nunca da listagem. */
+export interface KnowledgeDocument extends KnowledgeDocumentSummary {
+  content: string;
 }
 
 export interface KnowledgeSearchHit {
@@ -51,6 +58,20 @@ export const ACCEPTED_EXTENSIONS = [
 
 export const knowledgeApi = {
   list: () => api.get<KnowledgeDocumentSummary[]>('/api/knowledge'),
+
+  /**
+   * GET /:id — consumido por `Base.tsx` (modal de edição, Piloto 019) e por `Editor.tsx`
+   * (`document-editor/`, refatorado no Piloto 023 para usar este client em vez de uma chamada
+   * `api.get` crua e sem tipo).
+   */
+  get: (id: string) => api.get<KnowledgeDocument>(`/api/knowledge/${id}`),
+
+  /**
+   * PUT /:id — reindexa e incrementa `version` quando o conteúdo muda. Consumido por `Base.tsx`
+   * (Piloto 019) e por `Editor.tsx` (Piloto 023, mesmo refactor do `get` acima).
+   */
+  update: (id: string, patch: { title?: string; content?: string }) =>
+    api.put<IngestResult>(`/api/knowledge/${id}`, patch, { timeoutMs: 180_000 }),
 
   // Mesmo pipeline de chunking + embedding do /upload (1 embedding por trecho) — texto colado
   // grande pode gerar tantos trechos quanto um arquivo, então precisa da mesma folga de timeout.

@@ -11,7 +11,10 @@ import { logger } from '../../../lib/logger.js';
 import { connection } from '../../../lib/queue/redis.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { recordDeadLetter, isFinalAttempt } from '../../../lib/queue/deadLetter.js';
-import { CommercialIntelligenceUseCases, currentPeriod } from '../application/CommercialIntelligenceUseCases.js';
+import {
+  CommercialIntelligenceUseCases,
+  currentPeriod,
+} from '../application/CommercialIntelligenceUseCases.js';
 import { PrismaCommercialIntelligenceRepository } from '../infra/PrismaCommercialIntelligenceRepository.js';
 import { PrismaForecastSnapshotStore } from '../infra/PrismaForecastSnapshotStore.js';
 import { buildForecastSnapshot } from '../application/forecastSnapshot.js';
@@ -104,7 +107,10 @@ export function createForecastSnapshotWorker() {
   });
 
   worker.on('error', (err) => {
-    logger.warn({ message: err.message }, 'ForecastSnapshot worker error suppressed (Redis offline)');
+    logger.warn(
+      { message: err.message },
+      'ForecastSnapshot worker error suppressed (Redis offline)',
+    );
   });
 
   return worker;

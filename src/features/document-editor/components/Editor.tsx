@@ -4,17 +4,23 @@ import { FileText, Save, Loader2, AlertTriangle, RotateCcw, Search } from 'lucid
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { toast } from '../../../lib/toast';
-import { api } from '../../../lib/api';
-import { knowledgeApi, type KnowledgeDocumentSummary } from '../../knowledge/knowledge.api';
+import {
+  knowledgeApi,
+  type KnowledgeDocumentSummary,
+  type KnowledgeDocument,
+} from '../../knowledge/knowledge.api';
 
-interface FullDocument {
-  id: string;
-  title: string;
-  content: string;
-  chunkCount: number;
-  sourceName: string | null;
-  updatedAt: string;
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 /**
@@ -26,6 +32,14 @@ interface FullDocument {
  */
 export function Editor() {
   const accent = useBrandAccent();
+  const { currentUser } = useAuth();
+  // PUT /api/knowledge/:id exige ADMIN/GESTOR/CLOSER/SDR no backend (mesmo writeRoles da Base de
+  // Conhecimento, `Base.tsx`), mas esta tela-irmã (mesmo dado, mesma rota) nunca escondia o botão
+  // "Salvar" nem os campos editáveis — um VISUALIZADOR editava livremente e só descobria a falta
+  // de permissão com um 403 em inglês ao clicar em Salvar (achado do Piloto 023, mesmo bug já
+  // corrigido em `Base.tsx` no Piloto 019, nunca replicado aqui apesar de ser a mesma regra).
+  const canWrite =
+    !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
   const [documents, setDocuments] = useState<KnowledgeDocumentSummary[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -33,7 +47,7 @@ export function Editor() {
   const [filter, setFilter] = useState('');
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [doc, setDoc] = useState<FullDocument | null>(null);
+  const [doc, setDoc] = useState<KnowledgeDocument | null>(null);
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -67,7 +81,10 @@ export function Editor() {
     (async () => {
       setLoadingDoc(true);
       try {
-        const full = await api.get<FullDocument>(`/api/knowledge/${selectedId}`);
+        // `knowledgeApi.get` (Piloto 019) em vez da chamada crua `api.get` de antes — mesmo
+        // cliente já usado por `Base.tsx`, já testado, já tipado com `content`/`version`/
+        // `sourceType`.
+        const full = await knowledgeApi.get(selectedId);
         // Sem isto, trocar de documento rápido pode aplicar a resposta antiga por cima da nova.
         if (cancelled) return;
         setDoc(full);
@@ -93,7 +110,7 @@ export function Editor() {
   }, [documents, filter]);
 
   const save = useCallback(async () => {
-    if (!doc || !dirty) return;
+    if (!doc || !dirty || !canWrite) return;
     if (!title.trim() || !content.trim()) {
       toast.error('Título e conteúdo não podem ficar vazios.');
       return;
@@ -102,11 +119,8 @@ export function Editor() {
     setSaving(true);
     try {
       const contentChanged = content !== doc.content;
-      const result = await api.put<{ chunkCount: number; embeddingFailures: number }>(
-        `/api/knowledge/${doc.id}`,
-        { title: title.trim(), content },
-        { timeoutMs: 180_000 },
-      );
+      // `knowledgeApi.update` (Piloto 019) em vez da chamada crua `api.put` de antes.
+      const result = await knowledgeApi.update(doc.id, { title: title.trim(), content });
 
       toast.success(
         contentChanged
@@ -117,14 +131,21 @@ export function Editor() {
         toast.error(`${result.embeddingFailures} trecho(s) ficaram sem busca semântica.`);
       }
 
-      setDoc({ ...doc, title: title.trim(), content, chunkCount: result.chunkCount });
+      setDoc({
+        ...doc,
+        title: title.trim(),
+        content,
+        chunkCount: result.chunkCount,
+        version: contentChanged ? doc.version + 1 : doc.version,
+        updatedAt: new Date().toISOString(),
+      });
       await loadList();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
       setSaving(false);
     }
-  }, [doc, dirty, title, content, loadList]);
+  }, [doc, dirty, canWrite, title, content, loadList]);
 
   const revert = useCallback(() => {
     if (!doc) return;
@@ -151,27 +172,31 @@ export function Editor() {
           </div>
 
           <div className="flex items-center gap-2">
-            {dirty && (
-              <Button variant="outline" onClick={revert} disabled={saving}>
-                <RotateCcw className="w-4 h-4 mr-2" /> Descartar
-              </Button>
+            {canWrite && (
+              <>
+                {dirty && (
+                  <Button type="button" variant="outline" onClick={revert} disabled={saving}>
+                    <RotateCcw className="w-4 h-4 mr-2" /> Descartar
+                  </Button>
+                )}
+                <Button type="button" onClick={() => void save()} disabled={!dirty || saving}>
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </Button>
+              </>
             )}
-            <Button onClick={() => void save()} disabled={!dirty || saving}>
-              {saving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              {saving ? 'Salvando…' : 'Salvar'}
-            </Button>
           </div>
         </div>
 
         {listError && (
           <Card padding="lg" className="text-center">
-            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
+            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-danger-active dark:text-danger" />
             <p className="text-sm text-ink-2 mb-4">{listError}</p>
-            <Button variant="outline" onClick={() => void loadList()}>
+            <Button type="button" variant="outline" onClick={() => void loadList()}>
               Tentar novamente
             </Button>
           </Card>
@@ -179,7 +204,7 @@ export function Editor() {
 
         {!listError && !loadingList && documents.length === 0 && (
           <Card padding="lg" className="text-center border-dashed">
-            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+            <FileText className="w-12 h-12 mx-auto mb-4 text-ink-2" />
             <h3 className="text-lg font-semibold text-ink mb-1">Nenhum documento para editar</h3>
             <p className="text-sm text-ink-2">
               Envie um arquivo ou cole um texto na Base de Conhecimento primeiro.
@@ -206,6 +231,7 @@ export function Editor() {
                 {filtered.map((d) => (
                   <button
                     key={d.id}
+                    type="button"
                     onClick={() => setSelectedId(d.id)}
                     aria-current={selectedId === d.id}
                     className={`text-left px-2 py-1.5 rounded-lg transition-colors ${
@@ -237,22 +263,47 @@ export function Editor() {
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
+                    readOnly={!canWrite}
                     aria-label="Título do documento"
-                    className="w-full bg-transparent text-lg font-bold text-ink outline-none border-b border-line focus:border-brand pb-2 mb-3 transition-colors"
+                    className="w-full bg-transparent text-lg font-bold text-ink outline-none border-b border-line focus:border-brand pb-2 mb-1 transition-colors read-only:cursor-default"
                   />
+                  {/* sourceName/sourceType/version/updatedAt já vinham na resposta da API mas
+                      nunca eram exibidos aqui — mesmo padrão de "vitrine de dado real
+                      subaproveitado" já corrigido em `Base.tsx` (Pilotos 019/021), reincidente
+                      nesta tela-irmã (achado do Piloto 023). */}
+                  <p className="text-[11px] text-ink-2 mb-3">
+                    {doc.sourceName
+                      ? doc.sourceName
+                      : doc.sourceType === 'text'
+                        ? 'Texto colado'
+                        : 'Origem desconhecida'}
+                    {doc.version > 1 && ` · editado · v${doc.version}`}
+                    {' · atualizado em '}
+                    {formatDate(doc.updatedAt)}
+                  </p>
                   <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
+                    readOnly={!canWrite}
                     aria-label="Conteúdo do documento"
                     spellCheck
-                    className="flex-1 w-full bg-surface-2 border border-line rounded-xl p-3 text-sm text-ink leading-relaxed outline-none focus:border-brand transition-colors resize-none min-h-[320px]"
+                    className="flex-1 w-full bg-surface-2 border border-line rounded-xl p-3 text-sm text-ink leading-relaxed outline-none focus:border-brand transition-colors resize-none min-h-[320px] read-only:cursor-default"
                   />
                   <div className="flex items-center justify-between mt-2 text-[11px] text-ink-2">
                     <span>
                       {content.length.toLocaleString('pt-BR')} caracteres · {doc.chunkCount}{' '}
                       trecho(s) indexado(s)
                     </span>
-                    {dirty && <span className="text-amber-300">alterações não salvas</span>}
+                    {dirty && (
+                      <span className="text-warning-active dark:text-warning">
+                        alterações não salvas
+                      </span>
+                    )}
+                    {!canWrite && (
+                      <span className="text-ink-2">
+                        Somente leitura — exige permissão de edição
+                      </span>
+                    )}
                   </div>
                 </>
               )}

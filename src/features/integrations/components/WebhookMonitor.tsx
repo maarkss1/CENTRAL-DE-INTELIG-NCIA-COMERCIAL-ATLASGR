@@ -17,6 +17,7 @@ import {
 } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Badge } from '../../../components/ui/Badge';
+import { Dialog } from '../../../components/ui/Dialog';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { api } from '../../../lib/api';
 
@@ -138,6 +139,7 @@ export function WebhookMonitor() {
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-ink-2" />
               <input
                 type="text"
+                aria-label="Filtrar histórico de sincronização"
                 placeholder="Filtrar por entidade, status ou ID Bitrix..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -230,50 +232,47 @@ export function WebhookMonitor() {
         </CardContent>
       </Card>
 
-      {/* Modal de Inspeção */}
-      {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6">
-          <Card className="w-full max-w-xl shadow-2xl border-line">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-line pb-4">
-              <div>
-                <CardTitle className="text-base">Sincronização Bitrix24</CardTitle>
-                <CardDescription>
-                  {selectedLog.direction === 'inbound' ? 'Bitrix → Atlas' : 'Atlas → Bitrix'} —{' '}
-                  {ENTITY_LABEL[selectedLog.entityType] || selectedLog.entityType}
-                  {selectedLog.bitrixRecordId ? ` #${selectedLog.bitrixRecordId}` : ''}
-                </CardDescription>
+      {/* Modal de Inspeção — primitivo Dialog (<dialog> nativo) em vez de HTML bruto: foco,
+          Escape e clique-fora já resolvidos ali, não precisam ser reimplementados aqui
+          (achado do Piloto 011). */}
+      <Dialog
+        isOpen={!!selectedLog}
+        onClose={() => setSelectedLog(null)}
+        title="Sincronização Bitrix24"
+        maxWidth="max-w-xl"
+      >
+        {selectedLog && (
+          <div className="space-y-3 text-xs">
+            <p className="text-ink-2">
+              {selectedLog.direction === 'inbound' ? 'Bitrix → Atlas' : 'Atlas → Bitrix'} —{' '}
+              {ENTITY_LABEL[selectedLog.entityType] || selectedLog.entityType}
+              {selectedLog.bitrixRecordId ? ` #${selectedLog.bitrixRecordId}` : ''}
+            </p>
+            <div className="flex items-center gap-2">
+              <Badge variant={statusBadgeVariant(selectedLog.status)}>
+                {statusLabel(selectedLog.status)}
+              </Badge>
+              <span className="text-ink-2">
+                {new Date(selectedLog.createdAt).toLocaleString('pt-BR')}
+              </span>
+            </div>
+            {selectedLog.errorMessage && (
+              <div className="p-3 rounded-xl border border-danger/30 bg-danger/10 text-danger-active dark:text-danger flex items-start gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{selectedLog.errorMessage}</span>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setSelectedLog(null)}>
-                Fechar
-              </Button>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-3 text-xs">
-              <div className="flex items-center gap-2">
-                <Badge variant={statusBadgeVariant(selectedLog.status)}>
-                  {statusLabel(selectedLog.status)}
-                </Badge>
-                <span className="text-ink-2">
-                  {new Date(selectedLog.createdAt).toLocaleString('pt-BR')}
-                </span>
-              </div>
-              {selectedLog.errorMessage && (
-                <div className="p-3 rounded-xl border border-danger/30 bg-danger/10 text-danger-active dark:text-danger flex items-start gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>{selectedLog.errorMessage}</span>
-                </div>
-              )}
-              <dl className="grid grid-cols-2 gap-2 text-ink-2">
-                <dt className="font-semibold text-ink">Lead local</dt>
-                <dd className="font-mono">{selectedLog.leadId || 'não vinculado ainda'}</dd>
-                <dt className="font-semibold text-ink">Conexão</dt>
-                <dd className="font-mono">{selectedLog.connectionId || '—'}</dd>
-                <dt className="font-semibold text-ink">Correlation ID</dt>
-                <dd className="font-mono break-all">{selectedLog.correlationId || '—'}</dd>
-              </dl>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            )}
+            <dl className="grid grid-cols-2 gap-2 text-ink-2">
+              <dt className="font-semibold text-ink">Lead local</dt>
+              <dd className="font-mono">{selectedLog.leadId || 'não vinculado ainda'}</dd>
+              <dt className="font-semibold text-ink">Conexão</dt>
+              <dd className="font-mono">{selectedLog.connectionId || '—'}</dd>
+              <dt className="font-semibold text-ink">Correlation ID</dt>
+              <dd className="font-mono break-all">{selectedLog.correlationId || '—'}</dd>
+            </dl>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }

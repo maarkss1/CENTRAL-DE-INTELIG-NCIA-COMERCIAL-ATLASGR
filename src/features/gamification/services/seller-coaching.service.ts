@@ -4,12 +4,15 @@ import { logger } from '../../../lib/logger.js';
 
 export interface SellerPerformanceData {
   sellerName: string;
-  role: 'SDR / Hunter' | 'Closer / Executivo de Contas' | 'Account Manager / Farmer';
+  // Sem fonte real no schema atual (não existe outcome de ligação registrado, tipo de atividade
+  // "proposta", nem função de vendas em User.role, que é RBAC — ver Piloto 007 em
+  // .claude/PILOTS.md). Opcionais em vez de fabricados: nunca preenchidos com um valor inventado.
+  role?: 'SDR / Hunter' | 'Closer / Executivo de Contas' | 'Account Manager / Farmer';
   period: string;
   callsMade: number;
-  connectionsRatePercent: number;
+  connectionsRatePercent?: number;
   meetingsScheduled: number;
-  proposalsSent: number;
+  proposalsSent?: number;
   dealsClosed: number;
   conversionRatePercent: number;
   avgTicket: number;
@@ -37,6 +40,7 @@ Regras:
 1. Comece celebrando um ponto forte real com energia.
 2. Seja cirúrgico nos gargalos (ex: se fez muitas ligações mas poucas reuniões, o problema é o gancho inicial/quebra-gelo).
 3. Entregue 2 ou 3 micro-hábitos diários fáceis de aplicar na semana seguinte.
+4. Se um campo de performance não vier informado no JSON de entrada, não presuma nem invente o valor — ignore-o na análise e não mencione uma métrica que não foi fornecida.
 
 Retorne SEMPRE e APENAS um JSON válido no formato:
 {

@@ -92,13 +92,28 @@ describe('NotificationService.markRead', () => {
 describe('NotificationService.remove', () => {
     it('não apaga notificação de outro tenant', async () => {
         notif.deleteMany.mockResolvedValue({ count: 0 });
-        expect(await notificationService.remove(ORG, 'alheia', USER)).toBe(false);
+        expect(await notificationService.remove(ORG, 'alheia', USER, false)).toBe(false);
         expect(notif.deleteMany.mock.calls[0][0].where).toMatchObject({ organizationId: ORG });
     });
 
     it('não apaga notificação pessoal de outro usuário da mesma organização', async () => {
         notif.deleteMany.mockResolvedValue({ count: 0 });
-        expect(await notificationService.remove(ORG, 'n-de-outro-usuario', USER)).toBe(false);
+        expect(await notificationService.remove(ORG, 'n-de-outro-usuario', USER, false)).toBe(false);
+        expect(notif.deleteMany.mock.calls[0][0].where.OR).toEqual([{ userId: USER }]);
+    });
+
+    // Achado real do Piloto 021: userId: null = "para toda a organização", mas sem tabela de
+    // leitura por-destinatário, tratar broadcast como "todo mundo é dono" deixava qualquer usuário
+    // apagar um alerta de equipe antes dos outros verem.
+    it('sem canManageBroadcast, o OR nunca inclui userId:null — não alcança notificação da organização inteira', async () => {
+        notif.deleteMany.mockResolvedValue({ count: 0 });
+        await notificationService.remove(ORG, 'broadcast-1', USER, false);
+        expect(notif.deleteMany.mock.calls[0][0].where.OR).toEqual([{ userId: USER }]);
+    });
+
+    it('com canManageBroadcast (ADMIN/GESTOR), o OR inclui userId:null — pode apagar notificação da organização inteira', async () => {
+        notif.deleteMany.mockResolvedValue({ count: 1 });
+        expect(await notificationService.remove(ORG, 'broadcast-1', USER, true)).toBe(true);
         expect(notif.deleteMany.mock.calls[0][0].where.OR).toEqual([{ userId: USER }, { userId: null }]);
     });
 });
