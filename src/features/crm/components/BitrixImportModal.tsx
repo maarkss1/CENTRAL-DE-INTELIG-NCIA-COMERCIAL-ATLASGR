@@ -169,7 +169,10 @@ export function BitrixImportModal({ isOpen, onClose, onImportSuccess }: BitrixIm
         <div className="p-6 border-b border-line space-y-4 bg-surface">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="bitrix-import-connection" className="block text-xs font-bold text-ink-2 mb-1.5 uppercase">
+              <label
+                htmlFor="bitrix-import-connection"
+                className="block text-xs font-bold text-ink-2 mb-1.5 uppercase"
+              >
                 Portal Bitrix Conectado
               </label>
               <select
@@ -190,10 +193,17 @@ export function BitrixImportModal({ isOpen, onClose, onImportSuccess }: BitrixIm
               {/* Não é <label htmlFor>: rotula um grupo de 2 botões de escolha, não um único
                   controle de formulário — role="group" + aria-labelledby é a associação correta
                   aqui, não um for/id que não teria um alvo único. */}
-              <span id="bitrix-import-entity-label" className="block text-xs font-bold text-ink-2 mb-1.5 uppercase">
+              <span
+                id="bitrix-import-entity-label"
+                className="block text-xs font-bold text-ink-2 mb-1.5 uppercase"
+              >
                 Objeto do Bitrix
               </span>
-              <div role="group" aria-labelledby="bitrix-import-entity-label" className="grid grid-cols-2 gap-2">
+              <div
+                role="group"
+                aria-labelledby="bitrix-import-entity-label"
+                className="grid grid-cols-2 gap-2"
+              >
                 <button
                   type="button"
                   onClick={() => setEntityType('lead')}

@@ -157,7 +157,12 @@ export function SavedSearchesModal({
             >
               <h3 className="text-xs font-bold uppercase text-ink-2">Nova Busca Salva</h3>
               <div>
-                <label htmlFor="saved-search-name" className="text-xs font-medium text-ink block mb-1">Nome da Lista</label>
+                <label
+                  htmlFor="saved-search-name"
+                  className="text-xs font-medium text-ink block mb-1"
+                >
+                  Nome da Lista
+                </label>
                 <input
                   id="saved-search-name"
                   type="text"
@@ -169,7 +174,10 @@ export function SavedSearchesModal({
                 />
               </div>
               <div>
-                <label htmlFor="saved-search-schedule" className="text-xs font-medium text-ink block mb-1">
+                <label
+                  htmlFor="saved-search-schedule"
+                  className="text-xs font-medium text-ink block mb-1"
+                >
                   Recorrência Automática
                 </label>
                 <select

@@ -49,7 +49,8 @@ const TYPE_ICONS: Record<string, React.JSX.Element> = {
 // Tailwind, mas cada uma precisa do par `dark:` que faltava (achado do Piloto 015): sem isso, os
 // badges ficavam com fundo claro sólido sobre o app em tema escuro.
 const TYPE_COLORS: Record<string, string> = {
-  ligação: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900',
+  ligação:
+    'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900',
   'e-mail':
     'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900',
   whatsapp:
@@ -60,7 +61,8 @@ const TYPE_COLORS: Record<string, string> = {
     'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900',
   'follow-up':
     'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-900',
-  tarefa: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900',
+  tarefa:
+    'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900',
 };
 
 // Status tem significado semântico direto (pendente=alerta, concluída=sucesso) — usa os tokens do
@@ -704,11 +706,13 @@ export function ActivityList() {
                         ))}
                       </div>
                     )}
-                    {!leadSearchLoading && leadSearch.trim().length > 0 && leadResults.length === 0 && (
-                      <p className="text-[11px] text-ink-2 mt-1">
-                        Nenhum negócio encontrado para &quot;{leadSearch}&quot;.
-                      </p>
-                    )}
+                    {!leadSearchLoading &&
+                      leadSearch.trim().length > 0 &&
+                      leadResults.length === 0 && (
+                        <p className="text-[11px] text-ink-2 mt-1">
+                          Nenhum negócio encontrado para &quot;{leadSearch}&quot;.
+                        </p>
+                      )}
                   </>
                 )}
               </div>
