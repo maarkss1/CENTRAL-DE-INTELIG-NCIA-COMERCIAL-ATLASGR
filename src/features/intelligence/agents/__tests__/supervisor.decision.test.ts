@@ -1,4 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// mem0.ts faz `await import('mem0ai')` de propósito (lazy, mem0ai não é dependência real do
+// projeto — ver comentário em mem0.ts) e trata a ausência do pacote em runtime real via
+// try/catch. Vite/Vitest, porém, tentam resolver o import dinâmico em tempo de transform mesmo
+// assim, o que quebra a suíte antes do try/catch entrar em ação — mockado para não depender do
+// pacote estar instalado neste ambiente de teste. supervisor.agent.ts importa agentMemory no
+// nível do módulo, então mesmo só usando supervisorDecisionSchema/fallbackDecision/enforceLeadGuard
+// (funções puras, sem memória) o import dispara o carregamento de mem0.ts.
+vi.mock('../../../../lib/ai/memory/mem0.js', () => ({
+  agentMemory: {
+    search: vi.fn().mockResolvedValue([]),
+    formatForPrompt: vi.fn().mockReturnValue(''),
+    add: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import { supervisorDecisionSchema, fallbackDecision, enforceLeadGuard } from '../supervisor.agent';
 
 describe('supervisorDecisionSchema', () => {
