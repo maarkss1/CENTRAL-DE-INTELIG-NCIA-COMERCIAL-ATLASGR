@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { connection, queuesEnabled } from '../../lib/queue/redis.js';
 import { logger } from '../../lib/logger.js';
 

@@ -1,5 +1,5 @@
 import { prisma } from '../../../../lib/prisma.js';
-import { LeadStatus, Prisma } from '@prisma/client';
+import { LeadStatus, type Prisma } from '@prisma/client';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
 import { AuditService } from '../../../../lib/audit/audit.service.js';

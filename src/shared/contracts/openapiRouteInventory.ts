@@ -110,8 +110,7 @@ export function extractMountedRoutes(serverTsSource: string): MountedRoute[] {
   const mountRegex = /app\.(?:use|get|post|put|patch|delete)\(\s*['"](\/[^'"]*)['"]/g;
   const routes: MountedRoute[] = [];
   const seen = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = mountRegex.exec(serverTsSource)) !== null) {
+  for (const match of serverTsSource.matchAll(mountRegex)) {
     const path = match[1];
     if (seen.has(path)) continue;
     seen.add(path);

@@ -15,7 +15,13 @@ import {
  */
 
 export type BitrixExtractionPeriod =
-  'today' | 'last7days' | 'thisMonth' | 'thisQuarter' | 'thisSemester' | 'all' | 'custom';
+  | 'today'
+  | 'last7days'
+  | 'thisMonth'
+  | 'thisQuarter'
+  | 'thisSemester'
+  | 'all'
+  | 'custom';
 
 export const EXTRACTION_PERIODS: readonly BitrixExtractionPeriod[] = [
   'today',

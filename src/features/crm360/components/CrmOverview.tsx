@@ -344,6 +344,7 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
                     ainda não construídas). */}
         <div
           className="flex items-center justify-between rounded-2xl border border-line border-dashed bg-surface p-4 text-left opacity-80"
+          role="note"
           aria-label="Documentos comerciais — tela dedicada ainda não disponível"
         >
           <span>
@@ -366,6 +367,7 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
         </button>
         <div
           className="flex items-center justify-between rounded-2xl border border-line border-dashed bg-surface p-4 text-left opacity-80"
+          role="note"
           aria-label="Saúde do CRM — configuração de pipelines ainda não disponível"
         >
           <span>

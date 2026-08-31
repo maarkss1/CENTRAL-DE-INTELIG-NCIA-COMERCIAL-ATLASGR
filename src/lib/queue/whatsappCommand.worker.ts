@@ -1,4 +1,4 @@
-import { Job, Worker } from 'bullmq';
+import { type Job, Worker } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { recordQueueJobCompleted } from './metrics.js';

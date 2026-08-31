@@ -5,8 +5,9 @@ import express, { type Express } from 'express';
 import { prisma } from '../../src/lib/prisma';
 import { authenticateToken } from '../../src/shared/middlewares/authenticateToken';
 import { requireTenant } from '../../src/shared/middlewares/authorization';
-import { bugReportRouter } from '../../src/features/bug-reports/bugReport.routes';
+import { bugReportRouter } from '../../src/features/bug-reports/routes/bugReport.routes';
 import { errorHandler } from '../../src/shared/middlewares/errorHandler';
+import { setupDI } from '../../src/shared/di/setup';
 import { withRlsBypass, withTenant, signUpRealUser, type RealSessionUser } from '../helpers/rbac-e2e-helpers';
 
 // Ponta-a-ponta do módulo "Reportar Problema" (item 8 da governança de 12 requisitos), mesmo
@@ -37,6 +38,7 @@ describe('RBAC ponta-a-ponta — Bug Reports', () => {
     const createdOrgIds: string[] = [];
 
     beforeAll(async () => {
+        setupDI();
         app = buildApp();
 
         adminA = await signUpRealUser('bugs-admin-a', 'ADMIN');

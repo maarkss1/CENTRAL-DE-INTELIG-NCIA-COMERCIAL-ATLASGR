@@ -1,3 +1,13 @@
+# Hub de Inteligência AtlasGR
+
+**Aplicação standalone**, extraída de `public/tools/atlas-market-intelligence/` do monorepo `CENTRAL-DE-INTELIGENCIA-COMECIAL-ATLASGR` em 29/08/2026, a pedido do usuário — não faz mais parte da Central de Inteligência Comercial e não compartilha build, deploy ou banco de dados com ela. Marca única **AtlasGR** (sem alternância Total Trac, que só existe no app principal).
+
+É a versão estática (HTML + JSON + ETL Python) desta ferramenta. O monorepo de origem migrou a via de desenvolvimento ativo para uma feature React nativa (`src/features/market-intelligence/`) — este hub standalone é deliberadamente a via HTML/estática, independente daquele código.
+
+Já vem pronto para deploy estático (Vercel — ver `vercel.json`) ou uso local (abrir `index.html` ou `lacuna-gr-hub.html` diretamente, ou servir a pasta com qualquer servidor estático).
+
+---
+
 # Atlas GR National Market & Territory Intelligence System
 
 Plataforma de geointeligência, inteligência de mercado e planejamento territorial para responder com evidência:

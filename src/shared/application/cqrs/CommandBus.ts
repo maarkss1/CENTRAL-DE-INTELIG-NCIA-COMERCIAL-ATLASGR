@@ -67,7 +67,8 @@ export class CommandBus implements ICommandBus {
     context: UseCaseContext = UseCaseContext.create(),
   ): Promise<CommandResult<TValue>> {
     const handler = this.handlers.get(command.commandName) as
-      ICommandHandler<TCommand, TValue> | undefined;
+      | ICommandHandler<TCommand, TValue>
+      | undefined;
 
     if (!handler) {
       return Result.fail<TValue, ApplicationError>(

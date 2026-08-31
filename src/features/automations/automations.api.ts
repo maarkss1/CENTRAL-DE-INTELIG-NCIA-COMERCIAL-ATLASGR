@@ -15,7 +15,10 @@ export type AutomationAction = 'Notificar equipe' | 'Criar atividade' | 'Ligar v
  * "Negócio parado há X dias") — nunca colide com uma condição de igualdade legada (sempre string).
  */
 export type AutomationConditionOperator =
-  { gte: number } | { lte: number } | { gt: number } | { lt: number };
+  | { gte: number }
+  | { lte: number }
+  | { gt: number }
+  | { lt: number };
 export type AutomationConditions = Record<string, string | AutomationConditionOperator>;
 
 export interface Automation {

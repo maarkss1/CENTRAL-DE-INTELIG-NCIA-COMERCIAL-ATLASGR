@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { LeadUseCases } from '../application/LeadUseCases';
-import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import type { Request, Response, NextFunction } from 'express';
+import type { LeadUseCases } from '../application/LeadUseCases';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import { automationEngine } from '../../automations/automation.engine';
 import { logger } from '../../../lib/logger';
 import type { LeadFunnel } from '@prisma/client';
@@ -78,7 +78,9 @@ export class LeadController {
     try {
       const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
       const leadId = req.params.id;
-      let lead;
+      let lead:
+        | Awaited<ReturnType<typeof this.leadUseCases.updateLeadStatus>>
+        | Awaited<ReturnType<typeof this.leadUseCases.updateLead>>;
       let statusMudou = false;
       if (req.body.status && Object.keys(req.body).length === 1) {
         lead = await this.leadUseCases.updateLeadStatus(

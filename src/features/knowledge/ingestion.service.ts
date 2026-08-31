@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { prisma, withRlsContext } from '../../lib/prisma.js';
 import { logger } from '../../lib/logger.js';
 import { generateEmbedding } from '../../lib/ai/gateway.js';

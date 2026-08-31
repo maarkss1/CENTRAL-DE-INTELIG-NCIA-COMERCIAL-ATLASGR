@@ -19,7 +19,7 @@ import {
   PhoneCall,
   MessageCircle,
 } from 'lucide-react';
-import { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
+import type { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
 // LEAD_STATUS é reexportado como tipo em ../../../types (export type {...}) — o array em
 // runtime só existe na fonte original.
 import { LEAD_STATUS } from '../../../lib/zod';
@@ -623,10 +623,14 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
                     {QUALIFICATION_GROUPS.map((group) => (
                       <div key={group.category} className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-ink-2 block">
+                        <label
+                          htmlFor={`qual-${group.category}`}
+                          className="text-[10px] font-bold uppercase tracking-wider text-ink-2 block"
+                        >
                           {group.label}
                         </label>
                         <select
+                          id={`qual-${group.category}`}
                           value={qualDraft[group.category as keyof LeadQualification] || ''}
                           onChange={(e) =>
                             setQualDraft({ ...qualDraft, [group.category]: e.target.value })

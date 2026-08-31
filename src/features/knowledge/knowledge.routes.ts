@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
 import mammoth from 'mammoth';
 // Onda 42 (CPI, DEC-10 opção A): suporte real a PDF. `pdf-parse` ainda não está no

@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { authClient } from '../lib/auth-client';
 import { getBrandFromEmail } from '../config/access-policy';
 import {

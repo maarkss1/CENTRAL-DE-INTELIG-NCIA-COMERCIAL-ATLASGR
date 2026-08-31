@@ -1,6 +1,6 @@
-import { Automation, AutomationRepository } from '../domain/Automation';
+import type { Automation, AutomationRepository } from '../domain/Automation';
 import { prisma } from '../../../lib/prisma.js';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import {
   toPrismaAutomationTrigger,
   fromPrismaAutomationTrigger,

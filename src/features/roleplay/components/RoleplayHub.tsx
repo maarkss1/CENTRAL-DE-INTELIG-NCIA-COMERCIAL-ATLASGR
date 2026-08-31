@@ -178,7 +178,9 @@ export function RoleplayHub() {
         const url = URL.createObjectURL(audioBlob);
         setAudioBlobUrl(url);
         // Parar as faixas do microfone
-        stream.getTracks().forEach((track) => track.stop());
+        stream.getTracks().forEach((track) => {
+          track.stop();
+        });
       };
 
       mediaRecorder.start();

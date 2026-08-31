@@ -380,7 +380,9 @@ export class AnalyticsService {
     });
 
     const qualMap = new Map<string, number>();
-    qualifiedStats.forEach((q) => qualMap.set(q.owner || '', q._count._all));
+    qualifiedStats.forEach((q) => {
+      qualMap.set(q.owner || '', q._count._all);
+    });
 
     return ownerStats
       .map((s) => {

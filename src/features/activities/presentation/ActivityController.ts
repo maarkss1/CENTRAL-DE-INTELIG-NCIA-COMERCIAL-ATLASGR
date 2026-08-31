@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { ActivityUseCases } from '../application/ActivityUseCases';
-import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import type { Request, Response, NextFunction } from 'express';
+import type { ActivityUseCases } from '../application/ActivityUseCases';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import type { ActivityStatus, ActivityType } from '../../../lib/zod';
 
 export class ActivityController {

@@ -1,5 +1,5 @@
 import { StateGraph, Annotation } from '@langchain/langgraph';
-import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { type BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { SDRQualificationAgent } from './sdrQualification.agent.js';
@@ -738,7 +738,8 @@ export class SwarmOrchestrator {
       for await (const chunk of stream) {
         const nodeName = Object.keys(chunk)[0];
         const nodeData = chunk[nodeName as keyof typeof chunk] as
-          { messages?: BaseMessage[] } | undefined;
+          | { messages?: BaseMessage[] }
+          | undefined;
         const msgs = nodeData?.messages;
         if (msgs && msgs.length > 0) {
           const lastMsg = msgs[msgs.length - 1] as AIMessage;

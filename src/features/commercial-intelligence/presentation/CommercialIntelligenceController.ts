@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import {
-  CommercialIntelligenceUseCases,
+  type CommercialIntelligenceUseCases,
   currentPeriod,
 } from '../application/CommercialIntelligenceUseCases';
 import { METRICS_DICTIONARY } from '../application/metricsDictionary';

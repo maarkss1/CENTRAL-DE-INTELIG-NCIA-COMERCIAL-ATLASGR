@@ -26,13 +26,13 @@ import {
 } from 'lucide-react';
 import { useActivities } from '../../../hooks/useDatabase';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Activity, Lead } from '../../../types';
+import type { Activity, Lead } from '../../../types';
 import { api, downloadFile } from '../../../lib/api';
 import { leadsDB } from '../../../lib/db';
 import { toast } from '../../../lib/toast';
 import { clientLogger } from '../../../lib/clientLogger';
 import type { PaletteIntent } from '../../../lib/paletteIntent';
-import React from 'react';
+import type React from 'react';
 
 const TYPE_ICONS: Record<string, React.JSX.Element> = {
   ligação: <Phone className="w-4 h-4" />,

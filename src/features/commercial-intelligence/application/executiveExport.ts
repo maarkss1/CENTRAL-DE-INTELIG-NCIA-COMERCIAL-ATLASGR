@@ -100,7 +100,9 @@ export function buildExecutiveExportRows(
   if (alerts.length === 0) {
     add('Alertas', 'Nenhum risco identificado', 'Nenhum alerta ativo neste snapshot', '');
   } else {
-    alerts.forEach((alert) => add('Alertas', alert.title, alert.description, ''));
+    alerts.forEach((alert) => {
+      add('Alertas', alert.title, alert.description, '');
+    });
   }
 
   return rows;
