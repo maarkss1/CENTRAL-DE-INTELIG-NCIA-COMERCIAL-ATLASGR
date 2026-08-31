@@ -12,10 +12,10 @@ import {
   Trash2,
   Sparkles,
   Loader2,
-  Linkedin,
   WifiOff,
   MessageCircle,
 } from 'lucide-react';
+import { LinkedinIcon as Linkedin } from '../../../components/ui/icons/LinkedinIcon';
 import { Contact } from '../../../types';
 import { ContactForm } from './ContactForm';
 import { useContacts } from '../../../hooks/useDatabase';
