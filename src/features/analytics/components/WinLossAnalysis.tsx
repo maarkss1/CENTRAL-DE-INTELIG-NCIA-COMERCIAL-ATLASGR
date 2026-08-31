@@ -226,7 +226,7 @@ export function WinLossAnalysis() {
                   <span className="text-2xl shrink-0 mt-0.5">{section.icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-brand bg-brand/10 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-brand-active dark:text-brand-2 bg-brand/10 px-2 py-0.5 rounded-full">
                         Insight {i + 1}
                       </span>
                       <ChevronRight className="w-3 h-3 text-ink-2" />

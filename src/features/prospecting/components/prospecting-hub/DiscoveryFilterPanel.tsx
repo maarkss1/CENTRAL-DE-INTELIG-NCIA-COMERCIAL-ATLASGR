@@ -78,7 +78,7 @@ export function DiscoveryFilterPanel({
     <div className="xl:col-span-4 bg-surface p-6 sm:p-8 rounded-2xl border border-line shadow-sm relative overflow-hidden flex flex-col h-full max-h-[800px]">
       <div className="absolute top-0 right-0 w-40 h-40 bg-brand opacity-5 transform rotate-45 translate-x-20 -translate-y-20" />
       <div className="flex items-center gap-2 mb-6 relative z-10">
-        <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
+        <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand-active dark:text-brand-2">
           <Database size={18} />
         </div>
         <h2 className="font-black text-xl text-ink">🗺️ Motor de Busca Turbo</h2>

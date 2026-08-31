@@ -69,7 +69,7 @@ export function ChangePasswordGate() {
       <div className="w-full max-w-md relative z-10">
         <div className="glass-panel p-8 sm:p-10 rounded-[2.5rem] border border-line bg-surface/95 shadow-2xl">
           <div className="flex flex-col items-center mb-6 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-brand/10 flex items-center justify-center text-brand mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-brand/10 flex items-center justify-center text-brand-active dark:text-brand-2 mb-4">
               <KeyRound size={24} />
             </div>
             <h1 className="text-xl font-black text-ink">Troque sua senha para continuar</h1>

@@ -260,7 +260,7 @@ export function SalesMethodologyStudio() {
               <Sparkles className="w-5 h-5 text-brand" />
               <h3 className="font-bold text-ink text-base">Parâmetros ICP & Persona Target</h3>
             </div>
-            <span className="text-[10px] bg-brand/10 text-brand font-bold px-2 py-0.5 rounded border border-brand/20">
+            <span className="text-[10px] bg-brand/10 text-brand-active dark:text-brand-2 font-bold px-2 py-0.5 rounded border border-brand/20">
               Rascunho para revisão
             </span>
           </div>
@@ -385,7 +385,7 @@ export function SalesMethodologyStudio() {
         <div className="lg:col-span-7 space-y-6">
           {!result && !generating && (
             <div className="glass-panel p-12 rounded-3xl border border-line text-center bg-surface flex flex-col items-center justify-center min-h-[440px]">
-              <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center text-brand mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center text-brand-active dark:text-brand-2 mb-4">
                 <Lightbulb className="w-8 h-8 animate-bounce" />
               </div>
               <h3 className="text-xl font-bold text-ink mb-2">

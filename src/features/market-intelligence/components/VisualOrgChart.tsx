@@ -45,7 +45,7 @@ const HIERARCHY_LEVELS: LevelConfig[] = [
     id: 'directors',
     title: 'Diretoria & VPs',
     icon: Briefcase,
-    colorBadge: 'bg-brand/10 text-brand border-brand/20',
+    colorBadge: 'bg-brand/10 text-brand-active dark:text-brand-2 border-brand/20',
     borderAccent: 'border-brand/30',
     bgAccent: 'bg-brand/5',
   },

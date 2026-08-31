@@ -395,7 +395,7 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
                   key={key}
                   className="bg-surface p-5 rounded-2xl border border-line shadow-sm flex flex-wrap items-center gap-x-4 gap-y-2"
                 >
-                  <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center text-brand shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center text-brand-active dark:text-brand-2 shrink-0">
                     <User size={16} />
                   </div>
                   <div className="min-w-0">
