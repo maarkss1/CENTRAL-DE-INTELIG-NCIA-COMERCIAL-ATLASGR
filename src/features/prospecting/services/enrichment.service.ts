@@ -26,7 +26,7 @@ import { prisma } from '../../../lib/prisma.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
-import { isValidCnpj, discoverCnpjByName } from './cnpj.util';
+import { isValidCnpj, discoverCnpjByName, sanitizeCnpj } from './cnpj.util';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService';
 import { searchGooglePlace } from './places.service';
 import { searchNominatimPlace } from './nominatim.service';
@@ -343,7 +343,10 @@ async function runEnrichment(
       enrichmentSourceLabel = 'BrasilAPI/Receita Federal';
       cnaeDescription = lookup.data.cnaeDescription;
       Object.assign(updateData, {
-        cnpj: lookup.cnpj,
+        // lookup.cnpj vem pontuado (fetchCnpjData/formatCnpj, pensado pra exibição na tela de
+        // preview) — grava normalizado pra dígitos puros, mesmo formato dos outros write paths de
+        // Company.cnpj (Onda 43, achado: 3 formatos diferentes coexistiam no banco).
+        cnpj: sanitizeCnpj(lookup.cnpj),
         legalName: lookup.data.legalName,
         tradeName: lookup.data.tradeName,
         situacaoCadastral: lookup.data.situacaoCadastral,

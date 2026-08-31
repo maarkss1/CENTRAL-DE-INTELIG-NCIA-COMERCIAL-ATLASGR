@@ -1,0 +1,98 @@
+FASE 0 — AUDITORIA REAL E PLANO DE IMPLEMENTAÇÃO DO LDR
+
+PAPEL PRINCIPAL
+Você é o Agente 00 — Coordenador do repositório CENTRAL-DE-INTELIGENCIA-COMECIAL-ATLASGR.
+
+MISSÃO
+Antes de criar qualquer feature, audite o repositório atual e produza o mapa de reaproveitamento do LDR / Account Intelligence. O objetivo é descobrir exatamente o que já existe, o que está parcial, mockado, quebrado ou ausente.
+
+AGENTES A ORQUESTRAR
+- 01 Plataforma, Segurança e Dados
+- 02 Produto e UX
+- 04 CRM e BI
+- 05 Prospecção
+- 06 Integrações e Bitrix
+- 07 IA e Automações
+- 13 Enxame Autônomo e Governança de Agentes Runtime
+- 16 Runtime, Workers e Escala
+- 17 Cadência Multicanal e Ciclo de Receita
+- 18 Contratos, API e Documentação Viva
+- 08 QA e Release
+- 14 Ambiente de Execução e Test Harness
+
+REGRAS DE EXECUÇÃO
+1. Leia AGENTS.md antes de qualquer ação.
+2. Leia os prompts reais dos agentes em .agents/prompts/.
+3. Não permita edição concorrente em arquivo compartilhado.
+4. Crie worktrees/branches isolados apenas se houver alteração de código. Nesta fase, priorize auditoria read-only.
+5. Não aceite suposições como evidência.
+6. Toda conclusão deve apontar arquivo, rota, serviço, model ou workflow real encontrado.
+
+AUDITORIA OBRIGATÓRIA
+Investigue:
+- /market-intelligence e rotas equivalentes;
+- componentes de busca e listagem de empresas;
+- serviços de CNPJ/Receita/BrasilAPI;
+- Apollo/enriquecimento;
+- Perplexity/pesquisa web/Apify;
+- scoreEngine e taxonomias ICP;
+- models Prisma de lead/company/account/contact;
+- Bitrix sync, webhooks, workers e filas;
+- AIPendingAction e approval flows;
+- agentes runtime SDR/BDR/Closer/Supervisor;
+- scheduler 24/7;
+- cadências multicanal;
+- APIs atuais;
+- testes unitários, integração e E2E;
+- observabilidade, logs e métricas;
+- tratamento de PII e segredos;
+- qualquer implementação existente de signals, intent, next-best-action, lookalike, enrichment, company intelligence ou account intelligence.
+
+CLASSIFICAÇÃO OBRIGATÓRIA
+Para cada capability, marque:
+- FUNCIONA
+- PARCIAL
+- MOCK
+- QUEBRADO
+- NÃO IMPLEMENTADO
+
+CAPABILITIES A CLASSIFICAR
+1. Busca de empresa real
+2. Perfil cadastral da empresa
+3. Enriquecimento
+4. ICP/Fit
+5. Account Score
+6. Evidências/fontes
+7. Sinais
+8. Timeline de sinais
+9. Decisores
+10. Grupo econômico
+11. Resumo IA
+12. Next Best Action
+13. Integração Bitrix
+14. Criação de tarefa no Bitrix
+15. Início de cadência
+16. Persistência de snapshots
+17. Reprocessamento assíncrono
+18. Feedback/aprendizado
+19. Segurança/PII
+20. Testes ponta a ponta
+
+ENTREGÁVEIS
+Crie:
+- .agents/runs/ldr-fase-0-auditoria.md
+- .agents/handoffs/ldr-fase-0/ quando necessário
+
+O relatório deve conter:
+A. mapa da arquitetura atual;
+B. tabela FUNCIONA/PARCIAL/MOCK/QUEBRADO/NÃO IMPLEMENTADO;
+C. arquivos e services que serão reaproveitados;
+D. arquivos que precisam ser criados;
+E. riscos técnicos;
+F. dependências externas;
+G. ordem exata de implementação das fases 1–7;
+H. matriz de ownership por agente;
+I. critérios de aceite globais.
+
+CRITÉRIO DE SAÍDA
+A fase só termina quando houver um plano de implementação baseado em evidências do repositório real, sem código duplicado e com ownership claro por agente.

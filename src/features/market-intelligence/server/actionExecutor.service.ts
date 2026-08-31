@@ -53,7 +53,46 @@ export const actionExecutorService = {
 
           return { success: true, taskId: response?.result?.task?.id };
         } else if (recommendation.actionType === 'START_SDR_CADENCE') {
-          // Handoff lógico (Fase 4 stub)
+          if (!company.organizationId) throw new AppError('Conta sem organização.', 400);
+
+          const lead = await prisma.lead.findFirst({
+            where: { companyId: company.id, deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (!lead)
+            throw new AppError('Nenhum lead associado a esta conta para iniciar cadência.', 400);
+
+          const sequenceRow = await prisma.cadenceSequence.findFirst({
+            where: { organizationId: company.organizationId, active: true, deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (!sequenceRow)
+            throw new AppError('Nenhuma sequência ativa encontrada para iniciar cadência.', 400);
+
+          const userId = getUserId();
+          const { startCadenceRun } = await import('../../cadence/domain/cadence.js');
+          const { prismaCadenceRunRepository } =
+            await import('../../cadence/infra/PrismaCadenceRunRepository.js');
+          const { randomUUID } = await import('node:crypto');
+
+          const run = startCadenceRun({
+            id: randomUUID(),
+            organizationId: company.organizationId,
+            leadId: lead.id,
+            sequenceId: sequenceRow.id,
+            startedAt: new Date(),
+            createdBy: userId || 'system',
+          });
+
+          try {
+            await prismaCadenceRunRepository.save(run);
+          } catch (err: any) {
+            if (err?.code === 'P2002') {
+              throw new AppError('Este lead já tem uma cadência ativa em andamento.', 409);
+            }
+            throw err;
+          }
+
           await prisma.accountRecommendation.update({
             where: { id: recommendationId },
             data: {
@@ -61,7 +100,7 @@ export const actionExecutorService = {
               executedAt: new Date(),
             },
           });
-          return { success: true, message: 'Cadência iniciada logicamente.' };
+          return { success: true, message: 'Cadência iniciada.' };
         } else {
           // Outras ações suportadas logicamente
           await prisma.accountRecommendation.update({

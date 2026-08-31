@@ -25,7 +25,12 @@ agrupados por tema — só os que ainda existem neste diretório; seis relatóri
 aqui (`EXECUTIVE_MATRIX_ROADMAP.md`, `FINAL_FORENSIC_AUDIT.md`, `RELATORIO_TECHNICAL_DEBT.md`,
 `RELATORIO_UX_USABILIDADE_DIVIDA_TECNICA.md`, `Sprint0-Audit.md`,
 `TECHNICAL_DEBT_50_50_ANALYSIS.md`) foram removidos do controle de versão em 22/08/2026 por
-pedido explícito do usuário — ver [`docs/REMOVED-DOCS.md`](../REMOVED-DOCS.md).
+pedido explícito do usuário — ver [`docs/REMOVED-DOCS.md`](../REMOVED-DOCS.md). Mais seis
+(`RELATORIO_TESTES.md`, `TEST_RESOLUTION_REPORT.md`, `PENTEST_REPORT.md`, `HARDENING_REPORT.md`,
+`RELATORIO_SEGURANCA.md`, `SECURITY_IMPLEMENTATION_REPORT.md`) foram removidos pelo mesmo motivo
+em 30/08/2026 (Onda 43) — todos placeholders rasos ou já descrevendo uma arquitetura de
+autenticação (JWT/refresh token) que não é mais real desde a migração para Better Auth; ver
+`docs/REMOVED-DOCS.md`.
 
 ## Auditorias gerais e roadmap enterprise
 
@@ -49,19 +54,13 @@ pedido explícito do usuário — ver [`docs/REMOVED-DOCS.md`](../REMOVED-DOCS.m
 
 - [`RELATORIO_QA.md`](RELATORIO_QA.md) — Status de lint/typecheck/build e pendências de suíte de testes (Vitest, Playwright, MSW).
 - [`RELATORIO_FINAL_QA.md`](RELATORIO_FINAL_QA.md) — Infraestrutura de testes enterprise: configs separadas de unit/integration, factories, E2E Playwright, CI.
-- [`RELATORIO_TESTES.md`](RELATORIO_TESTES.md) — Relatório placeholder confirmando build/lint sem detalhar suíte de testes.
-- [`TEST_RESOLUTION_REPORT.md`](TEST_RESOLUTION_REPORT.md) — Causa raiz e correção de falhas de FK/paralelismo nos testes de integração.
 
 ## Segurança e compliance
 
 - [`COMPLIANCE_REPORT.md`](COMPLIANCE_REPORT.md) — LGPD, SOC2 readiness e OWASP ASVS.
-- [`PENTEST_REPORT.md`](PENTEST_REPORT.md) — Resultado de pentest (scan automatizado + revisão manual OWASP Top 10).
-- [`RELATORIO_SEGURANCA.md`](RELATORIO_SEGURANCA.md) — Relatório placeholder sobre mitigação de Mass Assignment e atualização de ORM.
-- [`SECURITY_IMPLEMENTATION_REPORT.md`](SECURITY_IMPLEMENTATION_REPORT.md) — Fase 21: JWT/refresh tokens, RBAC/ABAC, criptografia AES-256-GCM, AuditLog, hardening (Helmet/CORS/rate limit).
 
 ## Infraestrutura, performance e produção
 
-- [`HARDENING_REPORT.md`](HARDENING_REPORT.md) — Fase 19: hardening e estabilização (Prisma Client de produção, correção de typings/lint).
 - [`RELATORIO_INFRAESTRUTURA.md`](RELATORIO_INFRAESTRUTURA.md) — Arquitetura de infraestrutura enterprise (Docker, Kubernetes/Helm, Redis, object storage).
 - [`RELATORIO_PERFORMANCE.md`](RELATORIO_PERFORMANCE.md) — Relatório placeholder sobre tempo de build do Vite.
 - [`RELATORIO_PRODUCTION_READINESS.md`](RELATORIO_PRODUCTION_READINESS.md) — Relatório placeholder confirmando compilação bem-sucedida em Node.js.

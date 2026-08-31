@@ -1,0 +1,139 @@
+FASE 1 — FUNDAÇÃO DE DADOS, MODELOS E APIs DO LDR
+
+COORDENAÇÃO
+Agente 00 coordena.
+
+AGENTES PRINCIPAIS
+- 01 Plataforma, Segurança e Dados — dono do schema e persistência
+- 18 Contratos, API e Documentação Viva — contratos/API
+- 05 Prospecção — regras de negócio de ICP e account eligibility
+- 07 IA e Automações — contratos de dados necessários à IA
+- 08 QA e Release — critérios de aceite
+- 14 Test Harness — execução dos testes
+
+MISSÃO
+Criar a fundação persistente do LDR sem quebrar os models existentes e sem duplicar entidades já presentes no CRM/Market Intelligence.
+
+ANTES DE CODIFICAR
+1. Leia o relatório da Fase 0.
+2. Descubra quais entities existentes representam empresa, lead, contact e opportunity.
+3. Reuse IDs e relações existentes sempre que for semanticamente correto.
+4. Defina um único dono para prisma/schema.prisma e migrations.
+
+MODELOS NECESSÁRIOS
+Criar apenas o que não existir, com nomes ajustados à convenção atual do repo:
+- AccountIntelligenceSnapshot
+- AccountSignal
+- DecisionMaker
+- EconomicRelationship
+- IntelligenceEvidence
+- AccountScore
+- AccountRecommendation
+
+REQUISITOS DE DADOS
+AccountIntelligenceSnapshot:
+- account/company id
+- versão
+- generatedAt
+- expiresAt opcional
+- summary
+- structured facts
+- source status
+
+AccountSignal:
+- account id
+- type
+- title
+- description
+- detectedAt
+- effectiveAt opcional
+- source
+- sourceUrl opcional
+- confidence
+- status
+- dedupe key
+
+DecisionMaker:
+- account id
+- nome
+- cargo
+- área
+- senioridade
+- provável papel no buying committee
+- telefone/e-mail apenas quando fonte legítima disponibilizar
+- source
+- verifiedAt
+- confidence
+
+IntelligenceEvidence:
+- entity type/id
+- fact key
+- value ou hash/referência
+- source
+- sourceUrl
+- collectedAt
+- confidence
+- evidence type
+
+AccountScore:
+- total
+- fit
+- timing
+- intent
+- relationship
+- reasons positivos/negativos
+- scoreVersion
+- calculatedAt
+
+AccountRecommendation:
+- account id
+- actionType
+- title
+- rationale
+- priority
+- expectedImpact
+- status
+- generatedAt
+- executedAt opcional
+- externalRef opcional
+
+EconomicRelationship:
+- source account/company
+- target account/company
+- relation type
+- evidence/source
+- confidence
+
+API MÍNIMA
+Criar/adaptar endpoints equivalentes a:
+GET /api/market-intelligence/accounts/:id/intelligence
+POST /api/market-intelligence/accounts/:id/refresh
+GET /api/market-intelligence/accounts/:id/signals
+GET /api/market-intelligence/accounts/:id/decision-makers
+GET /api/market-intelligence/accounts/:id/relationships
+GET /api/market-intelligence/accounts/:id/recommendations
+GET /api/market-intelligence/accounts/:id/evidence
+
+REGRAS
+- Não expor payload bruto de fornecedor ao frontend quando desnecessário.
+- Não misturar dado observado e inferido.
+- Não armazenar segredo em snapshot.
+- Criar índices para consultas por account, detectedAt, score, type e status.
+- Evitar N+1.
+- Incluir paginação para coleções.
+- Validar authorization/RLS conforme arquitetura atual.
+
+TESTES
+- migration sobe em banco limpo;
+- migration sobe em banco com dados atuais;
+- CRUD/read paths essenciais;
+- autorização;
+- deduplicação de sinais;
+- histórico de score;
+- API contract tests.
+
+ENTREGÁVEL DO COORDENADOR
+.agents/runs/ldr-fase-1-fundacao.md
+
+CRITÉRIO DE SAÍDA
+Uma empresa real existente no sistema pode receber snapshot, score, evidências, sinais, decisores, relações e recomendações persistidas e consultáveis por API, sem necessidade de mock.

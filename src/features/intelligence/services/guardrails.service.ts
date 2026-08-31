@@ -1,4 +1,3 @@
-import { env } from '../../../config/env.js';
 import { prisma } from '../../../lib/prisma.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { logger } from '../../../lib/logger.js';
@@ -160,48 +159,21 @@ export class GuardrailsService {
 }
 
 /**
- * Erro específico (em vez de um `Error` genérico) para que quem chama consiga distinguir "faltou
- * base legal" de qualquer outra falha de execução do agente — e para que o teste que prova a trava
- * não dependa de comparar a mensagem de texto.
- */
-export class PiiConsentRequiredError extends Error {
-  constructor(organizationId: string | null) {
-    super(
-      `Consentimento/base legal LGPD não registrado para a organização ${organizationId ?? '(desconhecida)'} ` +
-        'enviar dado pessoal de titular a um provedor de IA externo.',
-    );
-    this.name = 'PiiConsentRequiredError';
-  }
-}
-
-/**
- * Ponto único de verificação da base legal antes de qualquer dado pessoal de um titular real
- * (nome, e-mail, telefone do Contact) ser processado por um provedor de IA externo
- * (Groq/OpenAI/LiteLLM) — ver `AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS` em src/config/env.ts.
+ * A verificação de base legal LGPD (`hasPiiExternalConsent`/`assertPiiExternalConsent`/
+ * `PiiConsentRequiredError`) foi promovida pra `src/shared/services/aiPiiConsent.service.ts`
+ * (Onda 43) — mais de um módulo vertical precisa do mesmo gate antes de enviar PII a um provedor
+ * de IA externo (hoje `intelligence` e `integrations/whatsapp`), e importar deste arquivo (dentro
+ * de `features/intelligence/`) violaria `no-cross-feature-imports`. Reexportado aqui para não
+ * quebrar os imports já existentes dentro de `intelligence/`.
  *
  * Deliberadamente diferente de `minimizePii`: minimizar troca o valor real por um token ANTES de
  * ele sair, mas o token continua sendo dado pseudonimizado do MESMO titular (reversível via
  * `rehydratePii`, então não é "anonimização" para efeito da LGPD) — ainda é tratamento de dado
  * pessoal, e precisa de base legal registrada mesmo quando a string que cruza a rede nunca contém
- * o nome/e-mail/telefone reais. Minimização decide O QUE sai; este gate decide SE pode sair.
- *
- * Fail-closed: nenhuma organização passa até aparecer explicitamente na lista.
+ * o nome/e-mail/telefone reais. Minimização decide O QUE sai; o gate decide SE pode sair.
  */
-export function hasPiiExternalConsent(organizationId: string | null | undefined): boolean {
-  if (!organizationId) return false;
-  const raw = (env.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS ?? '').trim();
-  if (!raw) return false;
-  if (raw === '*' || raw === 'all') return true;
-  return raw
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean)
-    .includes(organizationId);
-}
-
-/** Lança `PiiConsentRequiredError` quando a organização não tem base legal registrada. */
-export function assertPiiExternalConsent(organizationId: string | null | undefined): void {
-  if (!hasPiiExternalConsent(organizationId)) {
-    throw new PiiConsentRequiredError(organizationId ?? null);
-  }
-}
+export {
+  hasPiiExternalConsent,
+  assertPiiExternalConsent,
+  PiiConsentRequiredError,
+} from '../../../shared/services/aiPiiConsent.service.js';

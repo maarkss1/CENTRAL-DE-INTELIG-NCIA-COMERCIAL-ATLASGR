@@ -7,7 +7,7 @@ const { workerStub } = vi.hoisted(() => ({
 vi.mock('../../../src/config/env.js', () => ({
     env: { ENABLE_EMBEDDED_WORKERS: false, ENABLE_SEARCH: false },
 }));
-vi.mock('../../../src/lib/queue/redis.js', () => ({ queuesEnabled: true }));
+vi.mock('../../../src/lib/queue/redis.js', () => ({ queuesEnabled: true, connection: {} }));
 vi.mock('../../../src/lib/logger.js', () => ({
     logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), fatal: vi.fn() },
 }));

@@ -20,7 +20,7 @@
 // vencida, para revisão humana, mas não derruba o gate por isso: reavaliação vencida é motivo para
 // abrir handoff/reunião, não para travar o pipeline sem aviso prévio.
 
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -61,9 +61,21 @@ export function parseAuditReport(stdout: string): AuditReport {
     return parsed;
 }
 
+// No Windows, `npm` é um script `.cmd`, não um executável nativo — `execFileSync('npm', [...])`
+// sem shell falha com ENOENT (CreateProcess não sabe interpretar `.cmd` sozinho), e resolver só o
+// nome (`npm.cmd`) ainda falha com EINVAL pelo mesmo motivo: um `.cmd` só roda através de um
+// shell. `execSync` com a linha de comando já montada como string roda através do shell do SO em
+// qualquer plataforma (cmd.exe no Windows, sh nos demais) sem o aviso de depreciação do Node que
+// `execFileSync(file, args, { shell: true })` emite (DEP0190, sobre argumentos de array não
+// escapados) — aqui não há argumento vindo de input externo, a string é 100% literal fixa, então
+// não há superfície de injeção de shell para escapar. Achado real (Onda 43): sem isto, o gate
+// nunca roda num checkout Windows — não é falta de Docker/DB, é o próprio spawn que nunca sai do
+// chão.
+const AUDIT_COMMAND = 'npm audit --audit-level=high --json';
+
 function runAudit(): AuditReport {
     try {
-        const stdout = execFileSync('npm', ['audit', '--audit-level=high', '--json'], {
+        const stdout = execSync(AUDIT_COMMAND, {
             encoding: 'utf-8',
             // `npm audit` sai com código != 0 quando encontra achado — isso é esperado e não é
             // falha de execução do comando em si, então não deixamos o child_process lançar.
@@ -71,7 +83,7 @@ function runAudit(): AuditReport {
         });
         return parseAuditReport(stdout);
     } catch (err) {
-        // execFileSync lança quando o processo sai com código != 0 (o caso comum aqui: achou
+        // execSync lança quando o processo sai com código != 0 (o caso comum aqui: achou
         // vulnerabilidade). O JSON completo ainda vem em err.stdout.
         const stdout = (err as { stdout?: string }).stdout;
         if (typeof stdout === 'string' && stdout.trim().length > 0) {
@@ -120,7 +132,12 @@ function extractAdvisoryIds(
 function readWaivedAdvisories(): { waived: Set<string>; sectionFound: boolean; raw: string } {
     let raw: string;
     try {
-        raw = readFileSync(WAIVERS_PATH, 'utf-8');
+        // Normaliza CRLF -> LF: docs/security/AUDIT_WAIVERS.md está commitado com quebra de linha
+        // do Windows, e o \n literal do regex abaixo nunca casa contra \r\n — mesma classe de bug
+        // (achado real, Onda 43) já encontrada e corrigida em check-hotspots.ts/parseExceptions.
+        // Sem isto, o gate declara "seção não encontrada" mesmo com o waiver corretamente
+        // registrado, e bloqueia um achado que já foi formalmente aceito.
+        raw = readFileSync(WAIVERS_PATH, 'utf-8').replace(/\r\n/g, '\n');
     } catch {
         return { waived: new Set(), sectionFound: false, raw: '' };
     }

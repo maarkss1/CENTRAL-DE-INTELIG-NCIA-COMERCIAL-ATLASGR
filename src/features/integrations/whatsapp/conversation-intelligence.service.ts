@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { cleanAndParseJson, getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
+import { assertPiiExternalConsent } from '../../../shared/services/aiPiiConsent.service.js';
 
 // Mensagens antigas demais (fora da janela) não entram no prompt — o objetivo é ler a conversa
 // recente, não reprocessar o histórico inteiro a cada nova mensagem.
@@ -70,6 +71,22 @@ function parseModelOutput(raw: string): ConversationSignalResult {
  * um atraso (debounce) para ler a troca completa em vez de mensagem por mensagem.
  */
 export async function analyzeConversation(leadId: string, organizationId: string): Promise<void> {
+  // Onda 43 (achado real): esta função monta a transcrição real da conversa de WhatsApp de um
+  // lead — quase sempre PII de um titular real — e manda o texto inteiro pro provedor de IA
+  // (local-llama3/Groq) sem nenhuma checagem de base legal, ao contrário do resto do enxame
+  // (agentes SDR/BDR/Closer/CRM/Ops e AIService.qualifyLead já têm o mesmo gate, ver
+  // guardrails.service.ts/AI-007). Fail-closed: sem organização na allowlist, não lê nenhuma
+  // mensagem nem monta modelo nenhum.
+  try {
+    assertPiiExternalConsent(organizationId);
+  } catch (error) {
+    logger.warn(
+      { err: error, leadId, organizationId },
+      'Análise de conversa do WhatsApp bloqueada: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.',
+    );
+    return;
+  }
+
   const messages = await prisma.whatsAppMessage.findMany({
     where: { organizationId, leadId },
     orderBy: { receivedAt: 'desc' },

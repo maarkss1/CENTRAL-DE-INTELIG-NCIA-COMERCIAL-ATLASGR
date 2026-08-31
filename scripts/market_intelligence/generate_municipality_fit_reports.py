@@ -31,6 +31,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
 import gzip
 import json
@@ -216,6 +217,14 @@ def build_template() -> tuple[str, str]:
         "a.download='campinas-sp-icp-personas-atlasgr.csv'",
         "a.download='__DOWNLOAD_FILENAME__'",
     )
+    suffix = suffix.replace(
+        "filtered=DATA;render();",
+        "(async()=>{try{const _bin=atob(DATA_GZ_B64);const _bytes=new Uint8Array(_bin.length);"
+        "for(let i=0;i<_bin.length;i++)_bytes[i]=_bin.charCodeAt(i);"
+        "DATA=await new Response(new Blob([_bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).json()}"
+        "catch(e){document.querySelector('#status').textContent='Erro ao carregar dados: '+e;DATA=[]}"
+        "filtered=DATA;render()})();",
+    )
     return prefix, suffix
 
 
@@ -288,8 +297,9 @@ def render_report(
         clean = {k: v for k, v in r.items() if not k.startswith("_")}
         data_rows.append(clean)
     data_json = json.dumps(data_rows, ensure_ascii=False, separators=(",", ":"))
+    data_gz_b64 = base64.b64encode(gzip.compress(data_json.encode("utf-8"), compresslevel=9)).decode("ascii")
 
-    return f"{prefix}const DATA={data_json};{suffix}"
+    return f'{prefix}let DATA=[];const DATA_GZ_B64="{data_gz_b64}";{suffix}'
 
 
 def process_uf(
