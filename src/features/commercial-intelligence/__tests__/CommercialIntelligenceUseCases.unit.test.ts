@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   CommercialIntelligenceUseCases,
   classifyCoverageProtection,
@@ -124,6 +124,15 @@ class FakeRepository implements CommercialIntelligenceRepository {
   }
   async countTimelineEventsByType(): Promise<number> {
     return this.timelineEventCount;
+  }
+  // meetingsCount/timelineEventCount nunca são configurados como diferente de 0 em nenhum teste
+  // deste arquivo — devolver [] aqui reproduz exatamente o mesmo "0 em toda janela" que os dois
+  // métodos de count acima já davam, sem precisar simular datas específicas.
+  async findCompletedMeetingDates(): Promise<Date[]> {
+    return [];
+  }
+  async findTimelineEventDatesByType(): Promise<Date[]> {
+    return [];
   }
   async findStageHistory() {
     return this.history;
@@ -615,6 +624,40 @@ describe('CommercialIntelligenceUseCases', () => {
       (pipelineCriado?.weeklySeries.reduce((s, v) => s + v, 0) ?? 0) / 4,
       2,
     );
+  });
+
+  it('Leading Indicators: "Reuniões realizadas"/"Oportunidades qualificadas" buscam a janela uma única vez (sem N+1) e filtram em memória (Onda 43)', async () => {
+    const repo = new FakeRepository([], STAGES, [], 0, 0, 0, false);
+    const findMeetingsSpy = vi
+      .spyOn(repo, 'findCompletedMeetingDates')
+      .mockResolvedValue([
+        new Date('2026-07-20T00:00:00Z'), // semana mais antiga da janela de 4 — não é "atual" nem "anterior"
+        new Date('2026-08-14T00:00:00Z'), // cai dentro da semana atual ([NOW-7d, NOW))
+        new Date('2026-08-14T00:00:00Z'),
+      ]);
+    const findQualifiedSpy = vi
+      .spyOn(repo, 'findTimelineEventDatesByType')
+      .mockResolvedValue([new Date('2026-08-08T00:00:00Z')]); // cai na semana anterior, não na atual
+    const useCases = new CommercialIntelligenceUseCases(repo);
+
+    const report = await useCases.leadingIndicators(ORG, NOW);
+
+    // Cada método é chamado exatamente 1 vez (a janela cheia [window4wStart, weekEnd)) — antes
+    // desta correção, cada um era chamado 6 vezes (current + previousWeek + 4 buckets semanais).
+    expect(findMeetingsSpy).toHaveBeenCalledTimes(1);
+    expect(findQualifiedSpy).toHaveBeenCalledTimes(1);
+    expect(findMeetingsSpy).toHaveBeenCalledWith(ORG, expect.any(Date), NOW);
+    expect(findQualifiedSpy).toHaveBeenCalledWith(ORG, 'conversion', expect.any(Date), NOW);
+
+    const reunioes = report.indicators.find((i) => i.label === 'Reuniões realizadas');
+    const qualificadas = report.indicators.find((i) => i.label === 'Oportunidades qualificadas');
+    // Filtragem em memória continua correta: 2 reuniões na semana atual, 0 na anterior;
+    // 0 qualificações na semana atual, 1 na anterior — prova que o filtro por janela não
+    // vazou entre buckets depois de trocar count() por busca única + filtro local.
+    expect(reunioes?.current).toBe(2);
+    expect(reunioes?.previousWeek).toBe(0);
+    expect(qualificadas?.current).toBe(0);
+    expect(qualificadas?.previousWeek).toBe(1);
   });
 
   it('Pipeline Creation Pace: dias úteis decorridos/total do mês e ritmo (%) batem com o esperado proporcional', async () => {

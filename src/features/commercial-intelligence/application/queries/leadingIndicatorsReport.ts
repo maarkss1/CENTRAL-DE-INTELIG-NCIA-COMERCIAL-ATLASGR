@@ -25,10 +25,22 @@ export async function buildLeadingIndicators(
   const deals = await repository.findDeals(organizationId);
   const history = await repository.findStageHistory(organizationId);
 
+  // Onda 43 (achado da auditoria de N+1 da Onda 42, seção "pendências"): buildPoint chama `fn` 6
+  // vezes (semana atual, anterior, e 4 semanas da média móvel) para cada indicador — antes desta
+  // correção, "Reuniões realizadas" e "Oportunidades qualificadas" eram os 2 únicos indicadores
+  // que faziam uma query real (`count()`) por chamada, 12 queries de contagem no total. Busca
+  // uma vez só a janela inteira ([window4wStart, weekEnd) já cobre as 4 semanas da média móvel e
+  // as janelas de semana atual/anterior, que são subconjuntos dela) e filtra em memória — mesmo
+  // padrão já usado por countCreated/countAdvanced/countProposals/countWon abaixo sobre
+  // `deals`/`history`, que já estavam carregados por inteiro mesmo antes desta correção.
+  const [meetingDates, qualifiedDates] = await Promise.all([
+    repository.findCompletedMeetingDates(organizationId, window4wStart, weekEnd),
+    repository.findTimelineEventDatesByType(organizationId, 'conversion', window4wStart, weekEnd),
+  ]);
   const countMeetings = (from: Date, to: Date) =>
-    repository.countCompletedMeetings(organizationId, from, to);
+    meetingDates.filter((d) => d >= from && d < to).length;
   const countQualified = (from: Date, to: Date) =>
-    repository.countTimelineEventsByType(organizationId, 'conversion', from, to);
+    qualifiedDates.filter((d) => d >= from && d < to).length;
 
   const countCreated = (from: Date, to: Date) =>
     deals.filter((d) => d.createdAt >= from && d.createdAt < to).length;

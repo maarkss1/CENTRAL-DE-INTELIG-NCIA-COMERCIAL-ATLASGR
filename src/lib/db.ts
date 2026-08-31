@@ -102,6 +102,7 @@ export const leadsDB = {
   list: (params?: {
     page?: number;
     limit?: number;
+    search?: string;
     status?: string;
     companyId?: string;
     owner?: string;
@@ -109,6 +110,10 @@ export const leadsDB = {
     const qs = new URLSearchParams();
     if (params?.page) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
+    // O backend (LeadController.getLeads) já lê `q` (usado pelo Kanban de busca), mas nenhum
+    // consumidor de `leadsDB.list` expunha isso — achado do Piloto 015 (Activities), que precisa
+    // buscar um Lead pelo nome pra vincular uma atividade nova.
+    if (params?.search) qs.set('q', params.search);
     if (params?.status) qs.set('status', params.status);
     if (params?.companyId) qs.set('companyId', params.companyId);
     if (params?.owner) qs.set('owner', params.owner);

@@ -11,6 +11,11 @@ vi.mock('@/config/env', () => ({
     BIRTH_VOICES_API_KEY: 'chave',
     BIRTH_VOICES_AGENT_ID: 'agente-1',
     PUBLIC_BASE_URL: 'http://prospector.local',
+    // Org de teste ('org-1', ver ORG abaixo) precisa de base legal LGPD registrada para o gate de
+    // guardrails.service.ts (assertPiiExternalConsent, mesmo mecanismo já usado pelos agentes de
+    // texto) deixar a ligação passar — sem isto, todo teste deste arquivo falharia com
+    // PiiConsentRequiredError antes mesmo de chegar na lógica de opt-out/telefone sob teste.
+    AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: 'org-1',
   },
 }));
 
@@ -33,6 +38,7 @@ import {
   SuppressedNumberError,
   NoPhoneNumberError,
 } from '@/features/integrations/birth-voice/birthVoice.service';
+import { PiiConsentRequiredError } from '@/features/intelligence/services/guardrails.service';
 
 const leadMock = prisma.lead as unknown as { findFirst: ReturnType<typeof vi.fn> };
 const mockIsSuppressed = vi.mocked(isSuppressed);
@@ -84,6 +90,17 @@ describe('callLead', () => {
       leadId: 'lead-9',
       email: 'ana@exemplo.com',
     });
+  });
+
+  it('recusa a ligação sem consultar lead/opt-out quando a organização não tem base legal LGPD registrada', async () => {
+    leadMock.findFirst.mockResolvedValue(leadComTelefone());
+
+    await expect(callLead('org-sem-consentimento', 'lead-9')).rejects.toBeInstanceOf(
+      PiiConsentRequiredError,
+    );
+    expect(leadMock.findFirst).not.toHaveBeenCalled();
+    expect(mockIsSuppressed).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('recusa a ligação e não chama o Hub quando o número tem opt-out', async () => {

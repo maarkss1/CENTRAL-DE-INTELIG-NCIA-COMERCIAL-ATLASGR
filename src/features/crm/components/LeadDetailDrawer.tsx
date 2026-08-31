@@ -323,7 +323,13 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop de "clicar fora fecha" — não precisa de suporte a teclado próprio: Escape já
+          fecha o drawer via listener global (window.addEventListener acima), então isto é
+          conveniência de mouse/touch, não um alvo de interação que um usuário de teclado precise
+          alcançar. aria-hidden="true" (nada semântico aqui) já satisfaz o jsx-a11y sozinho, sem
+          precisar de eslint-disable. */}
       <div
+        aria-hidden="true"
         className="fixed inset-0 bg-ink/40 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />

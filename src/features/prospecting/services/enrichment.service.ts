@@ -14,7 +14,8 @@
 // Este arquivo mantém enrichCompany/runEnrichment — o orquestrador de fato — e reexporta a API
 // pública dos três módulos acima.
 //
-// ATUALIZAÇÃO (BITRIX24-LEAD-FLOW-AUDIT.md, achado P1-2): os adapters (IDataProvider) citados
+// ATUALIZAÇÃO (achado P1-2 da antiga BITRIX24-LEAD-FLOW-AUDIT.md — removida do controle de
+// versão em 22/08/2026, ver docs/REMOVED-DOCS.md): os adapters (IDataProvider) citados
 // aqui numa nota anterior — BrasilApiAdapter/ApolloAdapter/CnpjWsAdapter/GooglePlacesAdapter em
 // lib/adapters/data-providers, e o orquestrador MergeEngineService que os consumia — foram
 // REMOVIDOS. Eram uma segunda implementação completa, nunca chamada por runEnrichment nem por
@@ -25,7 +26,7 @@ import { prisma } from '../../../lib/prisma.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
-import { isValidCnpj, discoverCnpjByName } from './cnpj.util';
+import { isValidCnpj, discoverCnpjByName, sanitizeCnpj } from './cnpj.util';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService';
 import { searchGooglePlace } from './places.service';
 import { searchNominatimPlace } from './nominatim.service';
@@ -342,7 +343,10 @@ async function runEnrichment(
       enrichmentSourceLabel = 'BrasilAPI/Receita Federal';
       cnaeDescription = lookup.data.cnaeDescription;
       Object.assign(updateData, {
-        cnpj: lookup.cnpj,
+        // lookup.cnpj vem pontuado (fetchCnpjData/formatCnpj, pensado pra exibição na tela de
+        // preview) — grava normalizado pra dígitos puros, mesmo formato dos outros write paths de
+        // Company.cnpj (Onda 43, achado: 3 formatos diferentes coexistiam no banco).
+        cnpj: sanitizeCnpj(lookup.cnpj),
         legalName: lookup.data.legalName,
         tradeName: lookup.data.tradeName,
         situacaoCadastral: lookup.data.situacaoCadastral,

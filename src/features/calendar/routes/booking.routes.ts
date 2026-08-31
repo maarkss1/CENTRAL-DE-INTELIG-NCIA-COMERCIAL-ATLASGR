@@ -241,6 +241,27 @@ publicBookingRouter.post(
       const { lead, activity } = await requestContext.run(
         { tenantId: link.organizationId },
         async () => {
+          // ACHADO REAL (Piloto 020): `standardSlots` (GET acima) é uma lista fixa que nunca
+          // consulta a agenda real do vendedor — nada impedia dois leads diferentes de agendar o
+          // mesmo horário com o mesmo host. Checagem de conflito antes de criar qualquer registro
+          // (Company/Contact/Lead seriam órfãos se a Activity final falhasse depois).
+          const activityDate = new Date(`${body.date}T${body.time}:00`);
+          const conflict = await prisma.activity.findFirst({
+            where: {
+              organizationId: link.organizationId,
+              owner: hostUser.name,
+              date: activityDate,
+              time: body.time,
+              status: { not: 'Cancelada' },
+            },
+          });
+          if (conflict) {
+            throw new AppError(
+              'Este horário acabou de ser reservado por outra pessoa. Escolha outro horário.',
+              409,
+            );
+          }
+
           // 1. Cria ou encontra a Empresa. `Contact.companyId` é obrigatório e é FK real para
           // `Company` (@relation, onDelete: Cascade) — CORRIGIDO (Onda 2, Agente 04): quando o
           // formulário público não pedia nome de empresa (`body.company` opcional), o código
@@ -325,7 +346,6 @@ publicBookingRouter.post(
           // não FK — ver `ActivityList.tsx`/`ownerGuard.ts`: filtro "minhas atividades",
           // exibição na lista e o feed iCal já comparam/mostram por nome), então aqui o nome é
           // o valor correto.
-          const activityDate = new Date(`${body.date}T${body.time}:00`);
           const activity = await prisma.activity.create({
             data: {
               type: 'Reuniao',

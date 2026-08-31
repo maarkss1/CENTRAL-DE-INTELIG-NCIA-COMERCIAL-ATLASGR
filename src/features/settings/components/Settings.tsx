@@ -149,10 +149,13 @@ export function Settings() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
-                    <label className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3">
+                    {/* Não é <label htmlFor>: rotula um grupo de botões de escolha (Escuro/Claro),
+                        não um único controle — role="group" + aria-labelledby é a associação
+                        correta aqui. */}
+                    <span id="settings-theme-label" className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3">
                       Tema
-                    </label>
-                    <div className="flex gap-4">
+                    </span>
+                    <div role="group" aria-labelledby="settings-theme-label" className="flex gap-4">
                       <button
                         type="button"
                         onClick={toggleTheme}
@@ -179,10 +182,13 @@ export function Settings() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3">
+                    {/* Não é <label htmlFor>: rotula um grupo de botões de escolha de marca, não
+                        um único controle — role="group" + aria-labelledby é a associação correta
+                        aqui. */}
+                    <span id="settings-brand-label" className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3">
                       Marca Ativa
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    </span>
+                    <div role="group" aria-labelledby="settings-brand-label" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {BRAND_OPTIONS.map((brand) => (
                         <button
                           key={brand}

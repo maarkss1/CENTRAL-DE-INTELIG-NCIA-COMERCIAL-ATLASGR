@@ -140,6 +140,12 @@ export interface Contact {
   customFields?: Record<string, unknown> | null;
   companyId: string;
   company?: Company;
+  /** Consentimento de processamento por IA (LGPD) — real no schema, já retornado pela API, nunca
+   * declarado aqui antes (achado do Piloto 013). `null`/`undefined` para registros legados sem
+   * consentimento registrado — nunca tratar como "não" silenciosamente. */
+  aiProcessingConsent?: boolean | null;
+  /** Só vem preenchido por GET /api/contacts/:id (detalhe) — a listagem não inclui. */
+  leads?: Lead[];
   organizationId?: string | null;
   createdAt: string;
   updatedAt: string;

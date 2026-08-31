@@ -36,7 +36,7 @@ export function LeadApprovalDeck() {
     // { data: [...], pagination, filters, metadata } — o array de contas está em .data.
     api
       .get<{ data: MarketIntelligenceCompanyRow[] }>(
-        '/api/market-intelligence/companies?icpMinimo=ALTO&pageSize=10',
+        '/api/companies/market-intelligence?icpMinimo=ALTO&pageSize=10',
       )
       .then((result) => {
         setAccounts(result?.data || []);

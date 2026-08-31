@@ -1,0 +1,39 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm
+    volumes:
+      - .:/workspace:cached
+    command: sleep infinity
+    environment:
+      NODE_ENV: development
+      PORT: "3005"
+      HOST: "0.0.0.0"
+      # Dentro da rede do Compose os outros serviços são alcançados pelo nome do serviço, não
+      # por localhost — só isso muda em relação ao .env local (copiado de .env.example no
+      # postCreateCommand). Os flags ENABLE_SEARCH/ENABLE_QUEUES continuam como o .env.example
+      # define (false por padrão): setar a URL aqui não liga a feature, só a deixa pronta.
+      DATABASE_URL: postgresql://prospector_app:prospector_app_pass@postgres:5432/prospectordb
+      REDIS_URL: redis://:prospector_redis_pass@redis:6379
+      MEILI_HOST: http://meilisearch:7700
+      MEILI_MASTER_KEY: atlasgr_meili_master_key
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: prospector-assets
+      STORAGE_ACCESS_KEY_ID: atlasgr
+      STORAGE_SECRET_ACCESS_KEY: atlasgr_minio_dev_only
+      OLLAMA_BASE_URL: http://ollama:11434
+      LITELLM_URL: http://litellm:4000
+    # service_healthy (não só "started"): o postCreateCommand roda `prisma migrate deploy` logo
+    # em seguida, e o Postgres só aceita conexão como prospector_app depois que o script de
+    # init (docker-init.sh, que cria o papel) termina — pg_isready (o healthcheck) só fica OK
+    # depois disso. Sem essa condição, a primeira criação do Codespace tem uma corrida real
+    # entre "container começou" e "role existe".
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy

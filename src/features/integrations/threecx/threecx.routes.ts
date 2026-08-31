@@ -4,6 +4,10 @@ import { env } from '../../../config/env.js';
 import { logger } from '../../../lib/logger.js';
 import { isValidSignature } from '../birth-voice/birthVoice.helpers.js';
 import {
+  claimWebhookDelivery,
+  webhookDeliveryFingerprint,
+} from '../../../shared/security/webhookReplayGuard.js';
+import {
   list3CXConnections,
   connect3CX,
   test3CXConnection,
@@ -45,9 +49,18 @@ threecxWebhookRouter.post(
       return;
     }
 
-    if (!isValidSignature(rawBody, req.header('x-3cx-signature'), secret)) {
+    const signature = req.header('x-3cx-signature');
+    if (!isValidSignature(rawBody, signature, secret)) {
       logger.warn('Webhook do 3CX com assinatura inválida — descartado.');
       res.status(401).json({ success: false, error: 'Assinatura inválida.' });
+      return;
+    }
+
+    // Mesmo raciocínio de birthVoice.webhook.ts: a assinatura é função do corpo cru, então serve
+    // de fingerprint de entrega. Ver webhookReplayGuard.ts.
+    const replayCheck = await claimWebhookDelivery('3cx', webhookDeliveryFingerprint(signature));
+    if (replayCheck === 'replay') {
+      res.status(200).json({ success: true, outcome: 'duplicate-delivery' });
       return;
     }
 

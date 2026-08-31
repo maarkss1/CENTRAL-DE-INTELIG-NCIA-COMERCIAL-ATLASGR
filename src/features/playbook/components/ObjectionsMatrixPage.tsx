@@ -13,6 +13,8 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { playbookApi, type ObjectionMatrixItem } from '../playbook.api';
 import { ObjectionItemForm } from './ObjectionItemForm';
@@ -21,6 +23,10 @@ import { toast } from '../../../lib/toast';
 
 export function ObjectionsMatrixPage() {
   const { activeBrand, brandInfo } = useBrand();
+  const { currentUser } = useAuth();
+  // Mesmo achado do Piloto 017 na Matriz de Qualificação: DELETE exige ADMIN/GESTOR no backend, o
+  // botão "Excluir" aparecia pra qualquer papel.
+  const canDelete = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
   const [items, setItems] = useState<ObjectionMatrixItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,6 +107,7 @@ export function ObjectionsMatrixPage() {
             </p>
           </div>
           <button
+            type="button"
             onClick={() => {
               setEditingItem(null);
               setIsFormOpen(true);
@@ -194,6 +201,7 @@ export function ObjectionsMatrixPage() {
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <button
+                        type="button"
                         onClick={() => handleCopy(item.responseScript, item.id)}
                         className="text-xs text-ink-2 hover:text-ink flex items-center gap-1.5"
                       >
@@ -205,6 +213,7 @@ export function ObjectionsMatrixPage() {
                         {copiedKey === item.id ? 'Copiado' : 'Copiar'}
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
                           setEditingItem(item);
                           setIsFormOpen(true);
@@ -214,19 +223,27 @@ export function ObjectionsMatrixPage() {
                       >
                         <Pencil size={14} /> Editar
                       </button>
-                      <button
-                        onClick={() => handleDelete(item)}
-                        className="text-xs text-danger-active dark:text-danger hover:text-danger/80 flex items-center gap-1.5"
-                        aria-label="Excluir objeção"
-                      >
-                        <Trash2 size={14} /> Excluir
-                      </button>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(item)}
+                          className="text-xs text-danger-active dark:text-danger hover:text-danger/80 flex items-center gap-1.5"
+                          aria-label="Excluir objeção"
+                        >
+                          <Trash2 size={14} /> Excluir
+                        </button>
+                      )}
                     </div>
                   </div>
 
                   <div>
                     <h3 className="font-black text-sm text-ink mb-1 flex items-center gap-1.5">
-                      <AlertTriangle size={14} className="text-amber-500" /> &quot;
+                      {/* amber-500 cru (= mesmo hex de --color-warning) sem par dark:,
+                          reintroduzindo o problema de contraste que o design system já resolveu —
+                          15 linhas abaixo o mesmo significado semântico ("atenção") já usa o
+                          token corrigido (achado do Piloto 017). */}
+                      <AlertTriangle size={14} className="text-warning-active dark:text-warning" />{' '}
+                      &quot;
                       {item.objectionTitle}&quot;
                     </h3>
                     <p className="text-ink-2 text-sm italic">&quot;{item.objectionText}&quot;</p>

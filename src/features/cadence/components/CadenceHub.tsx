@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   AlertTriangle,
+  CalendarClock,
   ChevronDown,
   ChevronRight,
+  Loader2,
   Pause,
   Play,
   Plus,
@@ -20,7 +22,9 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { Button } from '../../../components/ui/Button';
 import { Dialog } from '../../../components/ui/Dialog';
 import { toast } from '../../../lib/toast';
-import { CADENCE_JOURNEY_TEMPLATES } from '../domain/cadenceTemplates';
+import { leadsDB } from '../../../lib/db';
+import type { Lead } from '../../../types';
+import type { CadenceJourneyTemplate } from '../domain/cadenceTemplates';
 import {
   cadenceApi,
   type CadenceChannel,
@@ -129,6 +133,111 @@ function touchResultBadgeVariant(result: CadenceTouchResult): BadgeProps['varian
   return 'outline';
 }
 
+function leadLabel(lead: Lead): string {
+  const company = lead.company?.tradeName || lead.company?.legalName;
+  return [lead.title || 'Negócio sem título', company].filter(Boolean).join(' — ');
+}
+
+/**
+ * `POST /leads/:leadId/schedule-meeting` (CYC-004) já existia, testado (confirmação verificável,
+ * cria Note + evento de calendário), mas sem nenhum ponto de acionamento na UI — nenhum vendedor
+ * conseguia registrar uma reunião confirmada a partir desta tela (achado do Piloto 016).
+ */
+function ScheduleMeetingDialog({
+  leadId,
+  isOpen,
+  onClose,
+}: {
+  leadId: string | null;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const reset = () => {
+    setStart('');
+    setEnd('');
+  };
+
+  const handleSubmit = async () => {
+    if (!leadId || !start || !end) {
+      toast.error('Informe o início e o fim da reunião.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await cadenceApi.scheduleMeeting(leadId, {
+        proposedStart: new Date(start).toISOString(),
+        proposedEnd: new Date(end).toISOString(),
+      });
+      toast.success('Reunião confirmada e registrada no calendário.');
+      reset();
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message || 'Não foi possível registrar a reunião.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog
+      isOpen={isOpen}
+      onClose={() => {
+        if (!submitting) {
+          reset();
+          onClose();
+        }
+      }}
+      title="Agendar reunião confirmada"
+      preventClose={submitting}
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? 'Registrando…' : 'Confirmar reunião'}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-ink-2">
+          Use somente após confirmação verbal/escrita real do lead — esta ação registra a reunião
+          como confirmada manualmente e cria o evento no calendário.
+        </p>
+        <div>
+          <label htmlFor="meeting-start" className="block text-xs font-semibold text-ink-2 mb-1">
+            Início
+          </label>
+          <input
+            id="meeting-start"
+            type="datetime-local"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          />
+        </div>
+        <div>
+          <label htmlFor="meeting-end" className="block text-xs font-semibold text-ink-2 mb-1">
+            Fim
+          </label>
+          <input
+            id="meeting-end"
+            type="datetime-local"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          />
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
 // ── Opt-outs ─────────────────────────────────────────────────────────────
 
 function OptOutsSection() {
@@ -216,6 +325,7 @@ function OptOutsSection() {
                 <th className="text-left font-semibold py-1.5 pr-3">Escopo</th>
                 <th className="text-left font-semibold py-1.5 pr-3">Origem do pedido</th>
                 <th className="text-left font-semibold py-1.5 pr-3">Motivo</th>
+                <th className="text-left font-semibold py-1.5 pr-3">Evidência</th>
                 <th className="text-left font-semibold py-1.5 pr-3">Lead</th>
                 <th className="text-right font-semibold py-1.5">Registrado em</th>
               </tr>
@@ -234,6 +344,16 @@ function OptOutsSection() {
                     title={record.reason ?? undefined}
                   >
                     {record.reason ?? '—'}
+                  </td>
+                  {/* Coletado deliberadamente pro domínio (`OptOutRecord.evidence`, "texto/trecho
+                      real da mensagem que motivou o opt-out — nunca inferência da IA") e já vinha
+                      até o cliente, mas nunca era exibido — o dado mais valioso pra auditar o
+                      pedido ficava descartado (achado do Piloto 016). */}
+                  <td
+                    className="py-1.5 pr-3 text-ink-2 max-w-xs truncate"
+                    title={record.evidence ?? undefined}
+                  >
+                    {record.evidence ?? '—'}
                   </td>
                   <td
                     className="py-1.5 pr-3 text-ink-2 font-mono"
@@ -257,8 +377,28 @@ function OptOutsSection() {
 // ── Cadence runs ─────────────────────────────────────────────────────────
 
 /** CYC-009 (onda 29) — as únicas duas ações reais possíveis num run não-terminal (`pauseCadenceRun`/`resumeCadenceRun`/`stopCadenceManually` já existiam no domínio, só sem rota nenhuma chamando-os). Parar é irreversível (mesmo raciocínio de `stopCadenceManually` — "distinta de pausa: não tem retomada") — por isso exige confirmação, mesmo padrão de `window.confirm` já usado em `LeadDetailDrawer.tsx` para excluir um lead. */
-function CadenceRunActions({ run, onChanged }: { run: CadenceRunDTO; onChanged: () => void }) {
+function CadenceRunActions({
+  run,
+  onChanged,
+  onScheduleMeeting,
+}: {
+  run: CadenceRunDTO;
+  onChanged: () => void;
+  onScheduleMeeting: () => void;
+}) {
   const [pending, setPending] = useState<'pause' | 'resume' | 'stop' | null>(null);
+
+  const scheduleButton = (
+    <button
+      type="button"
+      onClick={onScheduleMeeting}
+      aria-label={`Agendar reunião confirmada com o lead ${run.leadId}`}
+      title="Agendar reunião confirmada"
+      className="p-1.5 text-ink-2 hover:text-brand hover:bg-surface-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      <CalendarClock className="w-3.5 h-3.5" />
+    </button>
+  );
 
   const runAction = async (
     action: 'pause' | 'resume' | 'stop',
@@ -280,6 +420,7 @@ function CadenceRunActions({ run, onChanged }: { run: CadenceRunDTO; onChanged: 
   if (run.status === 'active') {
     return (
       <div className="flex items-center justify-end gap-1">
+        {scheduleButton}
         <button
           type="button"
           onClick={() => runAction('pause', () => cadenceApi.pauseRun(run.id), 'Cadência pausada.')}
@@ -315,6 +456,7 @@ function CadenceRunActions({ run, onChanged }: { run: CadenceRunDTO; onChanged: 
   if (run.status === 'paused') {
     return (
       <div className="flex items-center justify-end gap-1">
+        {scheduleButton}
         <button
           type="button"
           onClick={() =>
@@ -352,7 +494,15 @@ function CadenceRunActions({ run, onChanged }: { run: CadenceRunDTO; onChanged: 
   return <span className="text-ink-2 text-right block">—</span>;
 }
 
-function CadenceRunRow({ run, onChanged }: { run: CadenceRunDTO; onChanged: () => void }) {
+function CadenceRunRow({
+  run,
+  onChanged,
+  onScheduleMeeting,
+}: {
+  run: CadenceRunDTO;
+  onChanged: () => void;
+  onScheduleMeeting: (leadId: string) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const lastAttempt = run.attempts[run.attempts.length - 1] ?? null;
 
@@ -412,7 +562,11 @@ function CadenceRunRow({ run, onChanged }: { run: CadenceRunDTO; onChanged: () =
           {formatDateTime(run.startedAt)}
         </td>
         <td className="py-1.5 text-right">
-          <CadenceRunActions run={run} onChanged={onChanged} />
+          <CadenceRunActions
+            run={run}
+            onChanged={onChanged}
+            onScheduleMeeting={() => onScheduleMeeting(run.leadId)}
+          />
         </td>
       </tr>
       {expanded && run.attempts.length > 0 && (
@@ -469,6 +623,7 @@ function CadenceRunsSection() {
   const [statusFilter, setStatusFilter] = useState<Set<CadenceRunStatus>>(
     new Set(['active', 'paused']),
   );
+  const [schedulingLeadId, setSchedulingLeadId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -590,12 +745,23 @@ function CadenceRunsSection() {
             </thead>
             <tbody>
               {data.map((run) => (
-                <CadenceRunRow key={run.id} run={run} onChanged={load} />
+                <CadenceRunRow
+                  key={run.id}
+                  run={run}
+                  onChanged={load}
+                  onScheduleMeeting={setSchedulingLeadId}
+                />
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <ScheduleMeetingDialog
+        leadId={schedulingLeadId}
+        isOpen={schedulingLeadId != null}
+        onClose={() => setSchedulingLeadId(null)}
+      />
     </Card>
   );
 }
@@ -620,11 +786,13 @@ function NewSequenceDialog({
   onCreated: () => void;
 }) {
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [touches, setTouches] = useState<CadenceTouchInput[]>([{ ...EMPTY_TOUCH }]);
   const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
     setName('');
+    setDescription('');
     setTouches([{ ...EMPTY_TOUCH }]);
   };
 
@@ -653,7 +821,11 @@ function NewSequenceDialog({
     }
     setSubmitting(true);
     try {
-      await cadenceApi.createSequence({ name: name.trim(), touches });
+      await cadenceApi.createSequence({
+        name: name.trim(),
+        description: description.trim() || undefined,
+        touches,
+      });
       toast.success('Sequência criada.');
       reset();
       onCreated();
@@ -707,6 +879,23 @@ function NewSequenceDialog({
             />
           </div>
 
+          <div>
+            <label
+              htmlFor="sequence-description"
+              className="block text-xs font-semibold text-ink-2 mb-1"
+            >
+              Descrição (opcional)
+            </label>
+            <textarea
+              id="sequence-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder="Para que serve esta sequência e quando usá-la"
+              className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            />
+          </div>
+
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-ink-2">
@@ -731,7 +920,7 @@ function NewSequenceDialog({
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label
                       htmlFor={`touch-channel-${index}`}
@@ -759,16 +948,41 @@ function NewSequenceDialog({
                       htmlFor={`touch-delay-${index}`}
                       className="block text-[11px] font-semibold text-ink-2 mb-1"
                     >
-                      Horas após o toque anterior
+                      Horas após o anterior
                     </label>
                     <input
                       id={`touch-delay-${index}`}
                       type="number"
                       min={0}
+                      max={720}
                       value={touch.delayHoursFromPrevious}
                       onChange={(e) =>
                         updateTouch(index, {
-                          delayHoursFromPrevious: Math.max(0, Number(e.target.value)),
+                          delayHoursFromPrevious: Math.min(
+                            720,
+                            Math.max(0, Number(e.target.value)),
+                          ),
+                        })
+                      }
+                      className="w-full rounded-lg border border-line bg-bg px-2 py-1.5 text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor={`touch-max-attempts-${index}`}
+                      className="block text-[11px] font-semibold text-ink-2 mb-1"
+                    >
+                      Tentativas se falhar
+                    </label>
+                    <input
+                      id={`touch-max-attempts-${index}`}
+                      type="number"
+                      min={1}
+                      max={5}
+                      value={touch.maxAttempts ?? 1}
+                      onChange={(e) =>
+                        updateTouch(index, {
+                          maxAttempts: Math.min(5, Math.max(1, Number(e.target.value))),
                         })
                       }
                       className="w-full rounded-lg border border-line bg-bg px-2 py-1.5 text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
@@ -815,6 +1029,41 @@ function StartRunDialog({
   const [sequences, setSequences] = useState<CadenceSequenceDTO[] | null>(null);
   const [loadingSequences, setLoadingSequences] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Busca de lead por nome/empresa como atalho — antes só existia um campo de texto livre pedindo
+  // pra colar o cuid do lead, que ninguém sabe de cor (achado do Piloto 016). O E2E oficial
+  // (`tests/e2e/cadence.spec.ts`) já automatiza `getByLabel('ID do lead').fill(leadId)` direto —
+  // por isso o campo continua sendo o próprio `leadId` (mesmo id/label/comportamento de sempre), só
+  // com uma lista de sugestões por baixo que, ao clicar, preenche esse mesmo campo.
+  const [leadResults, setLeadResults] = useState<Lead[]>([]);
+  const [leadSearchLoading, setLeadSearchLoading] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !showResults || leadId.trim().length < 2) {
+      setLeadResults([]);
+      return;
+    }
+    let cancelled = false;
+    setLeadSearchLoading(true);
+    const timer = window.setTimeout(() => {
+      leadsDB
+        .list({ search: leadId, limit: 6 })
+        .then((res) => {
+          if (!cancelled) setLeadResults(res.data);
+        })
+        .catch(() => {
+          if (!cancelled) setLeadResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLeadSearchLoading(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [leadId, isOpen, showResults]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -882,7 +1131,7 @@ function StartRunDialog({
       }
     >
       <div className="space-y-4">
-        <div>
+        <div className="relative">
           <label htmlFor="run-lead-id" className="block text-xs font-semibold text-ink-2 mb-1">
             ID do lead
           </label>
@@ -891,9 +1140,34 @@ function StartRunDialog({
             type="text"
             value={leadId}
             onChange={(e) => setLeadId(e.target.value)}
-            placeholder="Cole o ID do lead (visível na tabela de execuções ou no CRM)"
+            onFocus={() => setShowResults(true)}
+            onBlur={() => window.setTimeout(() => setShowResults(false), 150)}
+            placeholder="Cole o ID do lead ou busque por nome/empresa"
+            autoComplete="off"
             className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           />
+          {leadSearchLoading && (
+            <div className="absolute right-3 top-9">
+              <Loader2 className="w-4 h-4 animate-spin text-ink-2" />
+            </div>
+          )}
+          {showResults && leadResults.length > 0 && (
+            <div className="absolute z-10 mt-1 w-full bg-surface border border-line rounded-lg shadow-xl max-h-48 overflow-y-auto">
+              {leadResults.map((lead) => (
+                <button
+                  key={lead.id}
+                  type="button"
+                  onClick={() => {
+                    setLeadId(lead.id);
+                    setShowResults(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-2 transition-colors border-b border-line last:border-b-0"
+                >
+                  {leadLabel(lead)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <label htmlFor="run-sequence" className="block text-xs font-semibold text-ink-2 mb-1">
@@ -936,6 +1210,21 @@ function JourneyTemplatesDialog({
 }) {
   const [instantiating, setInstantiating] = useState<string | null>(null);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<CadenceJourneyTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  // GET /api/cadence/templates já existia, testado, mas o diálogo importava a mesma constante
+  // diretamente do domínio backend em vez de chamar a API — mesmo padrão de rota órfã já
+  // confirmado em Contacts/Companies/Activities (achado do Piloto 016).
+  useEffect(() => {
+    if (!isOpen || templates.length > 0) return;
+    setLoadingTemplates(true);
+    cadenceApi
+      .templates()
+      .then(setTemplates)
+      .catch(() => toast.error('Falha ao carregar os modelos de jornada.'))
+      .finally(() => setLoadingTemplates(false));
+  }, [isOpen, templates.length]);
 
   const handleUseTemplate = async (templateId: string) => {
     setInstantiating(templateId);
@@ -965,7 +1254,12 @@ function JourneyTemplatesDialog({
         </p>
 
         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
-          {CADENCE_JOURNEY_TEMPLATES.map((tpl) => {
+          {loadingTemplates ? (
+            <div className="flex items-center justify-center py-8 text-ink-2">
+              <Loader2 className="w-5 h-5 animate-spin" />
+            </div>
+          ) : (
+          templates.map((tpl) => {
             const isExpanded = expandedTemplate === tpl.id;
             return (
               <div
@@ -1032,7 +1326,8 @@ function JourneyTemplatesDialog({
                 )}
               </div>
             );
-          })}
+          })
+          )}
         </div>
       </div>
     </Dialog>
@@ -1068,8 +1363,7 @@ export function CadenceHub() {
               size="sm"
               onClick={() => setJourneyTemplatesOpen(true)}
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" aria-hidden="true" /> Modelos de
-              Jornada
+              <Sparkles className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Modelos de Jornada
             </Button>
             <Button
               type="button"

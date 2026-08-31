@@ -51,6 +51,23 @@ mais bonito", siga o padrão da regra.
 4. Verifique se o componente que você vai construir já existe em `src/components/ui/` sob outro
    nome antes de criar um novo primitivo.
 
+## Inovação real: procure dado/estado já computado antes de inventar feature nova
+
+Padrão confirmado de forma independente em 4 pilotos seguidos (007 Dashboard, 008 Roleplay, 009
+Analytics/Comercial Inteligente, 010 Chatbook — ver `.claude/PILOTS.md`): a fonte de "inovação" mais
+confiável neste produto quase nunca é uma feature nova do zero — é um dado ou estado que o código já
+calcula/lê de verdade em algum lugar, mas que a UI nunca chegou a mostrar de forma persistente ou
+visível. Exemplos reais já encontrados: avaliações de IA por turno guardadas em estado mas só
+resumidas em texto (Roleplay); série histórica buscada só pra alimentar um selo de tendência, nunca
+um gráfico (Comercial Inteligente); um campo inteiro da API nunca renderizado (`activitiesByStatus`,
+Analytics); um contexto de registro ativo já injetado em todo prompt de IA mas só mencionado uma vez
+numa saudação que rola pra fora da tela (Chatbook).
+
+Antes de propor uma feature/visualização nova para uma tela, pergunte: **que estado, hook ou campo
+de resposta de API já existe no código deste módulo e nunca ganhou uma representação visual
+persistente?** Encontrar e mostrar isso é zero risco de inventar dado falso (a fonte já é real e já
+testada) e normalmente custa muito menos que construir algo novo do zero.
+
 ## Checklist de saída (antes de considerar a tela pronta)
 
 - [ ] A composição tem um motivo identificável, não é a disposição "padrão" de um gerador (hero

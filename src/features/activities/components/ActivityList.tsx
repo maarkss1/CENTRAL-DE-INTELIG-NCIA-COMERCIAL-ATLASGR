@@ -26,8 +26,9 @@ import {
 } from 'lucide-react';
 import { useActivities } from '../../../hooks/useDatabase';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Activity } from '../../../types';
-import { api } from '../../../lib/api';
+import { Activity, Lead } from '../../../types';
+import { api, downloadFile } from '../../../lib/api';
+import { leadsDB } from '../../../lib/db';
 import { toast } from '../../../lib/toast';
 import { clientLogger } from '../../../lib/clientLogger';
 import type { PaletteIntent } from '../../../lib/paletteIntent';
@@ -43,23 +44,35 @@ const TYPE_ICONS: Record<string, React.JSX.Element> = {
   tarefa: <CheckSquare className="w-4 h-4" />,
 };
 
+// Sete cores categóricas (uma por tipo de atividade) — precisam de mais distinções do que os
+// tokens semânticos do projeto (success/warning/danger/info) cobrem, então usam a paleta padrão do
+// Tailwind, mas cada uma precisa do par `dark:` que faltava (achado do Piloto 015): sem isso, os
+// badges ficavam com fundo claro sólido sobre o app em tema escuro.
 const TYPE_COLORS: Record<string, string> = {
-  ligação: 'bg-blue-100 text-blue-700 border-blue-200',
-  'e-mail': 'bg-indigo-100 text-indigo-700 border-indigo-200',
-  whatsapp: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  reunião: 'bg-violet-100 text-violet-700 border-violet-200',
-  visita: 'bg-amber-100 text-amber-700 border-amber-200',
-  'follow-up': 'bg-sky-100 text-sky-700 border-sky-200',
-  tarefa: 'bg-rose-100 text-rose-700 border-rose-200',
+  ligação: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900',
+  'e-mail':
+    'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900',
+  whatsapp:
+    'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900',
+  reunião:
+    'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/30 dark:text-violet-300 dark:border-violet-900',
+  visita:
+    'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900',
+  'follow-up':
+    'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-900',
+  tarefa: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900',
 };
 
+// Status tem significado semântico direto (pendente=alerta, concluída=sucesso) — usa os tokens do
+// projeto em vez de cor categórica própria, alinhado ao mesmo badge já corrigido em
+// CompanyDetail.tsx (Piloto 014).
 const STATUS_STYLES: Record<string, string> = {
-  pending: 'bg-amber-100 text-amber-700 border-amber-200',
-  done: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  pending: 'bg-warning/10 text-warning-active dark:text-warning border-warning/20',
+  done: 'bg-success/10 text-emerald-700 dark:text-success border-success/20',
   cancelled: 'bg-surface-2 text-ink-2 border-line',
   // pt-BR variants
-  Pendente: 'bg-amber-100 text-amber-700 border-amber-200',
-  Concluída: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  Pendente: 'bg-warning/10 text-warning-active dark:text-warning border-warning/20',
+  Concluída: 'bg-success/10 text-emerald-700 dark:text-success border-success/20',
   Cancelada: 'bg-surface-2 text-ink-2 border-line',
 };
 
@@ -73,43 +86,14 @@ const ACTIVITY_TYPES = [
   'Tarefa',
 ];
 
-const FOLLOW_UP_TEMPLATES = [
-  {
-    id: 'pos-demo',
-    title: 'Follow-up Pós-Demo',
-    type: 'Reunião',
-    defaultTime: '10:00',
-    description:
-      'Revisão dos pontos discutidos na demonstração de telemetria/rastreamento e alinhamento do piloto.',
-    suggestedOffsetDays: 1,
-  },
-  {
-    id: 'alinhamento-proposta',
-    title: 'Apresentação de Proposta',
-    type: 'Reunião',
-    defaultTime: '14:30',
-    description:
-      'Apresentação do ROI, dimensionamento de frota e validação com o decisor financeiro.',
-    suggestedOffsetDays: 2,
-  },
-  {
-    id: 'decisao-fechamento',
-    title: 'Checagem de Decisão',
-    type: 'Ligação',
-    defaultTime: '11:00',
-    description: 'Contato direto para esclarecimento de dúvidas contratuais e data de assinatura.',
-    suggestedOffsetDays: 3,
-  },
-  {
-    id: 'diagnostico-frota',
-    title: 'Diagnóstico de Frota',
-    type: 'Visita',
-    defaultTime: '09:00',
-    description:
-      'Mapeamento in-loco dos gargalos de telemetria, consumo de combustível e riscos de carga.',
-    suggestedOffsetDays: 4,
-  },
-];
+interface FollowUpTemplate {
+  id: string;
+  title: string;
+  type: string;
+  defaultTime: string;
+  description: string;
+  suggestedOffsetDays: number;
+}
 
 function SkeletonCard() {
   return (
@@ -137,6 +121,11 @@ interface NewActivityForm {
   leadId: string;
 }
 
+function leadLabel(lead: Lead): string {
+  const company = lead.company?.tradeName || lead.company?.legalName;
+  return [lead.title || 'Negócio sem título', company].filter(Boolean).join(' — ');
+}
+
 export function ActivityList() {
   const { activities, loading, error, refetch, createActivity, updateActivity, deleteActivity } =
     useActivities({ limit: 100 });
@@ -147,8 +136,58 @@ export function ActivityList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [templates, setTemplates] = useState<FollowUpTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // GET /api/activities/templates já existia (ActivityUseCases.getFollowUpTemplates), testado, mas
+  // sem nenhum consumidor de UI — esta tela duplicava a mesma lista como constante local, já
+  // divergente em um dos textos (achado do Piloto 015). Busca sob demanda, na abertura do modal.
+  useEffect(() => {
+    if (!isTemplatesOpen || templates.length > 0) return;
+    setTemplatesLoading(true);
+    api
+      .get<FollowUpTemplate[]>('/api/activities/templates')
+      .then(setTemplates)
+      .catch(() => toast.error('Falha ao carregar os modelos de follow-up.'))
+      .finally(() => setTemplatesLoading(false));
+  }, [isTemplatesOpen, templates.length]);
+
+  // Busca de Lead para vincular a atividade — leadId é obrigatório no schema (FK não-nula), mas o
+  // formulário nunca tinha um campo para preenchê-lo: toda submissão daqui sempre falhava na
+  // validação Zod (`leadId: z.string()`) antes mesmo de chegar no banco. Achado real do Piloto 015
+  // — a única tela de criação de atividade do app inteiro estava, na prática, impossível de usar.
+  const [leadSearch, setLeadSearch] = useState('');
+  const [leadResults, setLeadResults] = useState<Lead[]>([]);
+  const [leadSearchLoading, setLeadSearchLoading] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+
+  useEffect(() => {
+    if (!isFormOpen || selectedLead || !leadSearch.trim()) {
+      setLeadResults([]);
+      return;
+    }
+    let cancelled = false;
+    setLeadSearchLoading(true);
+    const timer = window.setTimeout(() => {
+      leadsDB
+        .list({ search: leadSearch, limit: 8 })
+        .then((res) => {
+          if (!cancelled) setLeadResults(res.data);
+        })
+        .catch(() => {
+          if (!cancelled) setLeadResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLeadSearchLoading(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [leadSearch, isFormOpen, selectedLead]);
 
   useEffect(() => {
     const intent = location.state as PaletteIntent | null;
@@ -201,7 +240,7 @@ export function ActivityList() {
     }
   };
 
-  const handleApplyTemplate = (tpl: (typeof FOLLOW_UP_TEMPLATES)[0]) => {
+  const handleApplyTemplate = (tpl: FollowUpTemplate) => {
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + tpl.suggestedOffsetDays);
     setForm({
@@ -212,6 +251,8 @@ export function ActivityList() {
       observations: `[${tpl.title}] ${tpl.description}`,
       leadId: '',
     });
+    setSelectedLead(null);
+    setLeadSearch('');
     setIsTemplatesOpen(false);
     setIsFormOpen(true);
   };
@@ -229,6 +270,10 @@ export function ActivityList() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.leadId) {
+      toast.error('Selecione o negócio ao qual esta atividade pertence.');
+      return;
+    }
     setIsSaving(true);
     try {
       await createActivity({
@@ -237,7 +282,7 @@ export function ActivityList() {
         time: form.time || null,
         owner: form.owner || currentUser?.name || 'Vendedor',
         observations: form.observations || null,
-        leadId: form.leadId || undefined,
+        leadId: form.leadId,
         status: 'Pendente' as import('../../../lib/zod').ActivityStatus,
       });
       setIsFormOpen(false);
@@ -249,6 +294,8 @@ export function ActivityList() {
         observations: '',
         leadId: '',
       });
+      setSelectedLead(null);
+      setLeadSearch('');
     } finally {
       setIsSaving(false);
     }
@@ -305,32 +352,37 @@ export function ActivityList() {
 
             {/* Templates Rápidos de Follow-up */}
             <button
+              type="button"
               onClick={() => setIsTemplatesOpen(true)}
               className="flex items-center gap-1.5 bg-surface-2 hover:bg-surface-3 border border-line text-ink font-bold text-xs px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
               title="Criar atividade com templates rápidos pós-demo e negociação"
             >
-              <Sparkles className="w-4 h-4 text-amber-500" />
+              <Sparkles className="w-4 h-4 text-ink-2" />
               <span>Modelos Rápidos</span>
             </button>
 
-            {/* Sincronização iCal / Google Agenda */}
+            {/* Baixar Agenda (.ics) — /api/activities/feed.ics exige sessão autenticada (cookie);
+                um app externo fazendo *subscribe* por URL nunca envia esse cookie, então copiar o
+                link e prometer "sincronizar" funcionava só na primeira busca manual, nunca de
+                verdade como assinatura periódica. Ver mesma correção em Calendar.tsx. */}
             <button
+              type="button"
               onClick={() => {
                 const icsUrl = `${window.location.origin}/api/activities/feed.ics${currentUser?.name ? `?owner=${encodeURIComponent(currentUser.name)}` : ''}`;
-                navigator.clipboard.writeText(icsUrl);
-                toast.success(
-                  'Link do feed iCal copiado! Cole no seu Google Calendar / Outlook para sincronizar.',
-                );
+                downloadFile(icsUrl, 'agenda.ics').catch((err) => {
+                  toast.error(err instanceof Error ? err.message : 'Falha ao baixar a agenda.');
+                });
               }}
               className="flex items-center gap-1.5 bg-surface-2 hover:bg-surface-3 border border-line text-ink font-bold text-xs px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
-              title="Copiar link de sincronização com Google Agenda e celular"
+              title="Baixar agenda em .ics para importar no Google Agenda / Outlook"
             >
-              <Download className="w-4 h-4 text-sky-500" />
-              <span>Sincronizar Calendário</span>
+              <Download className="w-4 h-4 text-ink-2" />
+              <span>Baixar Agenda (.ics)</span>
             </button>
 
             {/* Nova Atividade */}
             <button
+              type="button"
               onClick={() => setIsFormOpen(true)}
               className="flex items-center gap-1.5 bg-brand-active text-white font-black text-xs px-4 py-2 rounded-xl shadow-md hover:brightness-110 transition-all cursor-pointer"
             >
@@ -341,10 +393,14 @@ export function ActivityList() {
 
         {/* Error State */}
         {error && (
-          <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex items-center gap-3 text-red-700 text-sm font-semibold">
+          <div className="p-4 rounded-2xl bg-danger/10 border border-danger/20 flex items-center gap-3 text-danger-active dark:text-danger text-sm font-semibold">
             <AlertCircle className="w-5 h-5 shrink-0" />
             <span>{error}</span>
-            <button onClick={refetch} className="ml-auto text-xs underline cursor-pointer">
+            <button
+              type="button"
+              onClick={refetch}
+              className="ml-auto text-xs underline cursor-pointer"
+            >
               Tentar novamente
             </button>
           </div>
@@ -375,6 +431,7 @@ export function ActivityList() {
               tarefas pós-demo.
             </p>
             <button
+              type="button"
               onClick={() => setIsFormOpen(true)}
               className="mt-2 flex items-center gap-2 bg-brand-active text-white font-bold text-xs px-5 py-2.5 rounded-xl cursor-pointer"
             >
@@ -478,20 +535,22 @@ export function ActivityList() {
 
                     <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => handleToggleStatus(a)}
                         className={`flex-1 flex items-center justify-center gap-1.5 text-[11px] font-extrabold py-2 rounded-xl border transition-all cursor-pointer ${
                           isDone
-                            ? 'bg-surface-2 text-ink-2 border-line hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300'
+                            ? 'bg-surface-2 text-ink-2 border-line hover:bg-warning/10 hover:text-warning-active dark:hover:text-warning hover:border-warning/20'
+                            : 'bg-success/10 text-emerald-700 border-success/20 hover:bg-success/20 dark:text-success'
                         }`}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         {isDone ? 'Reabrir' : 'Marcar Concluída'}
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(a.id)}
                         aria-label="Excluir atividade"
-                        className="p-2 rounded-xl bg-red-50 text-red-400 border border-red-100 hover:bg-red-100 hover:text-red-600 transition-all cursor-pointer dark:bg-red-950/30"
+                        className="p-2 rounded-xl bg-danger/10 text-danger-active dark:text-danger border border-danger/20 hover:bg-danger/20 transition-all cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -514,10 +573,11 @@ export function ActivityList() {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-500" />
+                <Sparkles className="w-5 h-5 text-ink-2" />
                 <h3 className="text-base font-black text-ink">Modelos de Follow-up Comercial</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsTemplatesOpen(false)}
                 aria-label="Fechar"
                 className="p-1.5 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2"
@@ -531,21 +591,28 @@ export function ActivityList() {
             </p>
 
             <div className="space-y-2.5">
-              {FOLLOW_UP_TEMPLATES.map((tpl) => (
-                <div
-                  key={tpl.id}
-                  onClick={() => handleApplyTemplate(tpl)}
-                  className="p-3.5 rounded-2xl bg-surface-2/50 hover:bg-brand/10 border border-line hover:border-brand transition-all cursor-pointer space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-xs text-ink">{tpl.title}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface border border-line font-bold text-ink-2">
-                      {tpl.type} · +{tpl.suggestedOffsetDays}d
-                    </span>
-                  </div>
-                  <p className="text-xs text-ink-2 leading-relaxed">{tpl.description}</p>
+              {templatesLoading ? (
+                <div className="flex items-center justify-center py-8 text-ink-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 </div>
-              ))}
+              ) : (
+                templates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => handleApplyTemplate(tpl)}
+                    className="w-full text-left p-3.5 rounded-2xl bg-surface-2/50 hover:bg-brand/10 border border-line hover:border-brand transition-all cursor-pointer space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-xs text-ink">{tpl.title}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface border border-line font-bold text-ink-2">
+                        {tpl.type} · +{tpl.suggestedOffsetDays}d
+                      </span>
+                    </div>
+                    <p className="text-xs text-ink-2 leading-relaxed">{tpl.description}</p>
+                  </button>
+                ))
+              )}
             </div>
           </motion.div>
         </div>
@@ -562,7 +629,13 @@ export function ActivityList() {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black text-ink">Nova Atividade</h3>
               <button
-                onClick={() => setIsFormOpen(false)}
+                type="button"
+                onClick={() => {
+                  setIsFormOpen(false);
+                  setSelectedLead(null);
+                  setLeadSearch('');
+                  setForm((f) => ({ ...f, leadId: '' }));
+                }}
                 aria-label="Fechar"
                 className="p-2 rounded-xl bg-surface-2 hover:bg-line cursor-pointer transition-all"
               >
@@ -571,6 +644,75 @@ export function ActivityList() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="relative">
+                <label
+                  htmlFor="activity-lead"
+                  className="block text-[11px] font-black text-ink-2 uppercase mb-1"
+                >
+                  Negócio Vinculado *
+                </label>
+                {selectedLead ? (
+                  <div className="flex items-center justify-between gap-2 bg-surface-2 border border-brand/30 rounded-2xl px-4 py-3">
+                    <span className="text-xs font-bold text-ink truncate">
+                      {leadLabel(selectedLead)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedLead(null);
+                        setForm({ ...form, leadId: '' });
+                        setLeadSearch('');
+                      }}
+                      aria-label="Trocar negócio vinculado"
+                      className="text-ink-2 hover:text-ink shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      id="activity-lead"
+                      type="text"
+                      value={leadSearch}
+                      onChange={(e) => setLeadSearch(e.target.value)}
+                      placeholder="Buscar negócio por título, empresa ou contato..."
+                      className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-brand focus:outline-none"
+                      autoComplete="off"
+                      required
+                    />
+                    {leadSearchLoading && (
+                      <div className="absolute right-3 top-9">
+                        <Loader2 className="w-4 h-4 animate-spin text-ink-2" />
+                      </div>
+                    )}
+                    {leadResults.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-surface border border-line rounded-2xl shadow-xl max-h-48 overflow-y-auto">
+                        {leadResults.map((lead) => (
+                          <button
+                            key={lead.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setForm({ ...form, leadId: lead.id });
+                              setLeadResults([]);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-ink hover:bg-surface-2 transition-colors border-b border-line last:border-b-0"
+                          >
+                            {leadLabel(lead)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!leadSearchLoading && leadSearch.trim().length > 0 && leadResults.length === 0 && (
+                      <p className="text-[11px] text-ink-2 mt-1">
+                        Nenhum negócio encontrado para &quot;{leadSearch}&quot;.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
               <div>
                 <label
                   htmlFor="activity-type"
@@ -664,7 +806,7 @@ export function ActivityList() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="w-full bg-gradient-to-r from-brand to-amber-500 text-white font-extrabold py-3.5 rounded-2xl text-xs shadow-lg shadow-brand/30 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-brand to-brand-2 text-white font-extrabold py-3.5 rounded-2xl text-xs shadow-lg shadow-brand/30 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isSaving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

@@ -11,6 +11,7 @@ import { PipelineByStageCard } from './PipelineByStageCard';
 import { GoalEditorDialog } from './GoalEditorDialog';
 import { DealDrillDownDrawer, type DrillDownQuery } from './DealDrillDownDrawer';
 import { ForecastRangeCard } from './ForecastRangeCard';
+import { TrendChartCard } from './TrendChartCard';
 import { MentorPlaybookCard } from './MentorPlaybookCard';
 import { DecisionCenterPanel } from './DecisionCenterPanel';
 import { GoalCountdownOverlay } from './GoalCountdownOverlay';
@@ -313,6 +314,8 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
       </div>
 
       <ForecastRangeCard overview={overview} trends={trends} />
+
+      <TrendChartCard trends={trends} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MentorPlaybookCard filter={filter} />

@@ -255,6 +255,9 @@ export class IngestionService {
         sourceType: true,
         sourceName: true,
         chunkCount: true,
+        // version existe desde a Onda 40 (auditoria RAG "document version/freshness ausente") mas
+        // nunca tinha sido selecionado pra listagem nem exibido na UI (achado do Piloto 019).
+        version: true,
         createdAt: true,
         updatedAt: true,
       },

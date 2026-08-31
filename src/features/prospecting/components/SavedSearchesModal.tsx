@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bookmark, Play, Trash2, X, Plus, Calendar, Sparkles, Loader2 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import { toast } from '../../../lib/toast.js';
+import type { ProspectCandidate } from '../domain/prospectTypes.js';
 
 export interface SavedSearchItem {
   id: string;
@@ -18,7 +19,14 @@ interface SavedSearchesModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentCriteria?: Record<string, any>;
-  onApplyCriteria?: (criteria: Record<string, any>) => void;
+  /**
+   * Chamado depois de "Executar" com o critério da busca salva e os candidatos que
+   * `/saved-searches/:id/run` já encontrou (Onda 43: antes o candidato era descartado e a tela
+   * disparava uma segunda busca do zero — `.click()` programático no botão de descoberta — para
+   * conseguir o mesmo resultado que a API já tinha devolvido de graça, pagando de novo o custo de
+   * Apollo/Places por nada).
+   */
+  onApplyCriteria?: (criteria: Record<string, any>, candidates: ProspectCandidate[]) => void;
 }
 
 export function SavedSearchesModal({
@@ -90,12 +98,15 @@ export function SavedSearchesModal({
   const handleRun = async (search: SavedSearchItem) => {
     try {
       setRunningId(search.id);
-      const res = await api.post<{ count: number; savedSearch: SavedSearchItem }>(
-        `/api/prospecting/saved-searches/${search.id}/run`,
-      );
+      const res = await api.post<{
+        count: number;
+        savedSearch: SavedSearchItem;
+        candidates: ProspectCandidate[];
+        searchId?: string;
+      }>(`/api/prospecting/saved-searches/${search.id}/run`);
       toast.success(`Busca executada! ${res.count} novo(s) candidato(s) encontrado(s).`);
       if (onApplyCriteria && search.criteria) {
-        onApplyCriteria(search.criteria);
+        onApplyCriteria(search.criteria, res.candidates || []);
       }
       loadSearches();
     } catch {
@@ -146,8 +157,9 @@ export function SavedSearchesModal({
             >
               <h3 className="text-xs font-bold uppercase text-ink-2">Nova Busca Salva</h3>
               <div>
-                <label className="text-xs font-medium text-ink block mb-1">Nome da Lista</label>
+                <label htmlFor="saved-search-name" className="text-xs font-medium text-ink block mb-1">Nome da Lista</label>
                 <input
+                  id="saved-search-name"
                   type="text"
                   required
                   placeholder="Ex: Frotas Pesadas SP > 30 caminhões"
@@ -157,10 +169,11 @@ export function SavedSearchesModal({
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-ink block mb-1">
+                <label htmlFor="saved-search-schedule" className="text-xs font-medium text-ink block mb-1">
                   Recorrência Automática
                 </label>
                 <select
+                  id="saved-search-schedule"
                   value={newSchedule}
                   onChange={(e) => setNewSchedule(e.target.value as any)}
                   className="w-full px-3 py-2 bg-surface border border-line rounded-xl text-xs font-medium text-ink focus:outline-none focus:border-brand"

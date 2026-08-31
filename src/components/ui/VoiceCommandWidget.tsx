@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBrand } from '../../contexts/BrandContext';
 import { navigationBus } from '../../lib/navigationBus';
 import { clientLogger } from '../../lib/clientLogger';
+import { toast } from '../../lib/toast';
 
 // SpeechRecognitionLike / Window.SpeechRecognition são tipos ambient globais definidos em
 // src/types/speech-recognition.d.ts (Web Speech API não faz parte da lib "DOM" do TypeScript).
@@ -94,7 +95,9 @@ export function VoiceCommandWidget() {
 
   const toggleListening = () => {
     if (!recognition) {
-      alert('Seu navegador não suporta reconhecimento de voz. Experimente usar o Google Chrome.');
+      toast.error(
+        'Seu navegador não suporta reconhecimento de voz. Experimente usar o Google Chrome.',
+      );
       return;
     }
 

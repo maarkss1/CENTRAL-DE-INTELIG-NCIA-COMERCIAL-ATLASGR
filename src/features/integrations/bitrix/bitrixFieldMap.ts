@@ -18,9 +18,10 @@
  *
  * Este mapa é consumido nas duas direções por `service/customFields.ts`
  * (`buildOutboundCustomFields`/`applyInboundCustomFields`), chamado por `service/outboundSync.ts`
- * (export) e `service/leads.ts`/`service/deals.ts` (import) — ver BITRIX24-LEAD-FLOW-AUDIT.md,
- * achado P0-1, para o histórico de por que ele passou um tempo definido mas desconectado do fluxo
- * real.
+ * (export) e `service/leads.ts`/`service/deals.ts` (import) — achado P0-1 da antiga auditoria
+ * BITRIX24-LEAD-FLOW-AUDIT.md (removida do controle de versão em 22/08/2026, ver
+ * docs/REMOVED-DOCS.md), que documentava por que ele passou um tempo definido mas desconectado do
+ * fluxo real.
  */
 
 /**

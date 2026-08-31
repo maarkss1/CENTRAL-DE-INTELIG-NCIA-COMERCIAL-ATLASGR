@@ -45,7 +45,7 @@ export function CompanyBranchesView({
     // Busca empresas com a mesma raiz de CNPJ no catálogo
     api
       .get<{ data: BranchCompanyItem[] }>(
-        `/api/market-intelligence/companies?cnpj=${cnpjRoot}&pageSize=50`,
+        `/api/companies/market-intelligence?cnpj=${cnpjRoot}&pageSize=50`,
       )
       .then((res) => {
         if (!cancelled) {
@@ -68,7 +68,7 @@ export function CompanyBranchesView({
     try {
       setApprovingCnpj(branchCnpj);
       const res = await api.post<{ message: string }>(
-        `/api/market-intelligence/companies/${encodeURIComponent(branchCnpj)}/approve-to-pipeline`,
+        `/api/companies/market-intelligence/${encodeURIComponent(branchCnpj)}/approve-to-pipeline`,
       );
       toast.success(res.message || 'Filial aprovada para o Pipeline CRM!');
     } catch (err) {

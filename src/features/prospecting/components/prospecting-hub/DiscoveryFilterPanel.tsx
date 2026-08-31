@@ -598,7 +598,7 @@ export function DiscoveryFilterPanel({
                           tecnologiasExcluir: next.length ? next.join(',') : undefined,
                         });
                       }}
-                      className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-danger border-danger text-white' : 'bg-surface-2 border-line text-ink-2 hover:border-danger/50'}`}
+                      className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-danger-active border-danger-active text-white' : 'bg-surface-2 border-line text-ink-2 hover:border-danger/50'}`}
                     >
                       {opt.label}
                     </button>
