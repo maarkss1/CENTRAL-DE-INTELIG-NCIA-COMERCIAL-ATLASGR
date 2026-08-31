@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { z } from 'zod';
+import type { z } from 'zod';
 
 import { getAiModel, logAiUsage, streamChatCompletion } from '../../../../lib/ai/gateway.js';
 import { redactAndTrackPiiLeak, createStreamingRedactor } from '../guardrails.service.js';

@@ -4,7 +4,7 @@ import { redactAndTrackPiiLeak } from '../../intelligence/services/guardrails.se
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { notificationService } from '../../notifications/notification.service.js';
-import { CommercialIntelligenceUseCases } from '../application/CommercialIntelligenceUseCases.js';
+import type { CommercialIntelligenceUseCases } from '../application/CommercialIntelligenceUseCases.js';
 import { buildForecastRange, computeTrendMomentum } from '../application/predictiveForecast.js';
 import type {
   CommercialIntelligenceFilter,

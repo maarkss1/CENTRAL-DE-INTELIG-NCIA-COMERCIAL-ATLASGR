@@ -1,9 +1,9 @@
-import {
+import type {
   QualificationMatrixItem,
   QualificationMatrixItemRepository,
 } from '../domain/QualificationMatrixItem';
 import { prisma } from '../../../../lib/prisma';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 export class PrismaQualificationMatrixRepository implements QualificationMatrixItemRepository {
   async findAllWithFilters(

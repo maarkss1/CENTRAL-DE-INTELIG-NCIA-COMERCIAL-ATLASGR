@@ -1,7 +1,7 @@
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma';
 import { activitySchema, type ActivityType, type ActivityStatus } from '../../../lib/zod';
-import { z } from 'zod';
+import type { z } from 'zod';
 import {
   toPrismaActivityType,
   fromPrismaActivityType,

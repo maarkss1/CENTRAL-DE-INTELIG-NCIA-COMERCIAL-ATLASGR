@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 
@@ -206,7 +206,7 @@ router.post(
 );
 
 // Import the cold email service
-import { sendColdEmail, ColdEmailCampaign } from '../services/cold-email.service.js';
+import { sendColdEmail, type ColdEmailCampaign } from '../services/cold-email.service.js';
 
 // Envia um cold email (ex: template de prospecção) com rotulagem LGPD
 router.post(
@@ -405,6 +405,33 @@ router.get(
         return;
       }
       res.json({ success: true, data: execution });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Enriquecimento web usando scraper Crawlee (placeholder)
+router.post(
+  '/enrich',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { url } = req.body as { url?: string };
+      if (!url) {
+        res.status(400).json({ success: false, error: 'A URL é obrigatória para o scraper' });
+        return;
+      }
+      
+      // Placeholder para execução real do Crawlee
+      res.json({
+        success: true,
+        data: {
+          scrapedUrl: url,
+          emails: [],
+          phones: [],
+          textSnippet: 'Texto extraído pelo scraper (placeholder)',
+        },
+      });
     } catch (error) {
       next(error);
     }

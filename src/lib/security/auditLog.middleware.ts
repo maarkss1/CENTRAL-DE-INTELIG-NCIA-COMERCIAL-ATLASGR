@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { AuditService } from '../audit/audit.service.js';
-import { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
+import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
 import { requestContext } from '../async-context.js';
 
 export function auditAccessMiddleware(entity: string) {

@@ -1,19 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  Cell,
-  LabelList,
-} from 'recharts';
-import { BarChart as EChartsBar } from '../../../components/charts';
+import { BarChart, LineChart } from '../../../components/charts';
 import { BarChart3, AlertTriangle, Loader2, RefreshCw, Table2, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -26,26 +12,12 @@ import {
   PERIOD_OPTIONS,
   type AnalyticsDashboard,
 } from '../analytics.api';
-import { SINGLE, INK, SERIES, tooltipStyle } from '../../../shared/constants/chartPalette';
 import {
   HeatmapWidget,
   AgentPerformanceWidget,
   LostReasonsWidget,
   TmqTile,
 } from './DashboardExtensions';
-import { BarChart as EBarChart } from '../../../components/charts';
-
-/**
- * Paleta validada com o script do guia de data-viz contra a superfície escura dos cards
- * (#0a1022, que é o slate-900/60 sobre slate-950). SINGLE/INK/SERIES/tooltipStyle são
- * compartilhados com Billing.tsx (e agora DashboardExtensions.tsx) via
- * shared/constants/chartPalette — ver esse arquivo para o racional completo.
- *
- * FUNNEL_RAMP: rampa ordinal de um único tom (azul), com ΔL >= 0.06 entre passos. O funil tem
- * categorias ordenadas, então leva rampa; os demais gráficos comparam uma medida só e por isso
- * usam UMA cor — colorir barra por barra seria duplicar o comprimento em matiz.
- */
-const FUNNEL_RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95'];
 
 function StatTile({
   label,
@@ -321,34 +293,17 @@ export function Analytics() {
                 s.conversionFromPrevious == null ? '—' : `${s.conversionFromPrevious.toFixed(1)}%`,
               ])}
             >
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart
-                  data={data.funnel}
-                  layout="vertical"
-                  margin={{ left: 8, right: 40, top: 4, bottom: 4 }}
-                >
-                  <CartesianGrid horizontal={false} stroke={INK.grid} />
-                  <XAxis type="number" stroke={INK.axis} tick={{ fill: INK.muted, fontSize: 11 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="label"
-                    width={120}
-                    stroke={INK.axis}
-                    tick={{ fill: INK.muted, fontSize: 11 }}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                  />
-                  <Bar dataKey="count" name="Leads" radius={[0, 4, 4, 0]} barSize={18}>
-                    {data.funnel.map((_, i) => (
-                      <Cell key={i} fill={FUNNEL_RAMP[i % FUNNEL_RAMP.length]} />
-                    ))}
-                    {/* Rótulo fora da barra: barras curtas não cortam o número. */}
-                    <LabelList dataKey="count" position="right" fill={INK.muted} fontSize={11} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <BarChart
+  horizontal={true}
+  height={260}
+  data={{
+    categories: data.funnel.map(s => s.label),
+    series: [{
+      name: 'Leads',
+      data: data.funnel.map(s => s.count)
+    }]
+  }}
+/>
             </ChartCard>
 
             {/* Evolução mensal — único gráfico multi-série, com legenda */}
@@ -358,47 +313,17 @@ export function Analytics() {
               tableHeaders={['Mês', 'Criados', 'Ganhos', 'Perdidos']}
               tableRows={monthlyData.map((p) => [p.label, p.created, p.won, p.lost])}
             >
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={monthlyData} margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
-                  <CartesianGrid stroke={INK.grid} vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    stroke={INK.axis}
-                    tick={{ fill: INK.muted, fontSize: 11 }}
-                  />
-                  <YAxis
-                    stroke={INK.axis}
-                    tick={{ fill: INK.muted, fontSize: 11 }}
-                    allowDecimals={false}
-                  />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: INK.axis }} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: INK.muted }} />
-                  <Line
-                    type="monotone"
-                    dataKey="created"
-                    name="Criados"
-                    stroke={SERIES.created}
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="won"
-                    name="Ganhos"
-                    stroke={SERIES.won}
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="lost"
-                    name="Perdidos"
-                    stroke={SERIES.lost}
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <LineChart
+  height={260}
+  data={{
+    categories: monthlyData.map(d => d.label),
+    series: [
+      { name: 'Criados', data: monthlyData.map(d => d.created) },
+      { name: 'Ganhos', data: monthlyData.map(d => d.won) },
+      { name: 'Perdidos', data: monthlyData.map(d => d.lost) }
+    ]
+  }}
+/>
             </ChartCard>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -408,35 +333,16 @@ export function Analytics() {
                 tableHeaders={['Tipo', 'Quantidade']}
                 tableRows={data.activitiesByType.map((s) => [s.label, s.count])}
               >
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart
-                    data={data.activitiesByType}
-                    margin={{ left: 8, right: 8, top: 4, bottom: 4 }}
-                  >
-                    <CartesianGrid stroke={INK.grid} vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                    />
-                    <YAxis
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                      allowDecimals={false}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                    />
-                    <Bar
-                      dataKey="count"
-                      name="Atividades"
-                      fill={SINGLE}
-                      radius={[4, 4, 0, 0]}
-                      barSize={22}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart
+  height={220}
+  data={{
+    categories: data.activitiesByType.map(s => s.label),
+    series: [{
+      name: 'Atividades',
+      data: data.activitiesByType.map(s => s.count)
+    }]
+  }}
+/>
               </ChartCard>
 
               {/* Buscado pela API mas nunca exibido antes desta sessão (achado do Piloto 009) —
@@ -446,35 +352,16 @@ export function Analytics() {
                 tableHeaders={['Status', 'Quantidade']}
                 tableRows={data.activitiesByStatus.map((s) => [s.label, s.count])}
               >
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart
-                    data={data.activitiesByStatus}
-                    margin={{ left: 8, right: 8, top: 4, bottom: 4 }}
-                  >
-                    <CartesianGrid stroke={INK.grid} vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                    />
-                    <YAxis
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                      allowDecimals={false}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                    />
-                    <Bar
-                      dataKey="count"
-                      name="Atividades"
-                      fill={SINGLE}
-                      radius={[4, 4, 0, 0]}
-                      barSize={22}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart
+  height={220}
+  data={{
+    categories: data.activitiesByStatus.map(s => s.label),
+    series: [{
+      name: 'Atividades',
+      data: data.activitiesByStatus.map(s => s.count)
+    }]
+  }}
+/>
               </ChartCard>
 
               <ChartCard
@@ -483,41 +370,17 @@ export function Analytics() {
                 tableHeaders={['Responsável', 'Leads', 'Ganhos']}
                 tableRows={data.byOwner.map((o) => [o.label, o.count, o.won])}
               >
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart
-                    data={data.byOwner}
-                    layout="vertical"
-                    margin={{ left: 8, right: 40, top: 4, bottom: 4 }}
-                  >
-                    <CartesianGrid horizontal={false} stroke={INK.grid} />
-                    <XAxis
-                      type="number"
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                      allowDecimals={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="label"
-                      width={110}
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                    />
-                    <Bar
-                      dataKey="count"
-                      name="Leads"
-                      fill={SINGLE}
-                      radius={[0, 4, 4, 0]}
-                      barSize={16}
-                    >
-                      <LabelList dataKey="count" position="right" fill={INK.muted} fontSize={11} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart
+  horizontal={true}
+  height={220}
+  data={{
+    categories: data.byOwner.map(s => s.label),
+    series: [{
+      name: 'Leads',
+      data: data.byOwner.map(s => s.count)
+    }]
+  }}
+/>
               </ChartCard>
 
               <ChartCard
@@ -525,35 +388,16 @@ export function Analytics() {
                 tableHeaders={['Temperatura', 'Leads']}
                 tableRows={data.byTemperature.map((s) => [s.label, s.count])}
               >
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart
-                    data={data.byTemperature}
-                    margin={{ left: 8, right: 8, top: 4, bottom: 4 }}
-                  >
-                    <CartesianGrid stroke={INK.grid} vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                    />
-                    <YAxis
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                      allowDecimals={false}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                    />
-                    <Bar
-                      dataKey="count"
-                      name="Leads"
-                      fill={SINGLE}
-                      radius={[4, 4, 0, 0]}
-                      barSize={26}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart
+  height={200}
+  data={{
+    categories: data.byTemperature.map(s => s.label),
+    series: [{
+      name: 'Leads',
+      data: data.byTemperature.map(s => s.count)
+    }]
+  }}
+/>
               </ChartCard>
 
               <ChartCard
@@ -561,41 +405,17 @@ export function Analytics() {
                 tableHeaders={['Origem', 'Leads']}
                 tableRows={data.bySource.map((s) => [s.label, s.count])}
               >
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart
-                    data={data.bySource}
-                    layout="vertical"
-                    margin={{ left: 8, right: 40, top: 4, bottom: 4 }}
-                  >
-                    <CartesianGrid horizontal={false} stroke={INK.grid} />
-                    <XAxis
-                      type="number"
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                      allowDecimals={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="label"
-                      width={130}
-                      stroke={INK.axis}
-                      tick={{ fill: INK.muted, fontSize: 11 }}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                    />
-                    <Bar
-                      dataKey="count"
-                      name="Leads"
-                      fill={SINGLE}
-                      radius={[0, 4, 4, 0]}
-                      barSize={16}
-                    >
-                      <LabelList dataKey="count" position="right" fill={INK.muted} fontSize={11} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart
+  horizontal={true}
+  height={200}
+  data={{
+    categories: data.bySource.map(s => s.label),
+    series: [{
+      name: 'Leads',
+      data: data.bySource.map(s => s.count)
+    }]
+  }}
+/>
               </ChartCard>
             </div>
 
@@ -649,17 +469,6 @@ export function Analytics() {
                 <LostReasonsWidget data={data.lostReasons} />
               </Card>
             </div>
-
-            <EBarChart
-              title="Prospecção"
-              data={{ categories: ['Jan', 'Fev'], series: [{ name: 'Leads', data: [10, 20] }] }}
-            />
-            <Card padding="sm" className="mb-6">
-              <EChartsBar
-                title="Prospecção"
-                data={{ categories: ['Jan', 'Fev'], series: [{ name: 'Leads', data: [10, 20] }] }}
-              />
-            </Card>
 
             <CohortAnalysis />
           </motion.div>

@@ -13,7 +13,7 @@
  *     onRowClick={(row) => openDetail(row)}
  *   />
  */
-import { useRef, ReactNode, CSSProperties } from 'react';
+import { useRef, type ReactNode, type CSSProperties } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 export interface ColumnDef<T> {
@@ -112,7 +112,6 @@ export function VirtualTable<T>({
         role="rowgroup"
         // Div não-interativa com scroll — tabIndex é intencional (torna a região focável/rolável
         // via teclado), não um erro de a11y. Mesmo padrão de CrmBoard.tsx.
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
         aria-label="Tabela de dados"
       >

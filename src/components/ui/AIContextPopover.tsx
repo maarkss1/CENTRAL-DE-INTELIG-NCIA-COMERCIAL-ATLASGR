@@ -11,7 +11,7 @@
  *     <button>Ver insights</button>
  *   </AIContextPopover>
  */
-import { useState, useRef, useCallback, ReactNode } from 'react';
+import { useState, useRef, useCallback, type ReactNode } from 'react';
 import {
   useFloating,
   useClick,

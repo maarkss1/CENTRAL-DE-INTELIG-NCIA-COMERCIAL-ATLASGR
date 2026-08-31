@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import type React from 'react';
+import { useState, useEffect } from 'react';
 import { Bookmark, Play, Trash2, X, Plus, Calendar, Sparkles, Loader2 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import { toast } from '../../../lib/toast.js';

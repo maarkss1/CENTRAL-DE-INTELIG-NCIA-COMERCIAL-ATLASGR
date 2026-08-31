@@ -1,4 +1,4 @@
-import express, { Router, Request, Response, NextFunction } from 'express';
+import express, { Router, type Request, type Response, type NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { env } from '../../../config/env.js';
 import { logger } from '../../../lib/logger.js';

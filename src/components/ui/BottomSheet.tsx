@@ -9,7 +9,7 @@
  *     ...conteúdo...
  *   </BottomSheet>
  */
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Drawer } from 'vaul';
 
 interface BottomSheetProps {

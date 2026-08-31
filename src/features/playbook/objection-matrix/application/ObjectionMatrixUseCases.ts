@@ -1,4 +1,4 @@
-import { ObjectionMatrixItem, ObjectionMatrixItemRepository } from '../domain/ObjectionMatrixItem';
+import type { ObjectionMatrixItem, ObjectionMatrixItemRepository } from '../domain/ObjectionMatrixItem';
 import { objectionMatrixItemSchema, type ObjectionMatrixItemInput } from '../../playbook.schema';
 import { BaseUseCases } from '../../../../shared/application/BaseUseCases';
 
