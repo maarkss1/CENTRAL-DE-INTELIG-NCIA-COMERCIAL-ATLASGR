@@ -1,5 +1,5 @@
-import { Queue, Worker, QueueEvents, Job } from 'bullmq';
-import { Prisma } from '@prisma/client';
+import { Queue, Worker, QueueEvents, type Job } from 'bullmq';
+import type { Prisma } from '@prisma/client';
 import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';

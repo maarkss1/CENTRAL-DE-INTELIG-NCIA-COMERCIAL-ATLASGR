@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { ContactUseCases } from '../application/ContactUseCases';
-import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import type { Request, Response, NextFunction } from 'express';
+import type { ContactUseCases } from '../application/ContactUseCases';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 
 export class ContactController {
   constructor(private contactUseCases: ContactUseCases) {}

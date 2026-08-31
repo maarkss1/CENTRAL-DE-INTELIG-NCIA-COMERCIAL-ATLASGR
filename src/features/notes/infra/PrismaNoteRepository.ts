@@ -1,4 +1,4 @@
-import { Note, NoteRepository } from '../domain/Note';
+import type { Note, NoteRepository } from '../domain/Note';
 import { prisma } from '../../../lib/prisma';
 
 export class PrismaNoteRepository implements NoteRepository {

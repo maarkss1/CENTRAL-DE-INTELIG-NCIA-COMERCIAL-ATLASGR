@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import {
-  AutomationUseCases,
+  type AutomationUseCases,
   AUTOMATION_TRIGGERS,
   AUTOMATION_ACTIONS,
 } from '../application/AutomationUseCases';

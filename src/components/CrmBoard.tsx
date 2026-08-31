@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, WifiOff, Sparkles, CheckSquare, Send, X, Loader2 } from 'lucide-react';
-import { Lead, LeadStatus } from '../types';
+import type { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { KanbanCard } from '../features/crm/components/KanbanCard';
 import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
@@ -24,9 +24,9 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  DragStartEvent,
-  DragEndEvent,
-  Announcements,
+  type DragStartEvent,
+  type DragEndEvent,
+  type Announcements,
 } from '@dnd-kit/core';
 
 // dnd-kit ativa drag por teclado em Space E Enter por padrão — mas KanbanCard também usa Enter pra
@@ -565,10 +565,12 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
       {/* Região com scroll horizontal do Kanban */}
       <div
         className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-bg pb-24"
+        // role="region" torna o aria-label válido (div genérica não aceita nome acessível) e
+        // sinaliza a screen readers que é uma landmark navegável — não só satisfaz o linter.
+        role="region"
         // Div não-interativa com scroll — tabIndex é intencional (torna a região focável/rolável
-        // via teclado), não um erro de a11y. O disable abaixo precisa ficar na linha IMEDIATAMENTE
-        // anterior a `tabIndex` (não antes da tag `<div`) — "next-line" é literal, uma linha.
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        // via teclado), não um erro de a11y. Mesmo padrão de VirtualTable.tsx.
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: scroll horizontal via teclado, ver comentário acima
         tabIndex={0}
         aria-label="Colunas do pipeline — role o conteúdo horizontalmente"
       >

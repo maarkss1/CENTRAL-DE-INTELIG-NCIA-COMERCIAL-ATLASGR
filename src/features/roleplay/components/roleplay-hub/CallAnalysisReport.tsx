@@ -85,7 +85,7 @@ export function CallAnalysisReport({
               `timestamps` também existe (linha 86). É uma alternativa textual completa e
               sincronizada à gravação, não uma trilha de legenda WebVTT, mas cobre o mesmo
               propósito de acessibilidade (conteúdo falado disponível como texto). */}
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          {/* biome-ignore lint/a11y/useMediaCaption: transcrição textual completa cobre o mesmo propósito, ver comentário acima */}
           <audio controls className="w-full h-12" src={audioBlobUrl} />
 
           <div className="mt-6 space-y-4 max-h-64 overflow-y-auto pr-2">

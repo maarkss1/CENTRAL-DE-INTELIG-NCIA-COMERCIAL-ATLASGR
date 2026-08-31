@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -70,9 +71,10 @@
   main{max-width:920px;margin:0 auto;padding:0 24px 80px}
 
   .brandbar{
-    height:7px;
+    height:5px;
     margin-bottom:36px;
-    background:linear-gradient(90deg, var(--orange) 0%, var(--orange) 60%, var(--amber) 100%);
+    background:linear-gradient(90deg, var(--orange) 0 58%, var(--orange-deep) 58% 72%, #FF8008 72% 86%, var(--amber) 86% 100%);
+    border-radius:99px;
   }
 
   .mark{
@@ -81,21 +83,8 @@
     gap:9px;
     margin-bottom:22px;
   }
-  .mark .a{
-    width:20px;height:20px;position:relative;
-  }
-  .mark .a i{
-    position:absolute;top:0;bottom:0;width:9px;
-    background:var(--orange);
-    transform:skewX(-22deg);
-  }
-  .mark .a i:first-child{left:0}
-  .mark .a i:last-child{left:11px;height:60%;top:40%;background:var(--orange-deep)}
-  .mark span{
-    font-weight:800;
-    font-size:15px;
-    color:var(--charcoal);
-    letter-spacing:-.01em;
+  .mark img{
+    height:20px;width:auto;display:block;
   }
 
   .eyebrow{
@@ -134,6 +123,13 @@
     overflow:hidden;
     clip-path:polygon(0 0, 100% 0, 100% 100%, 3.2% 100%);
   }
+  .verdict:after{
+    content:"";
+    position:absolute;right:-24px;top:-30px;width:340px;height:290px;
+    background-image:url('./atlas-symbol-negative.png');
+    background-size:74px auto;background-repeat:repeat;
+    opacity:.08;transform:rotate(-7deg);pointer-events:none;
+  }
   .verdict h2{
     font-family:"JetBrains Mono",monospace;
     font-size:12px;
@@ -143,7 +139,8 @@
     margin:0 0 18px;
     font-weight:500;
   }
-  .verdict-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;position:relative}
+  .verdict-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;position:relative;z-index:2}
+  .verdict h2{position:relative;z-index:2}
   @media (max-width:760px){.verdict-grid{grid-template-columns:1fr}}
   .verdict-slot{border-left:3px solid var(--orange);padding-left:16px}
   .verdict-slot.secondary{border-left-color:#7d7267}
@@ -294,7 +291,7 @@
 
 <div class="brandbar"></div>
 <main>
-  <div class="mark"><span class="a"><i></i><i></i></span><span>Atlas</span></div>
+  <div class="mark"><img src="./atlas-logo-positive.png" alt="Atlas"></div>
   <div class="eyebrow">Cruzamento demanda &times; oferta &middot; GR carga rodoviária</div>
   <h1>Onde a demanda passa na frente da oferta</h1>
   <p class="subhead">4.990 municípios de fit ICP confirmado, cruzados contra o mapa real de gerenciadoras de risco (GR) credenciadas por seguradoras no Brasil — para responder onde vale colocar um consultor externo em campo.</p>
@@ -307,21 +304,21 @@
         <div class="verdict-uf">Bahia</div>
         <p class="verdict-stat"><b>10.743</b> empresas com RNTRC ativo (fit estrutural confirmado)</p>
         <p class="verdict-stat"><b>0</b> gerenciadoras de risco sediadas no estado</p>
-        <p class="verdict-note">Confirmado em duas listas independentes de credenciamento (AXA e Porto Seguro) — nem Salvador nem Feira de Santana aparecem.</p>
+        <p class="verdict-note">Zero GR confirmado por 3 métodos (AXA, Porto Seguro, CNPJ/CNAE nacional). <b>7º maior mercado de seguro de carga do Brasil</b> (R$ 43,4 mi em prêmio no 1º semestre/2026, dado SUSEP/SES) — maior que MT, GO, PE e CE. 4º lugar nacional em ocorrências de roubo de carga (205 casos, 2025) e líder do Nordeste em valor de prejuízo.</p>
       </div>
       <div class="verdict-slot secondary">
         <div class="verdict-rank">Prioridade 2</div>
         <div class="verdict-uf">Espírito Santo</div>
         <p class="verdict-stat"><b>5.885</b> empresas com RNTRC ativo</p>
-        <p class="verdict-stat"><b>0</b> gerenciadoras sediadas no estado</p>
-        <p class="verdict-note">Hub portuário/mineral (Vale, Porto de Tubarão) que resolve risco internamente ou importa GR de fora — ninguém sediado ali.</p>
+        <p class="verdict-stat"><b>2</b> GR pequenas fora da capital, nenhuma em Vitória</p>
+        <p class="verdict-note"><b>9º maior mercado de seguro de carga do Brasil</b> (R$ 34,1 mi em prêmio, SUSEP/SES) — e a maior sinistralidade entre as UFs relevantes: <b>103%</b> (sinistro paga mais que o prêmio arrecadado). Não aparece nos rankings de roubo de carga da NTC&amp;Logística — a demanda vem do volume portuário/mineral (Vale, Porto de Tubarão), não de crime.</p>
       </div>
       <div class="verdict-slot secondary">
         <div class="verdict-rank">Prioridade 3</div>
         <div class="verdict-uf">Pará</div>
         <p class="verdict-stat"><b>4.908</b> empresas com RNTRC ativo</p>
         <p class="verdict-stat"><b>0</b> gerenciadoras sediadas em toda a Região Norte, exceto Tocantins</p>
-        <p class="verdict-note">Belém tem volume comparável a estados do Nordeste que já têm GR local — e nenhuma.</p>
+        <p class="verdict-note">Domina o prejuízo por roubo de carga da Região Norte (62,9%), mas o mercado de seguro ainda é pequeno em volume absoluto: <b>15º lugar nacional</b>, R$ 10,2 mi em prêmio — cerca de 1/4 do de Bahia/ES. A oportunidade aqui é mais estrutural (região crescendo rápido, ainda sem oferta) do que um mercado grande já maduro esperando GR.</p>
       </div>
     </div>
   </div>
@@ -368,8 +365,8 @@
           <tr>
             <td>Nordeste</td>
             <td class="mono">CE · AL · PE</td>
-            <td>GCI Risk (CE) · Verttice (AL, PE)</td>
-            <td class="mono"><span class="chip vazio">BA · MA · PI · RN · PB · SE</span></td>
+            <td>GCI Risk (CE) · Verttice (AL, PE) · Seg Risco (SE, Aracaju — achada via CNPJ/CNAE)</td>
+            <td class="mono"><span class="chip vazio">BA · MA · PI · RN · PB</span></td>
           </tr>
           <tr>
             <td>Norte</td>
@@ -383,6 +380,26 @@
   </section>
 
   <section>
+    <h3>Tamanho real do mercado, por UF (SUSEP)</h3>
+    <p class="section-lede">Prêmio e sinistro direto dos ramos RCTR-C (0654) + RC-DC (0655) + RC-V (0659), 1º semestre/2026 — dado oficial extraído direto do sistema SES da SUSEP (não é estimativa; ver fonte no rodapé). Mostra que a lacuna de GR não é por falta de mercado segurável.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>UF</th><th class="mono">Posição</th><th class="mono">Prêmio direto (R$ mi)</th><th class="mono">Sinistralidade</th></tr></thead>
+        <tbody>
+          <tr><td>São Paulo <span class="chip coberto">coberto</span></td><td class="mono">1º</td><td class="mono">781,8</td><td class="mono">57,1%</td></tr>
+          <tr><td>Paraná <span class="chip coberto">coberto</span></td><td class="mono">5º</td><td class="mono">94,8</td><td class="mono">59,9%</td></tr>
+          <tr><td><b>Bahia</b> <span class="chip vazio">vazio</span></td><td class="mono"><b>7º</b></td><td class="mono"><b>43,4</b></td><td class="mono">55,8%</td></tr>
+          <tr><td>Mato Grosso <span class="chip coberto">coberto</span></td><td class="mono">8º</td><td class="mono">36,0</td><td class="mono">88,8%</td></tr>
+          <tr><td><b>Espírito Santo</b> <span class="chip vazio">vazio</span></td><td class="mono"><b>9º</b></td><td class="mono"><b>34,1</b></td><td class="mono"><b>103,4%</b></td></tr>
+          <tr><td>Goiás <span class="chip coberto">coberto</span></td><td class="mono">10º</td><td class="mono">30,8</td><td class="mono">73,5%</td></tr>
+          <tr><td><b>Pará</b> <span class="chip vazio">vazio</span></td><td class="mono"><b>15º</b></td><td class="mono"><b>10,2</b></td><td class="mono">26,1%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="section-lede" style="margin-top:10px">Leitura: Bahia e Espírito Santo já são mercados de seguro de carga maiores que Mato Grosso e Goiás — dois estados onde a AtlasGR já tem concorrência estabelecida. O vazio de GR ali não é por falta de mercado. Pará é a exceção: mercado pequeno em volume absoluto (15º lugar) — a oportunidade lá é mais estrutural/de crescimento do que um mercado maduro represado.</p>
+  </section>
+
+  <section>
     <h3>Ressalvas — leia antes de agir</h3>
     <ul class="caveats">
       <li class="callout">"Sede confirmada" reflete onde a GR está cadastrada junto à seguradora, não necessariamente o alcance operacional real. Algumas atendem remotamente por plataforma mesmo sem escritório local — trate "vazio" como sinal forte, não como prova absoluta de mercado livre.</li>
@@ -390,6 +407,9 @@
       <li class="callout">Bahia e Pará foram revalidados numa segunda rodada: PDFs da AXA e Porto Seguro reextraídos na íntegra (não resumo), incluindo uma versão da lista Porto Seguro mais recente que a original — o vazio persiste. Sindicatos patronais de transportadoras (SETCEB-BA, SINDICARPA-PA) não citam nenhuma GR local em nenhuma comunicação. Duas pistas que pareciam contradizer isso (ICTS e Velox, citadas em notícias baianas) foram checadas e são prestadoras nacionais atuando remoto, não GR sediada.</li>
       <li class="callout">Os 7 estados antes "não verificados" (MA, PI, RN, PB, SE, ES, DF) foram fechados com a base de CNPJs <b>Econodata</b> (setor "Gerenciadora de Risco") como terceira fonte — retornou 0 empresas nos 7, e 2 em MS (controle de que o filtro funciona). Todos os 27 estados têm veredito agora; nenhum ficou em aberto.</li>
       <li class="callout">Ponto cego que continua real: o quadro de associados da <b>GRISTEC</b> (associação do setor) segue impossível de raspar — só grade de logos, sem nome/cidade pesquisável. E a cobertura de credenciamento é só de AXA e Porto Seguro; uma GR pequena credenciada apenas por Tokio Marine, Allianz, HDI ou Sompo passaria batido. Vale um contato direto com transportadoras locais antes de comprometer investimento.</li>
+      <li class="callout"><b>Quarta rodada de verificação</b> — busca direta na base nacional de CNPJ (Receita Federal, 72,5 milhões de registros) por CNAE 8020-0/01, o código usado por 5 de 5 GRs já confirmadas (Consultebras, Federal ST, Global Rastreamento, Skymark, Federal Soluções). Esse CNAE sozinho é ruidoso — pega monitoramento de alarme residencial e rastreamento veicular genérico aos milhares — então o resultado foi filtrado por nome contendo "risco"/"gerenciadora". Confirma Bahia e Pará com zero candidatos mesmo nessa busca mais ampla (3ª fonte independente), mas corrige dois vereditos: Espírito Santo tem 2 GRs pequenas em Alfredo Chaves (nenhuma em Vitória) e Sergipe tem 1 candidata em Aracaju (SEG RISCO SEGURANÇA EM TRANSPORTES) que nenhuma fonte anterior via seguradora tinha capturado.</li>
+      <li class="callout"><b>Quinta rodada</b> — cruzamento com roubo de carga (NTC&amp;Logística, relatório 2025) e prêmio/sinistro oficial por UF (SUSEP/SES, dado direto de sistema, não painel estimado). Bahia: 4º lugar nacional em ocorrências de roubo, líder do Nordeste em prejuízo. Pará: domina o prejuízo da Região Norte (62,9%) mas a região ainda é pequena no total nacional. Espírito Santo: não aparece em nenhum ranking de roubo de carga — a maior sinistralidade do país (103%) provavelmente reflete perdas de outra natureza (avaria, transporte de minério/granel), não crime.</li>
+      <li class="callout">Becos sem saída documentados para não repetir a busca: os Sincor estaduais de BA/PA/ES não publicam número de corretoras nem dado de mercado de carga local. O registro da Polícia Federal de empresas de segurança privada (escolta armada) não tem lista pública por estado — só consulta individual por CNPJ já conhecido, com login gov.br.</li>
     </ul>
   </section>
 
@@ -399,9 +419,11 @@
       <li>Lista de gerenciadoras credenciadas — AXA, <a href="https://parceiro.axa.com.br/minio/strapi-uploads/assets/AXA-CE-GRs%20V1.pdf" target="_blank" rel="noopener">PDF institucional</a></li>
       <li>Lista de gerenciadoras/rastreadoras credenciadas — Porto Seguro (jan/2024), <a href="https://solideztransportes.com.br/wp-content/uploads/2025/03/Lista-Cadastros-e-Liberacao-GR-Porto-Seguros.pdf" target="_blank" rel="noopener">PDF</a></li>
       <li>Mercado de seguro de transporte de cargas 2024–2025 — <a href="https://cqcs.com.br/noticia/seguradoras-apostam-no-transporte-de-cargas-em-2025/" target="_blank" rel="noopener">CQCS</a>, <a href="https://www.fenacor.org.br/noticias/seguro-de-transporte-de-carga-crescera-acima" target="_blank" rel="noopener">Fenacor</a></li>
-      <li>Painel de Inteligência do Mercado de Seguros — <a href="https://www.gov.br/susep/pt-br/central-de-conteudos/central-de-paineis/painel-susep" target="_blank" rel="noopener">SUSEP</a> (estrutura confirmada; corte por UF não extraído com confiabilidade nesta rodada)</li>
+      <li>Prêmio e sinistro direto por UF, ramos 0654/0655/0659, jan-jun/2026 — <a href="https://www2.susep.gov.br/menuestatistica/SES/principal.aspx" target="_blank" rel="noopener">SES/SUSEP</a> (consulta direta ao sistema, dado oficial — não é o painel Power BI, que continua instável)</li>
+      <li>Roubo de carga por estado, 2025 — <a href="https://www.portalntc.org.br/o-roubo-de-carga-esta-caindo-e-ficando-mais-perigoso/" target="_blank" rel="noopener">NTC&amp;Logística</a></li>
       <li>Relatório completo de GRs por UF, com selos de confiança — <a href="https://claude.ai/code/artifact/570df600-edda-45c3-a44d-7941056060aa" target="_blank" rel="noopener">Radar de Vazios GR</a></li>
       <li>Base de CNPJs por setor "Gerenciadora de Risco" — Econodata (consultada para os 27 estados como terceira fonte de verificação)</li>
+      <li>Base nacional de CNPJ da Receita Federal (72,5 milhões de registros, já normalizada pela AtlasGR), filtrada por CNAE 8020-0/01 + palavra-chave de nome — quarta fonte de verificação, direta na fonte primária</li>
       <li>Sindicatos patronais de transportadoras — SETCEB (Bahia), SINDICARPA (Pará), TRANSCARES (Espírito Santo)</li>
       <li>Demanda por fit ICP — contagem direta dos 4.990 relatórios municipais AtlasGR (RNTRC ativo = confirmado; RNTRC pendente = potencial), após correção de rotulagem de 29/08/2026.</li>
       <li>Paleta e tipografia — Manual de Identidade Visual Atlas v1.0 (mai/2021).</li>
@@ -416,7 +438,7 @@
     ["SC",20289,"coberto"],["MT",11912,"coberto"],["BA",10743,"vazio"],["GO",10578,"coberto"],
     ["RJ",8323,"coberto"],["ES",5885,"vazio"],["MS",5489,"coberto"],["PA",4908,"vazio"],
     ["PE",4126,"coberto"],["CE",3582,"coberto"],["MA",3167,"vazio"],["RO",2662,"vazio"],
-    ["TO",1848,"coberto"],["DF",1507,"vazio"],["SE",1465,"vazio"],["PI",1425,"vazio"],
+    ["TO",1848,"coberto"],["DF",1507,"vazio"],["SE",1465,"coberto"],["PI",1425,"vazio"],
     ["RN",1311,"vazio"],["PB",1284,"vazio"],["AM",1186,"vazio"],["AL",898,"coberto"],
     ["AC",303,"vazio"],["RR",302,"vazio"],["AP",129,"vazio"]
   ];

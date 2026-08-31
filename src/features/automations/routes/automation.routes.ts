@@ -3,7 +3,7 @@ import { validateRequest } from '../../../shared/middlewares/validateRequest.js'
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { automationSchema } from '../application/AutomationUseCases.js';
 import { container } from '../../../shared/di/container.js';
-import { AutomationController } from '../presentation/AutomationController.js';
+import type { AutomationController } from '../presentation/AutomationController.js';
 import { runStagnationScan } from '../application/stagnation-scanner.service.js';
 import { logger } from '../../../lib/logger.js';
 

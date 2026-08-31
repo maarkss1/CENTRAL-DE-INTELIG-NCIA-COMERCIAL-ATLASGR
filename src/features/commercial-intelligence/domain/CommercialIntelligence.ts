@@ -545,7 +545,9 @@ export interface ForecastSnapshotStore {
 
 /** Por que `ForecastAccuracyResult.available` é `false` — nunca um número fabricado nesses casos. */
 export type ForecastAccuracyUnavailableReason =
-  'periodo_nao_fechou' | 'sem_snapshot' | 'sem_realizado';
+  | 'periodo_nao_fechou'
+  | 'sem_snapshot'
+  | 'sem_realizado';
 
 /**
  * Comparação previsto-vs-realizado de UM período — "erro histórico do forecast" (seção da

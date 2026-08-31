@@ -1,5 +1,5 @@
-import { Repository } from '../../../shared/domain/Repository';
-import { CompanyStatus } from '@prisma/client';
+import type { Repository } from '../../../shared/domain/Repository';
+import type { CompanyStatus } from '@prisma/client';
 
 export interface Company {
   id: string;

@@ -26,6 +26,38 @@ const DEFAULT_SEED_DIR = join(ROOT, 'data/market-intelligence/company-seed-ribei
 const CNPJ_RE = /^[A-Z0-9]{12}[0-9]{2}$/;
 const CONTACT_FIELDS = ['ddd1', 'telefone1', 'ddd2', 'telefone2', 'dddFax', 'fax', 'email'];
 
+// node-postgres sempre reemite erros de conexao inesperada (socket derrubado pelo pooler do
+// Supabase por idle timeout, blip de rede entre Render e sa-east-1, etc.) como um evento
+// 'error' no Client, INDEPENDENTE de haver uma query em andamento. Sem listener, o EventEmitter
+// padrao do Node relanca isso como excecao nao tratada e derruba o processo inteiro — foi o que
+// aconteceu no deploy de 31/08 15:15 (Error: Connection terminated unexpectedly, mesmo commit
+// que tinha rodado com sucesso 7min antes: falha transitoria de conexao, nao bug de logica).
+// keepAlive reduz a chance do pooler/rede derrubar a conexao por ociosidade durante o streaming
+// do NDJSON; o listener garante que, se ainda assim cair, o erro vira uma rejeicao de promise
+// normal (tratada pelo try/catch de publishSeed) em vez de crash abrupto do processo.
+function createResilientClient(connectionString) {
+  const client = new Client({ connectionString, keepAlive: true, keepAliveInitialDelayMillis: 10_000 });
+  client.on('error', (error) => {
+    console.error(
+      `[market-intelligence-seed] conexao com o banco caiu inesperadamente: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  });
+  return client;
+}
+
+function isTransientConnectionError(error) {
+  const message = String(error?.message || '');
+  const code = error?.code;
+  return (
+    message.includes('Connection terminated unexpectedly') ||
+    message.includes('terminating connection') ||
+    code === 'ECONNRESET' ||
+    code === 'ETIMEDOUT' ||
+    code === 'EPIPE' ||
+    code === '57P01' // admin_shutdown (pooler reciclando a conexao)
+  );
+}
+
 function sha256File(path) {
   return new Promise((resolveHash, reject) => {
     const hash = createHash('sha256');
@@ -170,7 +202,7 @@ async function publishSeed(seedDir, manifest) {
   const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL;
   if (!connectionString) throw new Error('DATABASE_URL/DIRECT_URL ausente para publicar o seed');
   const datasetId = `mi_seed_${manifest.seedHash.slice(0, 24)}`;
-  const client = new Client({ connectionString });
+  const client = createResilientClient(connectionString);
   await client.connect();
   try {
     await client.query('BEGIN');
@@ -254,6 +286,27 @@ async function publishSeed(seedDir, manifest) {
   }
 }
 
+// A conexao com o pooler do Supabase pode cair por motivo transitorio (idle reaping, blip de
+// rede) sem que haja nada de errado com os dados ou com o schema — foi exatamente o que houve no
+// deploy de 31/08 15:15 (mesmo commit tinha publicado com sucesso 7min antes). Retry unico antes
+// de falhar o deploy: barato porque publishSeed e idempotente (a checagem READY+CNPJ_ACTIVE no
+// topo faz a segunda tentativa sair rapido se a primeira, apesar do erro de conexao, já tiver
+// concluido o commit no banco) e nao mascara falhas reais (erro de validacao do seed, schema
+// desatualizado etc. nao sao transitorios e continuam derrubando o deploy na 1a tentativa).
+async function publishSeedWithRetry(seedDir, manifest, attempts = 2) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await publishSeed(seedDir, manifest);
+      return;
+    } catch (error) {
+      if (attempt === attempts || !isTransientConnectionError(error)) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[market-intelligence-seed] falha transitoria de conexao (tentativa ${attempt}/${attempts}): ${message}. Tentando novamente...`);
+      await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
+  }
+}
+
 export async function main() {
   if (process.env.MARKET_INTELLIGENCE_SEED_ENABLED === 'false') {
     console.log(JSON.stringify({ status: 'disabled' }));
@@ -266,7 +319,7 @@ export async function main() {
     return;
   }
   await validateFiles(seedDir, manifest);
-  await publishSeed(seedDir, manifest);
+  await publishSeedWithRetry(seedDir, manifest);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

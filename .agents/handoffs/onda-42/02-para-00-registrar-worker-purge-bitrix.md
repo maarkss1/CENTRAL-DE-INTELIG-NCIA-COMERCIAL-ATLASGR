@@ -1,7 +1,7 @@
 - De: 02 (LGPD/Retenção — expurgo de extrações Bitrix)
 - Para: 00 (dono de `worker.ts`) — com cópia de contexto para 06/06A (Bitrix) e 01A (Dados/RLS/Retenção)
 - Onda: 42
-- Status: aberto
+- Status: resolvido
 - Prioridade: alta (LGPD — dado pessoal exportado sem expiração automática)
 
 ## Problema
@@ -153,3 +153,6 @@ Nenhuma env nova criada — `BITRIX_EXTRACTION_RETENTION_DAYS`/`BITRIX_EXTRACTIO
 existiam em `src/config/env.ts` desde a Onda 6, só sem consumidor até agora. Nenhuma migration
 criada — `prisma/schema.prisma` não foi editado (ver campo `purgedAt` recomendado acima, para
 quando puder ser migrado por quem tem essa propriedade).
+
+## Resolução
+Já registrado em worker.ts.

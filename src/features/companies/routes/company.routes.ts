@@ -4,7 +4,7 @@ import { validateRequest } from '../../../shared/middlewares/validateRequest.js'
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { companySchema } from '../../../lib/zod.js';
 import { container } from '../../../shared/di/container';
-import { CompanyController } from '../presentation/CompanyController';
+import type { CompanyController } from '../presentation/CompanyController';
 import { marketIntelligenceCompanyRoutes } from '../../market-intelligence/server/marketIntelligenceCompany.routes.js';
 
 const router = Router();

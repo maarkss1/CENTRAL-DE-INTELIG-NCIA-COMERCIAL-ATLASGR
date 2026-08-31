@@ -2,10 +2,67 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/*.png'],
+        manifest: {
+          name: 'AtlasGR — Central de Inteligência Comercial',
+          short_name: 'AtlasGR',
+          description: 'CRM com IA para equipes comerciais de alta performance',
+          theme_color: '#F97316',
+          background_color: '#111827',
+          display: 'standalone',
+          orientation: 'portrait-primary',
+          scope: '/',
+          start_url: '/app',
+          icons: [
+            { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
+          shortcuts: [
+            { name: 'CRM', url: '/app/crm', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+            { name: 'Prospecção', url: '/app/prospect', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+          ],
+        },
+        workbox: {
+          // Cache de assets estáticos: CacheFirst (imutáveis via hash de build)
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          runtimeCaching: [
+            {
+              // API do CRM: StaleWhileRevalidate — mostra dado cacheado, busca novo em BG
+              urlPattern: /^https?:\/\/.*\/api\/(companies|contacts|deals|activities)/,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'atlas-crm-data',
+                expiration: { maxAgeSeconds: 300, maxEntries: 200 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
+            {
+              // Assets de fontes e ícones: CacheFirst
+              urlPattern: /\.(woff2?|ttf|otf|eot)$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'atlas-fonts',
+                expiration: { maxAgeSeconds: 60 * 60 * 24 * 365 },
+              },
+            },
+          ],
+          // Exclui rotas de API real do service worker (não cachear POST/PATCH/DELETE)
+          navigateFallbackDenylist: [/^\/api\//, /^\/webhook\//],
+        },
+        // Desabilita em modo dev para não interferir com HMR
+        devOptions: { enabled: false },
+      }),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
@@ -56,6 +113,22 @@ export default defineConfig(() => {
             }
             if (normalizedId.includes('/@dnd-kit/')) {
               return 'vendor-dnd';
+            }
+            // ECharts é ~750kB antes de tree-shake — chunk dedicado para lazy load
+            if (normalizedId.includes('/echarts/') || normalizedId.includes('/zrender/')) {
+              return 'vendor-echarts';
+            }
+            // Tiptap + ProseMirror
+            if (normalizedId.includes('/@tiptap/') || normalizedId.includes('/prosemirror-')) {
+              return 'vendor-tiptap';
+            }
+            // React PDF (pdf-lib + fontkit)
+            if (normalizedId.includes('/@react-pdf/') || normalizedId.includes('/pdf-lib/') || normalizedId.includes('/fontkit/')) {
+              return 'vendor-pdf';
+            }
+            // Embla Carousel
+            if (normalizedId.includes('/embla-carousel')) {
+              return 'vendor-carousel';
             }
             return undefined;
           },

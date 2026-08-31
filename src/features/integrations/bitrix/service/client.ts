@@ -200,7 +200,8 @@ async function attemptBitrixCall<T>(
   }
 
   const data = (await response.json().catch(() => null)) as
-    (T & { error?: string; error_description?: string }) | null;
+    | (T & { error?: string; error_description?: string })
+    | null;
   if (!response.ok) {
     throw new BitrixDefinitiveError(
       `Bitrix24 respondeu com erro (HTTP ${response.status}).`,

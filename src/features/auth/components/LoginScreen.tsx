@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Loader2,
   AlertCircle,
@@ -7,15 +7,28 @@ import {
   Building2,
   ListChecks,
   Sparkles,
+  Clock,
+  CalendarDays,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { useBrand, BRAND_CONFIGS, type Brand } from '../../../contexts/BrandContext';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { authClient } from '../../../lib/auth-client';
 import { isAuthorizedLoginEmail, getBrandFromEmail } from '../../../config/access-policy';
 import { Logo } from '../../../components/Logo';
 import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
-import { fadeInUp, staggerContainer, staggerItem } from '../../../lib/motion';
+import { fadeInUp, staggerContainer, staggerItem, useTilt, useMagnetic } from '../../../lib/motion';
+
+// Chunk de ~900kB (@react-three/fiber/three) — importado à parte para não pesar a página de
+// login, a primeira coisa que qualquer usuário (nem autenticado ainda) carrega. Mesmo cuidado do
+// OnboardingTour (ver comentário em App.tsx sobre esse mesmo chunk), aqui via Suspense em vez de
+// um import direto no topo do arquivo.
+const AtlasOrb = lazy(() =>
+  import('../../../components/ui/AtlasOrb').then((m) => ({ default: m.AtlasOrb })),
+);
 
 const BRAND_ORDER: Brand[] = ['atlasgr', 'totaltrac'];
 
@@ -41,6 +54,39 @@ export function LoginScreen() {
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const { activeBrand, setActiveBrand, brandInfo } = useBrand();
   const { theme } = useTheme();
+  const brandAccent = useBrandAccent();
+
+  // Inclinação 3D sutil do cartão de login seguindo o cursor, e puxão magnético do botão
+  // principal — mesmos hooks premium já usados em outras peças "hero" da plataforma
+  // (src/lib/motion.ts), ambos desligados automaticamente por prefers-reduced-motion.
+  const cardTilt = useTilt(6);
+  const submitMagnetic = useMagnetic(0.25);
+
+  // Relógio e calendário ao vivo do painel do formulário: reforçam a sensação de central
+  // operando agora, na cor da marca ativa no momento (mesmo princípio do AtlasOrb ao lado).
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const weekday = format(now, 'EEEE', { locale: ptBR });
+  const dateLabel = `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${format(now, "dd 'de' MMMM", { locale: ptBR })}`;
+  const timeLabel = format(now, 'HH:mm:ss');
+
+  // O import do AtlasOrb (three.js, ~236KB gzip mesmo lazy — ver DOCUMENTED_LARGE_CHUNKS em
+  // scripts/ci/check-bundle-budget.mjs) só dispara depois que o navegador fica ocioso, para não
+  // competir por banda/CPU com o formulário no carregamento crítico da tela de login.
+  const [showOrb, setShowOrb] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const ric = window.requestIdleCallback;
+    if (ric) {
+      const id = ric(() => setShowOrb(true), { timeout: 1500 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(() => setShowOrb(true), 400);
+    return () => window.clearTimeout(id);
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,14 +236,48 @@ export function LoginScreen() {
         </motion.div>
       </div>
 
-      {/* Painel do formulário */}
-      <div className="flex-1 min-w-0 flex items-center justify-center p-4 sm:p-8">
+      {/* Painel do formulário — fundo claro (bg-surface): ao contrário do painel de marca acima,
+          que comunica a marca ativa pela cor de fundo, aqui quem carrega a cor da marca é a
+          tipografia (títulos, rótulos e links usam var(--brand) via useBrandAccent), então a
+          identidade visual continua explícita mesmo neste lado "neutro" da tela. */}
+      <div className="flex-1 min-w-0 relative overflow-hidden flex items-center justify-center p-4 sm:p-8">
+        {/* Elemento 3D decorativo (esfera distorcida + partículas, cor da marca ativa) — puramente
+            ambiental, por isso pointer-events-none e escondido em telas pequenas. */}
+        {showOrb && (
+          <div
+            className="pointer-events-none absolute -top-8 -right-6 hidden sm:block opacity-80"
+            aria-hidden="true"
+          >
+            <Suspense fallback={null}>
+              <AtlasOrb size={150} />
+            </Suspense>
+          </div>
+        )}
+
         <motion.div
           initial="hidden"
           animate="show"
           variants={fadeInUp}
-          className="w-full min-w-0 max-w-sm"
+          className="w-full min-w-0 max-w-sm relative z-10"
         >
+          {/* Relógio e calendário ao vivo — mesma cor da marca ativa */}
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.4 }}
+            className={`mb-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm font-bold ${brandAccent.text}`}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays size={15} strokeWidth={2.5} aria-hidden="true" />
+              {dateLabel}
+            </span>
+            <span className="h-1 w-1 rounded-full bg-current opacity-40" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1.5 tabular-nums" aria-live="off">
+              <Clock size={15} strokeWidth={2.5} aria-hidden="true" />
+              {timeLabel}
+            </span>
+          </motion.div>
+
           {/* Chave Atlas / Total Trac — escolha explícita da marca, peso visual igual entre as duas
               (mesmo objetivo do antigo par de logos lado a lado), sincronizada com handleEmailChange. */}
           <div className="flex justify-center mb-8">
@@ -216,8 +296,8 @@ export function LoginScreen() {
                   type="button"
                   onClick={() => setActiveBrand(brand)}
                   aria-pressed={activeBrand === brand}
-                  className={`relative z-10 w-28 py-2 text-xs font-bold rounded-full transition-colors cursor-pointer ${
-                    activeBrand === brand ? 'text-white' : 'text-ink-2 hover:text-ink'
+                  className={`relative z-10 w-28 py-2.5 text-sm font-bold rounded-full transition-colors cursor-pointer ${
+                    activeBrand === brand ? 'text-white' : `text-ink-2 hover:${brandAccent.text}`
                   }`}
                 >
                   {BRAND_CONFIGS[brand].name}
@@ -235,18 +315,26 @@ export function LoginScreen() {
                 <TotalTrackLogo className="h-8 w-auto" />
               )}
             </div>
-            <h1 className="text-2xl font-bold text-center text-ink">Bem-vindo de volta</h1>
-            <p className="text-sm mt-1.5 text-center text-ink-2">
+            <h1 className={`text-3xl font-black text-center ${brandAccent.text}`}>
+              Bem-vindo de volta
+            </h1>
+            <p className={`text-base mt-2 text-center font-semibold ${brandAccent.text}`}>
               Acesso exclusivo da equipe {brandInfo.name}
             </p>
           </div>
 
-          <div className="w-full p-6 sm:p-7 rounded-[var(--radius-card-lg)] border border-line bg-surface shadow-card">
+          <motion.div
+            ref={cardTilt.ref as React.RefObject<HTMLDivElement>}
+            onPointerMove={cardTilt.onPointerMove}
+            onPointerLeave={cardTilt.onPointerLeave}
+            style={cardTilt.style}
+            className={`w-full p-6 sm:p-7 rounded-[var(--radius-card-lg)] border border-line bg-surface shadow-card transition-shadow duration-300 ${brandAccent.glow}`}
+          >
             {isForgotPassword ? (
               <>
                 {forgotPasswordSent ? (
                   <div className="space-y-5 text-center">
-                    <div className="bg-brand/10 border border-brand/30 text-ink p-3.5 rounded-2xl text-xs flex items-start gap-2.5 text-left">
+                    <div className="bg-brand/10 border border-brand/30 text-ink p-3.5 rounded-2xl text-sm flex items-start gap-2.5 text-left">
                       <Mail size={16} className="shrink-0 mt-0.5 text-brand" />
                       <p>
                         Se <strong>{email}</strong> tiver uma conta cadastrada, enviamos um e-mail
@@ -256,7 +344,7 @@ export function LoginScreen() {
                     <button
                       type="button"
                       onClick={backToSignIn}
-                      className="text-xs text-ink-2 hover:text-brand font-bold transition-colors cursor-pointer"
+                      className={`text-sm font-bold hover:underline transition-colors cursor-pointer ${brandAccent.text}`}
                     >
                       Voltar para o login
                     </button>
@@ -274,7 +362,7 @@ export function LoginScreen() {
                       </motion.div>
                     )}
 
-                    <p className="text-ink-2 text-xs">
+                    <p className="text-ink-2 text-sm">
                       Informe o e-mail corporativo da sua conta. Se ele existir, enviaremos um link
                       para redefinir a senha.
                     </p>
@@ -282,7 +370,7 @@ export function LoginScreen() {
                     <div>
                       <label
                         htmlFor="login-forgot-email"
-                        className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1"
+                        className={`block text-xs font-extrabold uppercase tracking-wider mb-2 ml-1 ${brandAccent.text}`}
                       >
                         E-mail:
                       </label>
@@ -291,7 +379,7 @@ export function LoginScreen() {
                         type="email"
                         value={email}
                         onChange={(e) => handleEmailChange(e.target.value)}
-                        className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
+                        className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-sm text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                         required
                         /* campo revelado por ação do usuário ("Esqueci minha senha"), não focus
                            automático de carregamento de página; foca o único campo do
@@ -302,10 +390,16 @@ export function LoginScreen() {
                       />
                     </div>
 
-                    <button
+                    <motion.button
+                      ref={submitMagnetic.ref as React.RefObject<HTMLButtonElement>}
                       type="submit"
                       disabled={isSubmitting || !email}
-                      className="w-full mt-2 bg-gradient-to-r from-brand to-brand-2 text-white py-3.5 rounded-2xl font-extrabold text-xs shadow-lg shadow-brand/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      onPointerMove={submitMagnetic.onPointerMove}
+                      onPointerLeave={submitMagnetic.onPointerLeave}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      style={submitMagnetic.style}
+                      className="w-full mt-2 bg-gradient-to-r from-brand to-brand-2 text-white py-3.5 rounded-2xl font-extrabold text-sm shadow-lg shadow-brand/30 transition-shadow hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {isSubmitting ? (
                         <Loader2 className="animate-spin" size={18} />
@@ -314,13 +408,13 @@ export function LoginScreen() {
                           Enviar Link de Redefinição <ArrowRight size={16} />
                         </>
                       )}
-                    </button>
+                    </motion.button>
 
                     <div className="text-center">
                       <button
                         type="button"
                         onClick={backToSignIn}
-                        className="text-xs text-ink-2 hover:text-brand font-bold transition-colors cursor-pointer"
+                        className={`text-sm font-bold hover:underline transition-colors cursor-pointer ${brandAccent.text}`}
                       >
                         Voltar para o login
                       </button>
@@ -346,7 +440,7 @@ export function LoginScreen() {
                     <div>
                       <label
                         htmlFor="login-name"
-                        className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1"
+                        className={`block text-xs font-extrabold uppercase tracking-wider mb-2 ml-1 ${brandAccent.text}`}
                       >
                         Seu Nome Completo
                       </label>
@@ -355,7 +449,7 @@ export function LoginScreen() {
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
+                        className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-sm text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                         placeholder="Ex: Marcelo Nascimento"
                         required={isSignUp}
                       />
@@ -365,7 +459,7 @@ export function LoginScreen() {
                   <div>
                     <label
                       htmlFor="login-email"
-                      className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1"
+                      className={`block text-xs font-extrabold uppercase tracking-wider mb-2 ml-1 ${brandAccent.text}`}
                     >
                       E-mail:
                     </label>
@@ -374,16 +468,16 @@ export function LoginScreen() {
                       type="email"
                       value={email}
                       onChange={(e) => handleEmailChange(e.target.value)}
-                      className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
+                      className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-sm text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                       required
                     />
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1.5 ml-1 mr-1">
+                    <div className="flex items-center justify-between mb-2 ml-1 mr-1">
                       <label
                         htmlFor="login-password"
-                        className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider"
+                        className={`block text-xs font-extrabold uppercase tracking-wider ${brandAccent.text}`}
                       >
                         Senha:
                       </label>
@@ -394,7 +488,7 @@ export function LoginScreen() {
                             setIsForgotPassword(true);
                             setError('');
                           }}
-                          className="text-[10px] font-bold text-ink-2 hover:text-brand transition-colors cursor-pointer"
+                          className={`text-xs font-bold hover:underline transition-colors cursor-pointer ${brandAccent.text}`}
                         >
                           Esqueci minha senha
                         </button>
@@ -405,16 +499,22 @@ export function LoginScreen() {
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
+                      className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-sm text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                       placeholder="••••••••"
                       required
                     />
                   </div>
 
-                  <button
+                  <motion.button
+                    ref={submitMagnetic.ref as React.RefObject<HTMLButtonElement>}
                     type="submit"
                     disabled={isSubmitting || !email || !password}
-                    className="w-full mt-2 bg-gradient-to-r from-brand to-brand-2 text-white py-3.5 rounded-2xl font-extrabold text-xs shadow-lg shadow-brand/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    onPointerMove={submitMagnetic.onPointerMove}
+                    onPointerLeave={submitMagnetic.onPointerLeave}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    style={submitMagnetic.style}
+                    className="w-full mt-2 bg-gradient-to-r from-brand to-brand-2 text-white py-3.5 rounded-2xl font-extrabold text-sm shadow-lg shadow-brand/30 transition-shadow hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <Loader2 className="animate-spin" size={18} />
@@ -424,17 +524,17 @@ export function LoginScreen() {
                         <ArrowRight size={16} />
                       </>
                     )}
-                  </button>
+                  </motion.button>
                 </form>
 
-                <div className="mt-4 text-center">
+                <div className="mt-5 text-center">
                   <button
                     type="button"
                     onClick={() => {
                       setIsSignUp(!isSignUp);
                       setError('');
                     }}
-                    className="text-xs text-ink-2 hover:text-brand font-bold transition-colors cursor-pointer"
+                    className={`text-sm font-bold hover:underline transition-colors cursor-pointer ${brandAccent.text}`}
                   >
                     {isSignUp
                       ? 'Já possui conta? Fazer Login'
@@ -443,7 +543,7 @@ export function LoginScreen() {
                 </div>
               </>
             )}
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     </main>

@@ -61,6 +61,19 @@ export const auth = betterAuth({
     ...parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
     ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL.replace(/\/$/, '')] : []),
     ...(process.env.NODE_ENV === 'production' ? [] : ['https://atlasgr-dev-server.loca.lt']),
+    // GitHub Codespaces expõe a porta local por uma URL https dinâmica, diferente em cada
+    // Codespace (<CODESPACE_NAME>-<porta>.<domínio-de-forwarding>, ambos injetados
+    // automaticamente pelo Codespaces). .env.example fixa ALLOWED_ORIGINS/BETTER_AUTH_URL em
+    // localhost:PORT — sem esta entrada, o Origin real enviado pelo navegador ao abrir a URL
+    // forwarded nunca bate com trustedOrigins, e o better-auth rejeita todo login/cadastro com
+    // "Invalid origin" (ver node_modules/better-auth/dist/api/middlewares/origin-check.mjs).
+    ...(process.env.NODE_ENV !== 'production' && process.env.CODESPACE_NAME
+      ? [
+          `https://${process.env.CODESPACE_NAME}-${process.env.PORT || '3005'}.${
+            process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN || 'app.github.dev'
+          }`,
+        ]
+      : []),
   ],
   emailAndPassword: {
     enabled: true,
@@ -183,7 +196,7 @@ export const auth = betterAuth({
   advanced: {
     useSecureCookies: Boolean(
       process.env.SECURE_COOKIES === 'true' ||
-      (process.env.BETTER_AUTH_URL && process.env.BETTER_AUTH_URL.startsWith('https://')),
+        (process.env.BETTER_AUTH_URL && process.env.BETTER_AUTH_URL.startsWith('https://')),
     ),
     crossSubDomainCookies: {
       enabled: Boolean(process.env.COOKIE_DOMAIN),
@@ -194,7 +207,7 @@ export const auth = betterAuth({
       sameSite: 'lax',
       secure: Boolean(
         process.env.SECURE_COOKIES === 'true' ||
-        (process.env.BETTER_AUTH_URL && process.env.BETTER_AUTH_URL.startsWith('https://')),
+          (process.env.BETTER_AUTH_URL && process.env.BETTER_AUTH_URL.startsWith('https://')),
       ),
     },
   },

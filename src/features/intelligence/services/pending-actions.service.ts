@@ -1,4 +1,4 @@
-import { prisma } from '../../../lib/prisma.js';
+import type { prisma } from '../../../lib/prisma.js';
 import type { getTenantPrisma } from '../../../lib/tenant-prisma.js';
 import { executeAndRecord, type ExecutionResult } from './aiPendingAction.service.js';
 

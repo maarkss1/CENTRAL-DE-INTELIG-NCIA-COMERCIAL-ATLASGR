@@ -68,7 +68,9 @@ Retorne SOMENTE JSON válido neste formato exato: {"subject":"assunto curto e ch
     // (registro criado antes desta correção, campo ainda não existia) é tratado como "não
     // validado" — fail-closed, mesma regra do bloco de criação logo abaixo (AI-004/onda-20).
     const existingPayload = existing?.payload as
-      { structuredOutputValid?: boolean } | null | undefined;
+      | { structuredOutputValid?: boolean }
+      | null
+      | undefined;
     const existingIsStructuredOutputValid = existingPayload?.structuredOutputValid === true;
     if (existing) {
       if (

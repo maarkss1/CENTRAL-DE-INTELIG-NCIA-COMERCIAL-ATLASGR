@@ -22,7 +22,7 @@
  * verdade, sem criar um terceiro sistema).
  */
 
-import { UserRole } from '@prisma/client';
+import type { UserRole } from '@prisma/client';
 
 export type Role = UserRole;
 
@@ -56,7 +56,7 @@ export function hasRequiredRole(userRole: string, allowedRoles: readonly string[
 }
 
 export function isKnownRole(role: string): role is Role {
-  return Object.prototype.hasOwnProperty.call(ROLE_HIERARCHY, role);
+  return Object.hasOwn(ROLE_HIERARCHY, role);
 }
 
 /**

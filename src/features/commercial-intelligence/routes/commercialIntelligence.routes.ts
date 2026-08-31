@@ -5,7 +5,7 @@ import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { COMMERCIAL_INTELLIGENCE_ROLES } from '../../../lib/auth/authorization.js';
 import { env } from '../../../config/env.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
-import { CommercialIntelligenceController } from '../presentation/CommercialIntelligenceController.js';
+import type { CommercialIntelligenceController } from '../presentation/CommercialIntelligenceController.js';
 
 const router = Router();
 

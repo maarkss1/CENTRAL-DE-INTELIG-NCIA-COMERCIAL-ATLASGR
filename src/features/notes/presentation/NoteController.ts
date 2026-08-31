@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { NoteUseCases } from '../application/NoteUseCases';
-import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import type { Request, Response, NextFunction } from 'express';
+import type { NoteUseCases } from '../application/NoteUseCases';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 
 export class NoteController {
   constructor(private noteUseCases: NoteUseCases) {}

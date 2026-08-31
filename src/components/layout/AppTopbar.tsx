@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell, Sun, Moon, Menu, LogOut } from 'lucide-react';
-import { TabType, TAB_META } from './tabMeta';
+import { type TabType, TAB_META } from './tabMeta';
 import { useLiveClock } from '../../hooks/useLiveClock';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';

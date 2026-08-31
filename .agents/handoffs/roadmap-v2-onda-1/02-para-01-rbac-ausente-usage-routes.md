@@ -1,7 +1,7 @@
 - De: Agente 02 — Produto e UX
 - Para: Agente 01 — Plataforma, Segurança e Dados
 - Onda: roadmap-v2-onda-1
-- Status: aberto
+- Status: resolvido
 - Prioridade: bloqueador
 
 ## Problema
@@ -57,3 +57,6 @@ Enquanto este handoff está aberto, o Agente 02 manteve `usage` como ADMIN-only 
 ampliou para GESTOR como fez com `automations`/`integrations`), exatamente para não piorar a
 exposição visual de um dado que já vaza por API a qualquer papel — ver comentário em
 `Sidebar.tsx` linha ~30.
+
+## Resolução
+Adicionado requireRole(['ADMIN', 'GESTOR']) no bootstrap/routes.ts.

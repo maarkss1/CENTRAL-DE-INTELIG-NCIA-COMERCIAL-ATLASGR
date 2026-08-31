@@ -1,5 +1,5 @@
-import { Contact, ContactRepository } from '../domain/Contact';
-import { z } from 'zod';
+import type { Contact, ContactRepository } from '../domain/Contact';
+import type { z } from 'zod';
 import { contactSchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';

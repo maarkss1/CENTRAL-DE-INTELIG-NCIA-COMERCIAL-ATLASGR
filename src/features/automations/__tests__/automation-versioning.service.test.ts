@@ -14,8 +14,9 @@ import type { Automation } from '../domain/Automation';
 // corretamente (usada em produção só até esta migration existir). A prova contra Postgres real
 // (RLS incluída) fica para um teste de integração dedicado, não para este arquivo.
 vi.mock('../infra/PrismaAutomationVersionStore.js', async () => {
-  const { InMemoryAutomationVersionStore } =
-    await import('../infra/InMemoryAutomationVersionStore.js');
+  const { InMemoryAutomationVersionStore } = await import(
+    '../infra/InMemoryAutomationVersionStore.js'
+  );
   return { PrismaAutomationVersionStore: InMemoryAutomationVersionStore };
 });
 
