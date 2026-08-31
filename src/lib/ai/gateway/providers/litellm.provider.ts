@@ -32,7 +32,7 @@ export const litellmProvider: ProviderAdapter = {
     const baseUrl = resolveBaseUrl();
     if (!baseUrl)
       throw new Error('LiteLLM/Ollama não está configurado (OLLAMA_BASE_URL/LITELLM_URL ausente).');
-      
+
     // Route to Flowise or OpenWebUI based on model name prefix if needed
     let targetUrl = `${baseUrl}/v1/chat/completions`;
     let targetApiKey = resolveApiKey();

@@ -220,7 +220,8 @@ async function handleWebhook(req: Request, res: Response): Promise<void> {
 
   const eventType = typeof body.event === 'string' ? body.event : '';
   const dataFields = (body.data as Record<string, unknown> | undefined)?.FIELDS as
-    Record<string, unknown> | undefined;
+    | Record<string, unknown>
+    | undefined;
   const bitrixRecordId = dataFields?.ID != null ? String(dataFields.ID) : null;
 
   if (!SUPPORTED_EVENTS[eventType] || !bitrixRecordId) {

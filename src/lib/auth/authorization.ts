@@ -56,7 +56,7 @@ export function hasRequiredRole(userRole: string, allowedRoles: readonly string[
 }
 
 export function isKnownRole(role: string): role is Role {
-  return  Object.hasOwn(ROLE_HIERARCHY, role);
+  return Object.hasOwn(ROLE_HIERARCHY, role);
 }
 
 /**

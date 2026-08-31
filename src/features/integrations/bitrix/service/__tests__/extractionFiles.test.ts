@@ -71,8 +71,9 @@ describe('writeExtractionFile / readExtractionFile / deleteExtractionRunFiles �
   });
 
   it('deleteExtractionRunFiles remove o diretório inteiro da execução', async () => {
-    const { writeExtractionFile, readExtractionFile, deleteExtractionRunFiles } =
-      await import('../extractionFiles.js');
+    const { writeExtractionFile, readExtractionFile, deleteExtractionRunFiles } = await import(
+      '../extractionFiles.js'
+    );
     await writeExtractionFile('org-del', 'run-del', 'lead.csv', 'x');
     await deleteExtractionRunFiles('org-del', 'run-del');
     expect(await readExtractionFile('org-del', 'run-del', 'lead.csv')).toBeNull();

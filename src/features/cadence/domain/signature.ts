@@ -12,7 +12,13 @@
  */
 
 export type SignatureStatus =
-  'created' | 'sent' | 'viewed' | 'signed' | 'declined' | 'expired' | 'cancelled';
+  | 'created'
+  | 'sent'
+  | 'viewed'
+  | 'signed'
+  | 'declined'
+  | 'expired'
+  | 'cancelled';
 
 const TERMINAL_STATUSES = new Set<SignatureStatus>(['signed', 'declined', 'expired', 'cancelled']);
 

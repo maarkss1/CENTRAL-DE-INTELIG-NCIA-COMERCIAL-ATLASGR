@@ -3,7 +3,10 @@ import type { Repository } from '../../../../shared/domain/Repository';
 export type QualificationBrand = 'atlasgr' | 'totaltrac';
 export type QualificationFramework = 'SPIN' | 'BANT' | 'MEDDPICC' | 'SNAP' | 'CHALLENGER';
 export type QualificationCategory =
-  'Situação' | 'Problema' | 'Implicação/Custo' | 'Necessidade/ROI';
+  | 'Situação'
+  | 'Problema'
+  | 'Implicação/Custo'
+  | 'Necessidade/ROI';
 
 export interface QualificationMatrixItem {
   id: string;
