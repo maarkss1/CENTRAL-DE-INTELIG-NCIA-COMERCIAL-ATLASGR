@@ -186,7 +186,15 @@ export function VisualOrgChart({ contacts, companyName, onSelectContact }: Visua
                   return (
                     <div
                       key={contact.id || `${contact.name}-${idx}`}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => onSelectContact?.(contact)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onSelectContact?.(contact);
+                        }
+                      }}
                       className={`p-4 rounded-2xl border ${lvl.borderAccent} ${lvl.bgAccent} hover:shadow-md transition-all space-y-2.5 cursor-pointer`}
                     >
                       <div className="flex items-start justify-between gap-2">

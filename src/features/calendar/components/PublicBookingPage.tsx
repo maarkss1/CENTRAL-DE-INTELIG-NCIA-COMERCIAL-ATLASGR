@@ -194,10 +194,11 @@ export function PublicBookingPage() {
           {/* Seleção de Data e Horário */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">
+              <label htmlFor="booking-date" className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">
                 Data Desejada
               </label>
               <input
+                id="booking-date"
                 type="date"
                 value={selectedDate}
                 min={new Date().toISOString().split('T')[0]}
@@ -207,10 +208,11 @@ export function PublicBookingPage() {
               />
             </div>
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">
+              <label htmlFor="booking-slot" className="block text-[11px] font-bold text-slate-400 uppercase mb-1.5">
                 Horário Disponível
               </label>
               <select
+                id="booking-slot"
                 value={selectedSlot}
                 onChange={(e) => setSelectedSlot(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-100 focus:outline-none focus:border-amber-500"
@@ -227,12 +229,13 @@ export function PublicBookingPage() {
 
           <div className="space-y-3 pt-2">
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+              <label htmlFor="booking-name" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
                 Seu Nome Completo
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
+                  id="booking-name"
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -245,12 +248,13 @@ export function PublicBookingPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                <label htmlFor="booking-email" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
                   E-mail Corporativo
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
+                    id="booking-email"
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -261,12 +265,13 @@ export function PublicBookingPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                <label htmlFor="booking-phone" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
                   WhatsApp / Telefone
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
+                    id="booking-phone"
                     type="tel"
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -279,12 +284,13 @@ export function PublicBookingPage() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+              <label htmlFor="booking-company" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
                 Nome da Empresa
               </label>
               <div className="relative">
                 <Building2 className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
+                  id="booking-company"
                   type="text"
                   value={form.company}
                   onChange={(e) => setForm({ ...form, company: e.target.value })}
@@ -295,10 +301,11 @@ export function PublicBookingPage() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+              <label htmlFor="booking-notes" className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
                 Notas / Assunto (opcional)
               </label>
               <textarea
+                id="booking-notes"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder="Gostaria de falar sobre dimensionamento de telemetria CAN..."

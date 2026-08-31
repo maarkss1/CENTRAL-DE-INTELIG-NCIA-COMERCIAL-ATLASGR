@@ -188,6 +188,10 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
               onChange={(e) => setName(e.target.value)}
               placeholder="Ex: Avisar em Proposta Enviada"
               className={inputClass}
+              /* modal ("Construtor de Automação") aberto por ação do usuário; foca o primeiro
+                 campo do formulário que acabou de abrir, padrão de diálogo do WAI-ARIA
+                 Authoring Practices. */
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
           </div>
@@ -276,8 +280,9 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
               {action === 'Notificar equipe' ? (
                 <div className="space-y-3 mt-3 p-3 bg-soft rounded-xl border border-line">
                   <div>
-                    <label className={labelClass}>Título do aviso</label>
+                    <label className={labelClass} htmlFor="auto-notify-title">Título do aviso</label>
                     <input
+                      id="auto-notify-title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Ex: Novo lead quente!"
@@ -285,8 +290,9 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Detalhe (opcional)</label>
+                    <label className={labelClass} htmlFor="auto-notify-body">Detalhe (opcional)</label>
                     <input
+                      id="auto-notify-body"
                       value={body}
                       onChange={(e) => setBody(e.target.value)}
                       className={inputClass}
@@ -324,8 +330,9 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                 </p>
               ) : (
                 <div className="mt-3 p-3 bg-soft rounded-xl border border-line">
-                  <label className={labelClass}>Criar follow-up em (dias)</label>
+                  <label className={labelClass} htmlFor="auto-followup-days">Criar follow-up em (dias)</label>
                   <input
+                    id="auto-followup-days"
                     type="number"
                     min="1"
                     value={dueInDays}

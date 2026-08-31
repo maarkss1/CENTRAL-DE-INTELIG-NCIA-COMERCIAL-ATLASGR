@@ -169,10 +169,11 @@ export function BitrixImportModal({ isOpen, onClose, onImportSuccess }: BitrixIm
         <div className="p-6 border-b border-line space-y-4 bg-surface">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-ink-2 mb-1.5 uppercase">
+              <label htmlFor="bitrix-import-connection" className="block text-xs font-bold text-ink-2 mb-1.5 uppercase">
                 Portal Bitrix Conectado
               </label>
               <select
+                id="bitrix-import-connection"
                 value={selectedConnectionId}
                 onChange={(e) => setSelectedConnectionId(e.target.value)}
                 className="w-full px-3 py-2 bg-surface-2 border border-line rounded-xl text-sm font-semibold text-ink focus:outline-none focus:border-brand"
@@ -186,10 +187,13 @@ export function BitrixImportModal({ isOpen, onClose, onImportSuccess }: BitrixIm
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-ink-2 mb-1.5 uppercase">
+              {/* Não é <label htmlFor>: rotula um grupo de 2 botões de escolha, não um único
+                  controle de formulário — role="group" + aria-labelledby é a associação correta
+                  aqui, não um for/id que não teria um alvo único. */}
+              <span id="bitrix-import-entity-label" className="block text-xs font-bold text-ink-2 mb-1.5 uppercase">
                 Objeto do Bitrix
-              </label>
-              <div className="grid grid-cols-2 gap-2">
+              </span>
+              <div role="group" aria-labelledby="bitrix-import-entity-label" className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setEntityType('lead')}
@@ -294,7 +298,16 @@ export function BitrixImportModal({ isOpen, onClose, onImportSuccess }: BitrixIm
                       return (
                         <div
                           key={l.id}
+                          role="checkbox"
+                          aria-checked={isSelected}
+                          tabIndex={0}
                           onClick={() => toggleSelect(l.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleSelect(l.id);
+                            }
+                          }}
                           className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                             isSelected
                               ? 'bg-sky-500/10 border-sky-500/40 ring-1 ring-sky-500/40'
@@ -348,7 +361,16 @@ export function BitrixImportModal({ isOpen, onClose, onImportSuccess }: BitrixIm
                       return (
                         <div
                           key={d.id}
+                          role="checkbox"
+                          aria-checked={isSelected}
+                          tabIndex={0}
                           onClick={() => toggleSelect(d.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleSelect(d.id);
+                            }
+                          }}
                           className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                             isSelected
                               ? 'bg-sky-500/10 border-sky-500/40 ring-1 ring-sky-500/40'

@@ -127,10 +127,11 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-ink-2 mb-1">
+                <label htmlFor="booking-link-title" className="block text-[11px] font-bold text-ink-2 mb-1">
                   Título da Reunião
                 </label>
                 <input
+                  id="booking-link-title"
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -140,7 +141,7 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-ink-2 mb-1">
+                <label htmlFor="booking-link-slug" className="block text-[11px] font-bold text-ink-2 mb-1">
                   Link Personalizado (/book/...)
                 </label>
                 <div className="flex items-center">
@@ -148,6 +149,7 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                     /book/
                   </span>
                   <input
+                    id="booking-link-slug"
                     type="text"
                     value={form.slug}
                     onChange={(e) =>
@@ -166,10 +168,11 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-ink-2 mb-1">
+                <label htmlFor="booking-link-duration" className="block text-[11px] font-bold text-ink-2 mb-1">
                   Duração (minutos)
                 </label>
                 <select
+                  id="booking-link-duration"
                   value={form.durationMin}
                   onChange={(e) => setForm({ ...form, durationMin: Number(e.target.value) })}
                   className="w-full px-3 py-2 bg-surface border border-line rounded-xl text-xs text-ink focus:ring-2 focus:ring-brand focus:outline-none"
@@ -181,8 +184,9 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-ink-2 mb-1">Descrição</label>
+                <label htmlFor="booking-link-description" className="block text-[11px] font-bold text-ink-2 mb-1">Descrição</label>
                 <input
+                  id="booking-link-description"
                   type="text"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
