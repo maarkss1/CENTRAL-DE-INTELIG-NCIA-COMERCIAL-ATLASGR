@@ -96,9 +96,13 @@ lgpdRouter.get(
         take: limit,
       });
 
+      // ACHADO REAL (Piloto 025): a resposta trazia `logs` na raiz em vez de `data` — o cliente
+      // HTTP genérico (`src/lib/api.ts`) sempre desembrulha `data.data`, então
+      // `api.get('/api/lgpd/audit-logs')` sempre devolvia `undefined` pra qualquer chamador. A
+      // aba "Auditoria & LGPD" nunca mostrou nenhum log, pra nenhum usuário, desde sempre.
       res.json({
         success: true,
-        logs,
+        data: { logs },
       });
     })().catch(next);
   },
