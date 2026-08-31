@@ -20,7 +20,6 @@ import {
 import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
 import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
-import { agentMemory } from '../../../lib/ai/memory/mem0.js';
 
 // O Agente de Operações é o "braço executor" do enxame: não só analisa, ele age nas demais
 // ferramentas do sistema (CRM, agenda, notificações), sempre em cima de dados reais buscados
@@ -64,22 +63,21 @@ interface SerializedMessage {
 async function callModel(state: typeof MessagesAnnotation.State) {
   const tenantId = getTenantId() || 'system';
   const userId = getUserId() || 'system';
-  
-  const humanMessages = state.messages.filter(m => (typeof m.getType === 'function' && m.getType() === 'human') || m.type === 'human');
+
+  const humanMessages = state.messages.filter(
+    (m) => (typeof m.getType === 'function' && m.getType() === 'human') || m.type === 'human',
+  );
   const lastHumanMessage = humanMessages[humanMessages.length - 1];
-  const query = lastHumanMessage && typeof lastHumanMessage.content === 'string' ? lastHumanMessage.content : 'operação';
+  const query =
+    lastHumanMessage && typeof lastHumanMessage.content === 'string'
+      ? lastHumanMessage.content
+      : 'operação';
 
   const memories = await agentMemory.search(query, {
     userId: `${tenantId}:${userId}`,
     agentId: 'ops',
   });
-  
-  const memoryContext = agentMemory.formatForPrompt(memories);
-  const organizationId = getTenantId();
-  const lastHumanMessage = state.messages.slice().reverse().find(m => m.type === 'human' || m.type === 'user');
-  const query = typeof lastHumanMessage?.content === 'string' ? lastHumanMessage.content : 'instrução de operações';
-  
-  const memories = await agentMemory.search(query, { userId: organizationId, agentId: 'ops-agent' });
+
   const memoryContext = agentMemory.formatForPrompt(memories);
   const systemPrompt = new SystemMessage(
     `${SWARM_IDENTITY} Você é o Agente de Operações (Ops): PROPÕE ações concretas nas ferramentas do sistema a partir de uma instrução, nunca apenas descreve o que deveria ser feito — mas, assim como os demais agentes do enxame (SDR/BDR/Closer/CRM), toda ação com efeito real fica pendente de aprovação humana antes de ser executada de fato; você mesmo nunca envia/cria nada diretamente.
@@ -92,7 +90,7 @@ DIRETRIZES DE EXECUÇÃO:
 5. Para propor um alerta à equipe comercial sobre um risco, oportunidade ou resultado importante, use 'notify_team' — isto também registra uma proposta pendente, não envia a notificação imediatamente.
 6. Encerre sempre com uma síntese clara da ação PROPOSTA (ex: tarefa/notificação registrada e aguardando aprovação humana), detalhando responsável, prazo e objetivo — nunca diga que a ação já foi executada/enviada/criada. ${SWARM_OUTPUT_CONTRACT}
 
-${memoryContext}\n\n${SWARM_UNTRUSTED_CONTENT_GUARD}${memoryContext}`,
+${memoryContext}\n\n${SWARM_UNTRUSTED_CONTENT_GUARD}`,
   );
 
   const startTime = Date.now();

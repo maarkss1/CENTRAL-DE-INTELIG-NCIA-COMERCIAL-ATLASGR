@@ -78,13 +78,8 @@ export function VirtualTable<T>({
   // Estado vazio
   if (!loading && data.length === 0) {
     return (
-      <div
-        className={`flex items-center justify-center ${className}`}
-        style={{ height }}
-      >
-        {emptyState ?? (
-          <p className="text-sm text-ink-2">Nenhum registro encontrado.</p>
-        )}
+      <div className={`flex items-center justify-center ${className}`} style={{ height }}>
+        {emptyState ?? <p className="text-sm text-ink-2">Nenhum registro encontrado.</p>}
       </div>
     );
   }
@@ -115,6 +110,9 @@ export function VirtualTable<T>({
         ref={parentRef}
         className="flex-1 overflow-y-auto"
         role="rowgroup"
+        // Div não-interativa com scroll — tabIndex é intencional (torna a região focável/rolável
+        // via teclado), não um erro de a11y. Mesmo padrão de CrmBoard.tsx.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
         aria-label="Tabela de dados"
       >
@@ -141,11 +139,7 @@ export function VirtualTable<T>({
                   ${onRowClick && row ? 'cursor-pointer hover:bg-surface-2' : ''}
                   ${isLoading ? 'animate-pulse' : ''}
                 `}
-                onClick={
-                  onRowClick && row
-                    ? () => onRowClick(row, virtualRow.index)
-                    : undefined
-                }
+                onClick={onRowClick && row ? () => onRowClick(row, virtualRow.index) : undefined}
                 onKeyDown={
                   onRowClick && row
                     ? (e) => {
@@ -169,8 +163,8 @@ export function VirtualTable<T>({
                     {isLoading
                       ? (col.skeleton?.() ?? <div className="h-4 w-3/4 rounded-lg bg-surface-2" />)
                       : row !== null
-                      ? col.render(row, virtualRow.index)
-                      : null}
+                        ? col.render(row, virtualRow.index)
+                        : null}
                   </div>
                 ))}
               </div>
