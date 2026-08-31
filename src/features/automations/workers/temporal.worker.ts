@@ -1,4 +1,3 @@
-// @ts-expect-error
 import { Worker } from '@temporalio/worker';
 
 async function run() {
