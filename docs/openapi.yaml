@@ -1267,7 +1267,7 @@ paths:
   /prospecting/tools/status:
     get:
       tags: [Prospecting]
-      summary: Status de configuração das ferramentas standalone de prospecção (Google Places, Apollo, Hunter) — só booleano, nunca a chave
+      summary: Status de configuração das ferramentas standalone de prospecção (Google Places, Apollo, Hunter, GitHub, Notícias, YouTube) — só booleano, nunca a chave
       responses:
         '200':
           description: Status de configuração por provedor
@@ -1359,6 +1359,99 @@ paths:
       responses:
         '200':
           description: E-mail encontrado (ou null)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/tools/github:
+    post:
+      tags: [Prospecting]
+      summary: Ferramenta standalone — busca organizações no GitHub (Search API pública, gratuita, sem chave)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query: { type: string }
+                limit: { type: integer }
+      responses:
+        '200':
+          description: Organizações encontradas no GitHub
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/tools/github/profile:
+    post:
+      tags: [Prospecting]
+      summary: Ferramenta standalone — perfil completo de UMA organização do GitHub já identificada, para salvar no CRM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [login]
+              properties:
+                login: { type: string }
+      responses:
+        '200':
+          description: Perfil da organização (ou null)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/tools/news:
+    post:
+      tags: [Prospecting]
+      summary: Ferramenta standalone — menções recentes de imprensa sobre uma empresa via GDELT, gratuito e sem chave
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [companyName]
+              properties:
+                companyName: { type: string }
+      responses:
+        '200':
+          description: Menções encontradas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/tools/youtube:
+    post:
+      tags: [Prospecting]
+      summary: Ferramenta standalone — metadados públicos (oEmbed) de UM vídeo do YouTube já conhecido, gratuito e sem chave
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+      responses:
+        '200':
+          description: Metadados do vídeo (ou null)
           content:
             application/json:
               schema:

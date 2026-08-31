@@ -28,4 +28,7 @@ export interface ToolsStatus {
   googlePlaces: { configured: boolean };
   apollo: { configured: boolean };
   hunter: { configured: boolean };
+  github: { configured: boolean };
+  news: { configured: boolean };
+  youtube: { configured: boolean };
 }

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Building2, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building2, Mail, MapPin, Newspaper } from 'lucide-react';
 import { LinkedinIcon as Linkedin } from '../../../../components/ui/icons/LinkedinIcon';
+import { GithubIcon as Github } from '../../../../components/ui/icons/GithubIcon';
+import { YoutubeIcon as Youtube } from '../../../../components/ui/icons/YoutubeIcon';
 import { api } from '../../../../lib/api';
 import { Card, CardTitle, CardDescription } from '../../../../components/ui/Card';
 import { useBrandAccent } from '../../../../hooks/useBrandAccent';
@@ -10,9 +12,12 @@ import { GooglePlacesTool } from './tools/GooglePlacesTool';
 import { ApolloTool } from './tools/ApolloTool';
 import { HunterTool } from './tools/HunterTool';
 import { LinkedInTool } from './tools/LinkedInTool';
+import { GitHubTool } from './tools/GitHubTool';
+import { NewsTool } from './tools/NewsTool';
+import { YoutubeTool } from './tools/YoutubeTool';
 import type { ToolsStatus } from './tools/shared';
 
-type ToolId = 'google-places' | 'apollo' | 'hunter' | 'linkedin';
+type ToolId = 'google-places' | 'apollo' | 'hunter' | 'linkedin' | 'github' | 'news' | 'youtube';
 
 const TOOL_TABS: {
   id: ToolId;
@@ -52,6 +57,30 @@ const TOOL_TABS: {
     description:
       'Busca empresas e decisores com perfil real de LinkedIn (via Apollo), mais um gerador de link manual.',
     statusKey: 'apollo',
+  },
+  {
+    id: 'github',
+    label: 'GitHub',
+    icon: Github,
+    description:
+      'Busca organizações públicas no GitHub — sinal de maturidade técnica de uma empresa-alvo. Gratuita, sem chave.',
+    statusKey: 'github',
+  },
+  {
+    id: 'news',
+    label: 'Notícias',
+    icon: Newspaper,
+    description:
+      'Menções recentes de imprensa sobre uma empresa via GDELT — gratuita, sem chave, últimos 6 meses.',
+    statusKey: 'news',
+  },
+  {
+    id: 'youtube',
+    label: 'YouTube',
+    icon: Youtube,
+    description:
+      'Confere os metadados públicos de um vídeo já encontrado (título, canal, thumbnail) — não é busca por palavra-chave.',
+    statusKey: 'youtube',
   },
 ];
 
@@ -162,6 +191,9 @@ export function ProspectingToolsHub() {
         {activeTool === 'apollo' && <ApolloTool configured={configured} />}
         {activeTool === 'hunter' && <HunterTool configured={configured} />}
         {activeTool === 'linkedin' && <LinkedInTool configured={configured} />}
+        {activeTool === 'github' && <GitHubTool configured={configured} />}
+        {activeTool === 'news' && <NewsTool configured={configured} />}
+        {activeTool === 'youtube' && <YoutubeTool configured={configured} />}
       </motion.div>
     </div>
   );
