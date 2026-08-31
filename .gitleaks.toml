@@ -14,8 +14,19 @@ useDefault = true
 # commits anteriores que já introduziram o literal. Allowlist por regex é a forma correta de
 # resolver isso sem reescrever histórico: casa com o valor exato do fixture, então não amplia o
 # allowlist para nenhum segredo real que venha a aparecer no futuro.
+#
+# Falso-positivo conhecido #2: a regra `linkedin-client-id` do gitleaks é um heurístico genérico
+# — qualquer identificador de exatamente 14 caracteres alfanuméricos logo após algo com "linkedin"
+# no nome (`(?i)...linkedin...[:=]...[a-z0-9]{14}`) é sinalizado como possível Client ID. Em
+# src/features/prospecting/components/prospecting-hub/tools/LinkedInTool.tsx a linha
+# `linkedinUrl: manualKnownUrl || undefined,` bateu nisso por coincidência: "manualKnownUrl" é só
+# o nome de uma variável local (o link colado manualmente pelo usuário), não uma credencial.
+# Confirmado rodando `gitleaks detect` local (sem --redact) contra o commit
+# d42daabe5c94b979e0507e0f574ec551d753bf06 — o "Secret" reportado é literalmente o texto
+# "manualKnownUrl".
 [allowlist]
-description = "Fixtures sintéticas de teste (não são segredos reais)"
+description = "Fixtures sintéticas de teste e falsos-positivos confirmados (não são segredos reais)"
 regexes = [
   '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U''',
+  '''manualKnownUrl''',
 ]
