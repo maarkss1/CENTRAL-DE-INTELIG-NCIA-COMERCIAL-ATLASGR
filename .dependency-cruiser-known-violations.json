@@ -1,24 +1,6 @@
 [
   {
     "type": "dependency",
-    "from": "src/features/market-intelligence/server/actionExecutor.service.ts",
-    "rule": {
-      "name": "no-cross-feature-imports",
-      "severity": "error"
-    },
-    "to": "src/features/cadence/infra/PrismaCadenceRunRepository.ts"
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/market-intelligence/server/actionExecutor.service.ts",
-    "rule": {
-      "name": "no-cross-feature-imports",
-      "severity": "error"
-    },
-    "to": "src/features/cadence/domain/cadence.ts"
-  },
-  {
-    "type": "dependency",
     "from": "src/features/activities/services/activity.service.ts",
     "rule": {
       "name": "no-cross-feature-imports",
@@ -352,12 +334,30 @@
   },
   {
     "type": "dependency",
+    "from": "src/features/dashboard/components/SinglePageDashboard.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/analytics/components/GlowChart.tsx"
+  },
+  {
+    "type": "dependency",
     "from": "src/features/document-editor/components/Editor.tsx",
     "rule": {
       "name": "no-cross-feature-imports",
       "severity": "error"
     },
     "to": "src/features/knowledge/knowledge.api.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/gamification/routes/gamification.routes.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/CentralAISuiteService.ts"
   },
   {
     "type": "dependency",
@@ -823,6 +823,24 @@
       "name": "no-cross-feature-imports",
       "severity": "error"
     },
+    "to": "src/features/cadence/domain/cadence.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/market-intelligence/server/actionExecutor.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/PrismaCadenceRunRepository.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/market-intelligence/server/actionExecutor.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
     "to": "src/features/integrations/bitrix/service/client.ts"
   },
   {
@@ -1181,23 +1199,5 @@
         ]
       }
     ]
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/gamification/routes/gamification.routes.ts",
-    "rule": {
-      "name": "no-cross-feature-imports",
-      "severity": "error"
-    },
-    "to": "src/features/intelligence/services/CentralAISuiteService.ts"
-  },
-  {
-    "type": "dependency",
-    "from": "src/features/dashboard/components/SinglePageDashboard.tsx",
-    "rule": {
-      "name": "no-cross-feature-imports",
-      "severity": "error"
-    },
-    "to": "src/features/analytics/components/GlowChart.tsx"
   }
 ]
