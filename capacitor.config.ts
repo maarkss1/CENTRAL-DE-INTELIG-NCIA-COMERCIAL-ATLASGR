@@ -47,6 +47,23 @@ const config: CapacitorConfig = {
     // SceneDelegate.swift) e só recarrega o WebView com uma URL do próprio PRODUCTION_URL, não é
     // necessário adicionar `atlasgr://` aqui.
   },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      launchAutoHide: true,
+      backgroundColor: "#ffffff",
+      androidSplashResourceName: "splash",
+      androidScaleType: "CENTER_CROP",
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
+    StatusBar: {
+      style: "DARK",
+      overlaysWebView: false,
+      backgroundColor: "#ffffff",
+    },
+  },
 };
 
 export default config;
