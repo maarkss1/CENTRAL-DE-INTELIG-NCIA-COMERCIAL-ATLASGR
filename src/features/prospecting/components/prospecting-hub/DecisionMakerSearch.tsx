@@ -1,15 +1,6 @@
 import { useState, useEffect } from 'react';
-import {
-  Search,
-  Users,
-  Building2,
-  Globe,
-  Mail,
-  Phone,
-  MessageCircle,
-  Linkedin,
-  Loader2,
-} from 'lucide-react';
+import { Search, Users, Building2, Globe, Mail, Phone, MessageCircle, Loader2 } from 'lucide-react';
+import { LinkedinIcon as Linkedin } from '../../../../components/ui/icons/LinkedinIcon';
 import { api } from '../../../../lib/api';
 import type { DecisionMaker } from '../../services/prospecting.service';
 import type { DecisionMakerCriteria } from '../../services/apollo.service';
@@ -736,7 +727,9 @@ export function DecisionMakerSearch({
                       </p>
                     )}
                     {icebreakers[idx]?.error && (
-                      <p className="w-full text-[11px] text-warn mt-1">{icebreakers[idx].error}</p>
+                      <p className="w-full text-[11px] text-warn-active dark:text-warn mt-1">
+                        {icebreakers[idx].error}
+                      </p>
                     )}
                   </div>
                 );

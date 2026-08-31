@@ -4,7 +4,11 @@ import { env } from '../../../config/env.js';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { requestContext } from '../../../lib/async-context.js';
-import { isGenuineLeadReply, handleEmailReply, type InboundEmailReply } from '../../cadence/domain/replyTracking.js';
+import {
+  isGenuineLeadReply,
+  handleEmailReply,
+  type InboundEmailReply,
+} from '../../cadence/domain/replyTracking.js';
 import { emailIntentClassifier } from '../../cadence/infra/emailIntentClassifier.js';
 import { prismaConversationSignalPort } from '../../cadence/infra/PrismaConversationSignalPort.js';
 import { contactEmailIndex } from '../../../lib/crypto/piiIndex.js';
@@ -28,29 +32,33 @@ import { contactEmailIndex } from '../../../lib/crypto/piiIndex.js';
  */
 
 interface EmailInboundPayload {
-    organizationId?: unknown;
-    /** Dica direta de lead, quando o provedor já souber (ex.: endereço de resposta com tag). Resolvido por e-mail do contato quando ausente. */
-    leadId?: unknown;
-    providerMessageId?: unknown;
-    inReplyTo?: unknown;
-    fromEmail?: unknown;
-    toEmail?: unknown;
-    subject?: unknown;
-    body?: unknown;
-    autoSubmittedHeader?: unknown;
-    receivedAt?: unknown;
+  organizationId?: unknown;
+  /** Dica direta de lead, quando o provedor já souber (ex.: endereço de resposta com tag). Resolvido por e-mail do contato quando ausente. */
+  leadId?: unknown;
+  providerMessageId?: unknown;
+  inReplyTo?: unknown;
+  fromEmail?: unknown;
+  toEmail?: unknown;
+  subject?: unknown;
+  body?: unknown;
+  autoSubmittedHeader?: unknown;
+  receivedAt?: unknown;
 }
 
 function asString(value: unknown): string | null {
-    return typeof value === 'string' && value.trim().length > 0 ? value : null;
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
 /** Comparação em tempo constante da assinatura HMAC — mesmo esquema de `birthVoice.webhook.ts`. */
-function isValidSignature(rawBody: Buffer, receivedSignature: string | undefined, secret: string): boolean {
-    if (!receivedSignature) return false;
-    const expected = Buffer.from(createHmac('sha256', secret).update(rawBody).digest('hex'), 'utf8');
-    const received = Buffer.from(receivedSignature, 'utf8');
-    return received.length === expected.length && timingSafeEqual(received, expected);
+function isValidSignature(
+  rawBody: Buffer,
+  receivedSignature: string | undefined,
+  secret: string,
+): boolean {
+  if (!receivedSignature) return false;
+  const expected = Buffer.from(createHmac('sha256', secret).update(rawBody).digest('hex'), 'utf8');
+  const received = Buffer.from(receivedSignature, 'utf8');
+  return received.length === expected.length && timingSafeEqual(received, expected);
 }
 
 /**
@@ -60,166 +68,206 @@ function isValidSignature(rawBody: Buffer, receivedSignature: string | undefined
  * exata (antes `contact: { email: { equals, mode: 'insensitive' } }`) usa o índice cego
  * determinístico `emailIndex` em vez do campo cifrado direto (ver src/lib/crypto/piiIndex.ts).
  */
-async function findOpenLeadByEmail(organizationId: string, email: string): Promise<{ id: string } | null> {
-    const emailIndex = contactEmailIndex(email);
-    // `contactEmailIndex` só devolve null para e-mail vazio/ausente — sem isso, `{ emailIndex:
-    // null }` casaria com QUALQUER contato sem e-mail cadastrado (falso positivo em massa), não
-    // com "nenhum".
-    if (!emailIndex) return null;
-    const lead = await prisma.lead.findFirst({
-        where: {
-            organizationId,
-            status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
-            contact: { emailIndex },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true },
-    });
-    return lead;
+async function findOpenLeadByEmail(
+  organizationId: string,
+  email: string,
+): Promise<{ id: string } | null> {
+  const emailIndex = contactEmailIndex(email);
+  // `contactEmailIndex` só devolve null para e-mail vazio/ausente — sem isso, `{ emailIndex:
+  // null }` casaria com QUALQUER contato sem e-mail cadastrado (falso positivo em massa), não
+  // com "nenhum".
+  if (!emailIndex) return null;
+  const lead = await prisma.lead.findFirst({
+    where: {
+      organizationId,
+      status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
+      contact: { emailIndex },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  });
+  return lead;
 }
 
 type HandleOutcome =
-    | { status: 'ignored-auto-reply' }
-    | { status: 'duplicate' }
-    | { status: 'lead-not-found' }
-    | { status: 'recorded'; leadId: string };
+  | { status: 'ignored-auto-reply' }
+  | { status: 'duplicate' }
+  | { status: 'lead-not-found' }
+  | { status: 'recorded'; leadId: string };
 
-async function recordInboundEmail(organizationId: string, email: InboundEmailReply, toEmail: string, leadIdHint: string | null): Promise<HandleOutcome> {
-    return requestContext.run({ tenantId: organizationId }, async () => {
-        // Filtro de auto-resposta/bounce ANTES de qualquer escrita — o próprio módulo de domínio
-        // (`replyTracking.ts`) documenta que isso nunca deve virar sinal nem persistência.
-        if (!isGenuineLeadReply(email)) {
-            return { status: 'ignored-auto-reply' };
-        }
+async function recordInboundEmail(
+  organizationId: string,
+  email: InboundEmailReply,
+  toEmail: string,
+  leadIdHint: string | null,
+): Promise<HandleOutcome> {
+  return requestContext.run({ tenantId: organizationId }, async () => {
+    // Filtro de auto-resposta/bounce ANTES de qualquer escrita — o próprio módulo de domínio
+    // (`replyTracking.ts`) documenta que isso nunca deve virar sinal nem persistência.
+    if (!isGenuineLeadReply(email)) {
+      return { status: 'ignored-auto-reply' };
+    }
 
-        const existing = await prisma.emailMessage.findUnique({
-            where: { organizationId_providerMessageId: { organizationId, providerMessageId: email.providerMessageId } },
-            select: { id: true },
-        });
-        if (existing) return { status: 'duplicate' };
-
-        const lead = leadIdHint
-            ? await prisma.lead.findFirst({ where: { id: leadIdHint, organizationId }, select: { id: true } })
-            : await findOpenLeadByEmail(organizationId, email.fromEmail);
-
-        await prisma.emailMessage.create({
-            data: {
-                organizationId,
-                providerMessageId: email.providerMessageId,
-                inReplyTo: email.inReplyTo,
-                direction: 'inbound',
-                fromEmail: email.fromEmail,
-                toEmail,
-                subject: email.subject,
-                body: email.body,
-                leadId: lead?.id,
-                receivedAt: email.receivedAt,
-            },
-        });
-
-        if (!lead) return { status: 'lead-not-found' };
-
-        const priorMessages = await prisma.emailMessage.findMany({
-            where: { organizationId, leadId: lead.id, providerMessageId: { not: email.providerMessageId } },
-            orderBy: { receivedAt: 'asc' },
-            take: 40,
-            select: { direction: true, body: true },
-        });
-
-        const outcome = await handleEmailReply(
-            { ...email, leadId: lead.id },
-            priorMessages as Array<{ direction: 'inbound' | 'outbound'; body: string | null }>,
-            emailIntentClassifier,
-        );
-
-        if (outcome.signalDraft) {
-            await prismaConversationSignalPort.record(outcome.signalDraft);
-        }
-
-        await prisma.timelineEvent.create({
-            data: {
-                type: 'email',
-                description: email.subject
-                    ? `Resposta recebida por e-mail: "${email.subject.slice(0, 200)}"`
-                    : 'Resposta recebida por e-mail.',
-                leadId: lead.id,
-            },
-        }).catch((error) => {
-            // A mensagem já foi persistida acima — a falha aqui não pode apagar essa evidência.
-            logger.error({ err: error, leadId: lead.id }, 'Falha ao registrar réplica de e-mail no timeline do lead.');
-        });
-
-        return { status: 'recorded', leadId: lead.id };
+    const existing = await prisma.emailMessage.findUnique({
+      where: {
+        organizationId_providerMessageId: {
+          organizationId,
+          providerMessageId: email.providerMessageId,
+        },
+      },
+      select: { id: true },
     });
+    if (existing) return { status: 'duplicate' };
+
+    const lead = leadIdHint
+      ? await prisma.lead.findFirst({
+          where: { id: leadIdHint, organizationId },
+          select: { id: true },
+        })
+      : await findOpenLeadByEmail(organizationId, email.fromEmail);
+
+    await prisma.emailMessage.create({
+      data: {
+        organizationId,
+        providerMessageId: email.providerMessageId,
+        inReplyTo: email.inReplyTo,
+        direction: 'inbound',
+        fromEmail: email.fromEmail,
+        toEmail,
+        subject: email.subject,
+        body: email.body,
+        leadId: lead?.id,
+        receivedAt: email.receivedAt,
+      },
+    });
+
+    if (!lead) return { status: 'lead-not-found' };
+
+    const priorMessages = await prisma.emailMessage.findMany({
+      where: {
+        organizationId,
+        leadId: lead.id,
+        providerMessageId: { not: email.providerMessageId },
+      },
+      orderBy: { receivedAt: 'asc' },
+      take: 40,
+      select: { direction: true, body: true },
+    });
+
+    const outcome = await handleEmailReply(
+      { ...email, leadId: lead.id },
+      priorMessages as Array<{ direction: 'inbound' | 'outbound'; body: string | null }>,
+      emailIntentClassifier,
+    );
+
+    if (outcome.signalDraft) {
+      await prismaConversationSignalPort.record(outcome.signalDraft);
+    }
+
+    await prisma.timelineEvent
+      .create({
+        data: {
+          type: 'email',
+          description: email.subject
+            ? `Resposta recebida por e-mail: "${email.subject.slice(0, 200)}"`
+            : 'Resposta recebida por e-mail.',
+          leadId: lead.id,
+        },
+      })
+      .catch((error) => {
+        // A mensagem já foi persistida acima — a falha aqui não pode apagar essa evidência.
+        logger.error(
+          { err: error, leadId: lead.id },
+          'Falha ao registrar réplica de e-mail no timeline do lead.',
+        );
+      });
+
+    return { status: 'recorded', leadId: lead.id };
+  });
 }
 
 async function handleInboundEmail(req: Request, res: Response): Promise<void> {
-    const secret = env.EMAIL_INBOUND_WEBHOOK_SECRET;
-    if (!secret) {
-        // Fail-closed: sem segredo configurado, aceitar o payload deixaria qualquer um que
-        // descobrisse esta URL forjar réplicas de e-mail em nome de um lead.
-        logger.error('Webhook de e-mail de entrada recebido, mas EMAIL_INBOUND_WEBHOOK_SECRET não está configurado.');
-        res.status(503).json({ success: false, error: 'Webhook não configurado.' });
-        return;
-    }
+  const secret = env.EMAIL_INBOUND_WEBHOOK_SECRET;
+  if (!secret) {
+    // Fail-closed: sem segredo configurado, aceitar o payload deixaria qualquer um que
+    // descobrisse esta URL forjar réplicas de e-mail em nome de um lead.
+    logger.error(
+      'Webhook de e-mail de entrada recebido, mas EMAIL_INBOUND_WEBHOOK_SECRET não está configurado.',
+    );
+    res.status(503).json({ success: false, error: 'Webhook não configurado.' });
+    return;
+  }
 
-    const rawBody = req.body;
-    if (!Buffer.isBuffer(rawBody)) {
-        logger.error('Webhook de e-mail de entrada sem corpo bruto — a rota precisa ser montada antes do express.json().');
-        res.status(500).json({ success: false, error: 'Configuração de rota inválida.' });
-        return;
-    }
+  const rawBody = req.body;
+  if (!Buffer.isBuffer(rawBody)) {
+    logger.error(
+      'Webhook de e-mail de entrada sem corpo bruto — a rota precisa ser montada antes do express.json().',
+    );
+    res.status(500).json({ success: false, error: 'Configuração de rota inválida.' });
+    return;
+  }
 
-    if (!isValidSignature(rawBody, req.header('x-email-inbound-signature'), secret)) {
-        logger.warn('Webhook de e-mail de entrada com assinatura inválida — descartado.');
-        res.status(401).json({ success: false, error: 'Assinatura inválida.' });
-        return;
-    }
+  if (!isValidSignature(rawBody, req.header('x-email-inbound-signature'), secret)) {
+    logger.warn('Webhook de e-mail de entrada com assinatura inválida — descartado.');
+    res.status(401).json({ success: false, error: 'Assinatura inválida.' });
+    return;
+  }
 
-    let payload: EmailInboundPayload;
-    try {
-        payload = JSON.parse(rawBody.toString('utf8'));
-    } catch {
-        res.status(400).json({ success: false, error: 'Corpo não é JSON válido.' });
-        return;
-    }
+  let payload: EmailInboundPayload;
+  try {
+    payload = JSON.parse(rawBody.toString('utf8'));
+  } catch {
+    res.status(400).json({ success: false, error: 'Corpo não é JSON válido.' });
+    return;
+  }
 
-    const organizationId = asString(payload.organizationId);
-    const providerMessageId = asString(payload.providerMessageId);
-    const fromEmail = asString(payload.fromEmail);
-    const toEmail = asString(payload.toEmail) ?? '';
-    const body = asString(payload.body);
+  const organizationId = asString(payload.organizationId);
+  const providerMessageId = asString(payload.providerMessageId);
+  const fromEmail = asString(payload.fromEmail);
+  const toEmail = asString(payload.toEmail) ?? '';
+  const body = asString(payload.body);
 
-    if (!organizationId || !providerMessageId || !fromEmail) {
-        res.status(400).json({ success: false, error: 'organizationId, providerMessageId e fromEmail são obrigatórios.' });
-        return;
-    }
+  if (!organizationId || !providerMessageId || !fromEmail) {
+    res.status(400).json({
+      success: false,
+      error: 'organizationId, providerMessageId e fromEmail são obrigatórios.',
+    });
+    return;
+  }
 
-    const email: InboundEmailReply = {
-        organizationId,
-        leadId: asString(payload.leadId) ?? '',
-        providerMessageId,
-        inReplyTo: asString(payload.inReplyTo),
-        fromEmail,
-        subject: asString(payload.subject),
-        body: body ?? '',
-        autoSubmittedHeader: asString(payload.autoSubmittedHeader),
-        receivedAt: (() => {
-            const raw = asString(payload.receivedAt);
-            const parsed = raw ? new Date(raw) : new Date();
-            return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-        })(),
-    };
+  const email: InboundEmailReply = {
+    organizationId,
+    leadId: asString(payload.leadId) ?? '',
+    providerMessageId,
+    inReplyTo: asString(payload.inReplyTo),
+    fromEmail,
+    subject: asString(payload.subject),
+    body: body ?? '',
+    autoSubmittedHeader: asString(payload.autoSubmittedHeader),
+    receivedAt: (() => {
+      const raw = asString(payload.receivedAt);
+      const parsed = raw ? new Date(raw) : new Date();
+      return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+    })(),
+  };
 
-    try {
-        const outcome = await recordInboundEmail(organizationId, email, toEmail, asString(payload.leadId));
-        res.status(200).json({ success: true, outcome: outcome.status });
-    } catch (error) {
-        // 5xx de propósito: um provedor real reentrega com backoff, e a idempotência por
-        // providerMessageId garante que a reentrega não duplica a mensagem já persistida.
-        logger.error({ err: error, organizationId }, 'Falha ao processar webhook de e-mail de entrada.');
-        res.status(500).json({ success: false, error: 'Falha ao processar réplica de e-mail.' });
-    }
+  try {
+    const outcome = await recordInboundEmail(
+      organizationId,
+      email,
+      toEmail,
+      asString(payload.leadId),
+    );
+    res.status(200).json({ success: true, outcome: outcome.status });
+  } catch (error) {
+    // 5xx de propósito: um provedor real reentrega com backoff, e a idempotência por
+    // providerMessageId garante que a reentrega não duplica a mensagem já persistida.
+    logger.error(
+      { err: error, organizationId },
+      'Falha ao processar webhook de e-mail de entrada.',
+    );
+    res.status(500).json({ success: false, error: 'Falha ao processar réplica de e-mail.' });
+  }
 }
 
 const router = Router();

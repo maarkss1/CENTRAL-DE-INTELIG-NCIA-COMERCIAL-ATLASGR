@@ -99,7 +99,12 @@ export type HotspotException = {
 
 // Extrai os blocos "### `caminho`" da seção "## Exceções ativas" — para antes do próximo "## ".
 export function parseExceptions(markdown: string): HotspotException[] {
-    const sectionMatch = markdown.match(/## Exceções ativas\n([\s\S]*?)(?=\n## |$)/);
+    // Normaliza CRLF -> LF antes de casar os regexes abaixo: um HOTSPOT_EXCEPTIONS.md salvo com
+    // quebra de linha do Windows (\r\n) faz o \n literal destes padrões nunca casar, e a função
+    // retorna [] silenciosamente mesmo com exceções válidas registradas — achado real (Onda 43),
+    // arquivo commitado em CRLF em 2026-08-29 desarmou o gate sem nenhum erro visível.
+    const normalized = markdown.replace(/\r\n/g, '\n');
+    const sectionMatch = normalized.match(/## Exceções ativas\n([\s\S]*?)(?=\n## |$)/);
     if (!sectionMatch) return [];
     const section = sectionMatch[1];
 

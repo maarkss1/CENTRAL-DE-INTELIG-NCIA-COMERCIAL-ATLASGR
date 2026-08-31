@@ -92,7 +92,7 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-surface border border-line rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-line flex items-center justify-between bg-surface-2/60">
@@ -108,7 +108,9 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Fechar"
             className="p-2 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -127,10 +129,14 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-ink-2 mb-1">
+                <label
+                  htmlFor="booking-link-title"
+                  className="block text-[11px] font-bold text-ink-2 mb-1"
+                >
                   Título da Reunião
                 </label>
                 <input
+                  id="booking-link-title"
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -140,7 +146,10 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-ink-2 mb-1">
+                <label
+                  htmlFor="booking-link-slug"
+                  className="block text-[11px] font-bold text-ink-2 mb-1"
+                >
                   Link Personalizado (/book/...)
                 </label>
                 <div className="flex items-center">
@@ -148,6 +157,7 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                     /book/
                   </span>
                   <input
+                    id="booking-link-slug"
                     type="text"
                     value={form.slug}
                     onChange={(e) =>
@@ -166,10 +176,14 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-ink-2 mb-1">
+                <label
+                  htmlFor="booking-link-duration"
+                  className="block text-[11px] font-bold text-ink-2 mb-1"
+                >
                   Duração (minutos)
                 </label>
                 <select
+                  id="booking-link-duration"
                   value={form.durationMin}
                   onChange={(e) => setForm({ ...form, durationMin: Number(e.target.value) })}
                   className="w-full px-3 py-2 bg-surface border border-line rounded-xl text-xs text-ink focus:ring-2 focus:ring-brand focus:outline-none"
@@ -181,8 +195,14 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-ink-2 mb-1">Descrição</label>
+                <label
+                  htmlFor="booking-link-description"
+                  className="block text-[11px] font-bold text-ink-2 mb-1"
+                >
+                  Descrição
+                </label>
                 <input
+                  id="booking-link-description"
                   type="text"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -237,7 +257,7 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                         </span>
                       </div>
                       <p className="text-[11px] text-ink-2 font-mono flex items-center gap-1">
-                        <Globe className="w-3 h-3 text-sky-500" />
+                        <Globe className="w-3 h-3 text-ink-2" />
                         /book/{link.slug}
                       </p>
                       {link.description && (
@@ -251,7 +271,7 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                         onClick={() => handleCopy(link.slug)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
                           copiedSlug === link.slug
-                            ? 'bg-emerald-500 text-white border-emerald-600'
+                            ? 'bg-success text-white border-success-active'
                             : 'bg-surface-2 hover:bg-surface-3 border-line text-ink'
                         }`}
                       >
@@ -265,8 +285,9 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                       <button
                         type="button"
                         onClick={() => handleDelete(link.id)}
-                        className="p-1.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors"
+                        className="p-1.5 rounded-xl bg-danger/10 text-danger-active dark:text-danger hover:bg-danger/20 transition-colors"
                         title="Excluir"
+                        aria-label={`Excluir link ${link.title}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

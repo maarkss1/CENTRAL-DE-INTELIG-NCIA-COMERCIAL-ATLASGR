@@ -57,10 +57,21 @@ export function WhatsAppChatPanel({
   };
 
   return (
+    // Este wrapper faz duas coisas de propósito: centraliza o card (flex) E fecha ao clicar fora
+    // dele. Não leva aria-hidden (diferente de um backdrop decorativo separado) porque ENVOLVE o
+    // conteúdo real do modal, não é irmão dele — escondê-lo do teclado/leitor de tela esconderia
+    // o modal inteiro. onClick aqui é conveniência de mouse/touch; o botão "Fechar conversa"
+    // abaixo é um <button> real, já alcançável por Tab, então não falta caminho de teclado.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={onClose}
     >
+      {/* onClick aqui só interrompe a propagação pro backdrop (impede que um clique dentro do
+          painel feche o modal) — não é uma interação em si, então não há ação nova pra dar
+          suporte a teclado; o conteúdo interativo real (mensagens, input, botões) já é acessível
+          normalmente dentro deste painel. */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
       <div
         className="bg-surface border border-line rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}

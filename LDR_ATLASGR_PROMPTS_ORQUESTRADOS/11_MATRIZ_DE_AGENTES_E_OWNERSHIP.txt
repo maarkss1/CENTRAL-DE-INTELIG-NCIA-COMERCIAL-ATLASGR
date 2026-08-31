@@ -1,0 +1,67 @@
+MATRIZ DE AGENTES — LDR ATLASGR
+
+00 COORDENADOR
+Dono de: plano, divisão de trabalho, integração, relatórios, gates por leva, veredito de fase.
+
+01 PLATAFORMA, SEGURANÇA E DADOS
+Dono de: schema, migrations, repositories/data access, RLS em coordenação com 01A, persistência de snapshots/signals/scores/evidence.
+
+01A DADOS/RLS/RETENÇÃO
+Dono especializado de: RLS, retenção e confiabilidade de dados quando acionado. Nunca simultâneo com 01.
+
+02 PRODUTO E UX
+Dono de: jornada Account 360, navegação Market Intelligence → empresa, estados da interface, ergonomia.
+
+03 DESIGN E ACESSIBILIDADE
+Dono de: acabamento visual, responsividade, a11y, hierarquia, estados visuais.
+
+04 CRM E BI
+Dono de: contexto CRM, métricas da conta, histórico comercial, relacionamento, analytics.
+
+05 PROSPECÇÃO
+Dono de: ICP, fit, elegibilidade, decisores, priorização, critérios de prospecção.
+
+06 INTEGRAÇÕES E BITRIX
+Dono de: integração Bitrix, mappings, webhooks/sync, criação e atualização de entidades/atividades.
+
+06A EXTRAÇÕES BITRIX
+Dono especializado de: extrações quando necessário. Nunca simultâneo com 06.
+
+07 IA E AUTOMAÇÕES
+Dono de: resumo IA, classificação, rationale, Next Best Action, orquestração inteligente, contracts de structured output.
+
+08 QA E RELEASE
+Dono de: critérios de aceite, regressão, veredito RELEASE APPROVED/BLOCKED.
+
+09 MOBILE
+Acionar apenas se o LDR exigir comportamento específico Capacitor/Android além do responsive web.
+
+10 INFRAESTRUTURA / SRE
+Dono de: métricas, logs, deploy/runtime infra, health, alertas.
+
+11 MARCA
+Acionar apenas se forem necessários ativos institucionais específicos.
+
+12 VOZ
+Acionar quando o LDR incorporar telefonia/voz no fluxo.
+
+13 ENXAME AUTÔNOMO RUNTIME
+Dono de: Supervisor, SDR, BDR, Closer, CRM/Ops/Learning consumindo a inteligência e executando dentro dos guardrails.
+
+14 TEST HARNESS
+Dono de: ambiente executável, gates reproduzíveis, smoke/E2E real.
+
+15 SEGURANÇA APLICADA
+Dono de: segredos, PII, hardening, prompt injection/data leakage quando relevante.
+
+16 RUNTIME, WORKERS E ESCALA
+Dono de: BullMQ, workers, scheduler, retries, idempotência, lifecycle.
+
+17 CADÊNCIA MULTICANAL
+Dono de: transformar recomendação aprovada em fluxo/cadência comercial real.
+
+18 CONTRATOS/API/DOCUMENTAÇÃO
+Dono de: endpoints, schemas, OpenAPI quando aplicável, paridade frontend/backend e documentação viva.
+
+ARQUIVOS COMPARTILHADOS
+O Coordenador deve consultar AGENTS.md atual antes de definir ownership. Nenhum agente assume livremente prisma/schema.prisma, package.json, lockfiles ou server entrypoints se houver regra de dono único.

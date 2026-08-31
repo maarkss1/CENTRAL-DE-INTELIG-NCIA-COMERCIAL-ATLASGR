@@ -4,14 +4,6 @@ import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 
-/** Cross-feature import de `prospecting/services/cnpj.util.ts` violaria a regra
- * `no-cross-feature-imports` do dependency-cruiser — cópia local da mesma formatação. */
-function formatCnpj(cnpj: string): string {
-  const digits = cnpj.replace(/\D/g, '');
-  if (digits.length !== 14) return cnpj;
-  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-}
-
 export const CNPJ_CATALOG_PATTERN = /^[A-Z0-9]{12}[0-9]{2}$/;
 const ICP_TIERS = new Set(Object.values(MarketIntelligenceIcpTier));
 const PAGE_SIZE_MAX = 100;
@@ -66,7 +58,9 @@ export function parseCompanyCatalogQuery(input: Record<string, unknown>): Compan
   const rawCnpj = first(input.cnpj)?.trim();
   const cnpj = rawCnpj ? normalizeCatalogCnpj(rawCnpj) : undefined;
   if (cnpj && !CNPJ_CATALOG_PATTERN.test(cnpj)) {
-    throw new CompanyCatalogValidationError('CNPJ deve conter 14 posições; as 12 primeiras aceitam letras/números e os 2 dígitos verificadores permanecem numéricos.');
+    throw new CompanyCatalogValidationError(
+      'CNPJ deve conter 14 posições; as 12 primeiras aceitam letras/números e os 2 dígitos verificadores permanecem numéricos.',
+    );
   }
 
   const uf = first(input.uf)?.trim().toUpperCase() || undefined;
@@ -81,7 +75,7 @@ export function parseCompanyCatalogQuery(input: Record<string, unknown>): Compan
 
   const cnae = first(input.cnae)?.replace(/\D/g, '') || undefined;
   const statusInput = first(input.situacao)?.trim().toUpperCase();
-  const situacao = statusInput === 'TODAS' ? null : (statusInput || 'ATIVA');
+  const situacao = statusInput === 'TODAS' ? null : statusInput || 'ATIVA';
   const porte = first(input.porte)?.trim().toUpperCase() || undefined;
   const municipio = first(input.municipio)?.trim() || undefined;
 
@@ -104,7 +98,8 @@ export function parseCompanyCatalogQuery(input: Record<string, unknown>): Compan
   }
 
   const sortInput = first(input.sort)?.trim().toLowerCase();
-  const sort: CompanyCatalogSort = sortInput === 'capital' || sortInput === 'icp' ? sortInput : 'name';
+  const sort: CompanyCatalogSort =
+    sortInput === 'capital' || sortInput === 'icp' ? sortInput : 'name';
 
   return {
     q,
@@ -217,7 +212,9 @@ function datasetPayload(dataset: NonNullable<Awaited<ReturnType<typeof activeDat
   };
 }
 
-function serializeCompany<T extends Record<string, unknown>>(row: T): T & { capitalSocial?: string | null } {
+function serializeCompany<T extends Record<string, unknown>>(
+  row: T,
+): T & { capitalSocial?: string | null } {
   const capital = row.capitalSocial;
   return {
     ...row,
@@ -225,7 +222,10 @@ function serializeCompany<T extends Record<string, unknown>>(row: T): T & { capi
   } as T & { capitalSocial?: string | null };
 }
 
-function buildWhere(datasetId: string, query: CompanyCatalogQuery): Prisma.MarketIntelligenceCompanyWhereInput {
+function buildWhere(
+  datasetId: string,
+  query: CompanyCatalogQuery,
+): Prisma.MarketIntelligenceCompanyWhereInput {
   const where: Prisma.MarketIntelligenceCompanyWhereInput = { datasetId };
   if (query.cnpj) where.cnpj = query.cnpj;
   if (query.uf) where.uf = query.uf;
@@ -253,7 +253,9 @@ function buildWhere(datasetId: string, query: CompanyCatalogQuery): Prisma.Marke
   return where;
 }
 
-function orderBy(sort: CompanyCatalogSort): Prisma.MarketIntelligenceCompanyOrderByWithRelationInput[] {
+function orderBy(
+  sort: CompanyCatalogSort,
+): Prisma.MarketIntelligenceCompanyOrderByWithRelationInput[] {
   if (sort === 'capital') return [{ capitalSocial: 'desc' }, { razaoSocial: 'asc' }];
   if (sort === 'icp') return [{ icpScore: 'desc' }, { razaoSocial: 'asc' }];
   return [{ razaoSocial: 'asc' }, { cnpj: 'asc' }];
@@ -302,14 +304,24 @@ function moneyValue(value: unknown): number | null {
 /** Cria (ou reaproveita) a Company/Lead do CRM a partir de uma linha do catálogo de
  * inteligência — usada pelo LDR (LeadApprovalDeck, CompanyBranchesView) para aprovar uma
  * conta descoberta direto para o pipeline com 1 clique. */
-export async function approveToPipeline(organizationId: string, cnpjInput: string, userId?: string) {
+export async function approveToPipeline(
+  organizationId: string,
+  cnpjInput: string,
+  userId?: string,
+) {
   const { company: catalogCompany } = await getMarketIntelligenceCompany(cnpjInput);
-  if (!catalogCompany) throw new AppError('Empresa não encontrada no catálogo de inteligência.', 404);
+  if (!catalogCompany)
+    throw new AppError('Empresa não encontrada no catálogo de inteligência.', 404);
 
-  const formattedCnpj = formatCnpj(normalizeCatalogCnpj(cnpjInput));
+  // Company.cnpj é gravado normalizado sem pontuação em todo write path (Onda 43, achado: 3
+  // formatos diferentes coexistiam no banco — ver src/lib/cnpj.ts) — antes esta função gravava e
+  // buscava pelo formato PONTUADO (formatCnpj), então uma Company já criada via outro fluxo
+  // (dígitos puros) nunca era encontrada aqui, e uma segunda linha para o mesmo CNPJ real era
+  // criada silenciosamente.
+  const normalizedCnpj = normalizeCatalogCnpj(cnpjInput);
 
   let company = await prisma.company.findFirst({
-    where: { cnpj: formattedCnpj, organizationId, deletedAt: null },
+    where: { cnpj: normalizedCnpj, organizationId, deletedAt: null },
     include: { leads: true },
   });
 
@@ -319,7 +331,7 @@ export async function approveToPipeline(organizationId: string, cnpjInput: strin
         organizationId,
         legalName: catalogCompany.razaoSocial || 'Empresa sem Razão Social',
         tradeName: catalogCompany.nomeFantasia || catalogCompany.razaoSocial || 'Empresa',
-        cnpj: formattedCnpj,
+        cnpj: normalizedCnpj,
         segment: catalogCompany.cnaePrincipalDescricao || undefined,
         cnae: catalogCompany.cnaePrincipal || undefined,
         city: catalogCompany.municipioNome || undefined,
@@ -343,13 +355,19 @@ export async function approveToPipeline(organizationId: string, cnpjInput: strin
         title: `${company.tradeName} - Prospecção Inteligente`,
         status: 'Lead_Recebido',
         source: 'Market Intelligence (Aprovação 1-Clique)',
-        temperature: catalogCompany.icpTier === 'MUITO_ALTO' || catalogCompany.icpTier === 'ALTO' ? 'Quente' : 'Morno',
+        temperature:
+          catalogCompany.icpTier === 'MUITO_ALTO' || catalogCompany.icpTier === 'ALTO'
+            ? 'Quente'
+            : 'Morno',
         owner: 'SDR',
       },
     });
   }
 
-  logger.info({ organizationId, cnpj: formattedCnpj, companyId: company.id, leadId: lead.id, userId }, 'Conta aprovada com 1-clique para o Pipeline');
+  logger.info(
+    { organizationId, cnpj: normalizedCnpj, companyId: company.id, leadId: lead.id, userId },
+    'Conta aprovada com 1-clique para o Pipeline',
+  );
 
   return {
     company,

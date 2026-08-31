@@ -189,6 +189,14 @@
      medido), então só o tema claro precisa da versão mais escura — color-mix escala os 3 canais
      igualmente, sem precisar hardcodear um hex novo por cor. */
   --ok-active: color-mix(in srgb, var(--color-ok) 70%, black);
+  /* --warn (#FFC500) cru contra --surface clara mede 1.59:1 (fórmula de luminância relativa do
+     WCAG, calculado — não estimado) — pior ainda que o --ok original (3.48:1), bem abaixo do
+     mínimo AA (4.5:1). PILOTS.md (Piloto 003, adendo Centro de Decisão) já tinha achado isso e
+     registrado como "requer decisão e sessão própria". Mesmo mix de 55% já usado por
+     --warning-active (cor irmã no sistema "Sinal", --color-warning) → 4.91:1, dentro da margem.
+     --warn cru já passa contra a superfície escura (11.70:1) — só o tema claro precisa da
+     versão escurecida, mesmo raciocínio do --ok-active acima. */
+  --warn-active: color-mix(in srgb, var(--warn) 55%, black);
   --info-active: color-mix(in srgb, var(--color-info) 65%, black);
   --success-active: color-mix(in srgb, var(--color-success) 55%, black);
   --warning-active: color-mix(in srgb, var(--color-warning) 55%, black);
@@ -231,6 +239,9 @@
   /* --color-ok/--color-info crus já passam 4.5:1 contra a superfície escura — ver comentário
      de --ok-active/--info-active no :root acima. */
   --ok-active: var(--color-ok);
+  /* --warn cru já passa 11.70:1 contra a superfície escura — ver comentário de --warn-active no
+     :root acima. */
+  --warn-active: var(--warn);
   --info-active: var(--color-info);
   --success-active: var(--color-success);
   --warning-active: var(--color-warning);
@@ -299,7 +310,8 @@
   --color-brand-2-active: color-mix(in srgb, var(--brand-2) 65%, black);
   --color-warn: var(--warn);
   --color-ok: var(--ok);
-  /* Reativos a tema — ver --ok-active/--info-active em :root/.dark acima. */
+  /* Reativos a tema — ver --ok-active/--warn-active/--info-active em :root/.dark acima. */
+  --color-warn-active: var(--warn-active);
   --color-ok-active: var(--ok-active);
   --color-info-active: var(--info-active);
   --color-success-active: var(--success-active);

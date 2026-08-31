@@ -56,7 +56,9 @@ serviço `prospector-atlas` = `srv-d9qtn8bm8hqs7395qtpg`, branch `main`, plano `
    default do schema Zod (`src/config/env.ts`), não falha o build; o sintoma só aparece em
    runtime (rota específica quebrando, feature "inacessível").
 4. Checklist completo de validação pós-deploy já existe e não deve ser duplicado aqui — ver
-   `docs/deploy/producao.md` seção 7 e `docs/deploy/RELEASE_CHECKLIST.md` (domínio do Agente 08).
+   `docs/deploy/producao.md` seção 7 (domínio do Agente 08; incorpora o antigo
+   `docs/deploy/RELEASE_CHECKLIST.md`, removido do controle de versão em 22/08/2026, ver
+   `docs/REMOVED-DOCS.md`).
 
 ### 0.2 Ordem de deploy (automática, sem passo manual — confirmado no serviço real)
 

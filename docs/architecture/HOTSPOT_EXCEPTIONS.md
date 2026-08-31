@@ -46,16 +46,47 @@ propósito por estar fora de "## Exceções ativas"):
 
 ## Exceções ativas
 
-Nenhuma no momento (2026-08-25) — nenhum arquivo do repositório passa de 1000 linhas hoje.
+### `src/features/cadence/components/CadenceHub.tsx`
+
+- **Limite excepcional:** 1500 linhas
+- **Dono:** Agente 17 — Cadência Multicanal e Ciclo de Receita
+- **Motivo:** já listado abaixo como débito conhecido em 868 linhas (2026-08-25, dentro do limite
+  de aviso); cresceu para 1110 linhas em commits normais de feature depois disso, sem que ninguém
+  percebesse que já passava do limite de falha — o gate nunca chegou a rodar de verdade em CI até
+  agora porque `npm run lint:architecture` (etapa anterior do mesmo `test:architecture`) sempre
+  falhava primeiro por violações de `no-cross-feature-imports` não relacionadas, mascarando esta
+  checagem via `&&`. Não é uma regressão introduzida por nenhum PR específico; é dívida
+  pré-existente só agora visível. Modularizar fica para um item de dívida técnica dedicado.
+- **Atualização em 2026-08-31:** o mesmo padrão de mascaramento se repetiu — o arquivo cresceu de
+  1110 para 1404 linhas em commits normais de feature, e só voltou a ser visível depois que as
+  novas violações de `no-cross-feature-imports` de `dashboard`/`gamification` (ver
+  `KNOWN_VIOLATIONS.md`, seção "2026-08-31") foram registradas na baseline. Limite elevado para
+  1500 (margem sobre as 1404 atuais) em vez de reduzir o arquivo, que não foi tocado por esta
+  sessão. `test:architecture` roda os dois gates encadeados com `&&`; enquanto isso não mudar,
+  qualquer falha em `lint:architecture` volta a mascarar `check:hotspots` da mesma forma — vale
+  considerar separar os dois comandos em jobs de CI independentes num item de dívida técnica futuro.
+- **Registrado em:** 2026-08-29
+- **Reavaliar até:** 2026-11-30 (mesmo checkpoint do `KNOWN_VIOLATIONS.md`)
+
+### `src/features/integrations/components/BitrixImportPanel.tsx`
+
+- **Limite excepcional:** 1300 linhas
+- **Dono:** Agente 06 — Integrações e Bitrix
+- **Motivo:** mesma situação do `CadenceHub.tsx` acima — já listado como débito conhecido em 960
+  linhas (2026-08-25), cresceu para 1193 linhas sem que o gate rodasse de verdade em CI pelo mesmo
+  motivo (mascarado por `no-cross-feature-imports` na etapa anterior). Não é regressão de nenhum
+  PR específico. Modularizar fica para um item de dívida técnica dedicado.
+- **Registrado em:** 2026-08-29
+- **Reavaliar até:** 2026-11-30 (mesmo checkpoint do `KNOWN_VIOLATIONS.md`)
 
 ## Débito conhecido, abaixo do limite de falha (sem exceção necessária)
 
 Arquivos na faixa de aviso (701–1000 linhas) no momento em que este gate foi criado — não
 requerem exceção porque não quebram o gate, só ficam registrados aqui para não serem
-"descobertos" de novo como achado novo em uma auditoria futura:
+"descobertos" de novo como achado novo em uma auditoria futura. `BitrixImportPanel.tsx` e
+`CadenceHub.tsx` saíram desta lista em 2026-08-29 por já terem cruzado 1000 linhas — ver
+"Exceções ativas" acima.
 
-- `src/features/integrations/components/BitrixImportPanel.tsx` (960 linhas)
-- `src/features/cadence/components/CadenceHub.tsx` (868 linhas)
 - `src/features/market-intelligence/server/accountIntelligence.service.ts` (857 linhas)
 - `src/features/intelligence/components/SwarmDashboard.tsx` (770 linhas)
 - `src/features/crm/components/LeadDetailDrawer.tsx` (726 linhas)

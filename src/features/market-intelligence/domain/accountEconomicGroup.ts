@@ -39,7 +39,9 @@ export function cnpjRoot(cnpj: string | null | undefined): string | null {
  * bidirecional; aqui só a matemática de agrupamento é determinística. Empresas com CNPJ ausente ou
  * malformado nunca entram em nenhum grupo.
  */
-export function matchEconomicGroupByCnpjRoot(companies: EconomicGroupCompanyInput[]): EconomicGroupMatch[] {
+export function matchEconomicGroupByCnpjRoot(
+  companies: EconomicGroupCompanyInput[],
+): EconomicGroupMatch[] {
   const byRoot = new Map<string, string[]>();
   for (const company of companies) {
     const root = cnpjRoot(company.cnpj);
@@ -58,9 +60,98 @@ export function matchEconomicGroupByCnpjRoot(companies: EconomicGroupCompanyInpu
     const sortedIds = [...companyIds].sort();
     for (let i = 0; i < sortedIds.length; i += 1) {
       for (let j = i + 1; j < sortedIds.length; j += 1) {
-        matches.push({ sourceCompanyId: sortedIds[i], targetCompanyId: sortedIds[j], cnpjRoot: root });
+        matches.push({
+          sourceCompanyId: sortedIds[i],
+          targetCompanyId: sortedIds[j],
+          cnpjRoot: root,
+        });
       }
     }
   }
+  return matches;
+}
+export interface EconomicGroupCompanyInputExtended {
+  id: string;
+  cnpj: string | null;
+  qsa?: any;
+  website?: string | null;
+}
+
+export interface EconomicGroupMatchExtended {
+  sourceCompanyId: string;
+  targetCompanyId: string;
+  relationType: string;
+  confidence: number;
+  reason?: string;
+}
+
+export function matchEconomicGroupCamada2e3(
+  companies: EconomicGroupCompanyInputExtended[],
+): EconomicGroupMatchExtended[] {
+  const matches: EconomicGroupMatchExtended[] = [];
+
+  const byDomain = new Map<string, string[]>();
+  const bySocio = new Map<string, string[]>();
+
+  for (const company of companies) {
+    if (company.website) {
+      let domain = company.website.toLowerCase().trim();
+      domain = domain
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .split('/')[0];
+      if (domain && domain.includes('.')) {
+        const existing = byDomain.get(domain) || [];
+        existing.push(company.id);
+        byDomain.set(domain, existing);
+      }
+    }
+
+    if (company.qsa && Array.isArray(company.qsa)) {
+      for (const socio of company.qsa) {
+        if (socio && socio.nome) {
+          const nome = socio.nome.trim().toUpperCase();
+          if (nome.length > 3) {
+            const existing = bySocio.get(nome) || [];
+            existing.push(company.id);
+            bySocio.set(nome, existing);
+          }
+        }
+      }
+    }
+  }
+
+  for (const [domain, companyIds] of byDomain) {
+    if (companyIds.length < 2) continue;
+    const sortedIds = [...new Set(companyIds)].sort();
+    for (let i = 0; i < sortedIds.length; i++) {
+      for (let j = i + 1; j < sortedIds.length; j++) {
+        matches.push({
+          sourceCompanyId: sortedIds[i],
+          targetCompanyId: sortedIds[j],
+          relationType: 'DOMINIO_COMPARTILHADO',
+          confidence: 0.7,
+          reason: domain,
+        });
+      }
+    }
+  }
+
+  for (const [socio, companyIds] of bySocio) {
+    if (companyIds.length < 2) continue;
+    const sortedIds = [...new Set(companyIds)].sort();
+    for (let i = 0; i < sortedIds.length; i++) {
+      for (let j = i + 1; j < sortedIds.length; j++) {
+        matches.push({
+          sourceCompanyId: sortedIds[i],
+          targetCompanyId: sortedIds[j],
+          relationType: 'SOCIEDADE_CRUZADA',
+          confidence: 0.9,
+          reason: socio,
+        });
+      }
+    }
+  }
+
   return matches;
 }

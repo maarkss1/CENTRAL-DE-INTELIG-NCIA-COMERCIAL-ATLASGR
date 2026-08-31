@@ -20,6 +20,7 @@ import {
   Filter,
   Mic,
   ArrowUpRight,
+  Link2,
 } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { Button } from '../../../components/ui/Button';
@@ -67,6 +68,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
     searchMode,
     setSearchMode,
     handleSendMessage,
+    activeRecord,
   } = useAssistantChat(activeBrand, brandInfo, selectedBrand, objections, qualifications);
 
   const {
@@ -128,7 +130,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
             {/* Header Superior */}
             <div className="p-5 border-b border-line bg-surface backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-brand to-amber-500 flex items-center justify-center text-white shadow-lg shadow-brand/20">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand to-brand-2 flex items-center justify-center text-white shadow-lg shadow-brand/20">
                   <Bot className="w-6 h-6" />
                 </div>
                 <div>
@@ -162,7 +164,9 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
             {/* Selector de 3 Abas Principais */}
             <div className="flex border-b border-line bg-surface-2 p-1">
               <button
+                type="button"
                 onClick={() => setActiveTab('assistant')}
+                aria-pressed={activeTab === 'assistant'}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   activeTab === 'assistant'
                     ? 'bg-brand-active text-white shadow-md font-extrabold'
@@ -172,7 +176,9 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                 <Globe className="w-4 h-4" /> Assistente IA
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab('roleplay')}
+                aria-pressed={activeTab === 'roleplay'}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   activeTab === 'roleplay'
                     ? 'bg-brand-active text-white shadow-md font-extrabold'
@@ -182,7 +188,9 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                 <User className="w-4 h-4" /> Roleplay Simulator
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab('playbook')}
+                aria-pressed={activeTab === 'playbook'}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   activeTab === 'playbook'
                     ? 'bg-brand-active text-white shadow-md font-extrabold'
@@ -197,24 +205,37 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
             {activeTab === 'assistant' && (
               <div className="flex-1 flex flex-col min-h-0 bg-surface">
                 {/* Mode Selector */}
-                <div className="p-3 border-b border-line bg-surface-2 flex items-center justify-between text-xs">
-                  <span className="text-ink-2 font-medium">Fonte única do copiloto:</span>
+                <div className="p-3 border-b border-line bg-surface-2 flex items-center justify-between gap-2 text-xs flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-ink-2 font-medium">Fonte única do copiloto:</span>
+                    {/* Mesmo achado do Piloto 010 em ChatbookHub.tsx: o registro aberto já é
+                        injetado em toda pergunta, mas só aparecia uma vez na saudação inicial. */}
+                    {activeRecord && (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/10 border border-brand/20 rounded-full px-2 py-0.5">
+                        <Link2 className="w-3 h-3" /> {activeRecord.label}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1.5 bg-surface-2 p-1 rounded-xl border border-line">
                     <button
+                      type="button"
                       onClick={() => setSearchMode('general')}
+                      aria-pressed={searchMode === 'general'}
                       className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
                         searchMode === 'general'
-                          ? 'bg-indigo-600 text-white shadow-sm'
+                          ? 'bg-brand-active text-white shadow-sm'
                           : 'text-ink-2 hover:text-ink'
                       }`}
                     >
                       <Globe className="w-3.5 h-3.5" /> IA conversacional
                     </button>
                     <button
+                      type="button"
                       onClick={() => setSearchMode('internal')}
+                      aria-pressed={searchMode === 'internal'}
                       className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
                         searchMode === 'internal'
-                          ? 'bg-indigo-600 text-white shadow-sm'
+                          ? 'bg-brand-active text-white shadow-sm'
                           : 'text-ink-2 hover:text-ink'
                       }`}
                     >
@@ -250,7 +271,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                   ))}
 
                   {isSearching && (
-                    <div className="flex items-center gap-2 text-xs text-indigo-400 bg-surface-2 p-3 rounded-2xl border border-line w-fit animate-pulse">
+                    <div className="flex items-center gap-2 text-xs text-brand bg-surface-2 p-3 rounded-2xl border border-line w-fit animate-pulse">
                       <RefreshCw className="w-4 h-4 animate-spin" />
                       <span>Consultando o motor Groq...</span>
                     </div>
@@ -300,14 +321,16 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                   }}
                   className="w-full p-3 rounded-2xl bg-surface-2 border border-line flex items-center justify-between gap-3 text-left hover:border-amber-500/40 transition-colors cursor-pointer group"
                 >
-                  <div className="flex items-center gap-2.5 text-xs">
-                    <Mic className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="text-ink-2">
-                      Isto é a prática rápida por texto. Para simulação completa por voz e nota
-                      final, abra o <span className="font-bold text-ink">Roleplay dedicado</span>.
+                  <div className="flex items-center gap-2.5 text-xs text-amber-200">
+                    <Mic className="w-5 h-5 text-amber-400 shrink-0" />
+                    <span className="font-medium">
+                      <strong className="text-amber-400 block mb-1">Aviso Importante:</strong>
+                      Esta é apenas uma simulação em formato de chat (texto). Para o treinamento
+                      imersivo por voz, abra o{' '}
+                      <span className="font-bold underline">Roleplay Simulator</span>.
                     </span>
                   </div>
-                  <ArrowUpRight className="w-4 h-4 text-ink-2 shrink-0 group-hover:text-amber-400 transition-colors" />
+                  <ArrowUpRight className="w-5 h-5 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
                 </button>
                 <div className="p-4 rounded-2xl bg-surface-2 border border-line space-y-3">
                   <div className="flex items-center justify-between">

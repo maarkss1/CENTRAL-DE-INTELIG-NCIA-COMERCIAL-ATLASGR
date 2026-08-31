@@ -1,0 +1,78 @@
+FASE 6 — GRUPO ECONÔMICO, RELAÇÕES E MONITORAMENTO CONTÍNUO
+
+COORDENAÇÃO
+Agente 00 coordena.
+
+AGENTES PRINCIPAIS
+- 01 Dados
+- 05 Prospecção
+- 07 IA/Automações
+- 04 CRM/BI
+- 16 Runtime
+- 18 API
+- 08 + 14 QA
+
+MISSÃO
+Adicionar contexto de relacionamento empresarial e tornar o LDR um radar de contas, mantendo evidência e evitando inferências tratadas como fatos.
+
+GRUPO ECONÔMICO — CAMADAS
+CAMADA 1 — relações verificáveis e determinísticas:
+- matriz/filial;
+- CNPJ básico;
+- estabelecimento ↔ empresa;
+- relações já existentes em fontes oficiais/CRM.
+
+CAMADA 2 — relações externas verificáveis:
+- controladora/controlada quando fonte confiável sustentar;
+- marca/domínio compartilhado quando evidência suficiente;
+- grupo econômico explicitamente informado por fonte confiável.
+
+CAMADA 3 — relações inferidas:
+- nunca misturar com relações verificadas;
+- marcar INFERRED;
+- confidence obrigatório;
+- não usar para decisão automática de alto impacto sem revisão.
+
+API/UI
+Account 360 deve mostrar:
+- matriz;
+- filiais;
+- empresas relacionadas;
+- tipo de relação;
+- fonte;
+- confidence;
+- score das contas relacionadas quando disponível.
+
+OPORTUNIDADE MULTICONTA
+Permitir descobrir:
+- outra filial prioritária;
+- empresa relacionada já no Bitrix;
+- outra conta do grupo com score maior;
+- duplicidades comerciais.
+
+MONITORAMENTO
+Quando surgir um novo sinal relevante:
+1. deduplicar;
+2. persistir;
+3. recalcular Timing/Intent;
+4. recalcular Account Score;
+5. gerar nova recomendação se houver mudança material;
+6. registrar evento;
+7. acionar fluxo runtime apenas se policy permitir.
+
+MUDANÇA MATERIAL
+Definir threshold/configuração versionada para evitar alertas por ruído.
+
+TESTES
+- matriz/filial real;
+- relação sem evidência não vira VERIFIED;
+- ciclo de relações não quebra API;
+- mudanças materiais geram recomendação;
+- sinais duplicados não geram múltiplas ações;
+- performance com múltiplas contas relacionadas.
+
+ENTREGÁVEL
+.agents/runs/ldr-fase-6-relationships-monitoring.md
+
+CRITÉRIO DE SAÍDA
+O LDR consegue contextualizar uma conta dentro de relações empresariais verificáveis e reagir a novos sinais sem transformar inferência em fato.

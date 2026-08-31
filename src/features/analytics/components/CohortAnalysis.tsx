@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { api } from '../../../lib/api';
+import { toast } from '../../../lib/toast';
 
 interface CohortRow {
   month: string;
@@ -53,7 +54,7 @@ export function CohortAnalysis() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Erro ao baixar CSV:', err);
-      alert('Não foi possível gerar o CSV. Verifique o servidor.');
+      toast.error('Não foi possível gerar o CSV. Verifique o servidor.');
     }
   };
 

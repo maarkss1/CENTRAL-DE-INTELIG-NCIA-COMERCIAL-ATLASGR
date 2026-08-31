@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Bot, Database, Globe, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { Bot, Database, Globe, Link2, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useAssistantChat } from '../../../hooks/useAssistantChat';
 import { usePlaybookMatrixData } from '../../../hooks/usePlaybookMatrixData';
@@ -25,6 +25,7 @@ export function ChatbookHub() {
     searchMode,
     setSearchMode,
     handleSendMessage,
+    activeRecord,
   } = useAssistantChat(activeBrand, brandInfo, selectedBrand, objections, qualifications);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -34,8 +35,8 @@ export function ChatbookHub() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-transparent p-4 md:p-8 flex flex-col items-center relative overflow-hidden transition-colors duration-1000">
-      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-orange-400/10 blur-[120px] pointer-events-none" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-400/10 blur-[120px] pointer-events-none" />
+      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-brand/10 blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-brand-2/10 blur-[120px] pointer-events-none" />
 
       <div className="w-full max-w-4xl space-y-8 pb-8 relative z-10 flex-1 flex flex-col">
         <motion.div
@@ -43,7 +44,7 @@ export function ChatbookHub() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-surface/70 backdrop-blur-2xl rounded-[2.5rem] p-8 border border-line shadow-[0_20px_40px_rgba(0,0,0,0.03)] flex items-center gap-4 relative overflow-hidden"
         >
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-brand to-amber-500 flex items-center justify-center text-white shadow-lg shadow-brand/20 shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand to-brand-2 flex items-center justify-center text-white shadow-lg shadow-brand/20 shrink-0">
             <Bot className="w-7 h-7" />
           </div>
           <div className="flex-1 min-w-0">
@@ -59,31 +60,45 @@ export function ChatbookHub() {
               </span>
             </div>
             <p className="text-sm text-ink-2 flex items-center gap-1.5">
-              <Sparkles size={12} className="text-amber-500" /> Assistente comercial com base
-              interna da marca; sem navegação web em tempo real.
+              <Sparkles size={12} className="text-brand" /> Assistente comercial com base interna da
+              marca; sem navegação web em tempo real.
             </p>
           </div>
         </motion.div>
 
         <div className="bg-surface/80 rounded-[2rem] border border-line shadow-[0_20px_40px_rgba(0,0,0,0.03)] flex-1 flex flex-col overflow-hidden min-h-[500px]">
-          <div className="p-3 border-b border-line bg-surface-2 flex items-center justify-between text-xs">
-            <span className="text-ink-2 font-medium">Fonte única do copiloto:</span>
+          <div className="p-3 border-b border-line bg-surface-2 flex items-center justify-between gap-3 text-xs flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-ink-2 font-medium">Fonte única do copiloto:</span>
+              {/* Registro aberto (empresa/negócio/contato) que o copiloto já recebe em toda
+                  pergunta via localContext — antes só aparecia uma vez na saudação inicial, que
+                  rola pra fora da tela (achado do Piloto 010). */}
+              {activeRecord && (
+                <span className="flex items-center gap-1.5 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 rounded-full px-2.5 py-1">
+                  <Link2 className="w-3 h-3" /> Contexto: {activeRecord.label}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-1.5 bg-surface p-1 rounded-xl border border-line">
               <button
+                type="button"
                 onClick={() => setSearchMode('general')}
+                aria-pressed={searchMode === 'general'}
                 className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
                   searchMode === 'general'
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-brand-active text-white shadow-sm'
                     : 'text-ink-2 hover:text-ink'
                 }`}
               >
                 <Globe className="w-3.5 h-3.5" /> IA conversacional
               </button>
               <button
+                type="button"
                 onClick={() => setSearchMode('internal')}
+                aria-pressed={searchMode === 'internal'}
                 className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
                   searchMode === 'internal'
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-brand-active text-white shadow-sm'
                     : 'text-ink-2 hover:text-ink'
                 }`}
               >
@@ -117,7 +132,7 @@ export function ChatbookHub() {
             ))}
 
             {isSearching && (
-              <div className="flex items-center gap-2 text-sm text-indigo-400 bg-surface-2 p-3 rounded-2xl border border-line w-fit animate-pulse">
+              <div className="flex items-center gap-2 text-sm text-brand bg-surface-2 p-3 rounded-2xl border border-line w-fit animate-pulse">
                 <RefreshCw className="w-4 h-4 animate-spin" />
                 <span>Consultando o motor Groq...</span>
               </div>
@@ -144,7 +159,7 @@ export function ChatbookHub() {
               type="submit"
               disabled={isSearching || !inputQuery.trim()}
               aria-label="Enviar mensagem"
-              className="p-3 rounded-xl bg-brand-active text-white font-bold disabled:opacity-50 hover:bg-orange-600 transition-colors shrink-0"
+              className="p-3 rounded-xl bg-brand-active text-white font-bold disabled:opacity-50 hover:bg-brand-2 transition-colors shrink-0"
             >
               <Send className="w-5 h-5" />
             </button>

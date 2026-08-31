@@ -54,6 +54,7 @@ export function EditorIA() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Button
+          type="button"
           onClick={() => handleAction('expand')}
           disabled={isGenerating}
           variant="outline"
@@ -62,6 +63,7 @@ export function EditorIA() {
           Expandir Argumento
         </Button>
         <Button
+          type="button"
           onClick={() => handleAction('concise')}
           disabled={isGenerating}
           variant="outline"
@@ -70,6 +72,7 @@ export function EditorIA() {
           Tornar mais Conciso
         </Button>
         <Button
+          type="button"
           onClick={() => handleAction('pain')}
           disabled={isGenerating}
           variant="outline"

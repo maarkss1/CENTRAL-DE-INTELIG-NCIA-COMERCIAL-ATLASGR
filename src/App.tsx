@@ -262,7 +262,18 @@ function AppLayout() {
           <Route path="calendar" element={<Calendar />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="automations" element={<Automations />} />
-          <Route path="usage" element={<Usage />} />
+          {/* /api/usage já exige ADMIN no backend (bootstrap/routes.ts), mas a rota de frontend
+              nunca tinha o mesmo gate — digitar a URL direto renderizava a casca da tela real, que
+              só falhava com um 403 em inglês cru dentro do card de erro (achado do Piloto 022,
+              mesmo bug que RequireRole já existe pra prevenir, documentado no próprio componente). */}
+          <Route
+            path="usage"
+            element={
+              <RequireRole allowedRoles={['ADMIN']}>
+                <Usage />
+              </RequireRole>
+            }
+          />
           <Route path="editor" element={<DocumentEditor />} />
           <Route
             path="team"
