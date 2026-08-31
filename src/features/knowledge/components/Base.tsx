@@ -592,7 +592,7 @@ export function Base() {
                       disabled={busyDocId === doc.id}
                       title="Gerar FAQ Automático com IA"
                       aria-label={`Gerar FAQ automático para ${doc.title}`}
-                      className="p-2 rounded-lg text-ink-2 hover:text-brand hover:bg-brand/10 transition-colors disabled:opacity-40"
+                      className="p-2 rounded-lg text-ink-2 hover:text-brand-active dark:hover:text-brand-2 hover:bg-brand/10 transition-colors disabled:opacity-40"
                     >
                       {busyDocId === doc.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

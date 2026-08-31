@@ -329,7 +329,7 @@ export function Team() {
                           ? 'Redefinir a sua própria senha'
                           : `Redefinir a senha de ${member.name}`
                       }
-                      className="text-ink-2 hover:bg-brand/10 hover:text-brand p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="text-ink-2 hover:bg-brand/10 hover:text-brand-active dark:hover:text-brand-2 p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       {resettingId === member.id ? (
                         <Loader2 size={14} className="animate-spin" />

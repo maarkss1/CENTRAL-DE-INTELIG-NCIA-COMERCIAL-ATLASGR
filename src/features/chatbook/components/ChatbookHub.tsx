@@ -74,7 +74,7 @@ export function ChatbookHub() {
                   pergunta via localContext — antes só aparecia uma vez na saudação inicial, que
                   rola pra fora da tela (achado do Piloto 010). */}
               {activeRecord && (
-                <span className="flex items-center gap-1.5 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 rounded-full px-2.5 py-1">
+                <span className="flex items-center gap-1.5 text-[11px] font-bold text-brand-active dark:text-brand-2 bg-brand/10 border border-brand/20 rounded-full px-2.5 py-1">
                   <Link2 className="w-3 h-3" /> Contexto: {activeRecord.label}
                 </span>
               )}

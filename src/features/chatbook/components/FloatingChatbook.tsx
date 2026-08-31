@@ -211,7 +211,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                     {/* Mesmo achado do Piloto 010 em ChatbookHub.tsx: o registro aberto já é
                         injetado em toda pergunta, mas só aparecia uma vez na saudação inicial. */}
                     {activeRecord && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-brand bg-brand/10 border border-brand/20 rounded-full px-2 py-0.5">
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-brand-active dark:text-brand-2 bg-brand/10 border border-brand/20 rounded-full px-2 py-0.5">
                         <Link2 className="w-3 h-3" /> {activeRecord.label}
                       </span>
                     )}

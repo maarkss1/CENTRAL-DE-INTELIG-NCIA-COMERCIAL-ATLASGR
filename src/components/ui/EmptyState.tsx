@@ -18,8 +18,8 @@ export function EmptyState({ title, description, actionLabel, onAction, icon }: 
       transition={{ duration: 0.3 }}
       className="flex flex-col items-center justify-center p-12 text-center glass-card rounded-card-lg border border-line my-6 bg-surface backdrop-blur-xl"
     >
-      <div className="w-16 h-16 rounded-card bg-brand/10 flex items-center justify-center text-brand mb-4 shadow-lg shadow-brand/10 border border-brand/20">
-        {icon || <Sparkles className="w-8 h-8 animate-pulse text-brand" />}
+      <div className="w-16 h-16 rounded-card bg-brand/10 flex items-center justify-center text-brand-active dark:text-brand-2 mb-4 shadow-lg shadow-brand/10 border border-brand/20">
+        {icon || <Sparkles className="w-8 h-8 animate-pulse text-brand-active dark:text-brand-2" />}
       </div>
       <h3 className="text-xl font-bold text-ink mb-2">{title}</h3>
       <p className="text-ink-2 max-w-md mb-6 text-sm leading-relaxed">{description}</p>
