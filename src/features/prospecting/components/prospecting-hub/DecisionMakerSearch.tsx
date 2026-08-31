@@ -7,9 +7,9 @@ import {
   Mail,
   Phone,
   MessageCircle,
-  Linkedin,
   Loader2,
 } from 'lucide-react';
+import { LinkedinIcon as Linkedin } from '../../../../components/ui/icons/LinkedinIcon';
 import { api } from '../../../../lib/api';
 import type { DecisionMaker } from '../../services/prospecting.service';
 import type { DecisionMakerCriteria } from '../../services/apollo.service';

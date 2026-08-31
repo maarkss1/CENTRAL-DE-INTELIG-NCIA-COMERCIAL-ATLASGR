@@ -13,12 +13,12 @@ import {
   Wrench,
   Tag,
   Globe,
-  Linkedin,
   Phone,
   ShieldCheck,
   AlertTriangle,
   Radar,
 } from 'lucide-react';
+import { LinkedinIcon as Linkedin } from '../../../components/ui/icons/LinkedinIcon';
 import { Company } from '../../../types';
 import { api } from '../../../lib/api';
 import { formatCnpj } from '../../../lib/cnpj';
