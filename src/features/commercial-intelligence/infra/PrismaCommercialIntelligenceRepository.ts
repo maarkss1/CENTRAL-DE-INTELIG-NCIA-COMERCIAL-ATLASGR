@@ -130,6 +130,31 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
     });
   }
 
+  async findCompletedMeetingDates(organizationId: string, from: Date, to: Date): Promise<Date[]> {
+    const rows = await prisma.activity.findMany({
+      where: { organizationId, type: 'Reuniao', status: 'Concluida', date: { gte: from, lt: to } },
+      select: { date: true },
+    });
+    return rows.map((r) => r.date);
+  }
+
+  async findTimelineEventDatesByType(
+    organizationId: string,
+    type: string,
+    from: Date,
+    to: Date,
+  ): Promise<Date[]> {
+    const rows = await prisma.timelineEvent.findMany({
+      where: {
+        type,
+        createdAt: { gte: from, lt: to },
+        lead: { organizationId, funnel: LeadFunnel.Negocio },
+      },
+      select: { createdAt: true },
+    });
+    return rows.map((r) => r.createdAt);
+  }
+
   async findStageHistory(organizationId: string, leadIds?: string[]) {
     const rows = await prisma.leadStageHistory.findMany({
       where: { organizationId, ...(leadIds ? { leadId: { in: leadIds } } : {}) },
