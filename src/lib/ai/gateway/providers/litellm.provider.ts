@@ -34,14 +34,14 @@ export const litellmProvider: ProviderAdapter = {
       throw new Error('LiteLLM/Ollama não está configurado (OLLAMA_BASE_URL/LITELLM_URL ausente).');
       
     // Route to Flowise or OpenWebUI based on model name prefix if needed
-    let targetUrl = ${baseUrl}/v1/chat/completions;
+    let targetUrl = `${baseUrl}/v1/chat/completions`;
     let targetApiKey = resolveApiKey();
 
     if (params.resolvedModel.startsWith('flowise/')) {
-      targetUrl = ${FLOWISE_URL}/api/v1/prediction/;
+      targetUrl = `${FLOWISE_URL}/api/v1/prediction/`;
       targetApiKey = process.env.FLOWISE_SECRET_KEY || '';
     } else if (params.resolvedModel.startsWith('openwebui/')) {
-      targetUrl = ${OPENWEBUI_URL}/api/chat/completions;
+      targetUrl = `${OPENWEBUI_URL}/api/chat/completions`;
       targetApiKey = process.env.OPENWEBUI_SECRET || '';
     }
 

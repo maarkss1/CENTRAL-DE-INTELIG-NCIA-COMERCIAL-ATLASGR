@@ -115,7 +115,6 @@ export function VirtualTable<T>({
         ref={parentRef}
         className="flex-1 overflow-y-auto"
         role="rowgroup"
-        tabIndex={0}
         aria-label="Tabela de dados"
       >
         {/* Spacer total — mantém o scroll bar proporcional */}

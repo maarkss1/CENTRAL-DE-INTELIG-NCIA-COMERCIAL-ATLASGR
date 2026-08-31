@@ -1,7 +1,8 @@
 /**
  * Cobre a rota GET /api/usage — consumo de IA da organização (não é faturamento: ver
- * src/features/billing/usage.service.ts). O foco aqui é o contrato HTTP: normalização de `days`,
- * escopo por organização vinda do middleware de auth e propagação de erro pro errorHandler global.
+ * src/features/billing/application/UsageUseCases.ts). O foco aqui é o contrato HTTP: normalização
+ * de `days`, escopo por organização vinda do middleware de auth e propagação de erro pro
+ * errorHandler global.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
@@ -13,16 +14,16 @@ import { http, passthrough } from 'msw';
 // chegar na rota. `passthrough()` deixa essa requisição específica seguir pra rede real local.
 import { server } from '../../../../mocks/server';
 
-const summaryMock = vi.fn();
-
-vi.mock('@/features/billing/usage.service', () => ({
-    usageService: { summary: (...args: unknown[]) => summaryMock(...args) },
-}));
-
-import { usageRoutes } from '@/features/billing/usage.routes';
+import { container } from '@/shared/di/container';
+import { UsageController } from '@/features/billing/presentation/UsageController';
+import { usageRoutes } from '@/features/billing/routes/usage.routes';
 import { errorHandler } from '@/shared/middlewares/errorHandler';
 
+const summaryMock = vi.fn();
+
 function buildApp(organizationId = 'test-org-id') {
+    container.register('UsageController', new UsageController({ summary: summaryMock } as never));
+
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
@@ -90,7 +91,7 @@ describe('usage routes', () => {
         expect(summaryMock).toHaveBeenCalledWith('test-org-id', 90);
     });
 
-    it('propaga erro do service pro error handler global em vez de derrubar a requisição', async () => {
+    it('propaga erro do use case pro error handler global em vez de derrubar a requisição', async () => {
         summaryMock.mockRejectedValue(new Error('Banco indisponível'));
         const app = buildApp();
 
