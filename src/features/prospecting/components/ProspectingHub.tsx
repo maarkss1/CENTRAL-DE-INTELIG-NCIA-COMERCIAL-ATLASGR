@@ -612,13 +612,16 @@ export function ProspectingHub() {
           isOpen={isSavedSearchesOpen}
           onClose={() => setIsSavedSearchesOpen(false)}
           currentCriteria={criteria}
-          onApplyCriteria={(savedCrit) => {
+          onApplyCriteria={(savedCrit, savedCandidates) => {
+            // Onda 43: /saved-searches/:id/run já roda a descoberta e devolve os candidatos —
+            // antes disto era descartado, e um clique programático no botão de busca disparava
+            // uma segunda chamada a /discover (Apollo/Places de novo) só para conseguir o mesmo
+            // resultado que a API já tinha na resposta.
             setCriteria(savedCrit as any);
+            setCandidates(savedCandidates);
+            setDiscoveryPage(1);
+            setApolloError(null);
             setTab('discovery');
-            setTimeout(() => {
-              const btn = document.getElementById('btn-discover');
-              if (btn) btn.click();
-            }, 100);
           }}
         />
       </div>

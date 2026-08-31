@@ -307,8 +307,9 @@ Processo já existente, não recriado:
   do `docker push`.
 - **Manual, pré-produção**: ZAP contra staging (`docs/deploy/producao.md` §7 — o checklist de
   release foi incorporado ali; `RELEASE_CHECKLIST.md` saiu do controle de versão em 22/08/2026, ver
-  `docs/REMOVED-DOCS.md`), relatórios de
-  pentest já produzidos em `docs/reports/PENTEST_REPORT.md`.
+  `docs/REMOVED-DOCS.md`). `docs/reports/PENTEST_REPORT.md` (placeholder raso, sem pentest real
+  documentado) saiu do controle de versão em 30/08/2026 pelo mesmo motivo — nenhum substituto
+  versionado existe hoje; ver `docs/REMOVED-DOCS.md`.
 - **Gap de frescor documental, não de processo** (fora de escopo desta mudança, registrado aqui
   para rastreabilidade): `docs/security/SECURITY_GUIDE.md` e `docs/security/THREAT_MODEL.md` ainda
   descrevem um fluxo de auth com JWT/refresh cookie que não é mais real — a stack atual é Better

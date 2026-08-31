@@ -1,6 +1,24 @@
 [
   {
     "type": "dependency",
+    "from": "src/features/market-intelligence/server/actionExecutor.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/PrismaCadenceRunRepository.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/market-intelligence/server/actionExecutor.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/domain/cadence.ts"
+  },
+  {
+    "type": "dependency",
     "from": "src/features/activities/services/activity.service.ts",
     "rule": {
       "name": "no-cross-feature-imports",

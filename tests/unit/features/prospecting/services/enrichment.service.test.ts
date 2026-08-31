@@ -32,6 +32,7 @@ vi.mock('@/lib/logger', () => ({
 vi.mock('@/features/prospecting/services/cnpj.util', () => ({
     isValidCnpj: vi.fn().mockReturnValue(false),
     discoverCnpjByName: vi.fn().mockResolvedValue(null),
+    sanitizeCnpj: vi.fn((v: string) => (v || '').replace(/\D/g, '')),
 }));
 
 vi.mock('@/features/intelligence/services/IcebreakerService', () => ({

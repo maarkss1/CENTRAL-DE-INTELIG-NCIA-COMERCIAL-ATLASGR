@@ -28,10 +28,35 @@ function retryDelay(times: number): number {
   return Math.min(Math.max(times, 1) * 500, 5_000);
 }
 
+// NOAUTH/WRONGPASS não são falhas transitórias (rede instável, Redis reiniciando) — são erro de
+// credencial, e retry nunca vai resolver sozinho. Sem essa distinção, um REDIS_URL mal configurado
+// fica reconectando para sempre a cada 500ms-5s, e ao longo de horas isso já produziu dezenas de GB
+// de log (incidente de 2026-08-29). Uma vez detectado, paramos de tentar e avisamos uma única vez.
+function isAuthError(err: Error): boolean {
+  return /NOAUTH|WRONGPASS|invalid (username-)?password/i.test(err.message);
+}
+
+function makeAuthGuard(enabled: () => boolean) {
+  let authFailed = false;
+  return {
+    retryStrategy(times: number): number | null {
+      if (!enabled() || authFailed) return null;
+      return retryDelay(times);
+    },
+    onError(err: Error): 'auth-first' | 'auth-repeat' | 'other' {
+      if (!isAuthError(err)) return 'other';
+      const first = !authFailed;
+      authFailed = true;
+      return first ? 'auth-first' : 'auth-repeat';
+    },
+  };
+}
+
 function observeConnection(
   redis: Redis,
   role: 'bullmq' | 'rate-limit' | 'cache',
   enabled: () => boolean,
+  onError: (err: Error) => 'auth-first' | 'auth-repeat' | 'other',
 ): void {
   redis.on('connect', () => {
     if (enabled()) logger.info({ redisRole: role }, 'Connected to Redis successfully');
@@ -43,6 +68,15 @@ function observeConnection(
   });
   redis.on('error', (err) => {
     if (!enabled()) return;
+    const status = onError(err);
+    if (status === 'auth-repeat') return;
+    if (status === 'auth-first') {
+      logger.error(
+        { redisRole: role, message: err.message },
+        'Redis rejeitou a autenticação; desistindo de reconectar. Corrija REDIS_URL (usuário/senha) e reinicie o processo.',
+      );
+      return;
+    }
     if (process.env.NODE_ENV === 'development') {
       logger.warn({ redisRole: role, message: err.message }, 'Redis offline or connecting...');
     } else {
@@ -51,19 +85,18 @@ function observeConnection(
   });
 }
 
+const bullmqAuthGuard = makeAuthGuard(() => queuesEnabled);
 export const connection = new Redis(redisUrl, {
   lazyConnect: !queuesEnabled,
   enableOfflineQueue: queuesEnabled,
   maxRetriesPerRequest: null,
   connectTimeout: 10_000,
-  retryStrategy(times) {
-    if (!queuesEnabled) return null;
-    return retryDelay(times);
-  },
+  retryStrategy: bullmqAuthGuard.retryStrategy,
 });
-observeConnection(connection, 'bullmq', () => queuesEnabled);
+observeConnection(connection, 'bullmq', () => queuesEnabled, bullmqAuthGuard.onError);
 registerRedisConnectionForMetrics('bullmq', connection, () => queuesEnabled);
 
+const rateLimitAuthGuard = makeAuthGuard(() => rateLimitRedisEnabled);
 export const rateLimiterConnection = new Redis(redisUrl, {
   lazyConnect: !rateLimitRedisEnabled,
   // rate-limit-redis carrega os scripts Lua no construtor do middleware, poucos milissegundos
@@ -75,26 +108,21 @@ export const rateLimiterConnection = new Redis(redisUrl, {
   maxRetriesPerRequest: 1,
   connectTimeout: 3_000,
   commandTimeout: 2_000,
-  retryStrategy(times) {
-    if (!rateLimitRedisEnabled) return null;
-    return retryDelay(times);
-  },
+  retryStrategy: rateLimitAuthGuard.retryStrategy,
 });
-observeConnection(rateLimiterConnection, 'rate-limit', () => rateLimitRedisEnabled);
+observeConnection(rateLimiterConnection, 'rate-limit', () => rateLimitRedisEnabled, rateLimitAuthGuard.onError);
 registerRedisConnectionForMetrics('rate-limit', rateLimiterConnection, () => rateLimitRedisEnabled);
 
+const cacheAuthGuard = makeAuthGuard(() => redisConfigured);
 export const cacheConnection = new Redis(redisUrl, {
   lazyConnect: !redisConfigured,
   enableOfflineQueue: false,
   maxRetriesPerRequest: 1,
   connectTimeout: 5_000,
   commandTimeout: 3_000,
-  retryStrategy(times) {
-    if (!redisConfigured) return null;
-    return retryDelay(times);
-  },
+  retryStrategy: cacheAuthGuard.retryStrategy,
 });
-observeConnection(cacheConnection, 'cache', () => redisConfigured);
+observeConnection(cacheConnection, 'cache', () => redisConfigured, cacheAuthGuard.onError);
 registerRedisConnectionForMetrics('cache', cacheConnection, () => redisConfigured);
 
 export async function pingRedis(connectionToPing: Redis = connection): Promise<void> {

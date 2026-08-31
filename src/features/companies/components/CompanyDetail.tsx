@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Company } from '../../../types';
 import { api } from '../../../lib/api';
+import { formatCnpj } from '../../../lib/cnpj';
 import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
@@ -192,7 +193,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
               {company.cnpj && (
                 <div className="flex items-center gap-1.5 bg-surface-2 px-3 py-1.5 rounded-xl border border-line">
                   <FileText className="w-3.5 h-3.5 text-blue-400" />
-                  <span>{company.cnpj}</span>
+                  <span>{formatCnpj(company.cnpj)}</span>
                 </div>
               )}
               {(company.city || company.state) && (

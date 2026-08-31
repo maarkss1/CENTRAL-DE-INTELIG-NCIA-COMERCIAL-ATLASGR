@@ -142,7 +142,7 @@ export async function runStagnationScan(): Promise<StagnationScanResult> {
       const now = new Date();
       const scanFailures = await requestContext.run({ tenantId: organizationId }, async () => {
         const candidates = await prisma.automation.findMany({
-          where: { organizationId, enabled: true, trigger: 'Lead_Mudou_Status' },
+          where: { organizationId, enabled: true, trigger: 'Lead_Estagnado' },
         });
 
         let orgFailures = 0;
@@ -201,7 +201,7 @@ export async function runStagnationScan(): Promise<StagnationScanResult> {
 
               const executed = await automationEngine.handle({
                 organizationId,
-                trigger: 'Lead mudou de status',
+                trigger: 'Lead estagnado',
                 entity: 'Lead',
                 entityId: lead.id,
                 data: {

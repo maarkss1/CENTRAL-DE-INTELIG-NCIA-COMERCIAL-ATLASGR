@@ -156,6 +156,7 @@ describe('Automações', () => {
 
         await user.click(await screen.findByRole('button', { name: /Criar a primeira/ }));
         await user.type(screen.getByLabelText('Nome'), 'Proposta sem resposta');
+        await user.selectOptions(screen.getByLabelText('Quando'), 'Lead estagnado');
         await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta Enviada');
         await user.type(screen.getByLabelText(/Reavaliar todo dia/), '3');
         await user.click(screen.getByRole('button', { name: 'Criar' }));

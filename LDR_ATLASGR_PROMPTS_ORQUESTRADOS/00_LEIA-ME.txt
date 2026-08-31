@@ -1,0 +1,58 @@
+PACOTE DE PROMPTS — LDR / ACCOUNT INTELLIGENCE ATLASGR
+Repositório: https://github.com/MaarksN/CENTRAL-DE-INTELIGENCIA-COMECIAL-ATLASGR
+
+OBJETIVO
+Implementar o LDR / Account Intelligence diretamente na Central de Inteligência Comercial AtlasGR, reutilizando a arquitetura, agentes, integrações, Market Intelligence, Bitrix24, IA, workers e governança já existentes.
+
+FLUXO FINAL OBRIGATÓRIO
+EMPRESA REAL
+→ ACCOUNT 360
+→ ICP / FIT
+→ SINAIS
+→ DECISORES
+→ GRUPO ECONÔMICO
+→ ACCOUNT SCORE
+→ NEXT BEST ACTION
+→ BITRIX24
+→ SDR / BDR / CLOSER
+→ FEEDBACK / APRENDIZADO
+
+PRINCÍPIOS INEGOCIÁVEIS
+1. Não recriar o que já existe e funciona.
+2. Não usar mock, dado fictício ou número inventado para simular prontidão.
+3. Todo dado externo relevante deve manter origem, data de coleta e grau de confiança quando aplicável.
+4. Separar FATO, INFERÊNCIA e RECOMENDAÇÃO.
+5. Se um dado não existir ou não puder ser verificado, mostrar NÃO DISPONÍVEL.
+6. Não carregar milhões de registros no frontend.
+7. Paginação, filtros e buscas pesadas devem ser server-side.
+8. Alterações de schema Prisma possuem dono único por fase.
+9. Cada agente trabalha em branch/worktree isolado.
+10. Integrar em levas pequenas, com gate após 2–3 merges.
+11. Nenhuma fase é concluída apenas porque o código compila. O fluxo real precisa funcionar.
+12. O Coordenador 00 é responsável por distribuir ownership, integrar, validar e emitir o veredito da fase.
+
+ORDEM DE EXECUÇÃO
+FASE 0 — Auditoria e desenho final
+FASE 1 — Fundação de dados e APIs
+FASE 2 — Account Intelligence 360
+FASE 3 — Score, sinais, decisores e evidências
+FASE 4 — Bitrix24 e Next Best Action
+FASE 5 — Runtime, workers, cadências e autonomia
+FASE 6 — Grupo econômico e monitoramento contínuo
+FASE 7 — Design, QA, segurança e release
+
+ARQUIVOS DO PACOTE
+01_FASE_0_AUDITORIA_E_PLANO.txt
+02_FASE_1_FUNDACAO_DADOS_E_API.txt
+03_FASE_2_ACCOUNT_360_FRONTEND.txt
+04_FASE_3_INTELIGENCIA_SCORE_SINAIS_DECISORES.txt
+05_FASE_4_BITRIX_NEXT_BEST_ACTION.txt
+06_FASE_5_RUNTIME_WORKERS_CADENCIA.txt
+07_FASE_6_GRUPO_ECONOMICO_MONITORAMENTO.txt
+08_FASE_7_QA_DESIGN_RELEASE.txt
+09_PROMPT_MESTRE_COORDENADOR_00.txt
+10_PROMPT_EXECUCAO_COMPLETA.txt
+11_MATRIZ_DE_AGENTES_E_OWNERSHIP.txt
+
+COMO USAR
+Use primeiro o PROMPT_MESTRE_COORDENADOR_00. Em seguida entregue ao Coordenador o prompt da fase correspondente. O Coordenador deve ler AGENTS.md e os prompts reais existentes em .agents/prompts/ antes de delegar qualquer trabalho.
