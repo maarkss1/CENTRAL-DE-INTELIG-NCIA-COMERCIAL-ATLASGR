@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
 
 import { discoverCriteriaSchema } from '../schemas/discoverCriteria.schema.js';
@@ -13,7 +13,7 @@ import {
 import { searchCompanyNews } from '../services/news.service.js';
 import { getYoutubeVideoInfo } from '../services/youtube.service.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
-import { ExclusionSet } from '../utils/exclusionSet.js';
+import type { ExclusionSet } from '../utils/exclusionSet.js';
 import {
   getPaidProspectingKey,
   getProspectingProviderMode,

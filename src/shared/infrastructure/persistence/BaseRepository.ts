@@ -37,10 +37,9 @@ export interface PersistenceGateway<
  * Delegates persistence operations to an injected PersistenceGateway, keeping
  * the Domain and Application layers decoupled from any concrete database.
  */
-export abstract class BaseRepository<
-  TAggregate extends AggregateRoot<unknown, UniqueEntityID>,
-  TId,
-> implements IRepository<TAggregate, TId> {
+export abstract class BaseRepository<TAggregate extends AggregateRoot<unknown, UniqueEntityID>, TId>
+  implements IRepository<TAggregate, TId>
+{
   protected constructor(protected readonly gateway: PersistenceGateway<TAggregate, TId>) {}
 
   public findById(id: TId): Promise<TAggregate | null> {

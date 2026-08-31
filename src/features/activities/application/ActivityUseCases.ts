@@ -1,5 +1,5 @@
-import { ActivityRepository, ActivityListFilters } from '../domain/Activity';
-import { z } from 'zod';
+import type { ActivityRepository, ActivityListFilters } from '../domain/Activity';
+import type { z } from 'zod';
 import { activitySchema } from '../../../lib/zod';
 import { assertRealOwner } from '../domain/ownerGuard';
 

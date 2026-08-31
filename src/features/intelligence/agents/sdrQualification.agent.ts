@@ -5,7 +5,7 @@ import { searchPlaybookTool } from '../tools/playbookTool.js';
 import { marketResearchTool } from '../tools/marketResearchTool.js';
 import { copywriterTool } from '../tools/copywriterTool.js';
 import { summarizeLeadTool } from '../tools/summarizeLeadTool.js';
-import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { type BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId, getUserId } from '../../../lib/async-context.js';
@@ -206,7 +206,7 @@ export class SDRQualificationAgent {
     // TODAS as organizações do processo — sem isto, um `sessionId` coincidente entre duas
     // organizações reaproveitaria o checkpoint de outra.
     const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
-    let finalState;
+    let finalState: Awaited<ReturnType<typeof app.invoke>>;
 
     try {
       // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da

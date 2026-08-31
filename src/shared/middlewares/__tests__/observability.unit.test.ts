@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { observabilityMiddleware } from '../observability';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { trace } from '@opentelemetry/api';
 
 vi.mock('@opentelemetry/api', () => ({

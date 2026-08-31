@@ -1,6 +1,6 @@
 import { logger } from '../../../../lib/logger';
 import { prisma } from '../../../../lib/prisma.js';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { toDeterministicCnpj } from '../cnpj.util';
 import { resolveCompanyIdentity } from '../companyIdentity.service';
 import { enrichCompany } from '../enrichment.service';

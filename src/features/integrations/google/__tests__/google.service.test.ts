@@ -191,8 +191,9 @@ describe('getUpcomingCalendarEvents', () => {
   it('lança GoogleNotConnectedError quando a organização nunca conectou', async () => {
     const { prisma } = await import('@/lib/prisma');
     vi.mocked(prisma.googleWorkspaceConnection.findUnique).mockResolvedValue(null);
-    const { getUpcomingCalendarEvents, GoogleNotConnectedError } =
-      await import('../google.service.js');
+    const { getUpcomingCalendarEvents, GoogleNotConnectedError } = await import(
+      '../google.service.js'
+    );
 
     await expect(getUpcomingCalendarEvents(ORG)).rejects.toBeInstanceOf(GoogleNotConnectedError);
   });

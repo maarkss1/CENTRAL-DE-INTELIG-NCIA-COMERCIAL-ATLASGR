@@ -542,7 +542,18 @@ export const prisma = basePrisma.$extends({
           // Cast seguro: o `.includes` acima já garante operation ∈ {create,update,delete}.
           const action = operation.toUpperCase() as AuditAction;
           const entityId = result.id as string | undefined;
-          AuditService.log({
+          // `await`ado de propósito (não fire-and-forget): AuditService.log grava em AuditLog, cuja
+          // policy de RLS exige `app.current_tenant_id` setado (migration
+          // 20260825120000_scope_rls_bypass_to_bootstrap_allowlist), então cada chamada abre sua
+          // própria transação interativa via executeWithRls acima. Sem await, uma sequência rápida
+          // de creates/updates (import em massa, ação bulk) disparava dezenas dessas transações em
+          // paralelo sem nenhum controle de concorrência, estourando o pool de conexões do pooler do
+          // Supabase (P2028 "Unable to start a transaction in the given time") — reproduzido
+          // importando 103 empresas em sequência. `await` aqui serializa: a transação de auditoria
+          // desta operação termina antes da próxima operação começar a sua.
+          // AuditService.log já captura e loga qualquer erro internamente (nunca rejeita), então
+          // nenhum try/catch é necessário aqui.
+          await AuditService.log({
             action,
             entity: model as string,
             entityId,
@@ -550,7 +561,7 @@ export const prisma = basePrisma.$extends({
             tenantId: (tenantId || result.organizationId) as string | undefined,
             beforeState: beforeState ?? undefined,
             afterState: operation === 'delete' ? undefined : result,
-          }).catch((err) => logger.error(err, 'AuditLog failed'));
+          });
 
           if (queuesEnabled && (model === 'Company' || model === 'Lead')) {
             const indexName = model === 'Company' ? 'companies' : 'leads';

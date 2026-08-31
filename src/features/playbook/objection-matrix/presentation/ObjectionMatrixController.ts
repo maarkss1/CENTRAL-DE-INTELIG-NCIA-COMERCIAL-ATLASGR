@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { ObjectionMatrixUseCases } from '../application/ObjectionMatrixUseCases';
-import { AuthRequest } from '../../../../shared/middlewares/authenticateToken';
+import type { Request, Response, NextFunction } from 'express';
+import type { ObjectionMatrixUseCases } from '../application/ObjectionMatrixUseCases';
+import type { AuthRequest } from '../../../../shared/middlewares/authenticateToken';
 
 export class ObjectionMatrixController {
   constructor(private useCases: ObjectionMatrixUseCases) {}

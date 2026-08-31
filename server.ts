@@ -8,6 +8,8 @@ import { registerProcessGuards } from './src/lib/process-guards.js';
 registerProcessGuards();
 
 import express from 'express';
+import './src/lib/telemetry/otel'; // Inicializa OTel antes de tudo para garantir que o HttpInstrumentation cubra os requires abaixo
+import 'dotenv/config';
 import { env } from './src/config/env.js';
 import { logger } from './src/lib/logger.js';
 import { prisma } from './src/lib/prisma.js';

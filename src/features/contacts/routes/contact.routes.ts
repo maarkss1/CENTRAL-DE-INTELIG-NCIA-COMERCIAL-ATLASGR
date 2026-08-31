@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { container } from '../../../shared/di/container.js';
-import { ContactController } from '../presentation/ContactController.js';
+import type { ContactController } from '../presentation/ContactController.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { contactSchema } from '../../../lib/zod.js';

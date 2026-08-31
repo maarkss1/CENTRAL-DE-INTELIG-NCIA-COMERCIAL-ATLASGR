@@ -1,7 +1,7 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { prisma } from '../../../lib/prisma.js';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { toPrismaLeadStatus, fromPrismaLeadStatus } from '../../../lib/enumMap';
 import { LEAD_STATUS, type LeadStatus } from '../../../lib/zod.js';
 import { getTenantId } from '../../../lib/async-context.js';

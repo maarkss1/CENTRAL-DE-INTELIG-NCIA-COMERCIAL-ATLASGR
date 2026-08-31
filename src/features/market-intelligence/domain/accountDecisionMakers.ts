@@ -16,7 +16,10 @@
  */
 
 export type BuyingRole =
-  'Decisor Econômico' | 'Decisor Operacional' | 'Influenciador Técnico' | 'Usuário Final';
+  | 'Decisor Econômico'
+  | 'Decisor Operacional'
+  | 'Influenciador Técnico'
+  | 'Usuário Final';
 
 export interface DecisionMakerClassificationInput {
   role: string | null;

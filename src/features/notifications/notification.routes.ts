@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { notificationService } from './notification.service.js';
 import { hasRequiredRole } from '../../lib/auth/authorization.js';
 import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';

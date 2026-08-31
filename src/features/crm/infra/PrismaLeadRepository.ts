@@ -1,6 +1,6 @@
-import { Lead, LeadRepository } from '../domain/Lead';
+import type { Lead, LeadRepository } from '../domain/Lead';
 import { prisma } from '../../../lib/prisma';
-import { LeadFunnel, Prisma } from '@prisma/client';
+import type { LeadFunnel, Prisma } from '@prisma/client';
 import type { LeadStatus } from '../../../lib/zod';
 import {
   toPrismaLeadStatus,

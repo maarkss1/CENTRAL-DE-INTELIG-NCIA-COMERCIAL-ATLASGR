@@ -1,4 +1,4 @@
-import { Queue, Worker, QueueEvents, Job } from 'bullmq';
+import { Queue, Worker, QueueEvents, type Job } from 'bullmq';
 import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { meili } from '../search/index.js';

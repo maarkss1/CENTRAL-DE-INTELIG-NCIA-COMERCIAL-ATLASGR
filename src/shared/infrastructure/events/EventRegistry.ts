@@ -23,7 +23,9 @@ export class EventRegistry {
   }
 
   public registerMany(subscribers: ReadonlyArray<EventSubscriber>): void {
-    subscribers.forEach((subscriber) => this.register(subscriber));
+    subscribers.forEach((subscriber) => {
+      this.register(subscriber);
+    });
   }
 
   public getRegisteredSubscribers(): ReadonlyArray<EventSubscriber> {

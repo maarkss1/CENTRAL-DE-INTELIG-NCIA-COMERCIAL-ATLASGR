@@ -16,7 +16,7 @@ import {
   ExternalLink,
   WifiOff,
 } from 'lucide-react';
-import { Company } from '../../../types';
+import type { Company } from '../../../types';
 import { formatCnpj } from '../../../lib/cnpj';
 import { CompanyForm } from './CompanyForm';
 import { CompanyDetail } from './CompanyDetail';
@@ -24,7 +24,8 @@ import { useCompanies } from '../../../hooks/useDatabase';
 import { companiesDB } from '../../../lib/db';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Pagination } from '../../../components/ui/Pagination';
-import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
+import { VirtualTable, type ColumnDef } from '../../../components/ui/VirtualTable';
+import { TechToolLogo, type TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
 import { clientLogger } from '../../../lib/clientLogger';
@@ -156,6 +157,186 @@ export function CompanyList() {
       setSelectedIds(new Set());
     }
   };
+
+  const columns: ColumnDef<Company>[] = [
+    {
+      key: 'checkbox',
+      header: (
+        <input
+          type="checkbox"
+          aria-label="Selecionar todas as empresas desta página"
+          className="w-4 h-4 rounded border-line bg-surface-2 accent-brand focus:ring-2 focus:ring-brand cursor-pointer"
+          checked={companies.length > 0 && selectedIds.size === companies.length}
+          onChange={toggleAll}
+        />
+      ),
+      width: 48,
+      render: (company) => (
+        <input
+          type="checkbox"
+          aria-label={`Selecionar ${company.tradeName || company.legalName}`}
+          className="w-4 h-4 rounded border-line bg-surface-2 accent-brand focus:ring-2 focus:ring-brand cursor-pointer"
+          checked={selectedIds.has(company.id)}
+          onChange={() => toggleSelection(company.id)}
+        />
+      ),
+    },
+    {
+      key: 'empresa',
+      header: 'Empresa',
+      width: '25%',
+      render: (company) => {
+        const companyLabel = company.tradeName || company.legalName;
+        return (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCompany(company);
+                setViewMode('detail');
+              }}
+              aria-label={`Abrir perfil de ${companyLabel}`}
+              className="w-10 h-10 rounded-xl bg-soft border border-brand/30 flex items-center justify-center text-brand shrink-0 font-bold overflow-hidden cursor-pointer"
+            >
+              {company.logoUrl ? (
+                <img src={company.logoUrl} alt="" className="w-full h-full object-contain p-1" />
+              ) : (
+                <Building2 className="w-5 h-5" />
+              )}
+            </button>
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCompany(company);
+                  setViewMode('detail');
+                }}
+                aria-label={`Abrir perfil de ${companyLabel}`}
+                className="font-bold text-ink hover:text-brand transition-colors text-left cursor-pointer"
+              >
+                {companyLabel}
+              </button>
+              <p className="text-xs text-ink-2 font-mono">
+                {company.cnpj ? formatCnpj(company.cnpj) : 'Sem CNPJ'}
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'ferramentas',
+      header: 'Ferramentas Mapeadas',
+      width: '20%',
+      render: (company) => {
+        const techStack = company.technologies ?? [];
+        return (
+          <div className="flex flex-wrap gap-1">
+            {techStack.length > 0 ? (
+              <>
+                {techStack.slice(0, 3).map((tech, idx) => (
+                  <TechToolLogo
+                    key={idx}
+                    techName={tech}
+                    size="sm"
+                    onClick={(info) => setActiveToolPopover(info)}
+                  />
+                ))}
+                {techStack.length > 3 && (
+                  <span className="text-[10px] text-ink/70 dark:text-ink-2 px-1.5 py-0.5 rounded bg-surface-2 border border-line">
+                    +{techStack.length - 3}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-[10px] text-amber-300 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+                Sem detecção real
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'segmento',
+      header: <span className="hidden md:inline">Segmento</span>,
+      width: '15%',
+      render: (company) => (
+        <div className="hidden md:block text-sm text-ink-2">{company.segment || '-'}</div>
+      ),
+    },
+    {
+      key: 'localizacao',
+      header: <span className="hidden lg:inline">Localização</span>,
+      width: '15%',
+      render: (company) => (
+        <div className="hidden lg:block text-sm text-ink-2">
+          {company.city ? `${company.city}, ${company.state}` : '-'}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: 100,
+      render: (company) => (
+        <span
+          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
+            company.status === 'Ativo'
+              ? 'bg-success/10 text-emerald-700 dark:text-success border-success/20'
+              : 'bg-surface-2 text-ink/70 dark:text-ink-2 border-line'
+          }`}
+        >
+          {company.status}
+        </span>
+      ),
+    },
+    {
+      key: 'acoes',
+      header: 'Ações',
+      align: 'right',
+      width: 120,
+      render: (company) => {
+        const companyLabel = company.tradeName || company.legalName;
+        return (
+          <div className="flex items-center justify-end gap-1 opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => handleEnrich(company.id)}
+              disabled={enrichingId === company.id}
+              className="p-2 text-ink-2 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
+              title="✨ Enriquecer"
+              aria-label={`Enriquecer ${companyLabel} com IA`}
+            >
+              {enrichingId === company.id ? (
+                <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setSelectedCompany(company);
+                setIsFormOpen(true);
+              }}
+              className="p-2 text-ink-2 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
+              title="Editar"
+              aria-label={`Editar ${companyLabel}`}
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleDelete(company.id)}
+              className="p-2 text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+              title="Excluir"
+              aria-label={`Excluir ${companyLabel}`}
+            >
+              <Trash className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      },
+    },
+  ];
 
   if (viewMode === 'detail' && selectedCompany) {
     return (
@@ -518,186 +699,13 @@ export function CompanyList() {
           </div>
         ) : (
           /* TABLE VIEW */
-          <div className="bg-surface rounded-3xl border border-line overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-line bg-surface-2">
-                    <th className="p-4 w-12">
-                      <input
-                        type="checkbox"
-                        aria-label="Selecionar todas as empresas desta página"
-                        className="w-4 h-4 rounded border-line bg-surface-2 accent-brand focus:ring-2 focus:ring-brand cursor-pointer"
-                        checked={companies.length > 0 && selectedIds.size === companies.length}
-                        onChange={toggleAll}
-                      />
-                    </th>
-                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink/70 dark:text-ink-2">
-                      Empresa
-                    </th>
-                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink/70 dark:text-ink-2">
-                      Ferramentas Mapeadas
-                    </th>
-                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink/70 dark:text-ink-2 hidden md:table-cell">
-                      Segmento
-                    </th>
-                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink/70 dark:text-ink-2 hidden lg:table-cell">
-                      Localização
-                    </th>
-                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink/70 dark:text-ink-2">
-                      Status
-                    </th>
-                    <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink/70 dark:text-ink-2 text-right">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {companies.map((company) => {
-                    const techStack = company.technologies ?? [];
-                    const companyLabel = company.tradeName || company.legalName;
-
-                    return (
-                      <tr
-                        key={company.id}
-                        className={`hover:bg-surface-2 transition-colors group ${selectedIds.has(company.id) ? 'bg-soft' : ''}`}
-                      >
-                        <td className="p-4">
-                          <input
-                            type="checkbox"
-                            aria-label={`Selecionar ${companyLabel}`}
-                            className="w-4 h-4 rounded border-line bg-surface-2 accent-brand focus:ring-2 focus:ring-brand cursor-pointer"
-                            checked={selectedIds.has(company.id)}
-                            onChange={() => toggleSelection(company.id)}
-                          />
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCompany(company);
-                                setViewMode('detail');
-                              }}
-                              aria-label={`Abrir perfil de ${companyLabel}`}
-                              className="w-10 h-10 rounded-xl bg-soft border border-brand/30 flex items-center justify-center text-brand shrink-0 font-bold overflow-hidden cursor-pointer"
-                            >
-                              {company.logoUrl ? (
-                                <img
-                                  src={company.logoUrl}
-                                  alt=""
-                                  className="w-full h-full object-contain p-1"
-                                />
-                              ) : (
-                                <Building2 className="w-5 h-5" />
-                              )}
-                            </button>
-                            <div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCompany(company);
-                                  setViewMode('detail');
-                                }}
-                                aria-label={`Abrir perfil de ${companyLabel}`}
-                                className="font-bold text-ink hover:text-brand transition-colors text-left cursor-pointer"
-                              >
-                                {companyLabel}
-                              </button>
-                              <p className="text-xs text-ink-2 font-mono">
-                                {company.cnpj ? formatCnpj(company.cnpj) : 'Sem CNPJ'}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        {/* Ferramentas em formato de logos */}
-                        <td className="p-4">
-                          <div className="flex flex-wrap gap-1">
-                            {techStack.length > 0 ? (
-                              <>
-                                {techStack.slice(0, 3).map((tech, idx) => (
-                                  <TechToolLogo
-                                    key={idx}
-                                    techName={tech}
-                                    size="sm"
-                                    onClick={(info) => setActiveToolPopover(info)}
-                                  />
-                                ))}
-                                {techStack.length > 3 && (
-                                  <span className="text-[10px] text-ink/70 dark:text-ink-2 px-1.5 py-0.5 rounded bg-surface-2 border border-line">
-                                    +{techStack.length - 3}
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-[10px] text-amber-300 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
-                                Sem detecção real
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4 hidden md:table-cell text-sm text-ink-2">
-                          {company.segment || '-'}
-                        </td>
-                        <td className="p-4 hidden lg:table-cell text-sm text-ink-2">
-                          {company.city ? `${company.city}, ${company.state}` : '-'}
-                        </td>
-                        <td className="p-4">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
-                              company.status === 'Ativo'
-                                ? 'bg-success/10 text-emerald-700 dark:text-success border-success/20'
-                                : 'bg-surface-2 text-ink/70 dark:text-ink-2 border-line'
-                            }`}
-                          >
-                            {company.status}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right">
-                          {/* Em ponteiro fino (mouse), ações revelam no hover, como antes. Em ponteiro
-                                                        grosso (touch/tablet, sem :hover confiável), ficam sempre visíveis — CSS puro
-                                                        via @media(pointer), sem detecção de touch via JS. */}
-                          <div className="flex items-center justify-end gap-1 opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => handleEnrich(company.id)}
-                              disabled={enrichingId === company.id}
-                              className="p-2 text-ink-2 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
-                              title="✨ Enriquecer"
-                              aria-label={`Enriquecer ${companyLabel} com IA`}
-                            >
-                              {enrichingId === company.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                              ) : (
-                                <Sparkles className="w-4 h-4" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedCompany(company);
-                                setIsFormOpen(true);
-                              }}
-                              className="p-2 text-ink-2 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
-                              title="Editar"
-                              aria-label={`Editar ${companyLabel}`}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(company.id)}
-                              className="p-2 text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
-                              title="Excluir"
-                              aria-label={`Excluir ${companyLabel}`}
-                            >
-                              <Trash className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <div className="bg-surface rounded-3xl border border-line overflow-hidden shadow-xl h-[600px] flex flex-col">
+            <VirtualTable
+              data={companies}
+              columns={columns}
+              getRowKey={(row) => row.id}
+              rowHeight={80}
+            />
           </div>
         )}
 

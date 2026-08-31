@@ -1868,3 +1868,223 @@ entrada nova.
   simples desta série inteira: "que dado real já existe no schema/log mas nunca vira uma dimensão
   de agrupamento na tela" continua sendo a pergunta mais barata e mais produtiva a fazer em
   qualquer módulo novo.
+
+## Pilot 023 — Document Editor (`/app/editor`)
+
+- **Objetivo**: décimo primeiro módulo do roadmap, seguido em sequência sem pausar para
+  confirmação.
+- **Achado prévio de escopo**: o nome do módulo é enganoso. `/app/editor` não edita propostas
+  comerciais (isso é `/app/propostas`, módulo `crm360`, fora deste piloto) — é uma **segunda tela**
+  para o mesmíssimo modelo `Document`/`DocumentChunk` (RAG) já coberto por `Base.tsx`
+  (`/app/knowledge`, Pilotos 019/021). `proposal-ai.service.ts` mora fisicamente na mesma pasta
+  (`document-editor/`) mas não tem relação nenhuma com esta tela — é consumido por
+  `AISuiteHub.tsx`, achado de organização registrado, não corrigido (mexeria em outro módulo).
+- **Achado principal — o mesmo bug de RBAC do Piloto 019, nunca replicado na tela-irmã**:
+  `PUT /api/knowledge/:id` exige `ADMIN`/`GESTOR`/`CLOSER`/`SDR` (mesmo `writeRoles` de
+  `Base.tsx`), mas `Editor.tsx` nunca verificava papel — um `VISUALIZADOR` editava título/conteúdo
+  livremente e só descobria a falta de permissão com um 403 em inglês ao clicar "Salvar". O
+  comentário que já documenta esse exato padrão de bug está em `Base.tsx` desde o Piloto 019 — só
+  não tinha sido replicado aqui. Corrigido com o mesmo `canWrite` (`hasRequiredRole`): botões
+  "Salvar"/"Descartar" somem por completo, e os campos de título/conteúdo passam a `readOnly`
+  (mantendo a leitura liberada, já que `GET` não exige papel — diferente de simplesmente esconder a
+  tela inteira atrás de um `<RequireRole>` de rota, que bloquearia até a leitura que o backend já
+  permite). Criado o primeiro teste automatizado da tela (`tests/unit/features/
+  document-editor.test.tsx`, zero cobertura antes deste piloto): 5 casos incluindo o cenário de
+  RBAC (`VISUALIZADOR` não vê os botões e os campos ficam `readOnly`).
+- **Retrabalho corrigido**: `Editor.tsx` chamava `api.get`/`api.put` cru com paths hardcoded em vez
+  de usar `knowledgeApi.get`/`knowledgeApi.update` (client já existente, testado, tipado — criado
+  no Piloto 019 mas com um comentário afirmando "sem nenhum consumidor de UI", que já estava errado
+  porque `Editor.tsx` os consumia de forma crua). Refatorado para usar o client compartilhado;
+  comentário do client atualizado para refletir os dois consumidores reais (`Base.tsx`/`Editor.tsx`).
+- **Vitrine de dado real subaproveitado — décima primeira confirmação, reincidente na tela-irmã**:
+  `version` nem estava declarado no tipo local `FullDocument` (removido; a tela agora usa o tipo
+  `KnowledgeDocument` compartilhado, que já tem o campo desde o Piloto 019); `sourceName`/
+  `sourceType`/`updatedAt` já chegavam na resposta mas nunca apareciam na tela. Adicionada uma linha
+  de metadados abaixo do título mostrando origem do documento, badge "editado · vN" quando
+  `version > 1`, e a data/hora da última atualização — mesmo tratamento já dado a esses campos em
+  `Base.tsx`.
+- **Cosmético**: `text-amber-400` (ícone de erro) → `danger` (é erro, não aviso); `text-gray-600`
+  (estado vazio) → `text-ink-2`; `text-amber-300` ("alterações não salvas") → `warning`/
+  `warning-active`. `type="button"` adicionado aos botões Salvar/Descartar/item da lista/Tentar
+  novamente.
+- **Fora de escopo, documentado**: `Editor.tsx` não tem acesso ao Assistente de Redação IA, Gerar
+  FAQ, Revetorizar nem Excluir documento — todos já existem prontos em `Base.tsx`, mas replicá-los
+  aqui seria construir paridade de feature completa entre duas telas do mesmo domínio, escopo maior
+  que um ajuste pontual de piloto; sinalizado, não construído. `aria-current={boolean}` (deveria ser
+  `'true'`/`undefined` para não emitir `aria-current="false"` no DOM) — nit de baixa prioridade, não
+  corrigido.
+- **Preservado**: nenhuma migração. Único teste e2e pré-existente
+  (`tests/e2e/accessibility.spec.ts:276-281`, `'Editor de documentos não tem violações críticas/
+  sérias'`) intacto — confirmado que roda sempre como `ADMIN` (mesmo `signUp()` dos outros
+  pilotos), então nunca exercitava o bug de RBAC corrigido aqui; a cobertura de RBAC agora vem do
+  novo teste unitário, não do e2e.
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo), `npx tsc --noEmit -p .`
+  (0 erros no projeto inteiro), `npx vite build` (sucesso), `npx vitest run -c
+  vitest.unit.config.ts tests/unit/features/document-editor.test.tsx` (5/5 passando, arquivo novo),
+  `PORT=3110 npx playwright test tests/e2e/accessibility.spec.ts -g "Editor de documentos"` (1/1
+  passando).
+- **Aprendizado incorporado**: primeira vez nesta série em que uma correção de RBAC já tinha um
+  precedente exato, documentado, na tela-irmã do mesmo domínio de dados — e mesmo assim não tinha
+  sido aplicado. Reforça que, ao auditar um módulo, vale perguntar explicitamente "existe outra
+  tela no repositório consumindo o mesmo model/rota, e ela já resolveu esse problema?" — a resposta
+  aqui era sim, e a correção foi replicar um padrão já pronto, não inventar um novo. Também reforça
+  o valor de criar um teste de RBAC mesmo quando ele é o primeiro teste da tela inteira: a ausência
+  total de cobertura anterior é, por si só, parte do motivo do bug ter sobrevivido sem ser notado.
+
+## Pilot 024 — Team (Equipe/Usuários)
+
+- **Objetivo**: décimo segundo módulo do roadmap, seguido em sequência sem pausar para confirmação.
+  Módulo sensível por natureza (convites, papéis, remoção de usuário) — auditoria pedida com
+  atenção redobrada a regras de segurança, não só UI.
+- **Confirmado como já correto, antes de qualquer coisa**: RBAC deste módulo já estava bem
+  desenhado — `requireRole(['ADMIN'])` no backend, `<RequireRole allowedRoles={['ADMIN']}>` na
+  rota de frontend (já corrigido nesse padrão desde antes, `App.tsx:278-285`), item de menu
+  escondido corretamente na Sidebar, auto-exclusão bloqueada nos dois lados (backend +
+  `disabled` no botão com `title` explicando o motivo), auto-promoção de papel bloqueada numa
+  camada ainda mais funda (`src/lib/auth.ts`, `role: { input: false }` no Better Auth). Nenhum
+  desalinhamento de RBAC encontrado aqui — diferente dos 7 módulos anteriores.
+- **Achado principal — risco real, "seguro por acidente de design"**: excluir o último `ADMIN` da
+  organização nunca foi tecnicamente possível pela UI atual, mas só porque duas outras proteções
+  (bloqueio de auto-exclusão + ausência de qualquer função de editar papel) coincidem para impedir
+  isso — não havia nenhuma trava explícita contra esse cenário em `deleteTeamMember`. Se uma função
+  de "editar papel" fosse adicionada no futuro sem essa checagem, rebaixar/remover o último ADMIN
+  passaria a ser possível sem aviso. Corrigido com uma trava explícita: antes de excluir um usuário
+  com `role === 'ADMIN'`, conta quantos ADMINs restam na organização e recusa com 400 se for o
+  único. Coberto por 5 testes novos de serviço (primeiro teste automatizado do módulo inteiro).
+- **Vitrine de dado real subaproveitado — décima segunda confirmação, com ação nova (não só
+  exibição)**: `User.lockedUntil`/`failedLoginAttempts` (bloqueio de conta após 5 tentativas de
+  login erradas, `src/lib/auth.ts`) são gravados de verdade no schema, mas a única tela onde um
+  ADMIN procuraria isso (`Team.tsx`) nunca os selecionava nem exibia — a única saída para destravar
+  um colega bloqueado era esperar 15 minutos ou mexer direto no banco. Corrigido: campos
+  adicionados ao `select` compartilhado do serviço (`TEAM_MEMBER_SELECT`, usado pelas 4 funções que
+  retornam um `TeamMember`), badge "bloqueado até HH:mm" na lista, e uma nova ação "Desbloquear"
+  (só aparece quando o usuário está de fato bloqueado) chamando uma rota nova
+  `POST /api/team/:id/unlock` (zera `lockedUntil`/`failedLoginAttempts`). Diferente da maioria dos
+  achados de "capacidade órfã" desta série, aqui a rota em si não existia — foi construída (padrão
+  pequeno e bem delimitado, mesma categoria de adição já feita em Cadence/Automations/Knowledge
+  Base neste mesmo conjunto de pilotos).
+- **Cosmético**: botão "Criar usuário" usava `bg-brand-active` (token dinâmico, correto) mas
+  `hover:bg-orange-600` fixo — a única inconsistência de marca do arquivo: uma organização Total
+  Trac (marca azul) via o botão principal ficar laranja no hover. Corrigido para `hover:bg-brand-2`,
+  mesmo padrão já usado em `Button.tsx`/`CallSetup.tsx`/`ChatbookHub.tsx` e outros. `aria-label`
+  adicionado aos botões de redefinir senha e excluir (mantendo o `title` em ambos).
+- **Fora de escopo, documentado**: `confirm()` nativo em redefinir-senha/excluir — mesmo padrão já
+  registrado fora de escopo em 5 pilotos anteriores (12+ arquivos do app inteiro). Validação
+  client-side do domínio de e-mail corporativo (só existe no backend hoje) — duplicar a lista de
+  domínios permitidos no frontend arriscaria divergência; o erro do backend já aparece
+  corretamente. Editar o papel de um usuário já existente (hoje só dá pra excluir e recriar) —
+  funcionalidade real ausente dos dois lados (nem rota, nem UI), mas construir isso é escopo de
+  feature nova, não ajuste pontual; sinalizado para task futura, com a trava do último ADMIN deste
+  piloto já preparada para proteger essa função quando ela existir. `emailVerified`/`bitrixUserId`/
+  `image`/`updatedAt` do `User` nunca exibidos — valor menor que o achado de bloqueio, não
+  corrigido.
+- **Preservado**: nenhuma migração. Textos exatos de `tests/unit/components/layout/Sidebar.test.tsx`
+  (regex `/^Equipe$/`/`/Equipe/` por papel) e `RequireRole.test.tsx` (`'Acesso restrito'`,
+  `/permissão de ADMIN/`) intactos; `tests/e2e/accessibility.spec.ts` (`'Equipe não tem violações
+  críticas/sérias'`) intacto.
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo), `npx tsc --noEmit -p .`
+  (0 erros no projeto inteiro), `npx vite build` (sucesso), `npx vitest run -c
+  vitest.unit.config.ts` em `tests/unit/features/team/team.service.test.ts` (7/7, arquivo novo —
+  trava do último ADMIN + desbloqueio) e `tests/unit/features/team/Team.test.tsx` (5/5, arquivo
+  novo — listagem, auto-exclusão desabilitada, badge/botão de desbloqueio, criação de usuário),
+  mais confirmação de que `Sidebar.test.tsx`/`RequireRole.test.tsx` continuam passando sem
+  alteração, `PORT=3115 npx playwright test tests/e2e/accessibility.spec.ts -g "Equipe"` (1/1
+  passando).
+- **Aprendizado incorporado**: primeiro módulo desta série de 12 pilotos em que a auditoria de RBAC
+  não encontrou nenhum desalinhamento — mas isso não significa "nada a fazer": o achado real veio
+  de perguntar "essa proteção é uma regra de negócio testada, ou um acidente de duas outras
+  ausências que coincidem por enquanto?", pergunta diferente de "a UI esconde o que o backend
+  rejeita?". Vale levar essa pergunta para módulos futuros com regras de segurança compostas (ex.:
+  "X só é seguro porque Y e Z também são verdade hoje"). Reforça pela segunda vez (depois do
+  Piloto 023) que criar a primeira suíte de teste de um módulo inteiro, mesmo pequena, é parte
+  legítima e valiosa do trabalho de um piloto — não só o ajuste em si.
+
+## Pilot 025 — Settings (Configurações, Feature Flags, Auditoria & LGPD)
+
+- **Objetivo**: décimo terceiro e último módulo do roadmap original, seguido em sequência sem
+  pausar para confirmação. Módulo composto por 5 abas (Perfil, Usuários, Integrações, Feature
+  Flags, Auditoria & LGPD) — as duas primeiras e a de Integrações já auditadas/pilotadas em
+  rodadas anteriores (Team, Integrations); este piloto focou em `Settings.tsx` em si, Feature
+  Flags e a aba de Auditoria & LGPD.
+- **Achado principal — funcionalidade inteira do produto nunca funcionou, para ninguém**:
+  `GET /api/lgpd/audit-logs` devolvia `{ success: true, logs }` (chave `logs` na raiz) em vez do
+  envelope padrão `{ success: true, data: {...} }` que o resto da API usa. O cliente HTTP genérico
+  (`src/lib/api.ts`) sempre desembrulha `data.data` quando `success` está presente — como não
+  havia chave `data`, toda chamada devolvia `undefined`, e `AuditLogs.tsx` (`res.logs || []`)
+  sempre caía num `TypeError` capturado silenciosamente como erro genérico. **A aba "Auditoria &
+  LGPD" nunca mostrou nenhum registro, para nenhum usuário, desde sempre** — mesma classe de "a
+  funcionalidade nunca funcionou" já vista no Piloto 015 (criação de atividade), mas desta vez o
+  bug é de contrato entre camadas (nome de chave), não de schema. Corrigido ajustando a resposta do
+  backend para `{ success: true, data: { logs } }` — como o cliente já espera exatamente esse
+  formato, **nenhuma mudança de leitura foi necessária no componente** além de tipar a chamada
+  corretamente (`res: any` → `api.get<{ logs: AuditLogItem[] }>`). Coberto por 3 testes novos.
+- **Achado de RBAC — direção invertida em relação ao padrão dos 5 pilotos anteriores**: o backend
+  de auditoria (`lgpd.routes.ts`, `requireRole(['ADMIN','GESTOR'])`) já autoriza GESTOR
+  explicitamente (e isso já é testado, `lgpd.routes.test.ts`), mas `Settings.tsx` só mostrava a aba
+  "Auditoria & LGPD" para `isAdmin` (checagem estrita de `ADMIN`) — um GESTOR nunca tinha como
+  chegar numa ação que o próprio backend permite. Diferente dos Pilotos 017-021 ("UI mostra ação
+  que o backend rejeita") e do Piloto 022 ("rota de frontend sem RequireRole"), aqui é **"UI
+  esconde ação que o backend permite"** — mesma família de bug de permissão mal espelhada, direção
+  oposta. Corrigido trocando a condição de `isAdmin` para
+  `hasRequiredRole(currentUser.role, ['ADMIN','GESTOR'])`, alinhando exatamente com o backend.
+- **Bug funcional real — os dois botões de tema faziam a coisa errada quando clicados no estado já
+  ativo**: "Modo Escuro" e "Modo Claro" chamavam o mesmo `toggleTheme()` (um alternador binário) em
+  vez de `setThemeMode('dark')`/`setThemeMode('light')` (que o próprio `ThemeContext` já expõe
+  pronto para exatamente esse caso). Efeito: clicar no botão do tema **já ativo** trocava para o
+  oposto — o botão "Modo Escuro", visualmente marcado como selecionado, virava o app para claro ao
+  ser clicado. Corrigido usando `setThemeMode` diretamente em cada botão (idempotente); adicionado
+  `aria-pressed` nos dois (não tinham antes). Coberto por 2 testes novos que provam a idempotência.
+- **Achado principal de "capacidade ausente" — direitos do titular da LGPD sem nenhuma UI em todo o
+  produto**: `DELETE /api/lgpd/titular/:contactId` (exclusão/anonimização, Art. 18) e
+  `GET /api/lgpd/titular/:contactId/export` (portabilidade, Art. 18 V) já existiam prontas,
+  testadas ponta-a-ponta (RLS, isolamento cross-tenant, idempotência da anonimização — teste de
+  integração dedicado), mas sem absolutamente nenhum botão em nenhuma tela: se um titular
+  exercesse esses direitos junto à empresa, o time comercial não tinha como atender pela interface,
+  só chamando a API manualmente. Para um módulo cuja razão de existir é justamente governança LGPD,
+  essa é a lacuna mais séria já encontrada nesta série (maior que os achados de "capacidade órfã"
+  anteriores, por ser uma obrigação legal, não uma conveniência). Construído: novo componente
+  `DataSubjectRights.tsx` na aba de Auditoria — busca de contato por nome/e-mail (mesmo padrão de
+  combobox com debounce já usado em Activities/Cadence/Pilot 025 de hoje), botão "Exportar dados"
+  (resultado exibido inline) e botão "Excluir/anonimizar dados" (com `window.confirm` explícito
+  sobre a irreversibilidade, seguindo o mesmo padrão do resto do app). A aba inteira já é
+  `ADMIN`/`GESTOR`-only (corrigido acima), então o novo componente herda o mesmo gate do backend
+  sem precisar de checagem própria.
+- **Cosmético**: `bg-red-500/10 text-red-400` no card de erro de `AuditLogs.tsx` → `bg-danger/10
+  text-danger-active dark:text-danger`; `<select>` de filtro de ação sem `<label htmlFor>`
+  associado (só um `<span>` solto) → `<label htmlFor="audit-filter-action">` real.
+- **Fora de escopo, documentado**: `confirm()` nativo em `Team.tsx` (reset de senha/exclusão) —
+  mesmo padrão já registrado fora de escopo em 6 pilotos anteriores. Knob branco do switch de
+  Feature Flags (`bg-white` sem par `dark:`) — convenção universal de controle físico de toggle,
+  baixo risco, não corrigido. `User.image` (avatar) nunca exibido no card de perfil — campo real
+  mas sem indicação de que algum provedor OAuth o popula hoje; `OrganizationFeatureFlag.
+  updatedByUserId`/`updatedAt` (quem alterou um flag e quando) gravados no backend mas nunca
+  expostos na API nem na UI — ambos achados reais de "vitrine de dado subaproveitado" (décima
+  terceira confirmação da série), mas de valor menor que os 4 achados acima; não corrigidos, para
+  não diluir o foco deste piloto já grande. Falta de um caminho de troca de senha voluntária para
+  um usuário comum (hoje só um ADMIN pode resetar via aba Usuários) — lacuna funcional plausível,
+  não necessariamente um bug; sinalizado, não construído (feature nova, fora de escopo pontual).
+- **Preservado**: nenhuma migração. `tests/e2e/accessibility.spec.ts` (`'Configurações não tem
+  violações críticas/sérias'`) intacto; `tests/unit/features/lgpd/lgpd.routes.test.ts` (RBAC de
+  exclusão/exportação) e `tests/unit/features/feature-flags/featureFlags.service.test.ts`
+  continuam passando sem alteração (nenhum dos dois toca a rota de auditoria nem o componente
+  Settings).
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo), `npx tsc --noEmit -p .`
+  (0 erros no projeto inteiro), `npx vite build` (sucesso), `npx vitest run -c
+  vitest.unit.config.ts` em `tests/unit/features/settings/Settings.test.tsx` (5/5, arquivo novo —
+  idempotência do tema + RBAC de aba), `tests/unit/features/lgpd/AuditLogs.test.tsx` (3/3, arquivo
+  novo — regressão do envelope), mais `lgpd`/`feature-flags` pré-existentes intactos (22/22 no
+  total), `PORT=3120 npx playwright test tests/e2e/accessibility.spec.ts -g "Configurações"` (1/1
+  passando). `DataSubjectRights.tsx` (feature nova) não tem teste dedicado ainda — reutiliza
+  padrões já testados em outros lugares (combobox de busca), mas registrado com transparência como
+  pendente, não fingido como coberto.
+- **Aprendizado incorporado**: primeiro piloto desta série com uma funcionalidade inteira
+  quebrada por um bug de nome de chave entre camadas (não de schema/RBAC) — vale, ao auditar
+  qualquer tela que chame `api.get`/`api.post` e trate a resposta com `any`/sem tipo, checar se o
+  shape realmente bate com o que o backend envia, em vez de assumir que "funciona porque não dá
+  erro visível" (o erro existia, só era engolido pelo próprio `try/catch` genérico do componente).
+  Primeira vez em que um achado de RBAC foi na direção "esconder demais" em vez de "revelar
+  demais" — reforça que o checklist de RBAC de cada piloto precisa comparar a condição da UI
+  contra a lista *completa* de papéis do `requireRole` do backend, não só perguntar "isso é
+  ADMIN-only?". Este foi o décimo terceiro e último módulo do roadmap original (Contacts →
+  Settings) — antes de continuar para módulos fora dessa lista original (ex.: Mesa de Tratamento),
+  vale perguntar ao usuário se o ciclo deve continuar ou está concluído.

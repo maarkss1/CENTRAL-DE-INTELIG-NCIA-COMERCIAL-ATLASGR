@@ -350,6 +350,7 @@ export function BitrixGuideHub() {
               </div>
               <div
                 className="w-full bg-surface-2 text-ink-2 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 border border-line border-dashed"
+                role="note"
                 aria-label={`${t.title} — vídeo em produção, ainda não disponível`}
               >
                 <Clock className="w-3.5 h-3.5" /> <span>Em produção — em breve</span>
