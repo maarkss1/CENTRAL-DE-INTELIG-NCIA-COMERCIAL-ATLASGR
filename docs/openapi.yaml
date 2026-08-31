@@ -2504,7 +2504,7 @@ paths:
         Qualquer papel autenticado pode reportar. Limitado por organização
         (`BUG_REPORT_RATE_LIMIT_MAX`, default 10/15min). O campo `context` é
         sanitizado no backend (redação de token/segredo, truncamento) antes de
-        persistir — ver `src/features/bug-reports/bugReport.sanitize.ts`.
+        persistir — ver `src/features/bug-reports/domain/bugReport.sanitize.ts`.
       requestBody:
         required: true
         content:
