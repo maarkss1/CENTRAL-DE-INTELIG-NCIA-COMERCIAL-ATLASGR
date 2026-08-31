@@ -371,10 +371,19 @@ export function Base() {
 
           {canWrite && (
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={openCreateModal} disabled={uploading}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openCreateModal}
+                disabled={uploading}
+              >
                 <Type className="w-4 h-4 mr-2" /> Colar texto
               </Button>
-              <Button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              <Button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
                 {uploading ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
@@ -693,7 +702,12 @@ export function Base() {
             </div>
 
             <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-line">
-              <Button type="button" variant="outline" onClick={closePasteModal} disabled={uploading}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closePasteModal}
+                disabled={uploading}
+              >
                 Cancelar
               </Button>
               <Button

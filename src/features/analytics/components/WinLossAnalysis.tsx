@@ -54,7 +54,10 @@ export function WinLossAnalysis() {
   // (achado do Piloto 009: esta tela era 100% prosa gerada, zero número real visível de imediato).
   const [snapshot, setSnapshot] = useState<AnalyticsDashboard | null>(null);
   useEffect(() => {
-    analyticsApi.dashboard(3).then(setSnapshot).catch(() => setSnapshot(null));
+    analyticsApi
+      .dashboard(3)
+      .then(setSnapshot)
+      .catch(() => setSnapshot(null));
   }, []);
   const topLossReason = snapshot?.lostReasons?.[0];
 

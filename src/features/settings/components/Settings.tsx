@@ -1,24 +1,37 @@
-import { useState } from 'react';
-import { Sun, Moon, Check, User, Users, Puzzle, Flag, Shield } from 'lucide-react';
+import { useState } from "react";
+import {
+  Sun,
+  Moon,
+  Check,
+  User,
+  Users,
+  Puzzle,
+  Flag,
+  Shield,
+} from "lucide-react";
 import {
   Card,
   CardHeader,
   CardTitle,
   CardDescription,
   CardContent,
-} from '../../../components/ui/Card';
-import { Logo } from '../../../components/Logo';
-import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
-import { IconSliders } from '../../../components/icons';
-import { useTheme } from '../../../contexts/ThemeContext';
-import { useBrand, BRAND_CONFIGS, type Brand } from '../../../contexts/BrandContext';
-import { useAuth } from '../../../contexts/AuthContext';
-import { FeatureFlagsPanel } from '../../feature-flags/components/FeatureFlagsPanel';
-import { Team } from '../../team/components/Team';
-import { Integrations } from '../../integrations/components/Integrations';
-import { AuditLogs } from '../../lgpd/components/AuditLogs';
+} from "../../../components/ui/Card";
+import { Logo } from "../../../components/Logo";
+import { TotalTrackLogo } from "../../../components/TotalTrackLogo";
+import { IconSliders } from "../../../components/icons";
+import { useTheme } from "../../../contexts/ThemeContext";
+import {
+  useBrand,
+  BRAND_CONFIGS,
+  type Brand,
+} from "../../../contexts/BrandContext";
+import { useAuth } from "../../../contexts/AuthContext";
+import { FeatureFlagsPanel } from "../../feature-flags/components/FeatureFlagsPanel";
+import { Team } from "../../team/components/Team";
+import { Integrations } from "../../integrations/components/Integrations";
+import { AuditLogs } from "../../lgpd/components/AuditLogs";
 
-const BRAND_OPTIONS: Brand[] = ['atlasgr', 'totaltrac'];
+const BRAND_OPTIONS: Brand[] = ["atlasgr", "totaltrac"];
 
 export function Settings() {
   const { theme, toggleTheme } = useTheme();
@@ -26,8 +39,8 @@ export function Settings() {
   const { currentUser, isAdmin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<
-    'profile' | 'users' | 'integrations' | 'featureFlags' | 'audit'
-  >('profile');
+    "profile" | "users" | "integrations" | "featureFlags" | "audit"
+  >("profile");
 
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
@@ -49,11 +62,11 @@ export function Settings() {
           <div className="flex gap-6 overflow-x-auto no-scrollbar">
             <button
               type="button"
-              onClick={() => setActiveTab('profile')}
+              onClick={() => setActiveTab("profile")}
               className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
-                activeTab === 'profile'
-                  ? 'border-brand text-brand-active dark:text-brand-2'
-                  : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
+                activeTab === "profile"
+                  ? "border-brand text-brand-active dark:text-brand-2"
+                  : "border-transparent text-ink-2 hover:text-ink hover:border-line"
               }`}
             >
               <User size={16} /> Perfil e Aparência
@@ -61,11 +74,11 @@ export function Settings() {
             {isAdmin && (
               <button
                 type="button"
-                onClick={() => setActiveTab('users')}
+                onClick={() => setActiveTab("users")}
                 className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
-                  activeTab === 'users'
-                    ? 'border-brand text-brand-active dark:text-brand-2'
-                    : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
+                  activeTab === "users"
+                    ? "border-brand text-brand-active dark:text-brand-2"
+                    : "border-transparent text-ink-2 hover:text-ink hover:border-line"
                 }`}
               >
                 <Users size={16} /> Usuários
@@ -73,11 +86,11 @@ export function Settings() {
             )}
             <button
               type="button"
-              onClick={() => setActiveTab('integrations')}
+              onClick={() => setActiveTab("integrations")}
               className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
-                activeTab === 'integrations'
-                  ? 'border-brand text-brand-active dark:text-brand-2'
-                  : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
+                activeTab === "integrations"
+                  ? "border-brand text-brand-active dark:text-brand-2"
+                  : "border-transparent text-ink-2 hover:text-ink hover:border-line"
               }`}
             >
               <Puzzle size={16} /> Integrações
@@ -85,11 +98,11 @@ export function Settings() {
             {isAdmin && (
               <button
                 type="button"
-                onClick={() => setActiveTab('featureFlags')}
+                onClick={() => setActiveTab("featureFlags")}
                 className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
-                  activeTab === 'featureFlags'
-                    ? 'border-brand text-brand-active dark:text-brand-2'
-                    : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
+                  activeTab === "featureFlags"
+                    ? "border-brand text-brand-active dark:text-brand-2"
+                    : "border-transparent text-ink-2 hover:text-ink hover:border-line"
                 }`}
               >
                 <Flag size={16} /> Feature Flags
@@ -98,11 +111,11 @@ export function Settings() {
             {isAdmin && (
               <button
                 type="button"
-                onClick={() => setActiveTab('audit')}
+                onClick={() => setActiveTab("audit")}
                 className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
-                  activeTab === 'audit'
-                    ? 'border-brand text-brand-active dark:text-brand-2'
-                    : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
+                  activeTab === "audit"
+                    ? "border-brand text-brand-active dark:text-brand-2"
+                    : "border-transparent text-ink-2 hover:text-ink hover:border-line"
                 }`}
               >
                 <Shield size={16} /> Auditoria & LGPD
@@ -114,28 +127,30 @@ export function Settings() {
 
       {/* Conteúdo da Aba */}
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'profile' && (
+        {activeTab === "profile" && (
           <div className="p-6 sm:p-8">
             <div className="max-w-4xl mx-auto space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Perfil</CardTitle>
-                  <CardDescription>Dados da conta autenticada — somente leitura.</CardDescription>
+                  <CardDescription>
+                    Dados da conta autenticada — somente leitura.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-surface-2 border border-line flex items-center justify-center text-ink font-bold text-lg">
-                      {currentUser?.name?.slice(0, 2).toUpperCase() || 'US'}
+                      {currentUser?.name?.slice(0, 2).toUpperCase() || "US"}
                     </div>
                     <div>
                       <p className="font-bold text-ink text-base">
-                        {currentUser?.name || 'Usuário'}
+                        {currentUser?.name || "Usuário"}
                       </p>
                       <p className="text-xs text-ink-2">
-                        {currentUser?.email || 'email@exemplo.com'}
+                        {currentUser?.email || "email@exemplo.com"}
                       </p>
                       <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-brand/10 text-brand-active dark:text-brand-2">
-                        {currentUser?.role || 'USUÁRIO'}
+                        {currentUser?.role || "USUÁRIO"}
                       </span>
                     </div>
                   </div>
@@ -145,24 +160,33 @@ export function Settings() {
               <Card>
                 <CardHeader>
                   <CardTitle>Aparência e Tema</CardTitle>
-                  <CardDescription>Escolha o tema visual e a marca da interface.</CardDescription>
+                  <CardDescription>
+                    Escolha o tema visual e a marca da interface.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div>
                     {/* Não é <label htmlFor>: rotula um grupo de botões de escolha (Escuro/Claro),
                         não um único controle — role="group" + aria-labelledby é a associação
                         correta aqui. */}
-                    <span id="settings-theme-label" className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3">
+                    <span
+                      id="settings-theme-label"
+                      className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3"
+                    >
                       Tema
                     </span>
-                    <div role="group" aria-labelledby="settings-theme-label" className="flex gap-4">
+                    <div
+                      role="group"
+                      aria-labelledby="settings-theme-label"
+                      className="flex gap-4"
+                    >
                       <button
                         type="button"
                         onClick={toggleTheme}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl border font-bold text-sm transition-all ${
-                          theme === 'dark'
-                            ? 'border-brand bg-brand/10 text-ink'
-                            : 'border-line bg-surface-2 text-ink-2 hover:text-ink'
+                          theme === "dark"
+                            ? "border-brand bg-brand/10 text-ink"
+                            : "border-line bg-surface-2 text-ink-2 hover:text-ink"
                         }`}
                       >
                         <Moon size={18} /> Modo Escuro
@@ -171,9 +195,9 @@ export function Settings() {
                         type="button"
                         onClick={toggleTheme}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl border font-bold text-sm transition-all ${
-                          theme === 'light'
-                            ? 'border-brand bg-brand/10 text-ink'
-                            : 'border-line bg-surface-2 text-ink-2 hover:text-ink'
+                          theme === "light"
+                            ? "border-brand bg-brand/10 text-ink"
+                            : "border-line bg-surface-2 text-ink-2 hover:text-ink"
                         }`}
                       >
                         <Sun size={18} /> Modo Claro
@@ -185,10 +209,17 @@ export function Settings() {
                     {/* Não é <label htmlFor>: rotula um grupo de botões de escolha de marca, não
                         um único controle — role="group" + aria-labelledby é a associação correta
                         aqui. */}
-                    <span id="settings-brand-label" className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3">
+                    <span
+                      id="settings-brand-label"
+                      className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3"
+                    >
                       Marca Ativa
                     </span>
-                    <div role="group" aria-labelledby="settings-brand-label" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div
+                      role="group"
+                      aria-labelledby="settings-brand-label"
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                    >
                       {BRAND_OPTIONS.map((brand) => (
                         <button
                           key={brand}
@@ -196,12 +227,12 @@ export function Settings() {
                           onClick={() => setActiveBrand(brand)}
                           className={`flex items-center justify-between p-4 rounded-xl border transition-all text-left ${
                             activeBrand === brand
-                              ? 'border-brand bg-brand/5 shadow-sm'
-                              : 'border-line bg-surface-2/40 hover:bg-surface-2 text-ink-2 hover:text-ink'
+                              ? "border-brand bg-brand/5 shadow-sm"
+                              : "border-line bg-surface-2/40 hover:bg-surface-2 text-ink-2 hover:text-ink"
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            {brand === 'atlasgr' ? (
+                            {brand === "atlasgr" ? (
                               <Logo className="h-6 w-auto" />
                             ) : (
                               <TotalTrackLogo className="h-6 w-auto" />
@@ -230,19 +261,19 @@ export function Settings() {
           </div>
         )}
 
-        {activeTab === 'users' && isAdmin && (
+        {activeTab === "users" && isAdmin && (
           <div className="relative h-full flex flex-col">
             <Team />
           </div>
         )}
 
-        {activeTab === 'integrations' && (
+        {activeTab === "integrations" && (
           <div className="relative h-full flex flex-col">
             <Integrations />
           </div>
         )}
 
-        {activeTab === 'featureFlags' && isAdmin && (
+        {activeTab === "featureFlags" && isAdmin && (
           <div className="p-6 sm:p-8">
             <div className="max-w-4xl mx-auto">
               <FeatureFlagsPanel />
@@ -250,7 +281,7 @@ export function Settings() {
           </div>
         )}
 
-        {activeTab === 'audit' && isAdmin && (
+        {activeTab === "audit" && isAdmin && (
           <div className="p-6 sm:p-8">
             <div className="max-w-5xl mx-auto">
               <AuditLogs />

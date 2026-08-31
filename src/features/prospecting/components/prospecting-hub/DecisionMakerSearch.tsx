@@ -1,14 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  Search,
-  Users,
-  Building2,
-  Globe,
-  Mail,
-  Phone,
-  MessageCircle,
-  Loader2,
-} from 'lucide-react';
+import { Search, Users, Building2, Globe, Mail, Phone, MessageCircle, Loader2 } from 'lucide-react';
 import { LinkedinIcon as Linkedin } from '../../../../components/ui/icons/LinkedinIcon';
 import { api } from '../../../../lib/api';
 import type { DecisionMaker } from '../../services/prospecting.service';

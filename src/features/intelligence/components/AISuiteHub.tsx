@@ -603,7 +603,10 @@ export function AISuiteHub() {
               {/* Editor de Payload */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label htmlFor="ai-suite-payload" className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                  <label
+                    htmlFor="ai-suite-payload"
+                    className="text-xs font-semibold text-ink flex items-center gap-1.5"
+                  >
                     <SlidersHorizontal className="w-3.5 h-3.5 text-ink-3" />
                     Parâmetros de Entrada (JSON Payload):
                   </label>

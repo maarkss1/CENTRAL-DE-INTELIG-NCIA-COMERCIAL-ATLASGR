@@ -71,7 +71,9 @@ export function ActiveCallView({
               />
               <motion.div
                 animate={reduceMotion ? undefined : { scale: [1, 1.4, 1] }}
-                transition={reduceMotion ? undefined : { repeat: Infinity, duration: 1.5, delay: 0.2 }}
+                transition={
+                  reduceMotion ? undefined : { repeat: Infinity, duration: 1.5, delay: 0.2 }
+                }
                 className={`absolute inset-0 rounded-full opacity-10 blur-xl ${accentBg}`}
               />
             </>

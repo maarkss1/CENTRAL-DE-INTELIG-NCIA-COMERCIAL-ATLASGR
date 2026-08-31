@@ -51,7 +51,11 @@ router.post('/coaching/weekly', async (req: Request, res: Response, next: NextFu
     }
 
     const period = currentWeekRange();
-    const performance = await sellerPerformanceAggregator.compute(organizationId, user.name, period);
+    const performance = await sellerPerformanceAggregator.compute(
+      organizationId,
+      user.name,
+      period,
+    );
     const periodLabel = formatWeekLabel(period);
 
     const report = await aiSuite.sellerCoaching.generateCoachingReport({
