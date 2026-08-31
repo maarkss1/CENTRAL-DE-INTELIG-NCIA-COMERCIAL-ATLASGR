@@ -628,13 +628,11 @@ describe('CommercialIntelligenceUseCases', () => {
 
   it('Leading Indicators: "Reuniões realizadas"/"Oportunidades qualificadas" buscam a janela uma única vez (sem N+1) e filtram em memória (Onda 43)', async () => {
     const repo = new FakeRepository([], STAGES, [], 0, 0, 0, false);
-    const findMeetingsSpy = vi
-      .spyOn(repo, 'findCompletedMeetingDates')
-      .mockResolvedValue([
-        new Date('2026-07-20T00:00:00Z'), // semana mais antiga da janela de 4 — não é "atual" nem "anterior"
-        new Date('2026-08-14T00:00:00Z'), // cai dentro da semana atual ([NOW-7d, NOW))
-        new Date('2026-08-14T00:00:00Z'),
-      ]);
+    const findMeetingsSpy = vi.spyOn(repo, 'findCompletedMeetingDates').mockResolvedValue([
+      new Date('2026-07-20T00:00:00Z'), // semana mais antiga da janela de 4 — não é "atual" nem "anterior"
+      new Date('2026-08-14T00:00:00Z'), // cai dentro da semana atual ([NOW-7d, NOW))
+      new Date('2026-08-14T00:00:00Z'),
+    ]);
     const findQualifiedSpy = vi
       .spyOn(repo, 'findTimelineEventDatesByType')
       .mockResolvedValue([new Date('2026-08-08T00:00:00Z')]); // cai na semana anterior, não na atual

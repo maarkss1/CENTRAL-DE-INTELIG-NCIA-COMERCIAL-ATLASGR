@@ -85,8 +85,7 @@ export function ClockCalendarWidget() {
       {/* Relógio Ao Vivo */}
       <div className="p-6 rounded-card bg-surface-2 border border-line relative overflow-hidden text-center sm:text-left">
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-ink-2 block mb-1 flex items-center justify-center sm:justify-start gap-1">
-          <Sparkles className="w-3 h-3 text-brand" /> Fuso Horário Oficial
-          (Horário de Brasília)
+          <Sparkles className="w-3 h-3 text-brand" /> Fuso Horário Oficial (Horário de Brasília)
         </span>
         <div className="flex items-baseline justify-center sm:justify-start gap-1 font-mono">
           <span className="text-5xl font-black text-ink tracking-tight">

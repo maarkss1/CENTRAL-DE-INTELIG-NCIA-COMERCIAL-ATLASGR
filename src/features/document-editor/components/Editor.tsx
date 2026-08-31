@@ -300,7 +300,9 @@ export function Editor() {
                       </span>
                     )}
                     {!canWrite && (
-                      <span className="text-ink-2">Somente leitura — exige permissão de edição</span>
+                      <span className="text-ink-2">
+                        Somente leitura — exige permissão de edição
+                      </span>
                     )}
                   </div>
                 </>
