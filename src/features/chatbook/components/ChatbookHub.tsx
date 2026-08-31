@@ -60,8 +60,8 @@ export function ChatbookHub() {
               </span>
             </div>
             <p className="text-sm text-ink-2 flex items-center gap-1.5">
-              <Sparkles size={12} className="text-brand" /> Assistente comercial com base
-              interna da marca; sem navegação web em tempo real.
+              <Sparkles size={12} className="text-brand" /> Assistente comercial com base interna da
+              marca; sem navegação web em tempo real.
             </p>
           </div>
         </motion.div>
