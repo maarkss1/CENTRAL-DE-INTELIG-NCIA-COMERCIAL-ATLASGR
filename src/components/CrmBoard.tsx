@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, WifiOff, Sparkles, CheckSquare, Send, X, Loader2 } from 'lucide-react';
-import { Lead, LeadStatus } from '../types';
+import type { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { KanbanCard } from '../features/crm/components/KanbanCard';
 import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
@@ -24,9 +24,9 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  DragStartEvent,
-  DragEndEvent,
-  Announcements,
+  type DragStartEvent,
+  type DragEndEvent,
+  type Announcements,
 } from '@dnd-kit/core';
 
 // dnd-kit ativa drag por teclado em Space E Enter por padrão — mas KanbanCard também usa Enter pra

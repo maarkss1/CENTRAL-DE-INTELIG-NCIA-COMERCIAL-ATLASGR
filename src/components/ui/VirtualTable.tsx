@@ -13,7 +13,7 @@
  *     onRowClick={(row) => openDetail(row)}
  *   />
  */
-import { useRef, ReactNode, CSSProperties } from 'react';
+import { useRef, type ReactNode, type CSSProperties } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 export interface ColumnDef<T> {

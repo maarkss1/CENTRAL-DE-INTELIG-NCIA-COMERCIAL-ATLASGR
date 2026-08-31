@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { getWhatsAppStatus } from './whatsapp.service.js';
 import { listConversations } from './whatsappMessage.service.js';

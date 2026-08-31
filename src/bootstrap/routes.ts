@@ -106,7 +106,13 @@ export function mountFeatureRoutes(app: Express): void {
   // ADMIN-only: consumo/custo de IA da organização. A Sidebar (src/components/layout/Sidebar.tsx)
   // já trata este item como admin-only na navegação — este era o lado que faltava (rota
   // administrativa sem autorização real por cargo, achado da Onda 1/Roadmap v2, Agente 02).
-  app.use('/api/usage', authenticateToken, requireTenant, requireRole(['ADMIN', 'GESTOR']), usageRoutes);
+  app.use(
+    '/api/usage',
+    authenticateToken,
+    requireTenant,
+    requireRole(['ADMIN', 'GESTOR']),
+    usageRoutes,
+  );
   // Coaching semanal por IA (Piloto 007) — cada vendedor só gera o próprio, sem restrição de papel.
   app.use('/api/gamification', authenticateToken, requireTenant, gamificationRoutes);
   app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
@@ -134,4 +140,3 @@ export function mountFeatureRoutes(app: Express): void {
     res.status(404).json({ success: false, error: 'Not found' });
   });
 }
-

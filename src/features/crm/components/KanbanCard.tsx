@@ -12,7 +12,7 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { TechToolLogo } from '../../../components/ui/TechToolLogo';
-import { Lead } from '../../../types';
+import type { Lead } from '../../../types';
 
 const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 

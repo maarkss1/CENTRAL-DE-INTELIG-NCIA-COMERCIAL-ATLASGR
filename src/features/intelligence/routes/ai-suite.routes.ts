@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
 import { aiSuite } from '../services/CentralAISuiteService.js';
 import { searchService } from '../../knowledge/search.service.js';

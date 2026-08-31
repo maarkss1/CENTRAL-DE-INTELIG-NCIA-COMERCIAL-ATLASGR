@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Automation, AutomationRepository } from '../domain/Automation';
+import type { Automation, AutomationRepository } from '../domain/Automation';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';
 import {
   automationVersioningService,

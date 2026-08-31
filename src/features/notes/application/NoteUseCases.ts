@@ -1,5 +1,5 @@
-import { NoteRepository } from '../domain/Note';
-import { z } from 'zod';
+import type { NoteRepository } from '../domain/Note';
+import type { z } from 'zod';
 import { noteSchema } from '../../../lib/zod';
 
 export class NoteUseCases {

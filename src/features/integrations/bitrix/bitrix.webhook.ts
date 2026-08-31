@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import express, { Router, Request, Response } from 'express';
+import express, { Router, type Request, type Response } from 'express';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';

@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { UsageUseCases } from '../application/UsageUseCases.js';
+import type { Request, Response, NextFunction } from 'express';
+import type { UsageUseCases } from '../application/UsageUseCases.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 const MIN_DAYS = 7;

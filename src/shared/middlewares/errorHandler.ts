@@ -1,9 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 import { logger } from '../../lib/logger.js';
 import { env } from '../../config/env.js';
-import { IObservabilityRequest } from './observability.js';
+import type { IObservabilityRequest } from './observability.js';
 
 /**
  * Taxonomia estável de `code` de erro, exposta no corpo da resposta (ver checklist de contratos

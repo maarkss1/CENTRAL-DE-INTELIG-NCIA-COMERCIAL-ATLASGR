@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 
@@ -206,7 +206,7 @@ router.post(
 );
 
 // Import the cold email service
-import { sendColdEmail, ColdEmailCampaign } from '../services/cold-email.service.js';
+import { sendColdEmail, type ColdEmailCampaign } from '../services/cold-email.service.js';
 
 // Envia um cold email (ex: template de prospecção) com rotulagem LGPD
 router.post(

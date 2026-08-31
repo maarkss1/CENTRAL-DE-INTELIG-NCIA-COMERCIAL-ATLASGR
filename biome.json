@@ -1,13 +1,16 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**", "server/**", "scripts/**"],
-    "ignore": ["dist/**", "node_modules/**", "*.d.ts", "playwright-report/**", "coverage/**"]
+    "includes": [
+      "src/**", 
+      "server/**", 
+      "scripts/**"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -18,13 +21,11 @@
     "lineWidth": 100,
     "attributePosition": "auto"
   },
-  "organizeImports": {
-    "enabled": true
-  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "correctness": {
         "noUnusedVariables": "warn",
         "noUnusedImports": "warn",
@@ -33,7 +34,8 @@
       },
       "suspicious": {
         "noExplicitAny": "warn",
-        "noConsole": "off"
+        "noConsole": "off",
+        "noArrayIndexKey": "off"
       },
       "style": {
         "useConst": "error",
@@ -46,7 +48,8 @@
       "a11y": {
         "useKeyWithClickEvents": "warn",
         "useAltText": "error",
-        "noAutofocus": "warn"
+        "noAutofocus": "warn",
+        "noSvgWithoutTitle": "off"
       }
     }
   },

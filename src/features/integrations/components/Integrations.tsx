@@ -4,7 +4,7 @@ import {
   Copy,
   KeyRound,
   AlertTriangle,
-  CheckCircle2,
+  type CheckCircle2,
   Clock3,
   Eye,
   Pencil,
