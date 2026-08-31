@@ -66,13 +66,16 @@ function retryAfterMs(response: Response): number | null {
  */
 export async function testWebhook(webhookUrl: string): Promise<{ portalDomain: string }> {
   await assertSafeExternalUrl(webhookUrl);
+  const baseUrl = new URL(normalizeWebhookUrl(webhookUrl));
+  const profileUrl = new URL('profile.json', baseUrl);
+  await assertSafeExternalUrl(profileUrl.toString());
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
 
   let response: Response;
   try {
-    response = await fetch(`${webhookUrl}profile.json`, { signal: controller.signal });
+    response = await fetch(profileUrl.toString(), { signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
       throw new AppError('Tempo limite esgotado ao testar essa URL (timeout 15s).', 504);
@@ -102,12 +105,7 @@ export async function testWebhook(webhookUrl: string): Promise<{ portalDomain: s
     );
   }
 
-  let portalDomain = '';
-  try {
-    portalDomain = new URL(webhookUrl).hostname;
-  } catch {
-    // já validado por assertSafeExternalUrl antes de chegar aqui
-  }
+  const portalDomain = baseUrl.hostname;
   return { portalDomain };
 }
 
