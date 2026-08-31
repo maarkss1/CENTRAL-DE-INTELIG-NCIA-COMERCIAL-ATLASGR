@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { notificationService } from './notification.service.js';
+import { hasRequiredRole } from '../../lib/auth/authorization.js';
 import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
 
 const router = Router();
@@ -47,10 +48,21 @@ router.post('/read-all', async (req: Request, res: Response, next: NextFunction)
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { organizationId, id: userId } = (req as AuthRequest).user;
-    const ok = await notificationService.remove(organizationId, req.params.id, userId);
+    const { organizationId, id: userId, role } = (req as AuthRequest).user;
+    const canManageBroadcast = hasRequiredRole(role, ['ADMIN', 'GESTOR']);
+    const ok = await notificationService.remove(
+      organizationId,
+      req.params.id,
+      userId,
+      canManageBroadcast,
+    );
     if (!ok) {
-      res.status(404).json({ success: false, error: 'Notificação não encontrada.' });
+      res.status(404).json({
+        success: false,
+        error: canManageBroadcast
+          ? 'Notificação não encontrada.'
+          : 'Notificação não encontrada, ou é um aviso da organização inteira (só ADMIN/GESTOR pode excluir).',
+      });
       return;
     }
     res.status(204).send();

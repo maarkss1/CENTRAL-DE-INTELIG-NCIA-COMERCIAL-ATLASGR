@@ -24,6 +24,19 @@ export interface UsageByModel {
   avgLatencyMs: number;
 }
 
+/**
+ * `AILog.promptId` (ex.: 'meeting-synthesis', 'churn-prediction-analysis') já é gravado em toda
+ * chamada real de IA (ver `src/lib/ai/gateway/prompt-registry.ts`), mas a tela de consumo nunca
+ * quebrava o custo por essa dimensão — só por `model`, escondendo qual FUNCIONALIDADE do produto
+ * gastou o quê (achado do Piloto 022).
+ */
+export interface UsageByPrompt {
+  promptId: string;
+  tokens: number;
+  cost: number;
+  calls: number;
+}
+
 export interface UsageSummary {
   totalTokens: number;
   totalCost: number;
@@ -32,6 +45,7 @@ export interface UsageSummary {
   /** Custo do mês corrente, para comparação com o período todo. */
   costThisMonth: number;
   byModel: UsageByModel[];
+  byPrompt: UsageByPrompt[];
   daily: UsagePoint[];
   /** Chamadas gravadas antes da coluna de tenant existir, ou feitas fora de requisição. */
   unattributedCalls: number;
@@ -58,7 +72,7 @@ export class UsageService {
 
     const scope = { organizationId, createdAt: { gte: since } };
 
-    const [logs, byModelRows, monthAggregate, unattributedCalls] = await Promise.all([
+    const [logs, byModelRows, byPromptRows, monthAggregate, unattributedCalls] = await Promise.all([
       prisma.aILog.findMany({
         where: scope,
         select: { createdAt: true, tokens: true, cost: true, latencyMs: true },
@@ -69,6 +83,12 @@ export class UsageService {
         where: scope,
         _sum: { tokens: true, cost: true },
         _avg: { latencyMs: true },
+        _count: { _all: true },
+      }),
+      prisma.aILog.groupBy({
+        by: ['promptId'],
+        where: scope,
+        _sum: { tokens: true, cost: true },
         _count: { _all: true },
       }),
       prisma.aILog.aggregate({
@@ -112,6 +132,17 @@ export class UsageService {
       }))
       .sort((a, b) => b.cost - a.cost);
 
+    const byPrompt: UsageByPrompt[] = byPromptRows
+      .map((row) => ({
+        // Chamadas sem prompt registrado (fluxo antigo ou chamada avulsa) viram "Não identificado"
+        // em vez de somem do relatório — mesmo raciocínio de `unattributedCalls` acima.
+        promptId: row.promptId ?? 'Não identificado',
+        tokens: row._sum.tokens ?? 0,
+        cost: row._sum.cost ?? 0,
+        calls: row._count._all,
+      }))
+      .sort((a, b) => b.cost - a.cost);
+
     return {
       totalTokens,
       totalCost,
@@ -119,6 +150,7 @@ export class UsageService {
       avgLatencyMs: logs.length > 0 ? Math.round(latencySum / logs.length) : 0,
       costThisMonth: monthAggregate._sum.cost ?? 0,
       byModel,
+      byPrompt,
       daily: [...buckets.values()],
       unattributedCalls,
       isEmpty: logs.length === 0,

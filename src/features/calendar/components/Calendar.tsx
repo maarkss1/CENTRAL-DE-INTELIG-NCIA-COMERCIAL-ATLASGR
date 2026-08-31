@@ -25,6 +25,8 @@ import {
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { toast } from '../../../lib/toast';
 import { downloadFile } from '../../../lib/api';
 import { BookingLinksModal } from './BookingLinksModal';
@@ -80,16 +82,25 @@ function ActivityCard({ activity, dragging }: { activity: CalendarActivity; drag
 function DraggableActivity({
   activity,
   onOpen,
+  canDrag,
 }: {
   activity: CalendarActivity;
   onOpen: (a: CalendarActivity) => void;
+  canDrag: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: activity.id });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: activity.id,
+    // `PUT /api/activities/:id` exige ADMIN/GESTOR/CLOSER/SDR — um VISUALIZADOR conseguia
+    // arrastar o card (o cursor `cursor-grab` sugeria que funcionava) e só descobria que não tinha
+    // permissão quando o backend recusava e a UI revertia a posição (achado do Piloto 020, mesmo
+    // padrão dos Pilotos 017-019). `disabled` do próprio dnd-kit impede o pickup por completo.
+    disabled: !canDrag,
+  });
 
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
+      {...(canDrag ? listeners : {})}
       {...attributes}
       onClick={() => onOpen(activity)}
       // `{...listeners}` do dnd-kit já traz o próprio onKeyDown (Space ativa o pickup de
@@ -97,7 +108,7 @@ function DraggableActivity({
       // encontrado e corrigido em CrmBoard.tsx/KanbanCard (onKeyDown customizado apagando o do
       // dnd-kit, drag por teclado ficava inoperável). Enter abre o detalhe, sem colidir com Space.
       onKeyDown={(e) => {
-        listeners?.onKeyDown?.(e);
+        if (canDrag) listeners?.onKeyDown?.(e);
         if (e.key === 'Enter') {
           e.preventDefault();
           onOpen(activity);
@@ -106,7 +117,7 @@ function DraggableActivity({
       role="button"
       tabIndex={0}
       aria-label={`${activity.type} — ${activitySubject(activity)} — ${activity.status}`}
-      className={`cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
+      className={`${canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${isDragging ? 'opacity-30' : ''}`}
     >
       <ActivityCard activity={activity} />
     </div>
@@ -119,12 +130,14 @@ function DayCell({
   isToday,
   activities,
   onOpen,
+  canDrag,
 }: {
   date: Date;
   inMonth: boolean;
   isToday: boolean;
   activities: CalendarActivity[];
   onOpen: (a: CalendarActivity) => void;
+  canDrag: boolean;
 }) {
   const key = dayKey(date);
   const { setNodeRef, isOver } = useDroppable({ id: key });
@@ -144,7 +157,7 @@ function DayCell({
       <div className="flex items-center justify-between">
         <span
           className={`text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full ${
-            isToday ? `${accent.bg} text-white` : inMonth ? 'text-ink-2' : 'text-gray-600'
+            isToday ? `${accent.bg} text-white` : 'text-ink-2'
           }`}
         >
           {date.getDate()}
@@ -156,10 +169,11 @@ function DayCell({
 
       <div className="flex flex-col gap-1">
         {visible.map((a) => (
-          <DraggableActivity key={a.id} activity={a} onOpen={onOpen} />
+          <DraggableActivity key={a.id} activity={a} onOpen={onOpen} canDrag={canDrag} />
         ))}
         {hidden > 0 && (
           <button
+            type="button"
             onClick={() => onOpen(activities[visible.length])}
             className="text-[10px] text-ink-2 hover:text-ink text-left transition-colors"
           >
@@ -173,6 +187,12 @@ function DayCell({
 
 export function Calendar() {
   const accent = useBrandAccent();
+  const { currentUser } = useAuth();
+  // PUT /api/activities/:id (arrastar pra remarcar, Cancelar/Concluir) exige ADMIN/GESTOR/CLOSER/
+  // SDR no backend — VISUALIZADOR não estava nessa lista, mas a UI nunca escondia essas ações
+  // (achado do Piloto 020, mesmo padrão dos Pilotos 017-019).
+  const canWrite =
+    !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
   const [reference, setReference] = useState(() => new Date());
   const [activities, setActivities] = useState<CalendarActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -288,8 +308,10 @@ export function Calendar() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Botão Links de Agendamento (Calendly) */}
+            {/* Botão Links de Agendamento (Calendly) — sem requireRole no backend, qualquer papel
+                autenticado gerencia os próprios links; nenhum gate de papel necessário aqui. */}
             <Button
+              type="button"
               variant="secondary"
               onClick={() => setIsBookingModalOpen(true)}
               className="text-xs"
@@ -307,6 +329,7 @@ export function Calendar() {
                 depois. Correção: baixa o .ics agora, para importar manualmente — mesmo padrão já
                 usado em downloadExecutiveExport/handleExportCsv. */}
             <Button
+              type="button"
               variant="secondary"
               onClick={() => {
                 void downloadFile(
@@ -319,21 +342,23 @@ export function Calendar() {
               className="text-xs"
               title="Baixar agenda em .ics para importar no Google Agenda / Apple Calendar"
             >
-              <Download className="w-4 h-4 mr-1.5 text-sky-500" /> Baixar Agenda (.ics)
+              <Download className="w-4 h-4 mr-1.5" /> Baixar Agenda (.ics)
             </Button>
 
             <div className="flex items-center gap-1 pl-2 border-l border-line">
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => setReference((r) => addMonths(r, -1))}
                 aria-label="Mês anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <Button variant="outline" onClick={() => setReference(new Date())}>
+              <Button type="button" variant="outline" onClick={() => setReference(new Date())}>
                 Hoje
               </Button>
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => setReference((r) => addMonths(r, 1))}
                 aria-label="Próximo mês"
@@ -346,9 +371,9 @@ export function Calendar() {
 
         {error && (
           <Card padding="lg" className="text-center">
-            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
+            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-danger-active dark:text-danger" />
             <p className="text-sm text-ink-2 mb-4">{error}</p>
-            <Button variant="outline" onClick={() => void load(reference)}>
+            <Button type="button" variant="outline" onClick={() => void load(reference)}>
               Tentar novamente
             </Button>
           </Card>
@@ -385,6 +410,7 @@ export function Calendar() {
                     isToday={isSameDay(date, today)}
                     activities={byDay.get(dayKey(date)) ?? []}
                     onOpen={setSelected}
+                    canDrag={canWrite}
                   />
                 ))}
               </div>
@@ -403,7 +429,7 @@ export function Calendar() {
 
         {!loading && !error && activities.length === 0 && (
           <Card padding="lg" className="text-center border-dashed">
-            <CalendarDays className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+            <CalendarDays className="w-12 h-12 mx-auto mb-4 text-ink-2" />
             <h3 className="text-lg font-semibold text-ink mb-1">Nenhuma atividade neste mês</h3>
             <p className="text-sm text-ink-2">
               As atividades criadas na Agenda e no CRM aparecem aqui automaticamente.
@@ -414,7 +440,7 @@ export function Calendar() {
 
       {/* Detalhe do dia/atividade */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-6">
           <Card className="w-full max-w-md" accentBar>
             <div className="flex items-start justify-between mb-4 gap-4">
               <div>
@@ -422,6 +448,7 @@ export function Calendar() {
                 <p className="text-sm text-ink-2">{activitySubject(selected)}</p>
               </div>
               <button
+                type="button"
                 onClick={() => setSelected(null)}
                 className="p-1 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
                 aria-label="Fechar"
@@ -457,18 +484,24 @@ export function Calendar() {
               </p>
             )}
 
-            <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-line">
-              {selected.status !== 'Cancelada' && (
-                <Button variant="outline" onClick={() => void changeStatus(selected, 'Cancelada')}>
-                  <X className="w-4 h-4 mr-2" /> Cancelar
-                </Button>
-              )}
-              {selected.status !== 'Concluída' && (
-                <Button onClick={() => void changeStatus(selected, 'Concluída')}>
-                  <Check className="w-4 h-4 mr-2" /> Concluir
-                </Button>
-              )}
-            </div>
+            {canWrite && (
+              <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-line">
+                {selected.status !== 'Cancelada' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void changeStatus(selected, 'Cancelada')}
+                  >
+                    <X className="w-4 h-4 mr-2" /> Cancelar
+                  </Button>
+                )}
+                {selected.status !== 'Concluída' && (
+                  <Button type="button" onClick={() => void changeStatus(selected, 'Concluída')}>
+                    <Check className="w-4 h-4 mr-2" /> Concluir
+                  </Button>
+                )}
+              </div>
+            )}
           </Card>
         </div>
       )}

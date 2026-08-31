@@ -706,6 +706,7 @@ export function SwarmDashboard() {
             {isExecuting ? (
               <button
                 onClick={stopMission}
+                aria-label="Cancelar missão"
                 className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-danger-active hover:brightness-110 hover:scale-105 rounded-xl flex items-center justify-center text-white transition-all shadow-lg z-50 pointer-events-auto cursor-pointer"
                 title="Cancelar missão"
               >

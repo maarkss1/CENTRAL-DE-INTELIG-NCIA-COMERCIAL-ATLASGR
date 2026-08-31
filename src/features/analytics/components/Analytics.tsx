@@ -25,7 +25,7 @@ import {
   PERIOD_OPTIONS,
   type AnalyticsDashboard,
 } from '../analytics.api';
-import { SINGLE, INK, tooltipStyle } from '../../../shared/constants/chartPalette';
+import { SINGLE, INK, SERIES, tooltipStyle } from '../../../shared/constants/chartPalette';
 import {
   HeatmapWidget,
   AgentPerformanceWidget,
@@ -35,21 +35,14 @@ import {
 
 /**
  * Paleta validada com o script do guia de data-viz contra a superfície escura dos cards
- * (#0a1022, que é o slate-900/60 sobre slate-950). SINGLE/INK/tooltipStyle são compartilhados
- * com Billing.tsx via shared/constants/chartPalette — ver esse arquivo para o racional completo.
+ * (#0a1022, que é o slate-900/60 sobre slate-950). SINGLE/INK/SERIES/tooltipStyle são
+ * compartilhados com Billing.tsx (e agora DashboardExtensions.tsx) via
+ * shared/constants/chartPalette — ver esse arquivo para o racional completo.
  *
- * - SERIES: slots 1–3 do tema categórico. Passa todos os pares em CVD (pior ΔE 9.4) e visão
- *   normal (pior ΔE 20.9). Usada só no gráfico de linhas, que é o único com múltiplas séries.
- * - FUNNEL_RAMP: rampa ordinal de um único tom (azul), com ΔL >= 0.06 entre passos. O funil tem
- *   categorias ordenadas, então leva rampa; os demais gráficos comparam uma medida só e por isso
- *   usam UMA cor — colorir barra por barra seria duplicar o comprimento em matiz.
+ * FUNNEL_RAMP: rampa ordinal de um único tom (azul), com ΔL >= 0.06 entre passos. O funil tem
+ * categorias ordenadas, então leva rampa; os demais gráficos comparam uma medida só e por isso
+ * usam UMA cor — colorir barra por barra seria duplicar o comprimento em matiz.
  */
-const SERIES = {
-  created: '#3987e5',
-  won: '#199e70',
-  lost: '#d95926',
-} as const;
-
 const FUNNEL_RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95'];
 
 function StatTile({
@@ -124,16 +117,18 @@ function ChartCard({
   children,
   tableHeaders,
   tableRows,
+  className,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   tableHeaders: string[];
   tableRows: Array<Array<string | number>>;
+  className?: string;
 }) {
   const [showTable, setShowTable] = useState(false);
   return (
-    <Card padding="sm">
+    <Card padding="sm" className={className}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <h3 className="text-sm font-bold text-ink">{title}</h3>
@@ -442,6 +437,44 @@ export function Analytics() {
                 </ResponsiveContainer>
               </ChartCard>
 
+              {/* Buscado pela API mas nunca exibido antes desta sessão (achado do Piloto 009) —
+                  mesma receita de "Atividades por tipo" acima, uma medida só, uma cor só. */}
+              <ChartCard
+                title="Atividades por status"
+                tableHeaders={['Status', 'Quantidade']}
+                tableRows={data.activitiesByStatus.map((s) => [s.label, s.count])}
+              >
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart
+                    data={data.activitiesByStatus}
+                    margin={{ left: 8, right: 8, top: 4, bottom: 4 }}
+                  >
+                    <CartesianGrid stroke={INK.grid} vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      stroke={INK.axis}
+                      tick={{ fill: INK.muted, fontSize: 11 }}
+                    />
+                    <YAxis
+                      stroke={INK.axis}
+                      tick={{ fill: INK.muted, fontSize: 11 }}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                    />
+                    <Bar
+                      dataKey="count"
+                      name="Atividades"
+                      fill={SINGLE}
+                      radius={[4, 4, 0, 0]}
+                      barSize={22}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
               <ChartCard
                 title="Ranking por responsável"
                 subtitle="Top 10 por volume de leads"
@@ -566,13 +599,24 @@ export function Analytics() {
 
             {/* ── Widgets de segunda camada ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Heatmap de Ligações — ocupa 2 colunas */}
-              <Card padding="sm" className="lg:col-span-2">
-                <h3 className="text-sm font-bold text-ink mb-4">
-                  🔥 Mapa de Calor — Melhor Horário para Ligar
-                </h3>
+              {/* Heatmap de Ligações — ocupa 2 colunas. ChartCard dá a mesma tabela-gêmea dos
+                  outros 6 gráficos: a codificação por cor deixa de ser a única forma de acesso
+                  ao dado (achado real de acessibilidade, Piloto 009). */}
+              <ChartCard
+                title="🔥 Mapa de Calor — Melhor Horário para Ligar"
+                className="lg:col-span-2"
+                tableHeaders={['Dia', 'Hora', 'Ligações']}
+                tableRows={data.callHeatmap
+                  .filter((c) => c.count > 0)
+                  .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.hour - b.hour)
+                  .map((c) => [
+                    ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][c.dayOfWeek] ?? '—',
+                    `${c.hour}h`,
+                    c.count,
+                  ])}
+              >
                 <HeatmapWidget data={data.callHeatmap} />
-              </Card>
+              </ChartCard>
 
               {/* TMQ */}
               <Card padding="sm">
