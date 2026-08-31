@@ -13,7 +13,11 @@ import type { CadenceJourneyTemplate } from './domain/cadenceTemplates';
 
 export type CadenceRunStatus = 'active' | 'paused' | 'stopped' | 'completed' | 'failed';
 export type CadenceStopReason =
-  'opt-out' | 'lead-reply' | 'completed' | 'manual-stop' | 'policy-guardrail';
+  | 'opt-out'
+  | 'lead-reply'
+  | 'completed'
+  | 'manual-stop'
+  | 'policy-guardrail';
 export type CadenceChannel = 'email' | 'whatsapp' | 'voice';
 export type CadenceTouchResult = 'sent' | 'failed' | 'skipped';
 export type CadenceSkipReason =

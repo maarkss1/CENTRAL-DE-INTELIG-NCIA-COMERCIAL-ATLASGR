@@ -1,4 +1,7 @@
-import type { ObjectionMatrixItem, ObjectionMatrixItemRepository } from '../domain/ObjectionMatrixItem';
+import type {
+  ObjectionMatrixItem,
+  ObjectionMatrixItemRepository,
+} from '../domain/ObjectionMatrixItem';
 import { prisma } from '../../../../lib/prisma';
 import type { Prisma } from '@prisma/client';
 

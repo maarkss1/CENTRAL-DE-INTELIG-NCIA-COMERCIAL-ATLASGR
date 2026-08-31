@@ -71,8 +71,9 @@ export const actionExecutorService = {
 
           const userId = getUserId();
           const { startCadenceRun } = await import('../../cadence/domain/cadence.js');
-          const { prismaCadenceRunRepository } =
-            await import('../../cadence/infra/PrismaCadenceRunRepository.js');
+          const { prismaCadenceRunRepository } = await import(
+            '../../cadence/infra/PrismaCadenceRunRepository.js'
+          );
           const { randomUUID } = await import('node:crypto');
 
           const run = startCadenceRun({

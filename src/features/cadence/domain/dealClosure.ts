@@ -12,7 +12,9 @@
  */
 
 export type DealClosureEventType =
-  'signature_completed' | 'payment_confirmed' | 'manual_crm_confirmation';
+  | 'signature_completed'
+  | 'payment_confirmed'
+  | 'manual_crm_confirmation';
 
 const VALID_TYPES = new Set<DealClosureEventType>([
   'signature_completed',
