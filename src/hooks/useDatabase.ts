@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { companiesDB, contactsDB, leadsDB, activitiesDB, analyticsDB } from '../lib/db';
+import { analyticsApi } from '../features/analytics/analytics.api';
 import type { Company, Contact, Lead, Activity, PaginatedResponse } from '../types';
 
 // ─── Generic fetch hook ────────────────────────────────────────────────────────
@@ -276,4 +277,11 @@ export function useActivities(params?: {
 // ─────────────────────────────────────────────────────────────────────────────
 export function useAnalytics() {
   return useFetch(() => analyticsDB.overview(), []);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANALYTICS DASHBOARD HOOK (série mensal + ranking por dono, /api/analytics/dashboard)
+// ─────────────────────────────────────────────────────────────────────────────
+export function useAnalyticsDashboard(months: number) {
+  return useFetch(() => analyticsApi.dashboard(months), [months]);
 }

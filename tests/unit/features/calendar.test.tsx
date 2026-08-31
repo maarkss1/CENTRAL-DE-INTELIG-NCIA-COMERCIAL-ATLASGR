@@ -1,9 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render as rtlRender, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
+
+// GESTOR por padrão: mantém drag-and-drop e os botões Cancelar/Concluir visíveis pra exercitar os
+// fluxos já cobertos por este arquivo, sem exigir AuthProvider/authClient reais só para montar o
+// componente. Mesmo padrão de `tests/unit/features/automations-ui.test.tsx`/`knowledge-base.test.tsx`
+// — achado do Piloto 020 (`Calendar.tsx` passou a esconder ações de escrita por papel).
+const useAuthMock = vi.fn(() => ({ currentUser: { role: 'GESTOR' } }));
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => useAuthMock() }));
 
 import { Calendar } from '@/features/calendar/components/Calendar';
 import { BrandProvider } from '@/contexts/BrandContext';
@@ -56,6 +63,7 @@ function mockRangeError(message: string) {
 beforeEach(() => {
     rangeCalls = [];
     mockRange([]);
+    useAuthMock.mockReturnValue({ currentUser: { role: 'GESTOR' } });
 });
 
 afterEach(() => {
@@ -160,5 +168,17 @@ describe('Calendário', () => {
 
         expect(await screen.findByText('Banco indisponível')).toBeTruthy();
         expect(screen.getByRole('button', { name: /Tentar novamente/ })).toBeTruthy();
+    });
+
+    it('VISUALIZADOR não vê Cancelar/Concluir nem consegue arrastar atividades (achado do Piloto 020)', async () => {
+        // PUT /api/activities/:id exige ADMIN/GESTOR/CLOSER/SDR — VISUALIZADOR não está nessa lista.
+        useAuthMock.mockReturnValue({ currentUser: { role: 'VISUALIZADOR' } });
+        mockRange([atividadeNesteMes()]);
+        const user = userEvent.setup();
+        render(<Calendar />);
+
+        await user.click(await screen.findByLabelText(/Reunião — Transportes Vale/));
+        expect(screen.queryByRole('button', { name: /Concluir/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Cancelar/ })).toBeNull();
     });
 });

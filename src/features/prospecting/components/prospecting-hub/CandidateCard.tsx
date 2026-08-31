@@ -11,7 +11,6 @@ import {
   MessageCircle,
   Phone,
   Globe,
-  Linkedin,
   Sparkles,
   CheckCircle2,
   Loader2,
@@ -19,6 +18,7 @@ import {
   ThumbsDown,
   IdCard,
 } from 'lucide-react';
+import { LinkedinIcon as Linkedin } from '../../../../components/ui/icons/LinkedinIcon';
 import type { FitScoreResult } from '../../services/enrichment.service';
 import type { ProspectCandidate } from '../../services/prospecting.service';
 import { getDecisionMakerLinkedInLink } from '../../utils/linkedin';

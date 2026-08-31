@@ -15,6 +15,8 @@ import {
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { toast } from '../../../lib/toast';
 import {
   notificationsApi,
@@ -25,17 +27,26 @@ import {
 
 /**
  * Cores de status, sempre acompanhadas de ícone e do texto do título — a severidade nunca é
- * comunicada só pela cor.
+ * comunicada só pela cor. Tons `-300` do Tailwind eram feitos pra fundo escuro e nunca tiveram
+ * contraste medido contra `--surface` claro — o design system já resolveu exatamente essa
+ * combinação com os tokens semânticos + variante `-active` (achado do Piloto 021).
  */
 const KIND_STYLE: Record<NotificationKind, { icon: typeof Info; color: string }> = {
-  Info: { icon: Info, color: 'text-sky-300' },
-  Sucesso: { icon: CircleCheck, color: 'text-emerald-300' },
-  Alerta: { icon: TriangleAlert, color: 'text-amber-300' },
-  Erro: { icon: CircleX, color: 'text-red-300' },
+  Info: { icon: Info, color: 'text-info-active dark:text-info' },
+  Sucesso: { icon: CircleCheck, color: 'text-success-active dark:text-success' },
+  Alerta: { icon: TriangleAlert, color: 'text-warning-active dark:text-warning' },
+  Erro: { icon: CircleX, color: 'text-danger-active dark:text-danger' },
 };
 
 export function Notifications() {
   const accent = useBrandAccent();
+  const { currentUser } = useAuth();
+  // DELETE de uma notificação broadcast (userId: null, "para toda a organização") agora exige
+  // ADMIN/GESTOR no backend — antes qualquer usuário podia apagar um alerta de equipe antes dos
+  // outros verem (achado real do Piloto 021, não um desalinhamento de UI vs backend comum: a
+  // regra em si não existia até este piloto).
+  const canManageBroadcast =
+    !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unread, setUnread] = useState(0);
   const [onlyUnread, setOnlyUnread] = useState(false);
@@ -93,6 +104,10 @@ export function Notifications() {
   }, [load, onlyUnread]);
 
   const remove = useCallback(async (item: NotificationItem) => {
+    // Excluir é irreversível (diferente de marcar como lida) — nenhum outro achado deste piloto
+    // mudou isso, mas o próprio módulo nunca teve confirmação nenhuma antes de apagar, ao
+    // contrário do restante do app (achado do Piloto 021).
+    if (!window.confirm(`Excluir a notificação "${item.title}"?`)) return;
     setBusyId(item.id);
     try {
       await notificationsApi.remove(item.id);
@@ -135,6 +150,7 @@ export function Notifications() {
               ].map((opt) => (
                 <button
                   key={opt.label}
+                  type="button"
                   onClick={() => setOnlyUnread(opt.value)}
                   aria-pressed={onlyUnread === opt.value}
                   className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
@@ -148,6 +164,7 @@ export function Notifications() {
               ))}
             </div>
             <Button
+              type="button"
               variant="outline"
               onClick={() => void markAllRead()}
               disabled={loading || unread === 0}
@@ -165,9 +182,9 @@ export function Notifications() {
 
         {error && !loading && (
           <Card padding="lg" className="text-center">
-            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
+            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-danger-active dark:text-danger" />
             <p className="text-sm text-ink-2 mb-4">{error}</p>
-            <Button variant="outline" onClick={() => void load(onlyUnread)}>
+            <Button type="button" variant="outline" onClick={() => void load(onlyUnread)}>
               Tentar novamente
             </Button>
           </Card>
@@ -175,7 +192,7 @@ export function Notifications() {
 
         {!loading && !error && items.length === 0 && (
           <Card padding="lg" className="text-center border-dashed">
-            <Bell className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+            <Bell className="w-12 h-12 mx-auto mb-4 text-ink-2" />
             <h3 className="text-lg font-semibold text-ink mb-1">
               {onlyUnread ? 'Nenhuma notificação não lida' : 'Nenhuma notificação ainda'}
             </h3>
@@ -190,11 +207,25 @@ export function Notifications() {
           {items.map((item) => {
             const { icon: Icon, color } = KIND_STYLE[item.kind] ?? KIND_STYLE.Info;
             const lida = item.readAt != null;
+            const isBroadcast = item.userId == null;
+            const canDelete = !isBroadcast || canManageBroadcast;
             return (
               <Card
                 key={item.id}
                 padding="sm"
                 onClick={() => void markRead(item)}
+                // `Card` renderiza uma <div> — sem role/tabIndex/onKeyDown, um usuário de teclado
+                // nunca alcançava nem conseguia marcar uma notificação como lida (falha real de
+                // WCAG 2.1.1, achado do Piloto 021; mesmo padrão já usado em
+                // DraggableActivity/Calendar.tsx).
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    void markRead(item);
+                  }
+                }}
                 className={`flex items-start gap-3 cursor-pointer transition-colors hover:border-line ${
                   lida ? 'opacity-60' : ''
                 }`}
@@ -223,21 +254,25 @@ export function Notifications() {
                   </div>
                 </div>
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void remove(item);
-                  }}
-                  disabled={busyId === item.id}
-                  title="Remover"
-                  className="p-1.5 rounded-lg text-ink-2 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 disabled:opacity-40"
-                >
-                  {busyId === item.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                </button>
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void remove(item);
+                    }}
+                    disabled={busyId === item.id}
+                    title="Remover"
+                    aria-label={`Remover notificação ${item.title}`}
+                    className="p-1.5 rounded-lg text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-danger/10 transition-colors shrink-0 disabled:opacity-40"
+                  >
+                    {busyId === item.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
               </Card>
             );
           })}

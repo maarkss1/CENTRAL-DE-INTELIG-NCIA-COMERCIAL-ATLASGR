@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Building2, Linkedin, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building2, Mail, MapPin } from 'lucide-react';
+import { LinkedinIcon as Linkedin } from '../../../../components/ui/icons/LinkedinIcon';
 import { api } from '../../../../lib/api';
 import { Card, CardTitle, CardDescription } from '../../../../components/ui/Card';
 import { useBrandAccent } from '../../../../hooks/useBrandAccent';

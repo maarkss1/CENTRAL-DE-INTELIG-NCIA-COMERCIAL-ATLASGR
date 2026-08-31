@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, Brain, TrendingUp, TrendingDown, AlertCircle, ChevronRight } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { api } from '../../../lib/api';
+import { analyticsApi, type AnalyticsDashboard } from '../analytics.api';
 
 interface WinLossResult {
   analysis: string;
@@ -47,6 +48,15 @@ export function WinLossAnalysis() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WinLossResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Contexto numérico real (mesma API já usada por Analytics.tsx, janela mínima aceita pelo
+  // backend) — dá números reais visíveis mesmo antes/sem nunca rodar a análise de IA, que é cara
+  // (achado do Piloto 009: esta tela era 100% prosa gerada, zero número real visível de imediato).
+  const [snapshot, setSnapshot] = useState<AnalyticsDashboard | null>(null);
+  useEffect(() => {
+    analyticsApi.dashboard(3).then(setSnapshot).catch(() => setSnapshot(null));
+  }, []);
+  const topLossReason = snapshot?.lostReasons?.[0];
 
   const runAnalysis = async () => {
     setLoading(true);
@@ -96,6 +106,36 @@ export function WinLossAnalysis() {
             )}
           </Button>
         </div>
+
+        {/* Contexto numérico real, sempre visível — não depende de rodar a análise de IA */}
+        {snapshot && !snapshot.isEmpty && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Card variant="stat" padding="sm">
+              <p className="text-[11px] uppercase tracking-wide text-ink-2 font-semibold">
+                Ganhos no mês
+              </p>
+              <p className="text-2xl font-black mt-1 text-success-active dark:text-success">
+                {snapshot.overview.closedThisMonth}
+              </p>
+            </Card>
+            <Card variant="stat" padding="sm">
+              <p className="text-[11px] uppercase tracking-wide text-ink-2 font-semibold">
+                Perdidos no mês
+              </p>
+              <p className="text-2xl font-black mt-1 text-critical">
+                {snapshot.overview.lostThisMonth}
+              </p>
+            </Card>
+            <Card variant="stat" padding="sm">
+              <p className="text-[11px] uppercase tracking-wide text-ink-2 font-semibold">
+                Principal motivo de perda
+              </p>
+              <p className="text-lg font-black mt-1 text-ink truncate">
+                {topLossReason ? `${topLossReason.label} (${topLossReason.count})` : '—'}
+              </p>
+            </Card>
+          </div>
+        )}
 
         {/* Intro card */}
         {!result && !loading && !error && (

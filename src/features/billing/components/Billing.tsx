@@ -15,6 +15,12 @@ interface UsageByModel {
   calls: number;
   avgLatencyMs: number;
 }
+interface UsageByPrompt {
+  promptId: string;
+  tokens: number;
+  cost: number;
+  calls: number;
+}
 interface UsagePoint {
   day: string;
   tokens: number;
@@ -28,6 +34,7 @@ interface UsageSummary {
   avgLatencyMs: number;
   costThisMonth: number;
   byModel: UsageByModel[];
+  byPrompt: UsageByPrompt[];
   daily: UsagePoint[];
   unattributedCalls: number;
   isEmpty: boolean;
@@ -102,6 +109,7 @@ export function Billing() {
               {PERIODS.map((p) => (
                 <button
                   key={p}
+                  type="button"
                   onClick={() => setDays(p)}
                   aria-pressed={days === p}
                   className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
@@ -115,6 +123,7 @@ export function Billing() {
               ))}
             </div>
             <Button
+              type="button"
               variant="outline"
               onClick={() => void load(days)}
               disabled={loading}
@@ -144,9 +153,9 @@ export function Billing() {
 
         {error && (
           <Card padding="lg" className="text-center">
-            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
+            <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-danger-active dark:text-danger" />
             <p className="text-sm text-ink-2 mb-4">{error}</p>
-            <Button variant="outline" onClick={() => void load(days)}>
+            <Button type="button" variant="outline" onClick={() => void load(days)}>
               Tentar novamente
             </Button>
           </Card>
@@ -154,7 +163,7 @@ export function Billing() {
 
         {data?.isEmpty && !loading && !error && (
           <Card padding="lg" className="text-center border-dashed">
-            <Wallet className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+            <Wallet className="w-12 h-12 mx-auto mb-4 text-ink-2" />
             <h3 className="text-lg font-semibold text-ink mb-1">
               Nenhuma chamada de IA no período
             </h3>
@@ -191,10 +200,10 @@ export function Billing() {
                   </p>
                 </div>
                 <span
-                  className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                  className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
                     data.totalTokens / 5000000 >= 0.8
-                      ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                      : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                      ? 'bg-warning/10 text-warning-active dark:text-warning border-warning/20'
+                      : 'bg-success/10 text-success-active dark:text-success border-success/20'
                   }`}
                 >
                   {((data.totalTokens / 5000000) * 100).toFixed(1)}% utilizado
@@ -203,7 +212,7 @@ export function Billing() {
               <div className="w-full bg-surface-2 h-2.5 rounded-full overflow-hidden border border-line mt-3">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
-                    data.totalTokens / 5000000 >= 0.8 ? 'bg-amber-500' : 'bg-brand'
+                    data.totalTokens / 5000000 >= 0.8 ? 'bg-warning' : 'bg-brand'
                   }`}
                   style={{ width: `${Math.min(100, (data.totalTokens / 5000000) * 100)}%` }}
                 />
@@ -271,6 +280,41 @@ export function Billing() {
                 </table>
               </div>
             </Card>
+
+            {/* `AILog.promptId` já era gravado em toda chamada real (ver prompt-registry.ts), mas
+                o custo nunca era quebrado por essa dimensão — só por modelo, escondendo qual
+                funcionalidade do produto gastou o quê (achado do Piloto 022). */}
+            {data.byPrompt && data.byPrompt.length > 0 && (
+              <Card padding="sm">
+                <h3 className="text-sm font-bold text-ink mb-3">Por funcionalidade (prompt)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-ink-2 border-b border-line">
+                        <th className="text-left font-semibold py-2 pr-4">Funcionalidade</th>
+                        <th className="text-right font-semibold py-2 pr-4">Chamadas</th>
+                        <th className="text-right font-semibold py-2 pr-4">Tokens</th>
+                        <th className="text-right font-semibold py-2">Custo estimado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-ink-2 [font-variant-numeric:tabular-nums]">
+                      {data.byPrompt.map((p) => (
+                        <tr key={p.promptId} className="border-b border-line">
+                          <td className="py-2 pr-4 text-ink font-medium">{p.promptId}</td>
+                          <td className="py-2 pr-4 text-right">
+                            {p.calls.toLocaleString('pt-BR')}
+                          </td>
+                          <td className="py-2 pr-4 text-right">
+                            {p.tokens.toLocaleString('pt-BR')}
+                          </td>
+                          <td className="py-2 text-right">{usd(p.cost)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </div>
         )}
       </div>

@@ -7,6 +7,19 @@
 /** Cor única para gráficos que comparam apenas uma medida (slot 1 do tema categórico). */
 export const SINGLE = '#3987e5';
 
+/**
+ * Tema categórico completo (slots 1–3) para gráficos com múltiplas séries — antes vivia como um
+ * const local em Analytics.tsx; centralizado aqui porque `AgentPerformanceWidget`/`HeatmapWidget`
+ * (DashboardExtensions.tsx) já reproduziam os mesmos valores como hex cru duplicado (`#3987e5`,
+ * `#199e70`), sem saber que eram a mesma paleta validada. Mesmos valores, mesma validação de
+ * contraste (ΔE >= 9.4 em CVD, >= 20.9 em visão normal).
+ */
+export const SERIES = {
+  created: '#3987e5',
+  won: '#199e70',
+  lost: '#d95926',
+} as const;
+
 /** Tinta e chrome recessivos (labels, grid, eixos) para os gráficos. */
 export const INK = { muted: '#898781', grid: '#2c2c2a', axis: '#383835' } as const;
 

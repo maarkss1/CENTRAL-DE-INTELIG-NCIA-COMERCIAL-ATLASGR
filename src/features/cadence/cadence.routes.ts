@@ -55,6 +55,9 @@ const cadenceTouchSchema = z.object({
 
 const createSequenceSchema = z.object({
   name: z.string().trim().min(1, 'Nome da sequência é obrigatório.').max(160),
+  // Coluna real desde sempre no schema (`CadenceSequence.description`), nunca aceita por esta rota
+  // nem preenchível pela UI (achado do Piloto 016) — sem uso hoje, então opcional e sem default.
+  description: z.string().trim().max(500).optional(),
   touches: z
     .array(cadenceTouchSchema)
     .min(1, 'A sequência precisa de pelo menos um toque.')
@@ -182,7 +185,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;
-      const { name, touches } = req.body as z.infer<typeof createSequenceSchema>;
+      const { name, description, touches } = req.body as z.infer<typeof createSequenceSchema>;
 
       const errors = validateSequence({ id: 'draft', name, touches });
       if (errors.length > 0) {
@@ -190,7 +193,7 @@ router.post(
       }
 
       const sequence = await prisma.cadenceSequence.create({
-        data: { organizationId, name, touches, createdBy: userId },
+        data: { organizationId, name, description, touches, createdBy: userId },
       });
       res.status(201).json({ success: true, data: sequence });
     } catch (error) {

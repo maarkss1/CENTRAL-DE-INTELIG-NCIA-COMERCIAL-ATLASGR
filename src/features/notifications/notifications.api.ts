@@ -10,6 +10,8 @@ export interface NotificationItem {
   kind: NotificationKind;
   entity: string | null;
   entityId: string | null;
+  /** `null` = aviso para toda a organização (broadcast) — só ADMIN/GESTOR pode excluir. */
+  userId: string | null;
   readAt: string | null;
   createdAt: string;
   automation: { id: string; name: string } | null;
