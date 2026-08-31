@@ -1199,5 +1199,14 @@
         ]
       }
     ]
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/settings/components/Settings.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/lgpd/components/DataSubjectRights.tsx"
   }
 ]

@@ -91,6 +91,14 @@ export const DOCUMENTED_LARGE_CHUNKS = [
     maxGzipBytes: 110 * 1024,
     reason: 'recharts (graficos) — chunk compartilhado, carregado sob demanda pelas telas de analytics.',
   },
+  {
+    // echarts (src/components/charts) e importado direto por Analytics.tsx, mas Analytics.tsx em
+    // si so entra via React.lazy() na rota /analytics (App.tsx) — nao esta no chunk de entrada nem
+    // em nenhuma outra tela carregada por padrao.
+    pattern: /^vendor-echarts-/,
+    maxGzipBytes: 230 * 1024,
+    reason: 'echarts (graficos) — chunk de vendor, so carregado ao entrar na rota /analytics (lazy).',
+  },
 ];
 
 function gzipSize(buf) {

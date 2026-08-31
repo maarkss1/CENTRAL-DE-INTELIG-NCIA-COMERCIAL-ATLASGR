@@ -12,14 +12,14 @@
  *   OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318  # Collector endpoint
  *   OTEL_TRACES_SAMPLER=always_on       # Em produção: parentbased_traceidratio=0.1
  */
+import { trace } from '@opentelemetry/api';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
-const OTEL_ENDPOINT =
-  process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318';
+const OTEL_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318';
 const SERVICE_NAME = process.env.OTEL_SERVICE_NAME ?? 'atlasgr-api';
 const SERVICE_VERSION = process.env.npm_package_version ?? '0.0.1';
 
@@ -61,9 +61,7 @@ if (!isTestEnv) {
   // Shutdown gracioso: flush de traces pendentes antes de fechar o processo.
   // Sem isso, o último batch de spans não exportados se perde no SIGTERM.
   const shutdown = () => {
-    sdk
-      ?.shutdown()
-      .catch((err) => console.error('[OTel] Falha no shutdown:', err));
+    sdk?.shutdown().catch((err) => console.error('[OTel] Falha no shutdown:', err));
   };
 
   process.on('SIGTERM', shutdown);
@@ -83,7 +81,6 @@ export function createSpan(name: string, attributes?: Record<string, string | nu
   if (isTestEnv || !sdk) {
     return { end: () => {} }; // Noop em testes
   }
-  const { trace } = require('@opentelemetry/api') as typeof import('@opentelemetry/api');
   const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
   const span = tracer.startSpan(name);
   if (attributes) {
