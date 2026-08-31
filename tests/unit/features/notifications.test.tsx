@@ -1,9 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react';
+import { render as rtlRender, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
+
+// GESTOR por padrão: mantém o botão de excluir visível mesmo para notificações broadcast, sem
+// exigir AuthProvider/authClient reais só para montar o componente. Mesmo padrão de
+// `tests/unit/features/automations-ui.test.tsx`/`knowledge-base.test.tsx`/`calendar.test.tsx` —
+// achado do Piloto 021 (`Notifications.tsx` passou a esconder a exclusão de avisos broadcast por
+// papel, ver `hasRequiredRole`).
+const useAuthMock = vi.fn(() => ({ currentUser: { role: 'GESTOR' } }));
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => useAuthMock() }));
 
 import { Notifications } from '@/features/notifications/components/Notifications';
 import { relativeTime } from '@/features/notifications/notifications.api';
@@ -37,6 +45,7 @@ function mockList(data: { items: unknown[]; unread: number }) {
 beforeEach(() => {
     listCalls = [];
     mockList({ items: [], unread: 0 });
+    useAuthMock.mockReturnValue({ currentUser: { role: 'GESTOR' } });
 });
 
 afterEach(() => { cleanup(); server.resetHandlers(); });
@@ -129,5 +138,41 @@ describe('Notificações', () => {
         render(<Notifications />);
         expect(await screen.findByText('Banco indisponível')).toBeTruthy();
         expect(screen.getByRole('button', { name: /Tentar novamente/ })).toBeTruthy();
+    });
+
+    it('marca como lida pelo teclado (Enter) — achado real do Piloto 021 (WCAG 2.1.1)', async () => {
+        // Antes deste piloto o card não tinha role/tabIndex/onKeyDown: inalcançável e inoperável
+        // por teclado, apesar de o clique do mouse já funcionar (falso-negativo do axe-core, que
+        // não sinaliza "sem handler de teclado" quando não há role nenhum declarado).
+        mockList({ items: [naoLida], unread: 1 });
+        let markReadCalledWith: string | undefined;
+        server.use(
+            http.post(`${LIST_URL}/:id/read`, ({ params }) => {
+                markReadCalledWith = String(params.id);
+                return HttpResponse.json({ success: true, data: { id: params.id } });
+            }),
+        );
+        render(<Notifications />);
+
+        const card = (await screen.findByText('Lead chegou em Proposta')).closest(
+            '[role="button"]',
+        ) as HTMLElement;
+        expect(card).toBeTruthy();
+        card.focus();
+        fireEvent.keyDown(card, { key: 'Enter' });
+
+        await waitFor(() => expect(markReadCalledWith).toBe('n1'));
+    });
+
+    it('SDR não vê o botão de excluir numa notificação broadcast (userId: null), mas vê numa notificação própria (achado real do Piloto 021)', async () => {
+        useAuthMock.mockReturnValue({ currentUser: { id: 'user-sdr', role: 'SDR' } });
+        const broadcast = { ...naoLida, id: 'n-broadcast', userId: null };
+        const pessoal = { ...naoLida, id: 'n-pessoal', title: 'Aviso só meu', userId: 'user-sdr' };
+        mockList({ items: [broadcast, pessoal], unread: 2 });
+        render(<Notifications />);
+
+        await screen.findByText('Lead chegou em Proposta');
+        expect(screen.queryByLabelText(/Remover notificação Lead chegou em Proposta/)).toBeNull();
+        expect(screen.getByLabelText(/Remover notificação Aviso só meu/)).toBeTruthy();
     });
 });

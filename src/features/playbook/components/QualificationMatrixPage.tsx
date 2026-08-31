@@ -12,6 +12,8 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { playbookApi, type QualificationMatrixItem } from '../playbook.api';
 import { QualificationItemForm } from './QualificationItemForm';
@@ -20,12 +22,19 @@ import { toast } from '../../../lib/toast';
 
 export function QualificationMatrixPage() {
   const { activeBrand, brandInfo } = useBrand();
+  const { currentUser } = useAuth();
+  // DELETE /api/playbook/qualification-matrix/:id exige ADMIN/GESTOR no backend, mas o botão
+  // "Excluir" aparecia pra qualquer papel (SDR/CLOSER também podem criar/editar) e só falhava com
+  // um 403 sem explicação ao clicar — achado do Piloto 017. Mesmo padrão já usado em
+  // Integrations.tsx/BitrixSyncRulesPanel.tsx.
+  const canDelete = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
   const [items, setItems] = useState<QualificationMatrixItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedSegment, setSelectedSegment] = useState('todos');
   const [selectedPersona, setSelectedPersona] = useState('todos');
+  const [selectedFramework, setSelectedFramework] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -55,9 +64,14 @@ export function QualificationMatrixPage() {
     () => Array.from(new Set(items.map((item) => item.persona))).sort(),
     [items],
   );
+  const frameworks = useMemo(
+    () => Array.from(new Set(items.map((item) => item.framework))).sort(),
+    [items],
+  );
   const filtered = items.filter((item) => {
     if (selectedSegment !== 'todos' && item.segment !== selectedSegment) return false;
     if (selectedPersona !== 'todos' && item.persona !== selectedPersona) return false;
+    if (selectedFramework !== 'todos' && item.framework !== selectedFramework) return false;
     const q = searchTerm.trim().toLowerCase();
     if (q) {
       const haystack =
@@ -99,6 +113,7 @@ export function QualificationMatrixPage() {
             </p>
           </div>
           <button
+            type="button"
             onClick={() => {
               setEditingItem(null);
               setIsFormOpen(true);
@@ -152,6 +167,21 @@ export function QualificationMatrixPage() {
               </option>
             ))}
           </select>
+          {/* framework (SPIN/BANT/MEDDPICC) já era mostrado no badge de cada card, mas não era
+              filtrável — achado do Piloto 017. */}
+          <select
+            aria-label="Filtrar por framework"
+            value={selectedFramework}
+            onChange={(e) => setSelectedFramework(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-surface-2 text-ink text-xs font-semibold border border-line focus:outline-none focus:ring-1 focus:ring-brand"
+          >
+            <option value="todos">Todos os Frameworks</option>
+            {frameworks.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
           <span className="text-[11px] text-ink-2 ml-auto">{filtered.length} resultado(s)</span>
         </div>
 
@@ -192,6 +222,7 @@ export function QualificationMatrixPage() {
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <button
+                        type="button"
                         onClick={() => handleCopy(item.questionText, item.id)}
                         className="text-xs text-ink-2 hover:text-ink flex items-center gap-1.5"
                       >
@@ -203,6 +234,7 @@ export function QualificationMatrixPage() {
                         {copiedKey === item.id ? 'Copiado' : 'Copiar'}
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
                           setEditingItem(item);
                           setIsFormOpen(true);
@@ -212,13 +244,16 @@ export function QualificationMatrixPage() {
                       >
                         <Pencil size={14} /> Editar
                       </button>
-                      <button
-                        onClick={() => handleDelete(item)}
-                        className="text-xs text-danger-active dark:text-danger hover:text-danger/80 flex items-center gap-1.5"
-                        aria-label="Excluir pergunta"
-                      >
-                        <Trash2 size={14} /> Excluir
-                      </button>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(item)}
+                          className="text-xs text-danger-active dark:text-danger hover:text-danger/80 flex items-center gap-1.5"
+                          aria-label="Excluir pergunta"
+                        >
+                          <Trash2 size={14} /> Excluir
+                        </button>
+                      )}
                     </div>
                   </div>
 

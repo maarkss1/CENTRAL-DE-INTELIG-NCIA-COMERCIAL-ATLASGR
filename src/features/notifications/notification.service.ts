@@ -68,6 +68,9 @@ export class NotificationService {
         kind: true,
         entity: true,
         entityId: true,
+        // `userId: null` = broadcast pra organização inteira — a UI precisa saber disso pra só
+        // oferecer excluir a quem tem permissão (achado do Piloto 021, ver `remove` abaixo).
+        userId: true,
         readAt: true,
         createdAt: true,
         automation: { select: { id: true, name: true } },
@@ -104,10 +107,29 @@ export class NotificationService {
     return count;
   }
 
-  /** Mesma regra de visibilidade do markRead: só o dono (ou notificação da organização inteira). */
-  async remove(organizationId: string, id: string, userId: string): Promise<boolean> {
+  /**
+   * ACHADO REAL (Piloto 021): diferente de `markRead` (marcar como lida não destrói nada — o pior
+   * caso é o dono real ver "já lida" sem ter aberto), excluir é irreversível. Como
+   * `Notification.userId: null` significa "para toda a organização" e não existe tabela de leitura
+   * por-destinatário, tratar broadcast como "todo mundo é dono" aqui significava que qualquer
+   * usuário conseguia apagar um alerta de equipe (ex.: bloqueio de importação Bitrix, alerta
+   * crítico de IA) antes dos outros verem — a própria notificação criada para avisar todo mundo
+   * podia ser silenciada por qualquer um deles com um clique. `canManageBroadcast` (ADMIN/GESTOR)
+   * é quem pode excluir uma notificação da organização inteira; notificação pessoal continua sendo
+   * removível só pelo próprio dono, qualquer papel.
+   */
+  async remove(
+    organizationId: string,
+    id: string,
+    userId: string,
+    canManageBroadcast: boolean,
+  ): Promise<boolean> {
     const { count } = await prisma.notification.deleteMany({
-      where: { id, organizationId, OR: [{ userId }, { userId: null }] },
+      where: {
+        id,
+        organizationId,
+        OR: canManageBroadcast ? [{ userId }, { userId: null }] : [{ userId }],
+      },
     });
     return count > 0;
   }

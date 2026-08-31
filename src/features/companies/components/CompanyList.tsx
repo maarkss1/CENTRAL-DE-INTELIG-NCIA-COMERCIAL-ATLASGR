@@ -235,6 +235,7 @@ export function CompanyList() {
                 onClick={() => setLayoutMode('grid')}
                 className={`p-2 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold ${layoutMode === 'grid' ? 'bg-brand-active text-white shadow-md' : 'text-ink/70 dark:text-ink-2 hover:text-ink'}`}
                 title="Visão em Cards com Logos de Ferramentas"
+                aria-label="Visão em Cards com Logos de Ferramentas"
               >
                 <LayoutGrid className="w-4 h-4" />
                 <span className="hidden sm:inline">Cards</span>
@@ -243,6 +244,7 @@ export function CompanyList() {
                 onClick={() => setLayoutMode('table')}
                 className={`p-2 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold ${layoutMode === 'table' ? 'bg-brand-active text-white shadow-md' : 'text-ink/70 dark:text-ink-2 hover:text-ink'}`}
                 title="Visão em Tabela Compacta"
+                aria-label="Visão em Tabela Compacta"
               >
                 <LayoutList className="w-4 h-4" />
                 <span className="hidden sm:inline">Tabela</span>
@@ -481,6 +483,7 @@ export function CompanyList() {
                         disabled={enrichingId === company.id}
                         className="p-2 text-ink-2 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl transition-colors"
                         title="✨ Enriquecer com IA"
+                        aria-label={`Enriquecer ${companyLabel} com IA`}
                       >
                         {enrichingId === company.id ? (
                           <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
@@ -495,6 +498,7 @@ export function CompanyList() {
                         }}
                         className="p-2 text-ink-2 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors"
                         title="Editar"
+                        aria-label={`Editar ${companyLabel}`}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
@@ -502,6 +506,7 @@ export function CompanyList() {
                         onClick={() => handleDelete(company.id)}
                         className="p-2 text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-danger/10 rounded-xl transition-colors"
                         title="Excluir"
+                        aria-label={`Excluir ${companyLabel}`}
                       >
                         <Trash className="w-4 h-4" />
                       </button>
@@ -658,6 +663,7 @@ export function CompanyList() {
                               disabled={enrichingId === company.id}
                               className="p-2 text-ink-2 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
                               title="✨ Enriquecer"
+                              aria-label={`Enriquecer ${companyLabel} com IA`}
                             >
                               {enrichingId === company.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
@@ -672,6 +678,7 @@ export function CompanyList() {
                               }}
                               className="p-2 text-ink-2 hover:text-brand hover:bg-brand/10 rounded-lg transition-colors"
                               title="Editar"
+                              aria-label={`Editar ${companyLabel}`}
                             >
                               <Edit className="w-4 h-4" />
                             </button>
@@ -679,6 +686,7 @@ export function CompanyList() {
                               onClick={() => handleDelete(company.id)}
                               className="p-2 text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
                               title="Excluir"
+                              aria-label={`Excluir ${companyLabel}`}
                             >
                               <Trash className="w-4 h-4" />
                             </button>
