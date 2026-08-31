@@ -104,6 +104,11 @@ export function WelcomeScreen() {
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-bg font-sans text-ink transition-colors">
+      {/* Trilha ambiente decorativa (piano/cordas instrumental, sem fala) — não transmite
+          informação que precise de legenda (WCAG 1.2.2 é sobre conteúdo falado/significativo);
+          sem `controls` nativo de propósito (o botão de mudo próprio da tela já dá controle ao
+          usuário, ver toggleMute acima). */}
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio
         ref={audioRef}
         loop

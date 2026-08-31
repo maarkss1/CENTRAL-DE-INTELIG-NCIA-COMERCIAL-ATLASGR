@@ -220,14 +220,25 @@ export function RobustScriptGenerator() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  role="listbox"
                   className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                 >
                   {LANGUAGES.map((l) => (
                     <div
                       key={l.id}
+                      role="option"
+                      aria-selected={language === l.id}
+                      tabIndex={0}
                       onClick={() => {
                         setLanguage(l.id);
                         setActiveDropdown(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setLanguage(l.id);
+                          setActiveDropdown(null);
+                        }
                       }}
                       className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                     >
@@ -259,14 +270,25 @@ export function RobustScriptGenerator() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  role="listbox"
                   className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
                 >
                   {PURPOSES.map((p) => (
                     <div
                       key={p.id}
+                      role="option"
+                      aria-selected={purpose === p.id}
+                      tabIndex={0}
                       onClick={() => {
                         setPurpose(p.id);
                         setActiveDropdown(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setPurpose(p.id);
+                          setActiveDropdown(null);
+                        }
                       }}
                       className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none"
                     >
@@ -301,14 +323,25 @@ export function RobustScriptGenerator() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  role="listbox"
                   className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                 >
                   {FRAMEWORKS.map((f) => (
                     <div
                       key={f.id}
+                      role="option"
+                      aria-selected={framework === f.id}
+                      tabIndex={0}
                       onClick={() => {
                         setFramework(f.id);
                         setActiveDropdown(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setFramework(f.id);
+                          setActiveDropdown(null);
+                        }
                       }}
                       className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                     >
@@ -342,14 +375,25 @@ export function RobustScriptGenerator() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
+                  role="listbox"
                   className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                 >
                   {COMPLEXITIES.map((c) => (
                     <div
                       key={c.id}
+                      role="option"
+                      aria-selected={complexity === c.id}
+                      tabIndex={0}
                       onClick={() => {
                         setComplexity(c.id);
                         setActiveDropdown(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setComplexity(c.id);
+                          setActiveDropdown(null);
+                        }
                       }}
                       className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                     >

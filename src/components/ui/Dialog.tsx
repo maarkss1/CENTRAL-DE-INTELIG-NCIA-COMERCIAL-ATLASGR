@@ -90,6 +90,13 @@ export function Dialog({
   };
 
   return (
+    // <dialog> nativo (não um <div> genérico): já tem semântica própria de modal, foco preso
+    // dentro dele via showModal(), e Escape tratado pelo evento nativo 'cancel' (acima) — o
+    // jsx-a11y não reconhece <dialog> como elemento interativo, então sinaliza o onClick de
+    // "clicar fora fecha" como se fosse um <div> qualquer sem teclado. Padrão documentado pelo
+    // próprio MDN para <dialog> + clique no backdrop; nenhum atalho de teclado fica sem
+    // equivalente (Escape já fecha, foco já é gerenciado nativamente).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={dialogRef}
       onClick={handleBackdropClick}

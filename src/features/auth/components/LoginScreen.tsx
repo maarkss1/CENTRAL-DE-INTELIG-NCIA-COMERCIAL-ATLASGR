@@ -293,6 +293,11 @@ export function LoginScreen() {
                         onChange={(e) => handleEmailChange(e.target.value)}
                         className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                         required
+                        /* campo revelado por ação do usuário ("Esqueci minha senha"), não focus
+                           automático de carregamento de página; foca o único campo do
+                           sub-formulário que acabou de aparecer, mesmo padrão de diálogo do
+                           WAI-ARIA Authoring Practices. */
+                        // eslint-disable-next-line jsx-a11y/no-autofocus
                         autoFocus
                       />
                     </div>
