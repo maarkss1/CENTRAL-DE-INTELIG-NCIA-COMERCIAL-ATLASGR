@@ -344,14 +344,16 @@ async function searchDecisionMakersAdvancedUncached(
       const text = await res.text().catch(() => '');
       if (parsePlanRestriction(res.status, text)) {
         const hunterPeople = await findPeopleViaDomainSearch(domain, limit);
-        let contacts = hunterPeople.contacts.map((c): DecisionMaker => ({
-          name: c.name,
-          title: c.title,
-          email: c.email,
-          emailSource: c.email ? 'hunter' : undefined,
-          phone: c.phone,
-          linkedinUrl: c.linkedin_url,
-        }));
+        let contacts = hunterPeople.contacts.map(
+          (c): DecisionMaker => ({
+            name: c.name,
+            title: c.title,
+            email: c.email,
+            emailSource: c.email ? 'hunter' : undefined,
+            phone: c.phone,
+            linkedinUrl: c.linkedin_url,
+          }),
+        );
         if (criteria.apenasEmailVerificado) {
           contacts = contacts.filter((c) => !!c.email);
         }

@@ -1,4 +1,4 @@
-import {
+import type {
   QualificationMatrixItem,
   QualificationMatrixItemRepository,
 } from '../domain/QualificationMatrixItem';

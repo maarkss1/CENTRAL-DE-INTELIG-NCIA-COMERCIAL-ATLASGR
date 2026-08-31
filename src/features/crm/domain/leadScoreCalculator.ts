@@ -1,9 +1,17 @@
 export interface BantQualificationData {
   budget?: 'aprovado' | 'em_planejamento' | 'indefinido' | 'sem_verba' | string;
   authority?:
-    'decisor_clevel' | 'influenciador_gerente' | 'usuario_operacional' | 'sem_autoridade' | string;
+    | 'decisor_clevel'
+    | 'influenciador_gerente'
+    | 'usuario_operacional'
+    | 'sem_autoridade'
+    | string;
   need?:
-    'critica_urgente' | 'moderada_otimizacao' | 'curiosidade_benchmarking' | 'sem_dor' | string;
+    | 'critica_urgente'
+    | 'moderada_otimizacao'
+    | 'curiosidade_benchmarking'
+    | 'sem_dor'
+    | string;
   timing?: 'imediato_30d' | 'curto_60d' | 'medio_90d' | 'longo_prazo' | string;
   // Campos adicionais opcionais (SPIN / Telemetria)
   fleetSize?: number;

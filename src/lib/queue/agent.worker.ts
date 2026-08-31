@@ -1,4 +1,4 @@
-import { Worker, Job, Queue } from 'bullmq';
+import { Worker, type Job, Queue } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';

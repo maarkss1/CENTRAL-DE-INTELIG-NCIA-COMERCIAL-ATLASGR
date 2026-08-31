@@ -1,4 +1,4 @@
-import { Prisma, SignatureRequestStatus } from '@prisma/client';
+import { type Prisma, SignatureRequestStatus } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { requestContext } from '../../../lib/async-context.js';
 import type { SignatureRequestRepositoryPort } from '../application/documentSignature.js';

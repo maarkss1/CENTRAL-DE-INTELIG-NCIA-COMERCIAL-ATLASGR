@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { CompanyUseCases } from '../application/CompanyUseCases';
-import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import type { Request, Response, NextFunction } from 'express';
+import type { CompanyUseCases } from '../application/CompanyUseCases';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 
 export class CompanyController {
   constructor(private companyUseCases: CompanyUseCases) {}

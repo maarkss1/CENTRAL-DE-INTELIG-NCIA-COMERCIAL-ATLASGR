@@ -1,14 +1,15 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { AppTopbar } from './AppTopbar';
 import { OfflineBanner } from './OfflineBanner';
-import { TabType } from './tabMeta';
+import type { TabType } from './tabMeta';
 import { Toaster } from '../ui/Toaster';
 import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
 import { BugReportButton } from '../ui/BugReportButton';
 import { VoiceCommandWidget } from '../ui/VoiceCommandWidget';
 import { CommandPalette } from '../ui/CommandPalette';
+import { BottomSheet } from '../ui/BottomSheet';
 import { motion } from 'framer-motion';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
 import { useNavigationBusBridge } from '../../hooks/useNavigationBusBridge';
@@ -94,6 +95,9 @@ export function MainLayout({ children }: MainLayoutProps) {
           <AtlasChatbotTrigger />
           <BugReportButton />
           <CommandPalette />
+          <BottomSheet open={false} onOpenChange={() => {}} snapPoints={['50%', '90%']}>
+            <div />
+          </BottomSheet>
         </div>
       </div>
     </div>

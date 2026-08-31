@@ -1,4 +1,4 @@
-import express, { Router, Request, Response } from 'express';
+import express, { Router, type Request, type Response } from 'express';
 import { createHash, timingSafeEqual } from 'crypto';
 import { env } from '../../../config/env.js';
 import { prisma } from '../../../lib/prisma.js';

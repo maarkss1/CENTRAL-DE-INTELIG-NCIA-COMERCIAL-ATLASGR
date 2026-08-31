@@ -35,7 +35,12 @@
 export const BITRIX_FIELD_MAP_VERSION = '2026-08-05';
 
 export type BitrixFieldValueType =
-  'string' | 'enumeration' | 'double' | 'date' | 'boolean_sim_nao' | 'url';
+  | 'string'
+  | 'enumeration'
+  | 'double'
+  | 'date'
+  | 'boolean_sim_nao'
+  | 'url';
 
 /** Onde este campo mora na Lead da plataforma. */
 export type BitrixFieldTarget =

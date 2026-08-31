@@ -237,6 +237,7 @@ export function Notifications() {
                     {!lida && (
                       <span
                         className={`w-1.5 h-1.5 rounded-full shrink-0 ${accent.bg}`}
+                        role="img"
                         aria-label="não lida"
                       />
                     )}

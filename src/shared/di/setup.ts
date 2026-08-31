@@ -15,6 +15,8 @@ import { PrismaCrm360Repository } from '../../features/crm360/infra/PrismaCrm360
 import { PrismaQualificationMatrixRepository } from '../../features/playbook/qualification-matrix/infra/PrismaQualificationMatrixRepository';
 import { PrismaObjectionMatrixRepository } from '../../features/playbook/objection-matrix/infra/PrismaObjectionMatrixRepository';
 import { PrismaBugReportRepository } from '../../features/bug-reports/infra/PrismaBugReportRepository';
+import { PrismaUsageRepository } from '../../features/billing/infra/PrismaUsageRepository';
+import { PrismaFeatureFlagRepository } from '../../features/feature-flags/infra/PrismaFeatureFlagRepository';
 
 // Use Cases
 import { NoteUseCases } from '../../features/notes/application/NoteUseCases';
@@ -29,6 +31,8 @@ import { Crm360UseCases } from '../../features/crm360/application/Crm360UseCases
 import { QualificationMatrixUseCases } from '../../features/playbook/qualification-matrix/application/QualificationMatrixUseCases';
 import { ObjectionMatrixUseCases } from '../../features/playbook/objection-matrix/application/ObjectionMatrixUseCases';
 import { BugReportUseCases } from '../../features/bug-reports/application/BugReportUseCases';
+import { UsageUseCases } from '../../features/billing/application/UsageUseCases';
+import { FeatureFlagsUseCases } from '../../features/feature-flags/application/FeatureFlagsUseCases';
 
 // Controllers
 import { NoteController } from '../../features/notes/presentation/NoteController';
@@ -43,6 +47,8 @@ import { Crm360Controller } from '../../features/crm360/presentation/Crm360Contr
 import { QualificationMatrixController } from '../../features/playbook/qualification-matrix/presentation/QualificationMatrixController';
 import { ObjectionMatrixController } from '../../features/playbook/objection-matrix/presentation/ObjectionMatrixController';
 import { BugReportController } from '../../features/bug-reports/presentation/BugReportController';
+import { UsageController } from '../../features/billing/presentation/UsageController';
+import { FeatureFlagsController } from '../../features/feature-flags/presentation/FeatureFlagsController';
 
 export function setupDI() {
   // 1. Shared
@@ -62,6 +68,8 @@ export function setupDI() {
   const qualificationMatrixRepository = new PrismaQualificationMatrixRepository();
   const objectionMatrixRepository = new PrismaObjectionMatrixRepository();
   const bugReportRepository = new PrismaBugReportRepository();
+  const usageRepository = new PrismaUsageRepository();
+  const featureFlagRepository = new PrismaFeatureFlagRepository();
 
   container.register('NoteRepository', noteRepository);
   container.register('ActivityRepository', activityRepository);
@@ -75,6 +83,8 @@ export function setupDI() {
   container.register('QualificationMatrixRepository', qualificationMatrixRepository);
   container.register('ObjectionMatrixRepository', objectionMatrixRepository);
   container.register('BugReportRepository', bugReportRepository);
+  container.register('UsageRepository', usageRepository);
+  container.register('FeatureFlagRepository', featureFlagRepository);
 
   // 3. Use Cases
   const noteUseCases = new NoteUseCases(noteRepository);
@@ -96,6 +106,8 @@ export function setupDI() {
   );
   const objectionMatrixUseCases = new ObjectionMatrixUseCases(objectionMatrixRepository);
   const bugReportUseCases = new BugReportUseCases(bugReportRepository);
+  const usageUseCases = new UsageUseCases(usageRepository);
+  const featureFlagsUseCases = new FeatureFlagsUseCases(featureFlagRepository);
 
   container.register('NoteUseCases', noteUseCases);
   container.register('ActivityUseCases', activityUseCases);
@@ -109,6 +121,8 @@ export function setupDI() {
   container.register('QualificationMatrixUseCases', qualificationMatrixUseCases);
   container.register('ObjectionMatrixUseCases', objectionMatrixUseCases);
   container.register('BugReportUseCases', bugReportUseCases);
+  container.register('UsageUseCases', usageUseCases);
+  container.register('FeatureFlagsUseCases', featureFlagsUseCases);
 
   // 4. Controllers
   container.register('NoteController', new NoteController(noteUseCases));
@@ -135,4 +149,6 @@ export function setupDI() {
     new ObjectionMatrixController(objectionMatrixUseCases),
   );
   container.register('BugReportController', new BugReportController(bugReportUseCases));
+  container.register('UsageController', new UsageController(usageUseCases));
+  container.register('FeatureFlagsController', new FeatureFlagsController(featureFlagsUseCases));
 }

@@ -32,10 +32,14 @@ export function AuditLogs() {
     setLoading(true);
     setError(null);
     try {
-      const res: any = await api.get('/api/lgpd/audit-logs');
+      // Backend corrigido no Piloto 025 pra devolver `{ success, data: { logs } }` (o envelope
+      // padrão do resto da API) em vez de `{ success, logs }` na raiz — `api.get` sempre
+      // desembrulha `data.data`, então antes disso `res.logs` era sempre `undefined` e a aba
+      // inteira nunca mostrava nenhum registro, pra nenhum usuário.
+      const res = await api.get<{ logs: AuditLogItem[] }>('/api/lgpd/audit-logs');
       setLogs(res.logs || []);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar logs de auditoria.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar logs de auditoria.');
     } finally {
       setLoading(false);
     }
@@ -82,7 +86,7 @@ export function AuditLogs() {
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-center gap-2 mb-4">
+            <div className="p-3 bg-danger/10 border border-danger/30 text-danger-active dark:text-danger rounded-xl text-xs flex items-center gap-2 mb-4">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               {error}
             </div>
@@ -90,8 +94,11 @@ export function AuditLogs() {
 
           <div className="flex items-center gap-2 mb-4">
             <Filter className="w-4 h-4 text-ink-2" />
-            <span className="text-xs text-ink-2 font-medium">Filtrar ação:</span>
+            <label htmlFor="audit-filter-action" className="text-xs text-ink-2 font-medium">
+              Filtrar ação:
+            </label>
             <select
+              id="audit-filter-action"
               value={filterAction}
               onChange={(e) => setFilterAction(e.target.value)}
               className="bg-surface-2 border border-line rounded-lg px-2.5 py-1 text-xs text-ink outline-none"

@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import {
@@ -7,6 +7,7 @@ import {
   createTeamMember,
   resetTeamMemberPassword,
   deleteTeamMember,
+  unlockTeamMember,
   TeamServiceError,
   ASSIGNABLE_ROLES,
 } from '../services/team.service.js';
@@ -75,6 +76,23 @@ router.post(
       );
       // Mesma regra da criação: a senha só existe nesta resposta, nunca é devolvida de novo.
       res.json({ success: true, data: { member, tempPassword } });
+    } catch (error) {
+      if (error instanceof TeamServiceError) {
+        res.status(error.statusCode).json({ success: false, error: error.message });
+        return;
+      }
+      next(error);
+    }
+  },
+);
+
+router.post(
+  '/:id/unlock',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authReq = req as AuthRequest;
+      const member = await unlockTeamMember(authReq.user.organizationId, req.params.id);
+      res.json({ success: true, data: { member } });
     } catch (error) {
       if (error instanceof TeamServiceError) {
         res.status(error.statusCode).json({ success: false, error: error.message });
