@@ -126,8 +126,12 @@ Corrigido e enviado diretamente a `main` (commit `0c6a6dfd`), aprovado explicita
   estreitar exige classificação de origem das rejeições.
 - Graceful shutdown não fecha servidor HTTP/SSE/conexões Redis explicitamente.
 - `/metrics` sem auth quando EXPOSE_METRICS=true (mitigação: manter flag off ou proteger por rede).
-- piiSanitizer é código morto; consentimento LGPD antes de enviar PII a provedores de IA não é
-  verificado em conversation-intelligence/birth-voice (registrado para Onda 2 de IA).
-- 4 vulnerabilidades moderate (uuid via exceljs; dockerode/testcontainers dev-only).
+- piiSanitizer é código morto (✅ removido, Onda 43); consentimento LGPD antes de enviar PII a
+  provedores de IA — ✅ `conversation-intelligence.service.ts` (WhatsApp) corrigido na Onda 43
+  (`assertPiiExternalConsent`, mesmo gate fail-closed do resto do enxame); `birth-voice` ainda não
+  reverificado.
+- 4 vulnerabilidades moderate: `uuid` via `exceljs` — ✅ resolvido na Onda 43 (`exceljs` 3.10.0 →
+  4.4.0, ver `docs/security/AUDIT_WAIVERS.md`); `dockerode`/`testcontainers` (dev-only) — ainda não
+  reverificado.
 - Gamificação da prospecção é estado local puro (XP some no reload) — decidir produto antes de
   persistir.
