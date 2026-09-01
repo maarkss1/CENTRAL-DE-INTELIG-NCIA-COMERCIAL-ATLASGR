@@ -50,6 +50,18 @@ async function assertNoBlockingViolations(
   testInfo: import('@playwright/test').TestInfo,
 ) {
   await waitForAnimationsToSettle(page);
+  // Achado real (LoginScreen): mesmo depois de waitForAnimationsToSettle(), o axe-core ainda pegava
+  // o relógio/calendário da tela de login (delay 0.15s + duration 0.4s; título/subtítulo usam
+  // `fadeInUp`, duration 0.45s, ver src/lib/motion.ts) a meio caminho do fade — cor diferente a
+  // cada execução em CI (#cd947f numa tentativa, #e3c8bf na seguinte, nenhuma correspondendo a um
+  // token real), provando captura em instante aleatório da transição, não um bug estático de
+  // contraste. Causa: assim como o Chatbook (comentário acima), `document.getAnimations()` só
+  // enxerga animações da Web Animations API nativa — quando o Framer Motion anima `opacity` via
+  // spring/tween simples, ele usa requestAnimationFrame e escreve o estilo diretamente, sem passar
+  // por `Element.animate()`, daí o wait anterior resolver instantaneamente sem a animação ter de
+  // fato terminado. Buffer fixo cobre a maior entrada de tela conhecida no app (relógio da
+  // LoginScreen, 0.55s) com folga adicional pra variação de performance do runner de CI.
+  await page.waitForTimeout(1000);
   const results = await new AxeBuilder({ page }).analyze();
 
   await testInfo.attach('axe-results', {
