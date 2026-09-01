@@ -208,7 +208,7 @@ export function SinglePageDashboard() {
               <h3 className="text-sm font-black text-ink">Agenda de hoje</h3>
               <button
                 onClick={() => navigate('/app/activities')}
-                className="text-xs font-bold text-brand hover:underline cursor-pointer"
+                className="text-xs font-bold text-brand-active dark:text-brand-2 hover:underline cursor-pointer"
               >
                 Ver agenda completa
               </button>

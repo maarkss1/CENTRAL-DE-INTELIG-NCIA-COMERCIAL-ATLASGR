@@ -82,7 +82,7 @@ export function EditorIA() {
         </Button>
 
         {isGenerating && (
-          <span className="flex items-center gap-2 text-xs text-brand font-bold ml-auto animate-pulse">
+          <span className="flex items-center gap-2 text-xs text-brand-active dark:text-brand-2 font-bold ml-auto animate-pulse">
             <Loader2 className="w-4 h-4 animate-spin" /> Processando...
           </span>
         )}

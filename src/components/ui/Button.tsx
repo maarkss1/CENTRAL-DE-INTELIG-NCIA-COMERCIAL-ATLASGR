@@ -33,7 +33,10 @@ const buttonVariants = cva(
         outline: 'border border-line bg-transparent text-ink hover:bg-surface-2',
         secondary: 'bg-surface-2 text-ink hover:bg-line hover:scale-[1.02]',
         ghost: 'hover:bg-surface-2 hover:text-ink',
-        link: 'text-brand underline-offset-4 hover:underline',
+        // text-brand-active dark:text-brand-2 (não text-brand cru) — mesmo achado do axe-core que
+        // motivou bg-brand-active acima: texto de marca direto sobre bg-bg/bg-surface só atinge
+        // ~3.0:1, abaixo do mínimo AA de 4.5:1.
+        link: 'text-brand-active dark:text-brand-2 underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-9 px-4 py-2',
