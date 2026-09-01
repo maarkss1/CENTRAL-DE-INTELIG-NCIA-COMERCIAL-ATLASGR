@@ -2288,3 +2288,61 @@ entrada nova.
   real do módulo, se `deletedAt`/soft-delete já era um padrão estabelecido ali, quem é dono do
   recurso) em vez de prescrever a resposta, deixando o agente decidir com base no código real em
   vez de assumir um padrão genérico de CRUD.
+
+## Onda 3 — `confirm()` nativo → `useConfirmDialog()` (14 arquivos)
+
+- **Objetivo**: resolver o achado "fora de escopo" mais repetido de toda a série (registrado em 7+
+  pilotos como "merece sessão própria" — 12+ arquivos usando `window.confirm()`/`confirm()`
+  nativo). Diferente das ondas anteriores, esta começou com um passo centralizado antes do fan-out
+  em paralelo: um primitivo novo, `src/components/ui/ConfirmDialog.tsx` (`useConfirmDialog()`),
+  construído e testado (`tests/unit/components/ui/ConfirmDialog.test.tsx`, 6/6) antes de qualquer
+  agente tocar um call site — decisão deliberada: um primitivo compartilhado usado por 14
+  consumidores precisa de UMA decisão de design consistente, não 6 decisões divergentes tomadas em
+  paralelo por agentes diferentes.
+- **Design do primitivo**: `useConfirmDialog()` devolve `{confirm, dialog}` — `confirm(opts)` é
+  assíncrono (`Promise<boolean>`), reaproveitando a API imperativa que `window.confirm()` já tinha
+  (`if (!(await confirm({...}))) return;`) para minimizar o diff nos 14 call sites — troca de
+  mecanismo, não de fluxo. Reaproveita o primitivo `Dialog` já existente (foco/Escape/backdrop já
+  resolvidos ali) e o `Button` já existente (`variant="destructive"` para `variant: 'danger'` das
+  opções). Não foi criado nenhum token/cor novo.
+- **6 agentes em paralelo**, cada um migrando 2-3 arquivos sem sobreposição: Contacts/Companies/
+  Activities; CRM (`LeadDetailDrawer.tsx`)/Notifications; Team/LGPD (`DataSubjectRights.tsx`);
+  Knowledge (`Base.tsx`)/Prospecting (`SavedSearchesModal.tsx`); Cadence/Automations/Calendar
+  (os 3 arquivos que a Onda 2 tinha acabado de editar, incluindo os `window.confirm()` das ações
+  NOVAS daquela onda); Playbook (2 páginas, sem cobertura de teste, confirmado). Total: 14 arquivos
+  migrados, texto de cada confirmação preservado exatamente (auditado um a um nos relatórios de
+  cada agente antes de consolidar).
+- **Testes existentes que mockavam `window.confirm`/`global.confirm` foram reescritos** (não
+  deletados) para interagir com o diálogo real — clicar no botão renderizado via
+  `screen.getByRole('button', {name: '<label>'})`/`userEvent`, mesmo padrão do teste do próprio
+  primitivo. Isso incluiu `tests/e2e/cadence.spec.ts` (`page.once('dialog', ...)` do `window.confirm`
+  nativo → clique no botão real dentro do diálogo).
+- **Achado real, não corrigido aqui — bloqueio de verificação e2e**: ao tentar confirmar de verdade
+  a mudança em `cadence.spec.ts` (não só confiar no relatório do agente), a suíte falhou no
+  `beforeEach` — `signUp()` (`tests/e2e/helpers.ts:38`) trava esperando o texto "Não possui conta?
+  Registrar Novo Acesso" na tela de login, que não existe mais em `LoginScreen.tsx`. Investigação:
+  esse texto foi removido por um commit de **outra sessão ativa no mesmo checkout**
+  (`00648a5e feat(login): simplifica copy da tela de login`, já em `origin/main` — não fui eu, não
+  faz parte de nenhum piloto desta série), que também deixou `setIsSignUp` declarado e nunca usado
+  (o próprio erro de `tsc` pré-existente já visto nos relatórios dos agentes desta onda e da Onda
+  2). Efeito prático: **`signUp()` está quebrado para qualquer teste e2e que precise criar conta**,
+  não só `cadence.spec.ts` — bloqueio real, de outra origem, não desta mudança. Sinalizado com
+  transparência (protocolo de `visual-qa/SKILL.md`) em vez de fingir verificação feita; não
+  corrigido aqui por não ser escopo desta migração nem trabalho meu.
+- **Preservado**: texto exato de cada confirmação (auditado por arquivo nos relatórios dos 6
+  agentes); nenhuma migração; nenhum token/componente novo além do primitivo em si.
+- **Verificação agregada** (depois dos 6 agentes, todo o projeto): `npx tsc --noEmit -p .` — só o
+  erro pré-existente de `LoginScreen.tsx` (de outra sessão, ver acima), nada relacionado a esta
+  migração. `npx vite build` — sucesso. `npx vitest run` nos módulos tocados — todos verdes
+  (números completos nos relatórios de cada agente). E2E real bloqueado pelo achado acima —
+  verificação de `cadence.spec.ts` ficou restrita a leitura do diff + suíte unitária, com o
+  bloqueio documentado explicitamente em vez de omitido.
+- **Aprendizado incorporado**: primeira vez nesta série que uma migração cross-cutting em massa
+  (14 arquivos, 1 primitivo novo) foi dividida entre "decisão de design" (feita uma vez, por mim,
+  antes do fan-out) e "aplicação mecânica" (paralelizada) — evitou 6 implementações divergentes do
+  mesmo conceito. Também a primeira vez que a verificação e2e desta série foi bloqueada por uma
+  mudança de OUTRA sessão concorrente no mesmo checkout, não por um problema do próprio trabalho —
+  reforça o alerta já registrado no Piloto 013 (bloqueio real de ambiente por outra sessão) e no
+  Piloto 022 (confirmar o diretório/origem de um processo antes de confiar nele): antes de assumir
+  que uma falha de teste é culpa da própria mudança, checar `git log`/`git status` do arquivo
+  envolvido para descartar edição concorrente.

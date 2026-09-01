@@ -32,6 +32,7 @@ import { leadsDB } from '../../../lib/db';
 import { toast } from '../../../lib/toast';
 import { clientLogger } from '../../../lib/clientLogger';
 import type { PaletteIntent } from '../../../lib/paletteIntent';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import type React from 'react';
 
 const TYPE_ICONS: Record<string, React.JSX.Element> = {
@@ -142,6 +143,7 @@ export function ActivityList() {
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { confirm, dialog } = useConfirmDialog();
 
   // GET /api/activities/templates já existia (ActivityUseCases.getFollowUpTemplates), testado, mas
   // sem nenhum consumidor de UI — esta tela duplicava a mesma lista como constante local, já
@@ -260,7 +262,15 @@ export function ActivityList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta atividade?')) return;
+    if (
+      !(await confirm({
+        title: 'Excluir atividade',
+        description: 'Excluir esta atividade?',
+        confirmLabel: 'Excluir',
+        variant: 'danger',
+      }))
+    )
+      return;
     try {
       await deleteActivity(id);
       toast.success('Atividade excluída.');
@@ -823,6 +833,8 @@ export function ActivityList() {
           </motion.div>
         </div>
       )}
+
+      {dialog}
     </motion.div>
   );
 }

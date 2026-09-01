@@ -27,6 +27,7 @@ import { LEAD_STATUS_EMOJI as STATUS_EMOJI } from '../../../lib/enumMap';
 import { api } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
 import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -105,6 +106,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
   const { activeBrand, brandInfo } = useBrand();
   const { setActiveRecord, clearActiveRecord } = useActiveRecord();
   const { currentUser } = useAuth();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const titleId = useId();
   const statusSelectId = useId();
   const ownerSelectId = useId();
@@ -298,13 +300,14 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
   };
 
   const handleDelete = async () => {
-    if (
-      !lead ||
-      !window.confirm(
-        `Tem certeza que deseja excluir "${lead.company?.tradeName || lead.contact?.name || 'este lead'}"?`,
-      )
-    )
-      return;
+    if (!lead) return;
+    const confirmed = await confirm({
+      title: 'Excluir lead',
+      description: `Tem certeza que deseja excluir "${lead.company?.tradeName || lead.contact?.name || 'este lead'}"?`,
+      confirmLabel: 'Excluir',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     setDeleting(true);
     try {
       await api.delete(`/api/leads/${lead.id}`);
@@ -869,6 +872,8 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
           onClose={() => setWhatsappOpen(false)}
         />
       )}
+
+      {confirmDialog}
     </div>
   );
 }

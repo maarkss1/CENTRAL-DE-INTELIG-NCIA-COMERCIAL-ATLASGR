@@ -18,6 +18,7 @@ import {
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
@@ -436,6 +437,7 @@ export function Automations() {
   const [dryRunTarget, setDryRunTarget] = useState<Automation | null>(null);
   const [versionsTarget, setVersionsTarget] = useState<Automation | null>(null);
   const [scanningStagnation, setScanningStagnation] = useState(false);
+  const { confirm, dialog } = useConfirmDialog();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -467,19 +469,30 @@ export function Automations() {
     [items],
   );
 
-  const remove = useCallback(async (item: Automation) => {
-    if (!window.confirm(`Remover a automação "${item.name}"?`)) return;
-    setBusyId(item.id);
-    try {
-      await automationsApi.remove(item.id);
-      setItems((prev) => prev.filter((a) => a.id !== item.id));
-      toast.success('Automação removida.');
-    } catch (err) {
-      toast.error((err as Error).message);
-    } finally {
-      setBusyId(null);
-    }
-  }, []);
+  const remove = useCallback(
+    async (item: Automation) => {
+      if (
+        !(await confirm({
+          title: 'Remover automação',
+          description: `Remover a automação "${item.name}"?`,
+          confirmLabel: 'Remover',
+          variant: 'danger',
+        }))
+      )
+        return;
+      setBusyId(item.id);
+      try {
+        await automationsApi.remove(item.id);
+        setItems((prev) => prev.filter((a) => a.id !== item.id));
+        toast.success('Automação removida.');
+      } catch (err) {
+        toast.error((err as Error).message);
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [confirm],
+  );
 
   // Roda a varredura de estagnação (cron diário, `runStagnationScan`) sob demanda, para TODAS as
   // organizações — mesma operação, só que agora, em vez de esperar o horário agendado (03:17). É
@@ -487,9 +500,13 @@ export function Automations() {
   // disparar, mesmo padrão já usado em `remove` acima para ações administrativas destrutivas.
   const runStagnationScanNow = useCallback(async () => {
     if (
-      !window.confirm(
-        'Rodar agora a varredura de estagnação para TODAS as organizações? Isso reavalia imediatamente as automações de "Lead estagnado" já configuradas, sem esperar o cron diário (03:17).',
-      )
+      !(await confirm({
+        title: 'Rodar varredura de estagnação',
+        description:
+          'Rodar agora a varredura de estagnação para TODAS as organizações? Isso reavalia imediatamente as automações de "Lead estagnado" já configuradas, sem esperar o cron diário (03:17).',
+        confirmLabel: 'Rodar agora',
+        variant: 'default',
+      }))
     ) {
       return;
     }
@@ -507,7 +524,7 @@ export function Automations() {
     } finally {
       setScanningStagnation(false);
     }
-  }, [load]);
+  }, [load, confirm]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-bg p-8">
@@ -707,6 +724,7 @@ export function Automations() {
         automation={versionsTarget}
         onClose={() => setVersionsTarget(null)}
       />
+      {dialog}
     </div>
   );
 }

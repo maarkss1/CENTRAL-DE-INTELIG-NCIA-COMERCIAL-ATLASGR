@@ -18,6 +18,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Pagination } from '../../../components/ui/Pagination';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { playbookApi, type ObjectionMatrixItem, type PlaybookListMeta } from '../playbook.api';
 import { ObjectionItemForm } from './ObjectionItemForm';
 import { clientLogger } from '../../../lib/clientLogger';
@@ -32,6 +33,7 @@ export function ObjectionsMatrixPage() {
   // Mesmo achado do Piloto 017 na Matriz de Qualificação: DELETE exige ADMIN/GESTOR no backend, o
   // botão "Excluir" aparecia pra qualquer papel.
   const canDelete = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
+  const { confirm, dialog } = useConfirmDialog();
   const [items, setItems] = useState<ObjectionMatrixItem[]>([]);
   const [meta, setMeta] = useState<PlaybookListMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,15 @@ export function ObjectionsMatrixPage() {
   };
 
   const handleDelete = async (item: ObjectionMatrixItem) => {
-    if (!confirm('Excluir esta objeção da matriz?')) return;
+    if (
+      !(await confirm({
+        title: 'Excluir objeção',
+        description: 'Excluir esta objeção da matriz?',
+        confirmLabel: 'Excluir',
+        variant: 'danger',
+      }))
+    )
+      return;
     try {
       await playbookApi.deleteObjection(item.id);
       toast.success('Objeção excluída.');
@@ -323,6 +333,8 @@ export function ObjectionsMatrixPage() {
           }}
         />
       )}
+
+      {dialog}
     </div>
   );
 }

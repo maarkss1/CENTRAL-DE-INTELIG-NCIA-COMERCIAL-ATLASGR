@@ -28,6 +28,7 @@ import { clientLogger } from '../../../lib/clientLogger';
 import type { PaletteIntent } from '../../../lib/paletteIntent';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Pagination } from '../../../components/ui/Pagination';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 const SENIORITY_COLORS: Record<string, string> = {
   'C-Level': 'bg-purple-100 text-purple-700 border-purple-200',
@@ -81,6 +82,7 @@ export function ContactList() {
   const [detailContactId, setDetailContactId] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const { confirm, dialog } = useConfirmDialog();
 
   // Se o Command Palette navegou aqui com um termo de busca, aplica antes do primeiro fetch.
   // Limpa o state da entrada de histórico logo em seguida (replace) pra um F5 nesta tela não
@@ -118,7 +120,15 @@ export function ContactList() {
   const totalPages = meta?.totalPages ?? 1;
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir este contato?')) return;
+    if (
+      !(await confirm({
+        title: 'Excluir contato',
+        description: 'Excluir este contato?',
+        confirmLabel: 'Excluir',
+        variant: 'danger',
+      }))
+    )
+      return;
     try {
       await deleteContact(id);
       toast.success('Contato excluído.');
@@ -408,6 +418,8 @@ export function ContactList() {
       )}
 
       <ContactDetail contactId={detailContactId} onClose={() => setDetailContactId(null)} />
+
+      {dialog}
     </motion.div>
   );
 }

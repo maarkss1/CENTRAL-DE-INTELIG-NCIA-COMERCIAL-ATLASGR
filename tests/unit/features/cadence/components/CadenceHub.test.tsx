@@ -229,7 +229,6 @@ describe('CadenceHub', () => {
         it('encerra a sequência ao confirmar, chama a rota certa e recarrega a lista', async () => {
             mockApiByUrl({ optOuts: [], runs: [], sequences: SEQUENCE_FIXTURE });
             postMock.mockResolvedValue({ ...SEQUENCE_FIXTURE[0], active: false });
-            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
             const user = userEvent.setup();
             render(<CadenceHub />);
 
@@ -238,7 +237,10 @@ describe('CadenceHub', () => {
             });
             await user.click(deactivateButton);
 
-            expect(confirmSpy).toHaveBeenCalled();
+            const dialog = await screen.findByRole('dialog');
+            expect(within(dialog).getByText('Encerrar sequência')).toBeInTheDocument();
+            await user.click(within(dialog).getByRole('button', { name: 'Encerrar' }));
+
             await waitFor(() =>
                 expect(postMock).toHaveBeenCalledWith('/api/cadence/sequences/seq-1/deactivate', {}),
             );
@@ -246,13 +248,11 @@ describe('CadenceHub', () => {
             await waitFor(() =>
                 expect(getMock.mock.calls.filter((c) => c[0] === '/api/cadence/sequences').length).toBeGreaterThan(1),
             );
-
-            confirmSpy.mockRestore();
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
 
         it('não chama a rota de encerrar quando o usuário cancela a confirmação', async () => {
             mockApiByUrl({ optOuts: [], runs: [], sequences: SEQUENCE_FIXTURE });
-            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
             const user = userEvent.setup();
             render(<CadenceHub />);
 
@@ -261,10 +261,11 @@ describe('CadenceHub', () => {
             });
             await user.click(deactivateButton);
 
-            expect(confirmSpy).toHaveBeenCalled();
-            expect(postMock).not.toHaveBeenCalled();
+            const dialog = await screen.findByRole('dialog');
+            await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
 
-            confirmSpy.mockRestore();
+            expect(postMock).not.toHaveBeenCalled();
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
 });

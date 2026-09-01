@@ -8,6 +8,7 @@ import {
   CardContent,
 } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { api } from '../../../lib/api';
 import { contactsDB } from '../../../lib/db';
 import { toast } from '../../../lib/toast';
@@ -28,6 +29,7 @@ function contactLabel(contact: Contact): string {
  * aqui na UI.
  */
 export function DataSubjectRights() {
+  const { confirm, dialog } = useConfirmDialog();
   const [contactSearch, setContactSearch] = useState('');
   const [results, setResults] = useState<Contact[]>([]);
   const [searching, setSearching] = useState(false);
@@ -87,9 +89,12 @@ export function DataSubjectRights() {
   const handleErase = async () => {
     if (!selected) return;
     if (
-      !window.confirm(
-        `Excluir/anonimizar PERMANENTEMENTE os dados de "${selected.name}"? Esta ação não pode ser desfeita e remove o nome, e-mail, telefone e demais dados pessoais deste contato.`,
-      )
+      !(await confirm({
+        title: `Excluir/anonimizar dados de "${selected.name}"`,
+        description: `Excluir/anonimizar PERMANENTEMENTE os dados de "${selected.name}"? Esta ação não pode ser desfeita e remove o nome, e-mail, telefone e demais dados pessoais deste contato.`,
+        confirmLabel: 'Excluir/anonimizar',
+        variant: 'danger',
+      }))
     )
       return;
     setErasing(true);
@@ -210,6 +215,7 @@ export function DataSubjectRights() {
           </pre>
         )}
       </CardContent>
+      {dialog}
     </Card>
   );
 }

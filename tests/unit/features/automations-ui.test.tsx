@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
-import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react';
+import { render as rtlRender, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
@@ -226,16 +226,19 @@ describe('Automações', () => {
                 });
             }),
         );
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
         const user = userEvent.setup();
         render(<Automations />);
 
         const botao = await screen.findByRole('button', { name: /Rodar varredura de estagnação agora/ });
         await user.click(botao);
 
-        expect(confirmSpy).toHaveBeenCalled();
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText('Rodar varredura de estagnação')).toBeTruthy();
+        await user.click(within(dialog).getByRole('button', { name: 'Rodar agora' }));
+
         await waitFor(() => expect(scanCalled).toBe(true));
         await waitFor(() => expect((botao as HTMLButtonElement).disabled).toBe(false));
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('varredura de estagnação: não chama a rota se o ADMIN cancelar a confirmação', async () => {
@@ -251,14 +254,17 @@ describe('Automações', () => {
                 });
             }),
         );
-        vi.spyOn(window, 'confirm').mockReturnValue(false);
         const user = userEvent.setup();
         render(<Automations />);
 
         const botao = await screen.findByRole('button', { name: /Rodar varredura de estagnação agora/ });
         await user.click(botao);
 
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+
         expect(scanCalled).toBe(false);
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('SDR não vê os controles de escrita (criar/editar/excluir/simular/versões) — achado do Piloto 018', async () => {

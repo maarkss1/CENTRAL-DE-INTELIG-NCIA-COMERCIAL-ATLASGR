@@ -200,6 +200,8 @@ describe('Base de Conhecimento', () => {
     });
 
     it('remove documento apenas após confirmação', async () => {
+        // Onda de migração de window.confirm() para o diálogo estilizado (useConfirmDialog):
+        // interage com o diálogo real renderizado pelo componente em vez de mockar window.confirm.
         mockList([documento]);
         let removeCalledWith: string | undefined;
         server.use(
@@ -208,18 +210,24 @@ describe('Base de Conhecimento', () => {
                 return new HttpResponse(null, { status: 204 });
             }),
         );
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
         const user = userEvent.setup();
         render(<Base />);
         await screen.findByText('Playbook de Objeções');
 
         await user.click(screen.getByTitle('Remover documento'));
-        expect(confirmSpy).toHaveBeenCalled();
+        expect(await screen.findByRole('dialog')).toBeTruthy();
+        expect(screen.getByText('Remover documento')).toBeTruthy();
+        expect(
+            screen.getByText('Remover "Playbook de Objeções" da base? Esta ação não pode ser desfeita.'),
+        ).toBeTruthy();
+
+        await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
         expect(removeCalledWith).toBeUndefined();
 
-        confirmSpy.mockReturnValue(true);
         await user.click(screen.getByTitle('Remover documento'));
+        await user.click(screen.getByRole('button', { name: 'Remover' }));
         await waitFor(() => expect(removeCalledWith).toBe('doc-1'));
     });
 

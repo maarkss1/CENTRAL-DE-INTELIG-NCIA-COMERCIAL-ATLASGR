@@ -24,6 +24,7 @@ import { useCompanies } from '../../../hooks/useDatabase';
 import { companiesDB } from '../../../lib/db';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Pagination } from '../../../components/ui/Pagination';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { VirtualTable, type ColumnDef } from '../../../components/ui/VirtualTable';
 import { TechToolLogo, type TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
@@ -38,6 +39,7 @@ export function CompanyList() {
   const [page, setPage] = useState(1);
   const location = useLocation();
   const navigate = useNavigate();
+  const { confirm, dialog } = useConfirmDialog();
 
   // Se o Command Palette navegou aqui com um termo de busca, aplica antes do primeiro fetch.
   // Limpa o state em seguida (replace) pra um F5 nesta tela não reaplicar a mesma busca.
@@ -81,7 +83,15 @@ export function CompanyList() {
   const totalPages = meta?.totalPages ?? 1;
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta empresa?')) return;
+    if (
+      !(await confirm({
+        title: 'Excluir empresa',
+        description: 'Tem certeza que deseja excluir esta empresa?',
+        confirmLabel: 'Excluir',
+        variant: 'danger',
+      }))
+    )
+      return;
     try {
       await deleteCompany(id);
       toast.success('Empresa excluída.');
@@ -762,6 +772,8 @@ export function CompanyList() {
           </div>
         </div>
       )}
+
+      {dialog}
     </div>
   );
 }
