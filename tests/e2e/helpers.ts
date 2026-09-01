@@ -34,8 +34,11 @@ export async function signUp(page: Page, { email, password = E2E_PASSWORD, name 
   await page.addInitScript(() => {
     window.localStorage.setItem('@prospector:has_seen_tour', 'true');
   });
-  await page.goto('/login');
-  await page.getByText('Não possui conta? Registrar Novo Acesso').click();
+  // ?signup=1: o link visível "Registrar Novo Acesso" foi removido da tela (contas são
+  // provisionadas pelo admin), mas o formulário de cadastro real continua existindo — ver
+  // comentário em LoginScreen.tsx. Evita reintroduzir um atalho de API/seed que fugiria do
+  // caminho real que um usuário (ou o próprio LoginScreen em modo de teste) percorre.
+  await page.goto('/login?signup=1');
   await page.getByPlaceholder('Ex: Marcelo Nascimento').fill(resolvedName);
   await page.getByLabel('E-mail:').fill(email);
   await page.getByPlaceholder('••••••••').fill(password);
