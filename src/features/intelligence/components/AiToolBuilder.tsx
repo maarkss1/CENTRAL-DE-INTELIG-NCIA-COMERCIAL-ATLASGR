@@ -53,7 +53,7 @@ export function AiToolBuilder() {
             </p>
           </div>
         </div>
-        <span className="px-3 py-1 bg-orange-50 text-brand text-xs font-black rounded-full border border-orange-200">
+        <span className="px-3 py-1 bg-orange-50 text-brand-active dark:text-brand-2 text-xs font-black rounded-full border border-orange-200">
           AI Engine Studio 2026
         </span>
       </div>

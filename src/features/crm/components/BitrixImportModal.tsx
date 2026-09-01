@@ -284,7 +284,7 @@ export function BitrixImportModal({ isOpen, onClose, onImportSuccess }: BitrixIm
                 <button
                   type="button"
                   onClick={toggleSelectAll}
-                  className="flex items-center gap-2 font-bold text-brand hover:underline"
+                  className="flex items-center gap-2 font-bold text-brand-active dark:text-brand-2 hover:underline"
                 >
                   {selectedIds.size === (entityType === 'lead' ? leads : deals).length ? (
                     <CheckSquare className="w-4 h-4" />
