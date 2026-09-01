@@ -233,6 +233,27 @@ export function CommandPalette() {
           close();
         },
       },
+      {
+        id: 'qa-company',
+        group: 'Ações rápidas',
+        label: 'Nova empresa',
+        icon: Building2,
+        onSelect: () => navigateAndClose('companies', { type: 'open-create' }),
+      },
+      {
+        id: 'qa-contact',
+        group: 'Ações rápidas',
+        label: 'Novo contato',
+        icon: Users,
+        onSelect: () => navigateAndClose('contacts', { type: 'open-create' }),
+      },
+      {
+        id: 'qa-opportunity',
+        group: 'Ações rápidas',
+        label: 'Nova oportunidade',
+        icon: Activity,
+        onSelect: () => navigateAndClose('crm', { type: 'open-create' }),
+      },
     ];
     result.push(...quickActions.filter((a) => !q || normalize(a.label).includes(q)));
 

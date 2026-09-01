@@ -92,6 +92,9 @@ export function ContactList() {
       setInputValue(intent.value);
       setSearchTerm(intent.value);
       navigate(location.pathname, { replace: true, state: null });
+    } else if (intent?.type === 'open-create') {
+      setIsFormOpen(true);
+      navigate(location.pathname, { replace: true, state: null });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
