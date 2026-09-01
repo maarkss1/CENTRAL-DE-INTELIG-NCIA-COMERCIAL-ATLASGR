@@ -593,7 +593,10 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-ink flex items-center gap-1.5">
                           🎯 Lead Score:{' '}
-                          <b className="text-sm font-black text-brand-active dark:text-brand-2">{liveScore.score}</b>/100
+                          <b className="text-sm font-black text-brand-active dark:text-brand-2">
+                            {liveScore.score}
+                          </b>
+                          /100
                         </span>
                         <span className="text-xs font-bold text-ink-2">
                           Classificação:{' '}
