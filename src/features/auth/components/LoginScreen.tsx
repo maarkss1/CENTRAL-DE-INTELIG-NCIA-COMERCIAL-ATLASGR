@@ -304,10 +304,23 @@ export function LoginScreen() {
                   type="button"
                   onClick={() => setActiveBrand(brand)}
                   aria-pressed={activeBrand === brand}
-                  className={`relative z-10 w-28 py-2.5 text-sm font-bold rounded-full transition-colors cursor-pointer ${
+                  className={`relative z-10 flex w-28 items-center justify-center gap-1.5 py-2.5 text-sm font-bold rounded-full transition-colors cursor-pointer ${
                     activeBrand === brand ? 'text-white' : `text-ink-2 hover:${brandAccent.text}`
                   }`}
                 >
+                  {brand === 'atlasgr' ? (
+                    <span
+                      className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${activeBrand === brand ? 'bg-white' : ''}`}
+                    >
+                      <Logo variant="symbol" className="h-3.5 w-3.5" />
+                    </span>
+                  ) : (
+                    <TotalTrackLogo
+                      variant="symbol"
+                      tone={activeBrand === brand ? 'negative' : 'positive'}
+                      className="h-4 w-4 shrink-0"
+                    />
+                  )}
                   {BRAND_CONFIGS[brand].name}
                 </button>
               ))}
