@@ -18,6 +18,7 @@ import {
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
@@ -81,6 +82,7 @@ function formatDate(iso: string) {
 export function Base() {
   const accent = useBrandAccent();
   const { currentUser } = useAuth();
+  const { confirm, dialog } = useConfirmDialog();
   // POST/PUT/reembed/generate-faq exigem ADMIN/GESTOR/CLOSER/SDR no backend (`writeRoles` em
   // `knowledge.routes.ts`); DELETE é mais restrito (só ADMIN/GESTOR). Nenhuma dessas ações era
   // escondida por papel — um VISUALIZADOR via todos os controles habilitados e só descobria a
@@ -269,7 +271,14 @@ export function Base() {
 
   const handleDelete = useCallback(
     async (doc: KnowledgeDocumentSummary) => {
-      if (!window.confirm(`Remover "${doc.title}" da base? Esta ação não pode ser desfeita.`))
+      if (
+        !(await confirm({
+          title: 'Remover documento',
+          description: `Remover "${doc.title}" da base? Esta ação não pode ser desfeita.`,
+          confirmLabel: 'Remover',
+          variant: 'danger',
+        }))
+      )
         return;
       setBusyDocId(doc.id);
       try {
@@ -286,7 +295,7 @@ export function Base() {
         setBusyDocId(null);
       }
     },
-    [loadDocuments],
+    [loadDocuments, confirm],
   );
 
   const handleReembed = useCallback(async (doc: KnowledgeDocumentSummary) => {
@@ -759,6 +768,8 @@ export function Base() {
           </Card>
         </div>
       )}
+
+      {dialog}
     </div>
   );
 }

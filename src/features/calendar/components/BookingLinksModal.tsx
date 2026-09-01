@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Link2, Plus, Copy, Trash2, Loader2, Check, Globe } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 interface BookingLink {
   id: string;
@@ -59,6 +60,7 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
   const [creating, setCreating] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirmDialog();
 
   const [form, setForm] = useState({
     title: 'Demonstração de Telemetria e Rastreamento',
@@ -107,7 +109,15 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir este link de agendamento?')) return;
+    if (
+      !(await confirm({
+        title: 'Excluir link de agendamento',
+        description: 'Excluir este link de agendamento?',
+        confirmLabel: 'Excluir',
+        variant: 'danger',
+      }))
+    )
+      return;
     try {
       await api.delete(`/api/calendar/booking-links/${id}`);
       toast.success('Link excluído');
@@ -379,6 +389,7 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
           </button>
         </div>
       </div>
+      {dialog}
     </div>
   );
 }

@@ -53,9 +53,10 @@ test.describe('Cadência — UI de escrita (criar sequência, iniciar/pausar/ret
     await runRow.getByRole('button', { name: `Retomar cadência do lead ${leadId}` }).click();
     await expect(runRow.getByText('Ativa', { exact: true })).toBeVisible();
 
-    // Parar — irreversível, exige confirmação (window.confirm)
-    page.once('dialog', (dialog) => dialog.accept());
+    // Parar — irreversível, exige confirmação (diálogo real via useConfirmDialog, não
+    // window.confirm nativo).
     await runRow.getByRole('button', { name: `Parar cadência do lead ${leadId}` }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Parar' }).click();
 
     // O filtro padrão da tela mostra só Ativa+Pausada (evita listar todo o histórico morto por
     // padrão) — um run recém-parado só reaparece depois de ativar o filtro "Encerrada".
@@ -90,8 +91,8 @@ test.describe('Cadência — UI de escrita (criar sequência, iniciar/pausar/ret
     const runRow = page.locator('tr', { has: page.locator(`[title="${leadId}"]`) });
     await expect(runRow.getByText('Ativa', { exact: true })).toBeVisible();
 
-    page.once('dialog', (dialog) => dialog.dismiss());
     await runRow.getByRole('button', { name: `Parar cadência do lead ${leadId}` }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
     await expect(runRow.getByText('Ativa', { exact: true })).toBeVisible();
   });
 });

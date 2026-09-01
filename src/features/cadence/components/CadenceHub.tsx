@@ -23,6 +23,7 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Button } from '../../../components/ui/Button';
 import { Dialog } from '../../../components/ui/Dialog';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { toast } from '../../../lib/toast';
 import { leadsDB } from '../../../lib/db';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -397,6 +398,16 @@ function CadenceRunActions({
   onScheduleMeeting: () => void;
 }) {
   const [pending, setPending] = useState<'pause' | 'resume' | 'stop' | null>(null);
+  const { confirm, dialog } = useConfirmDialog();
+
+  const confirmStop = () =>
+    confirm({
+      title: 'Parar cadência',
+      description:
+        'Parar esta cadência? Diferente de pausar, uma cadência parada não pode ser retomada.',
+      confirmLabel: 'Parar',
+      variant: 'danger',
+    });
 
   const scheduleButton = (
     <button
@@ -443,13 +454,8 @@ function CadenceRunActions({
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (
-              !window.confirm(
-                'Parar esta cadência? Diferente de pausar, uma cadência parada não pode ser retomada.',
-              )
-            )
-              return;
+          onClick={async () => {
+            if (!(await confirmStop())) return;
             void runAction('stop', () => cadenceApi.stopRun(run.id), 'Cadência parada.');
           }}
           disabled={pending !== null}
@@ -459,6 +465,7 @@ function CadenceRunActions({
         >
           <Square className="w-3.5 h-3.5" />
         </button>
+        {dialog}
       </div>
     );
   }
@@ -481,13 +488,8 @@ function CadenceRunActions({
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (
-              !window.confirm(
-                'Parar esta cadência? Diferente de pausar, uma cadência parada não pode ser retomada.',
-              )
-            )
-              return;
+          onClick={async () => {
+            if (!(await confirmStop())) return;
             void runAction('stop', () => cadenceApi.stopRun(run.id), 'Cadência parada.');
           }}
           disabled={pending !== null}
@@ -497,6 +499,7 @@ function CadenceRunActions({
         >
           <Square className="w-3.5 h-3.5" />
         </button>
+        {dialog}
       </div>
     );
   }
@@ -808,6 +811,7 @@ function SequencesSection({ canManage }: { canManage: boolean }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirmDialog();
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -827,9 +831,12 @@ function SequencesSection({ canManage }: { canManage: boolean }) {
 
   const handleDeactivate = async (sequence: CadenceSequenceDTO) => {
     if (
-      !window.confirm(
-        `Encerrar a sequência "${sequence.name}"? Ela deixa de poder ser escolhida para novas cadências — execuções já em andamento não são afetadas.`,
-      )
+      !(await confirm({
+        title: 'Encerrar sequência',
+        description: `Encerrar a sequência "${sequence.name}"? Ela deixa de poder ser escolhida para novas cadências — execuções já em andamento não são afetadas.`,
+        confirmLabel: 'Encerrar',
+        variant: 'danger',
+      }))
     )
       return;
     setDeactivatingId(sequence.id);
@@ -947,6 +954,7 @@ function SequencesSection({ canManage }: { canManage: boolean }) {
           </table>
         </div>
       )}
+      {dialog}
     </Card>
   );
 }

@@ -16,6 +16,7 @@ import {
 import { api } from '../../../lib/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { toast } from '../../../lib/toast';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 interface TeamMember {
   id: string;
@@ -54,6 +55,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function Team() {
   const { currentUser } = useAuth();
+  const { confirm, dialog } = useConfirmDialog();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [assignableRoles, setAssignableRoles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -124,11 +126,14 @@ export function Team() {
   const handleResetPassword = async (member: TeamMember) => {
     const isSelf = member.id === currentUser?.id;
     if (
-      !window.confirm(
-        isSelf
+      !(await confirm({
+        title: isSelf ? 'Redefinir sua própria senha' : `Redefinir a senha de ${member.name}`,
+        description: isSelf
           ? 'Redefinir a sua própria senha? Sua sessão atual será encerrada e você vai precisar entrar de novo com a senha temporária gerada agora.'
           : `Redefinir a senha de ${member.name}? O acesso atual dela(e) para de funcionar imediatamente — só volta a entrar com a senha temporária que você vai copiar agora.`,
-      )
+        confirmLabel: 'Redefinir senha',
+        variant: 'danger',
+      }))
     )
       return;
     setResettingId(member.id);
@@ -167,9 +172,12 @@ export function Team() {
 
   const handleDelete = async (member: TeamMember) => {
     if (
-      !window.confirm(
-        `Remover o acesso de ${member.name} (${member.email})? Essa ação não pode ser desfeita.`,
-      )
+      !(await confirm({
+        title: `Remover ${member.name}`,
+        description: `Remover o acesso de ${member.name} (${member.email})? Essa ação não pode ser desfeita.`,
+        confirmLabel: 'Remover acesso',
+        variant: 'danger',
+      }))
     )
       return;
     setDeletingId(member.id);
@@ -471,6 +479,7 @@ export function Team() {
           )}
         </div>
       </div>
+      {dialog}
     </div>
   );
 }

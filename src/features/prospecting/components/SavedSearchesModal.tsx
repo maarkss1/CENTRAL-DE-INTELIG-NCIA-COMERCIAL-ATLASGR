@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Bookmark, Play, Trash2, X, Plus, Calendar, Sparkles, Loader2 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import { toast } from '../../../lib/toast.js';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import type { ProspectCandidate } from '../domain/prospectTypes.js';
 
 export interface SavedSearchItem {
@@ -43,6 +44,7 @@ export function SavedSearchesModal({
   const [newName, setNewName] = useState('');
   const [newSchedule, setNewSchedule] = useState<'none' | 'daily' | 'weekly'>('none');
   const [creating, setCreating] = useState(false);
+  const { confirm, dialog } = useConfirmDialog();
 
   const loadSearches = async () => {
     try {
@@ -86,7 +88,15 @@ export function SavedSearchesModal({
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Excluir esta busca salva?')) return;
+    if (
+      !(await confirm({
+        title: 'Excluir busca salva',
+        description: 'Excluir esta busca salva?',
+        confirmLabel: 'Excluir',
+        variant: 'danger',
+      }))
+    )
+      return;
     try {
       await api.delete(`/api/prospecting/saved-searches/${id}`);
       toast.success('Busca removida');
@@ -288,6 +298,8 @@ export function SavedSearchesModal({
           </button>
         </div>
       </div>
+
+      {dialog}
     </div>
   );
 }

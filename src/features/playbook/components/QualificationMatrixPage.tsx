@@ -17,6 +17,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Pagination } from '../../../components/ui/Pagination';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { playbookApi, type PlaybookListMeta, type QualificationMatrixItem } from '../playbook.api';
 import { QualificationItemForm } from './QualificationItemForm';
 import { clientLogger } from '../../../lib/clientLogger';
@@ -33,6 +34,7 @@ export function QualificationMatrixPage() {
   // um 403 sem explicação ao clicar — achado do Piloto 017. Mesmo padrão já usado em
   // Integrations.tsx/BitrixSyncRulesPanel.tsx.
   const canDelete = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
+  const { confirm, dialog } = useConfirmDialog();
   const [items, setItems] = useState<QualificationMatrixItem[]>([]);
   const [meta, setMeta] = useState<PlaybookListMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,7 +109,15 @@ export function QualificationMatrixPage() {
   };
 
   const handleDelete = async (item: QualificationMatrixItem) => {
-    if (!confirm('Excluir esta pergunta da matriz?')) return;
+    if (
+      !(await confirm({
+        title: 'Excluir pergunta',
+        description: 'Excluir esta pergunta da matriz?',
+        confirmLabel: 'Excluir',
+        variant: 'danger',
+      }))
+    )
+      return;
     try {
       await playbookApi.deleteQualification(item.id);
       toast.success('Pergunta excluída.');
@@ -332,6 +342,8 @@ export function QualificationMatrixPage() {
           }}
         />
       )}
+
+      {dialog}
     </div>
   );
 }

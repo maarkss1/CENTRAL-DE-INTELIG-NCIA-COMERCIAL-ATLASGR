@@ -14,6 +14,7 @@ import {
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
@@ -41,6 +42,7 @@ const KIND_STYLE: Record<NotificationKind, { icon: typeof Info; color: string }>
 export function Notifications() {
   const accent = useBrandAccent();
   const { currentUser } = useAuth();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   // DELETE de uma notificação broadcast (userId: null, "para toda a organização") agora exige
   // ADMIN/GESTOR no backend — antes qualquer usuário podia apagar um alerta de equipe antes dos
   // outros verem (achado real do Piloto 021, não um desalinhamento de UI vs backend comum: a
@@ -103,22 +105,31 @@ export function Notifications() {
     }
   }, [load, onlyUnread]);
 
-  const remove = useCallback(async (item: NotificationItem) => {
-    // Excluir é irreversível (diferente de marcar como lida) — nenhum outro achado deste piloto
-    // mudou isso, mas o próprio módulo nunca teve confirmação nenhuma antes de apagar, ao
-    // contrário do restante do app (achado do Piloto 021).
-    if (!window.confirm(`Excluir a notificação "${item.title}"?`)) return;
-    setBusyId(item.id);
-    try {
-      await notificationsApi.remove(item.id);
-      setItems((prev) => prev.filter((n) => n.id !== item.id));
-      if (!item.readAt) setUnread((u) => Math.max(0, u - 1));
-    } catch (err) {
-      toast.error((err as Error).message);
-    } finally {
-      setBusyId(null);
-    }
-  }, []);
+  const remove = useCallback(
+    async (item: NotificationItem) => {
+      // Excluir é irreversível (diferente de marcar como lida) — nenhum outro achado deste piloto
+      // mudou isso, mas o próprio módulo nunca teve confirmação nenhuma antes de apagar, ao
+      // contrário do restante do app (achado do Piloto 021).
+      const confirmed = await confirm({
+        title: 'Excluir notificação',
+        description: `Excluir a notificação "${item.title}"?`,
+        confirmLabel: 'Excluir',
+        variant: 'danger',
+      });
+      if (!confirmed) return;
+      setBusyId(item.id);
+      try {
+        await notificationsApi.remove(item.id);
+        setItems((prev) => prev.filter((n) => n.id !== item.id));
+        if (!item.readAt) setUnread((u) => Math.max(0, u - 1));
+      } catch (err) {
+        toast.error((err as Error).message);
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [confirm],
+  );
 
   return (
     <div className="flex-1 overflow-y-auto bg-transparent p-8">
@@ -279,6 +290,8 @@ export function Notifications() {
           })}
         </div>
       </div>
+
+      {confirmDialog}
     </div>
   );
 }
