@@ -29,7 +29,7 @@ import {
   scheduleDeduplicationJob,
 } from '../features/crm/jobs/deduplication.worker.js';
 import {
-  accountIntelligenceSchedulerWorker,
+  createAccountIntelligenceSchedulerWorker,
   accountIntelligenceSchedulerQueue,
 } from '../features/market-intelligence/jobs/accountIntelligenceScheduler.worker.js';
 import {
@@ -112,7 +112,7 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
     coldLeadsScannerWorker: embeddedWorkersEnabled ? createColdLeadsScannerWorker() : null,
     stagnationScannerWorker: embeddedWorkersEnabled ? createStagnationScannerWorker() : null,
     accountIntelligenceSchedulerWorker: embeddedWorkersEnabled
-      ? accountIntelligenceSchedulerWorker
+      ? createAccountIntelligenceSchedulerWorker()
       : null,
     searchWorker: null,
     coldCallWorker: null,
