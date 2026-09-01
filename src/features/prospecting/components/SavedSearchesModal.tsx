@@ -147,7 +147,7 @@ export function SavedSearchesModal({
           {!showCreateForm ? (
             <button
               onClick={() => setShowCreateForm(true)}
-              className="w-full py-3 px-4 rounded-2xl border-2 border-dashed border-line hover:border-brand/40 text-sm font-bold text-brand flex items-center justify-center gap-2 hover:bg-brand/5 transition-all"
+              className="w-full py-3 px-4 rounded-2xl border-2 border-dashed border-line hover:border-brand/40 text-sm font-bold text-brand-active dark:text-brand-2 flex items-center justify-center gap-2 hover:bg-brand/5 transition-all"
             >
               <Plus size={18} /> Salvar Filtro Atual como Nova Lista
             </button>

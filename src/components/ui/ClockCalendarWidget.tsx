@@ -181,7 +181,7 @@ export function ClockCalendarWidget() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-extrabold text-ink-2">{evt.time}</span>
-                    <span className="text-[9px] px-2 py-0.5 rounded font-bold border bg-soft text-brand border-brand/20">
+                    <span className="text-[9px] px-2 py-0.5 rounded font-bold border bg-soft text-brand-active dark:text-brand-2 border-brand/20">
                       {evt.badge}
                     </span>
                   </div>
