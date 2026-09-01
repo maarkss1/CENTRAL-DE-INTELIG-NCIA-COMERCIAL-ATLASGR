@@ -28,6 +28,13 @@ export interface TeamMember {
    * antes do Piloto 024. `null`/data passada = não bloqueado. */
   lockedUntil: Date | null;
   failedLoginAttempts: number;
+  /** `emailVerified`, `image`, `bitrixUserId` e `updatedAt` são campos reais do model `User` que
+   * já existiam no schema mas nunca eram selecionados nem exibidos em nenhuma tela do módulo Team
+   * (achado fora de escopo documentado no Piloto 024, corrigido aqui). */
+  emailVerified: boolean;
+  image: string | null;
+  bitrixUserId: number | null;
+  updatedAt: Date;
 }
 
 const TEAM_MEMBER_SELECT = {
@@ -39,6 +46,10 @@ const TEAM_MEMBER_SELECT = {
   createdAt: true,
   lockedUntil: true,
   failedLoginAttempts: true,
+  emailVerified: true,
+  image: true,
+  bitrixUserId: true,
+  updatedAt: true,
 } as const;
 
 export async function listTeamMembers(organizationId: string): Promise<TeamMember[]> {

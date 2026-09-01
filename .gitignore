@@ -69,3 +69,6 @@ __pycache__/
 # Worktrees isoladas criadas pelo harness do Claude Code para agentes em background
 # (isolation: "worktree") — estado de trabalho local, nunca conteúdo do repositório.
 .claude/worktrees/
+
+*storybook.log
+storybook-static

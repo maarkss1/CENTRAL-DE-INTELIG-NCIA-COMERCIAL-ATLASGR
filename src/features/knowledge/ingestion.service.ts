@@ -195,6 +195,15 @@ export class IngestionService {
     const allChunks = chunkText(content);
     if (allChunks.length === 0) throw new Error('Não foi possível extrair texto deste conteúdo.');
     const chunks = allChunks.slice(0, MAX_CHUNKS_PER_DOCUMENT);
+    if (allChunks.length > chunks.length) {
+      // Mesmo aviso de `ingestText` — reindexar um documento editado pode truncar tanto quanto
+      // ingerir um novo, e sem isso `metadata.truncated` ficaria desatualizado depois de uma
+      // edição (bandeira ficaria acesa ou apagada incorretamente na UI).
+      logger.warn(
+        { documentId, total: allChunks.length, kept: chunks.length },
+        'Documento excedeu o limite de trechos na reindexação; o excedente foi descartado',
+      );
+    }
 
     const vectorReady = await hasVectorSupport();
     const embeddings = vectorReady
@@ -237,7 +246,19 @@ export class IngestionService {
 
     const updated = await prisma.document.update({
       where: { id: documentId },
-      data: { title, content, chunkCount: chunks.length, version: { increment: 1 } },
+      data: {
+        title,
+        content,
+        chunkCount: chunks.length,
+        version: { increment: 1 },
+        // Recalcula (em vez de deixar o valor gravado na ingestão original) para não sobrar um
+        // aviso de truncamento obsoleto — ou, pior, silenciar um truncamento novo que só aconteceu
+        // agora na reindexação.
+        metadata: {
+          originalChunkCount: allChunks.length,
+          truncated: allChunks.length > chunks.length,
+        },
+      },
     });
 
     logger.info({ documentId, chunks: chunks.length }, 'Documento reindexado');
@@ -260,6 +281,10 @@ export class IngestionService {
         version: true,
         createdAt: true,
         updatedAt: true,
+        // `metadata.truncated` é gravado na ingestão (ver `ingestText`/`updateDocument` abaixo) mas
+        // nunca tinha sido selecionado pra listagem — a UI não tinha como avisar quando um
+        // documento grande perdeu conteúdo silenciosamente (achado do Piloto 019).
+        metadata: true,
       },
     });
   }

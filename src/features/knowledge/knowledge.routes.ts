@@ -416,7 +416,11 @@ router.post(
         prompt = `Reescreva o seguinte texto focando nas DORES do cliente, usando a metodologia SPIN Selling (Situação, Problema, Implicação, Necessidade de solução):\n\n"${text}"`;
       }
 
-      const model = getAiModel('groq-llama3-70b', 0.7, 'knowledge-editor');
+      // Reescrita/paráfrase de um texto já fornecido pelo usuário — não exige o modelo de
+      // raciocínio "grande" (LOCAL_MODEL), só transformação de texto. Chamada síncrona que
+      // bloqueia a UI (usuário esperando no editor), então o modelo rápido reduz a latência
+      // percebida sem perda de qualidade real nessa tarefa.
+      const model = getAiModel('local-llama3-fast', 0.7, 'knowledge-editor');
       const aiResponse = await model.invoke([new HumanMessage(prompt)]);
 
       res.json({ success: true, result: aiResponse.content });
@@ -446,7 +450,9 @@ router.post(
         return;
       }
 
-      const model = getAiModel('groq-llama3-70b', 0.3, 'knowledge-faq');
+      // Mesmo raciocínio do editor-assist acima: extração de Q&A de um texto já fornecido,
+      // chamada síncrona bloqueando a UI — modelo rápido, sem perda de qualidade real.
+      const model = getAiModel('local-llama3-fast', 0.3, 'knowledge-faq');
       const prompt = `Você é um assistente criador de FAQs para time de vendas.
 Baseado EXCLUSIVAMENTE no texto abaixo (extraído do documento "${document.title}"), gere um FAQ (Perguntas e Respostas Frequentes) cobrindo os pontos mais importantes, principais dúvidas, preços, requisitos ou features citadas.
 Formate a resposta em Markdown claro, com "## Pergunta" e o texto da resposta abaixo.

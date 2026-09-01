@@ -53,6 +53,9 @@ export function QueueList({ queue }: QueueListProps) {
                 <span className="text-xs text-ink-2">{lead.daysSinceTouch}d sem toque</span>
               )}
             </div>
+            {lead.owner && (
+              <p className="text-xs text-ink-2 mt-1 truncate">Responsável: {lead.owner}</p>
+            )}
           </div>
         ))}
       </div>

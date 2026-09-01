@@ -2,7 +2,7 @@ import { ChevronRight, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { hasRequiredRole } from '../../lib/auth/authorization';
+import { hasRequiredRole, MESA_TRATAMENTO_ROLES } from '../../lib/auth/authorization';
 import { Logo } from '../Logo';
 import { TotalTrackLogo } from '../TotalTrackLogo';
 import { TAB_META, type TabType } from './tabMeta';
@@ -35,6 +35,12 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
   // mesmo gate (RequireRole), corrigido no Piloto 022 (ver App.tsx).
   const canManageOperations =
     !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
+  // Mesa de Tratamento (fila SDR) exige ADMIN/GESTOR/CLOSER/SDR no backend
+  // (mesaTratamento.routes.ts) — só VISUALIZADOR fica de fora. Antes desta correção o item era
+  // incondicional no grupo "Qualificar" (achado do Piloto 026: VISUALIZADOR via o item, navegava
+  // até a rota e só recebia um 403 dentro da tela real).
+  const canAccessMesaTratamento =
+    !!currentUser && hasRequiredRole(currentUser.role, MESA_TRATAMENTO_ROLES);
 
   const selectTab = (tab: TabType) => {
     navigate(`/app/${tab}`);
@@ -63,7 +69,12 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     { title: 'Captar', items: ['prospect', 'market-intelligence'] },
     {
       title: 'Qualificar',
-      items: ['companies', 'contacts', 'mesa-tratamento', 'qualification_matrix'],
+      items: [
+        'companies',
+        'contacts',
+        ...(canAccessMesaTratamento ? (['mesa-tratamento'] as TabType[]) : []),
+        'qualification_matrix',
+      ],
     },
     { title: 'Relacionar', items: ['activities', 'calendar', 'cadence'] },
     { title: 'Fechar', items: ['crm', 'crm360', 'propostas'] },

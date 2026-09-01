@@ -233,7 +233,7 @@ export function Editor() {
                     key={d.id}
                     type="button"
                     onClick={() => setSelectedId(d.id)}
-                    aria-current={selectedId === d.id}
+                    aria-current={selectedId === d.id ? 'true' : undefined}
                     className={`text-left px-2 py-1.5 rounded-lg transition-colors ${
                       selectedId === d.id
                         ? `${accent.bgSoft} ${accent.text}`

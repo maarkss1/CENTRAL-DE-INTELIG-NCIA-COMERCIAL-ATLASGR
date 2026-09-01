@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  Calendar,
   Check,
   Copy,
   Filter,
@@ -16,10 +17,14 @@ import { useBrand } from '../../../contexts/BrandContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { playbookApi, type ObjectionMatrixItem } from '../playbook.api';
+import { Pagination } from '../../../components/ui/Pagination';
+import { playbookApi, type ObjectionMatrixItem, type PlaybookListMeta } from '../playbook.api';
 import { ObjectionItemForm } from './ObjectionItemForm';
 import { clientLogger } from '../../../lib/clientLogger';
 import { toast } from '../../../lib/toast';
+
+// Mesmo tamanho de página usado em CompanyList/ContactList (via Pagination compartilhado).
+const PAGE_SIZE = 20;
 
 export function ObjectionsMatrixPage() {
   const { activeBrand, brandInfo } = useBrand();
@@ -28,6 +33,7 @@ export function ObjectionsMatrixPage() {
   // botão "Excluir" aparecia pra qualquer papel.
   const canDelete = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
   const [items, setItems] = useState<ObjectionMatrixItem[]>([]);
+  const [meta, setMeta] = useState<PlaybookListMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +41,11 @@ export function ObjectionsMatrixPage() {
   const [selectedPersona, setSelectedPersona] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // Corrige um bug latente (Piloto 017): os use cases de application/ sempre buscavam page=1,
+  // limit=200 fixos — organizações com mais de 200 objeções cadastradas numa marca perdiam os
+  // itens excedentes em silêncio, sem erro nem indicação. Agora a página é real e controlada
+  // pela UI, com `meta.totalPages` vindo do backend.
+  const [page, setPage] = useState(1);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ObjectionMatrixItem | null>(null);
@@ -43,8 +54,11 @@ export function ObjectionsMatrixPage() {
     setLoading(true);
     setError(null);
     playbookApi
-      .listObjections(activeBrand)
-      .then(setItems)
+      .listObjectionsPage({ brand: activeBrand, page, limit: PAGE_SIZE })
+      .then((res) => {
+        setItems(res.data);
+        setMeta(res.meta);
+      })
       .catch((err) => {
         clientLogger.error({ err }, 'Falha ao carregar Matriz de Objeções');
         setError(err instanceof Error ? err.message : 'Falha ao carregar a matriz.');
@@ -52,7 +66,12 @@ export function ObjectionsMatrixPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [activeBrand]);
+  // Trocar de marca reseta pra página 1 (a página atual pode não existir na outra marca).
+  useEffect(() => {
+    setPage(1);
+  }, [activeBrand]);
+
+  useEffect(load, [activeBrand, page]);
 
   const segments = useMemo(
     () => Array.from(new Set(items.map((item) => item.segment))).sort(),
@@ -101,9 +120,10 @@ export function ObjectionsMatrixPage() {
               <Shield className="text-brand" size={32} /> Matriz de Objeções
             </h1>
             <p className="text-ink-2 text-sm font-medium">
-              {items.length} objeç{items.length !== 1 ? 'ões' : 'ão'} mapeada
-              {items.length !== 1 ? 's' : ''} para {brandInfo.name} com script de contorno
-              recomendado e diferencial-chave.
+              {meta?.total ?? items.length} objeç{(meta?.total ?? items.length) !== 1 ? 'ões' : 'ão'}{' '}
+              mapeada
+              {(meta?.total ?? items.length) !== 1 ? 's' : ''} para {brandInfo.name} com script de
+              contorno recomendado e diferencial-chave.
             </p>
           </div>
           <button
@@ -261,9 +281,33 @@ export function ObjectionsMatrixPage() {
                   <p className="text-xs text-warning-active dark:text-warning font-bold">
                     💡 Diferencial-chave: {item.keyDifferentiator}
                   </p>
+
+                  {/* createdAt/updatedAt já vinham da API mas não eram exibidos em nenhuma tela —
+                      achado do Piloto 017. Exibição discreta, mesmo padrão de KanbanCard.tsx
+                      (ícone + texto pequeno em text-ink-2); título nativo (tooltip) mostra a data
+                      completa de criação sem precisar de mais um elemento visual. */}
+                  <div
+                    className="flex items-center gap-1.5 text-[11px] text-ink-2 pt-1"
+                    title={`Criado em ${new Date(item.createdAt).toLocaleString('pt-BR')}`}
+                  >
+                    <Calendar className="w-3 h-3 shrink-0" />
+                    Atualizado em {new Date(item.updatedAt).toLocaleDateString('pt-BR')}
+                  </div>
                 </div>
               ))
             )}
+          </div>
+        )}
+
+        {!loading && !error && (meta?.totalPages ?? 1) > 1 && (
+          <div className="bg-surface/80 rounded-2xl border border-line overflow-hidden">
+            <Pagination
+              page={page}
+              totalPages={meta?.totalPages ?? 1}
+              onPageChange={setPage}
+              totalItems={meta?.total}
+              itemLabel="objeções"
+            />
           </div>
         )}
       </div>

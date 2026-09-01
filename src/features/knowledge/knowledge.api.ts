@@ -3,6 +3,17 @@ import type { IngestResult } from '../../shared/contracts/ingestion.contract';
 
 export type { IngestResult };
 
+/**
+ * Metadados gravados na ingestão/reindexação (`ingestion.service.ts`). `truncated` é verdadeiro
+ * quando o documento excedeu `MAX_CHUNKS_PER_DOCUMENT` e parte do conteúdo NÃO foi indexada — sinal
+ * de segurança de dado que precisa ficar visível na UI (achado do Piloto 019), não só nos logs do
+ * servidor.
+ */
+export interface KnowledgeDocumentMetadata {
+  originalChunkCount?: number;
+  truncated?: boolean;
+}
+
 export interface KnowledgeDocumentSummary {
   id: string;
   title: string;
@@ -13,6 +24,7 @@ export interface KnowledgeDocumentSummary {
   version: number;
   createdAt: string;
   updatedAt: string;
+  metadata?: KnowledgeDocumentMetadata | null;
 }
 
 /** Documento completo, com o conteúdo — só vem de `GET /:id`, nunca da listagem. */

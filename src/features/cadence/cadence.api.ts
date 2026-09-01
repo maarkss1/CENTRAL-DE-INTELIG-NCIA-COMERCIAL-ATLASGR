@@ -52,6 +52,11 @@ export interface CadenceTouchAttemptDTO {
   result: CadenceTouchResult;
   skipReason?: CadenceSkipReason;
   error?: string | null;
+  /** Id da mensagem devolvido pelo provedor (WhatsApp/e-mail) quando `result === 'sent'` — já
+   * vinha do backend (`domain/cadence.ts::CadenceTouchAttempt.providerMessageId`), mas nunca era
+   * tipado nem exibido aqui (achado do Piloto 016). Correlação para suporte/depuração, nem toda
+   * tentativa tem um. */
+  providerMessageId?: string | null;
 }
 
 export interface CadenceRunDTO {

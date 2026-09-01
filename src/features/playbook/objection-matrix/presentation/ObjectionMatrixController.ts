@@ -9,7 +9,9 @@ export class ObjectionMatrixController {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
       const brand = typeof req.query.brand === 'string' ? req.query.brand : undefined;
-      const result = await this.useCases.findItems(orgId, brand);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 200;
+      const result = await this.useCases.findItems(orgId, brand, page, limit);
       res.json({ success: true, data: result.data, meta: result.meta });
     } catch (error) {
       next(error);

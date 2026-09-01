@@ -5,6 +5,7 @@ import { birthVoiceWebhookRoutes } from '../features/integrations/birth-voice/bi
 import { voiceResultWebhookRoutes } from '../features/integrations/birth-voice/voiceResult.webhook.js';
 import { bitrixWebhookRoutes } from '../features/integrations/bitrix/bitrix.webhook.js';
 import { threecxWebhookRouter } from '../features/integrations/threecx/threecx.routes.js';
+import { chatwootWebhookRoutes } from '../features/integrations/chatwoot/chatwoot.webhook.js';
 import { crm360PublicRoutes } from '../features/crm360/routes/crm360Public.routes.js';
 
 /**
@@ -35,6 +36,10 @@ export function mountPreJsonWebhooks(app: Express): void {
   // — é o modelo de autenticação real que o Bitrix24 usa pra esse tipo de webhook (ver
   // bitrix.webhook.ts). Parser próprio (urlencoded, não json) porque o Bitrix envia form-encoded.
   app.use('/api/integrations/bitrix', bitrixWebhookRoutes);
+  // Webhook de ENTRADA do Chatwoot (OS-6) — mesmo esquema HMAC fail-closed dos webhooks acima,
+  // só que sobre "{timestamp}.{corpo cru}" (ver chatwoot.helpers.ts). Hoje só loga o evento
+  // autenticado; sincronização com o CRM é decisão de produto ainda não tomada.
+  app.use('/api/integrations/chatwoot', chatwootWebhookRoutes);
 
   // CYC-005 (onda 25): visualização pública de proposta comercial. Quem abre o link é o
   // cliente/lead, sem conta no sistema — não passa por authenticateToken. O publicToken (uuid,

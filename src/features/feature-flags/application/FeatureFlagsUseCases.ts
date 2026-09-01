@@ -65,6 +65,8 @@ export class FeatureFlagsUseCases {
       description: flag.description,
       enabled: flag.organizationOverride ? flag.organizationOverride.enabled : flag.enabled,
       isOverridden: Boolean(flag.organizationOverride),
+      updatedByUserId: flag.organizationOverride?.updatedByUserId ?? undefined,
+      updatedAt: flag.organizationOverride?.updatedAt ?? undefined,
     }));
   }
 

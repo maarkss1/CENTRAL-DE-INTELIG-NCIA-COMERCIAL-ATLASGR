@@ -19,6 +19,9 @@ export interface UserSession {
   permissions: string[];
   avatarBg: string;
   mustChangePassword: boolean;
+  /** Avatar do usuário (User.image no schema) — já gravado no backend, opcional. Consumidores
+   *  devem sempre ter um fallback (iniciais) para quando for null/undefined. */
+  image?: string | null;
 }
 
 interface AuthContextType {
@@ -85,6 +88,7 @@ interface SessionUser {
   email: string;
   role?: string;
   mustChangePassword?: boolean;
+  image?: string | null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -109,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           permissions,
           avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500',
           mustChangePassword: !!sessionUser.mustChangePassword,
+          image: sessionUser.image ?? null,
         };
       })()
     : null;

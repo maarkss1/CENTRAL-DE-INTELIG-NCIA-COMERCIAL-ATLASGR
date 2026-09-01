@@ -18,6 +18,21 @@ function haltedLabel(haltedBy: string | null): string | null {
   return null;
 }
 
+type SkipReasonKey =
+  | 'skippedMaxAttempts'
+  | 'skippedCooldown'
+  | 'skippedNoPhone'
+  | 'skippedSuppressed'
+  | 'skippedError';
+
+const SKIP_REASON_LABELS: Array<{ key: SkipReasonKey; label: string }> = [
+  { key: 'skippedMaxAttempts', label: 'limite de tentativas' },
+  { key: 'skippedCooldown', label: 'em cooldown' },
+  { key: 'skippedNoPhone', label: 'sem telefone' },
+  { key: 'skippedSuppressed', label: 'suprimido' },
+  { key: 'skippedError', label: 'erro' },
+];
+
 /**
  * Visibilidade para a campanha de discagem fria (coldCall.service.ts) — até aqui ela só existia
  * em variável de ambiente e log; ninguém na operação tinha como ver se estava ligada, nem o que
@@ -116,26 +131,38 @@ export function ColdCallStatusCard() {
                 run.skippedNoPhone +
                 run.skippedSuppressed +
                 run.skippedError;
+              const skipReasons = SKIP_REASON_LABELS.filter(({ key }) => run[key] > 0);
               const when = new Date(run.runAt);
               return (
                 <div
                   key={run.id}
-                  className="flex items-center justify-between gap-3 text-xs text-ink-2 bg-surface-2 rounded-lg px-3 py-2"
+                  className="text-xs text-ink-2 bg-surface-2 rounded-lg px-3 py-2 space-y-1"
                 >
-                  <div className="flex items-center gap-2 shrink-0">
-                    <CircleDot className="w-3 h-3 text-ink-2" />
-                    <span className="text-ink-2 font-medium">
-                      {DIAS[when.getDay()]} {when.toLocaleDateString('pt-BR')}{' '}
-                      {when.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <CircleDot className="w-3 h-3 text-ink-2" />
+                      <span className="text-ink-2 font-medium">
+                        {DIAS[when.getDay()]} {when.toLocaleDateString('pt-BR')}{' '}
+                        {when.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    {halted ? (
+                      <span className="text-warning-active dark:text-warning">{halted}</span>
+                    ) : (
+                      <span>
+                        {run.scanned} examinado(s) · {run.called} ligação(ões) · {skippedTotal}{' '}
+                        pulado(s)
+                      </span>
+                    )}
                   </div>
-                  {halted ? (
-                    <span className="text-warning-active dark:text-warning">{halted}</span>
-                  ) : (
-                    <span>
-                      {run.scanned} examinado(s) · {run.called} ligação(ões) · {skippedTotal}{' '}
-                      pulado(s)
-                    </span>
+                  {!halted && skipReasons.length > 0 && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-5 text-[11px] text-ink-2/80">
+                      {skipReasons.map(({ key, label }) => (
+                        <span key={key}>
+                          {label}: {run[key]}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
               );

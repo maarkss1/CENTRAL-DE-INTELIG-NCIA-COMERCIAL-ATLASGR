@@ -1032,8 +1032,8 @@ paths:
     post:
       tags: [Prospecting]
       summary: >-
-        Enriquecimento web de uma URL via scraper Crawlee — placeholder (não persiste dados,
-        implementação real do scraper ainda pendente)
+        Enriquecimento web de uma URL via scraper Crawlee — ainda não implementado. Responde
+        501 (não fabrica dados de sucesso; ver achado MEDIUM da auditoria de release-readiness).
       requestBody:
         required: true
         content:
@@ -1044,23 +1044,17 @@ paths:
               properties:
                 url: { type: string }
       responses:
-        '200':
-          description: Dados extraídos da URL (placeholder)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '501':
+          description: Scraper (Crawlee) ainda não implementado
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   success: { type: boolean }
-                  data:
-                    type: object
-                    properties:
-                      scrapedUrl: { type: string }
-                      emails: { type: array, items: { type: string } }
-                      phones: { type: array, items: { type: string } }
-                      textSnippet: { type: string }
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                  error: { type: string }
 
   /prospecting/promote:
     post:

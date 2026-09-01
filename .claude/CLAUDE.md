@@ -52,7 +52,8 @@ Não recrie o que já existe. Nesta ordem:
 4. **`DESIGN_QA_CENTRAL_ATLASGR.md` foi removido do controle de versão em 22/08/2026** (pedido
    explícito do usuário — ver `docs/REMOVED-DOCS.md`). Não existe hoje um substituto versionado com
    scores por categoria; os sinais vivos mais próximos de débito visual/a11y conhecido são
-   `eslint.config.mjs` (regras `jsx-a11y` comentadas) e `.claude/PILOTS.md`. Antes de "descobrir" um
+   `eslint.config.mjs` (as regras `jsx-a11y` já voltaram a `error` — ver o comentário da Onda 43 no
+   próprio arquivo; não é mais débito comentado) e `.claude/PILOTS.md`. Antes de "descobrir" um
    problema de design, confira esses dois antes de supor que é inédito.
 5. **`src/lib/motion.ts`** — variantes e hooks de animação já padronizados (`fadeInUp`,
    `staggerContainer`, `useTilt`, `useMagnetic`, easings `EASE_PREMIUM`/`SPRING_SOFT`). Reuse antes

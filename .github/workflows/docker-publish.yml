@@ -1,18 +1,14 @@
 name: Publish private container image
 
+# Gate: publicar a imagem só depois que o workflow canônico de release (ci.yml, "Central AtlasGR
+# Release") tiver passado no mesmo commit de main — antes disso, push:main disparava a publicação
+# incondicionalmente, sem nenhum teste/scan rodar primeiro (achado HIGH da auditoria de
+# release-readiness). workflow_dispatch continua disponível para publicação manual.
 on:
-  push:
+  workflow_run:
+    workflows: ['Central AtlasGR Release']
+    types: [completed]
     branches: [main]
-    paths:
-      - 'Dockerfile'
-      - 'docker/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'prisma/**'
-      - 'src/**'
-      - 'server.ts'
-      - 'worker.ts'
-      - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
 
 env:
@@ -21,6 +17,7 @@ env:
 
 jobs:
   publish:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,6 +25,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3

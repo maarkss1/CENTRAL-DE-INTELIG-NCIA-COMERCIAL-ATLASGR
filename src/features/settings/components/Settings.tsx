@@ -131,9 +131,17 @@ export function Settings() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-surface-2 border border-line flex items-center justify-center text-ink font-bold text-lg">
-                      {currentUser?.name?.slice(0, 2).toUpperCase() || 'US'}
-                    </div>
+                    {currentUser?.image ? (
+                      <img
+                        src={currentUser.image}
+                        alt=""
+                        className="w-14 h-14 rounded-full border border-line object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-surface-2 border border-line flex items-center justify-center text-ink font-bold text-lg">
+                        {currentUser?.name?.slice(0, 2).toUpperCase() || 'US'}
+                      </div>
+                    )}
                     <div>
                       <p className="font-bold text-ink text-base">
                         {currentUser?.name || 'Usuário'}

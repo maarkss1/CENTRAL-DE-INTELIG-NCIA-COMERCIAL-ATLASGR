@@ -37,6 +37,15 @@ function FlagSwitch({
       onClick={onChange}
       className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${checked ? 'bg-brand' : 'bg-surface border border-line'}`}
     >
+      {/* `bg-white` sem par `dark:` foi investigado (achado fora de escopo do Piloto 025): não é
+          bug. O knob usa branco fixo de propósito, mesma convenção universal de toggle físico
+          (iOS/Android) — a "bolinha" não reage ao tema, só a track reage (`bg-brand` quando
+          ligado, `bg-surface` quando desligado). No dark mode o track desligado é `--surface`
+          (#171211, quase preto) com `--line` translúcida (rgba(255,255,255,.1)), então o knob
+          branco fica com altíssimo contraste contra o track — o oposto de um bug de legibilidade.
+          Ligado, o track é `bg-brand` (laranja/azul saturado em ambos os temas), e branco sobre
+          cor saturada de marca também passa em contraste. Não há combinação tema×estado em que
+          o knob fique ilegível; por isso não foi alterado. */}
       <span
         className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
         aria-hidden="true"
@@ -117,6 +126,17 @@ export function FeatureFlagsPanel() {
                   )}
                 </div>
                 <p className="text-xs text-ink-2 mt-0.5">{flag.description}</p>
+                {/* Auditoria leve do override: `updatedByUserId`/`updatedAt` já eram gravados no
+                    backend (OrganizationFeatureFlag) mas nunca chegavam à UI. Mostra só o id
+                    truncado, mesma convenção já usada em AuditLogs.tsx para um ator sem FK (o
+                    usuário pode ter sido removido depois de alterar o flag). */}
+                {flag.isOverridden && flag.updatedAt && (
+                  <p className="text-[10px] text-ink-2/70 mt-1">
+                    Alterado por{' '}
+                    {flag.updatedByUserId ? flag.updatedByUserId.slice(0, 8) : 'usuário removido'}{' '}
+                    em {new Date(flag.updatedAt).toLocaleDateString('pt-BR')}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {flag.isOverridden && (

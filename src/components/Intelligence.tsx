@@ -824,13 +824,14 @@ export function Intelligence() {
                     Processando algoritmos cognitivos...
                   </p>
 
-                  {/* Progress Bar Fake */}
+                  {/* Barra indeterminada: a duração real da geração é imprevisível (depende do
+                      provedor de IA), então não fingimos uma porcentagem — só comunicamos "em
+                      andamento", com um segmento que percorre a barra em loop. */}
                   <div className="w-48 h-1 bg-surface-2 rounded-full mt-6 overflow-hidden border border-line">
                     <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: '100%' }}
-                      transition={{ duration: 15 }}
-                      className="h-full bg-brand"
+                      animate={{ x: ['-100%', '200%'] }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+                      className="h-full w-1/3 bg-brand rounded-full"
                     />
                   </div>
                 </div>

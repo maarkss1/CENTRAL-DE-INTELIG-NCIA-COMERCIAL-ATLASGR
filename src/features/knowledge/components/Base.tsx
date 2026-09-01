@@ -13,6 +13,7 @@ import {
   RefreshCw,
   FileQuestion,
   Pencil,
+  ArrowUpDown,
 } from 'lucide-react';
 
 import { Card } from '../../../components/ui/Card';
@@ -484,6 +485,19 @@ export function Base() {
                         termo
                       </span>
                     )}
+                    {/* rerankScore só vem preenchido quando o reranking via LLM está habilitado no
+                        backend (KNOWLEDGE_RERANK_ENABLED) e teve sucesso pra este trecho — dado real
+                        que já chegava na resposta da busca mas nunca era exibido (achado do Piloto
+                        019): sem isso o usuário não tinha como saber que a ordem dos resultados foi
+                        reordenada por IA além do RRF. */}
+                    {hit.rerankScore != null && (
+                      <span
+                        className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-brand/15 text-brand-active dark:text-brand-2 flex items-center gap-1"
+                        title="Reordenado por IA (reranking) — pontuação de relevância de 0 a 100"
+                      >
+                        <ArrowUpDown className="w-3 h-3" /> IA {Math.round(hit.rerankScore)}
+                      </span>
+                    )}
                     {hit.similarity != null && (
                       <span className="text-[10px] font-mono text-ink-2">
                         {(hit.similarity * 100).toFixed(0)}%
@@ -576,6 +590,18 @@ export function Base() {
                     {doc.version > 1 && (
                       <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-info/15 text-info-active dark:text-info shrink-0">
                         editado · v{doc.version}
+                      </span>
+                    )}
+                    {/* metadata.truncated é gravado silenciosamente na ingestão/reindexação quando
+                        o documento excede MAX_CHUNKS_PER_DOCUMENT (ingestion.service.ts) — sem
+                        aviso na UI, o usuário confiava numa base que perdeu parte do conteúdo sem
+                        saber (achado do Piloto 019, valor de segurança de dado). */}
+                    {doc.metadata?.truncated && (
+                      <span
+                        className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-warning/15 text-warning-active dark:text-warning shrink-0 flex items-center gap-1"
+                        title={`Conteúdo truncado na indexação: ${doc.metadata.originalChunkCount ?? '?'} trecho(s) gerado(s), só os primeiros ${doc.chunkCount} foram indexados.`}
+                      >
+                        <AlertTriangle className="w-3 h-3" /> truncado
                       </span>
                     )}
                   </div>
