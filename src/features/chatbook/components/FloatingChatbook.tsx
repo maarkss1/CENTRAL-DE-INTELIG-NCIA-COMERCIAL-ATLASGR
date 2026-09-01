@@ -271,7 +271,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                   ))}
 
                   {isSearching && (
-                    <div className="flex items-center gap-2 text-xs text-brand bg-surface-2 p-3 rounded-2xl border border-line w-fit animate-pulse">
+                    <div className="flex items-center gap-2 text-xs text-brand-active dark:text-brand-2 bg-surface-2 p-3 rounded-2xl border border-line w-fit animate-pulse">
                       <RefreshCw className="w-4 h-4 animate-spin" />
                       <span>Consultando o motor Groq...</span>
                     </div>
@@ -699,7 +699,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                         >
                           <div className="flex items-center justify-between pb-2 border-b border-line">
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] px-2 py-0.5 rounded bg-brand/20 text-brand font-bold border border-brand/30">
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-brand/20 text-brand-active dark:text-brand-2 font-bold border border-brand/30">
                                 {item.framework} · {item.questionCategory}
                               </span>
                               <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30">

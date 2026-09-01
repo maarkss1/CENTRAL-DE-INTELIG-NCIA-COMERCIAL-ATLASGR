@@ -137,7 +137,7 @@ export function DiscoveryResultsPanel({
             {loadingSteps.map((step, idx) => (
               <div
                 key={idx}
-                className={`flex items-center gap-3 text-sm font-medium ${idx === loadingStepIdx ? 'text-brand' : idx < loadingStepIdx ? 'text-ink-2' : 'text-ink opacity-50'}`}
+                className={`flex items-center gap-3 text-sm font-medium ${idx === loadingStepIdx ? 'text-brand-active dark:text-brand-2' : idx < loadingStepIdx ? 'text-ink-2' : 'text-ink opacity-50'}`}
               >
                 {idx < loadingStepIdx ? (
                   <CheckCircle2 size={16} />

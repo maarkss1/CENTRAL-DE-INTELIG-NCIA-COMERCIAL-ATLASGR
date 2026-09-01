@@ -452,7 +452,7 @@ export function OcrCapturePanel() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   type="button"
-                  className="text-[11px] font-bold text-brand hover:underline"
+                  className="text-[11px] font-bold text-brand-active dark:text-brand-2 hover:underline"
                 >
                   Trocar Foto
                 </button>

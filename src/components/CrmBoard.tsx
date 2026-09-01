@@ -639,7 +639,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
             <button
               type="button"
               onClick={handleSelectAll}
-              className="text-[11px] font-bold text-brand hover:underline ml-1"
+              className="text-[11px] font-bold text-brand-active dark:text-brand-2 hover:underline ml-1"
             >
               {selectedLeadIds.size === leads.length ? 'Desmarcar Todos' : 'Todos'}
             </button>

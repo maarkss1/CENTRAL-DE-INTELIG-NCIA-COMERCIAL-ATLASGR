@@ -102,7 +102,10 @@ export function CurrentLeadCard({ lead, leadStatuses, onRegistered }: CurrentLea
           <div>
             <span className="text-ink-2 block text-xs">Telefone</span>
             {lead.phone ? (
-              <a href={`tel:${lead.phone}`} className="text-brand hover:underline">
+              <a
+                href={`tel:${lead.phone}`}
+                className="text-brand-active dark:text-brand-2 hover:underline"
+              >
                 {lead.phone}
               </a>
             ) : (
@@ -112,7 +115,10 @@ export function CurrentLeadCard({ lead, leadStatuses, onRegistered }: CurrentLea
           <div>
             <span className="text-ink-2 block text-xs">E-mail</span>
             {lead.email ? (
-              <a href={`mailto:${lead.email}`} className="text-brand hover:underline">
+              <a
+                href={`mailto:${lead.email}`}
+                className="text-brand-active dark:text-brand-2 hover:underline"
+              >
                 {lead.email}
               </a>
             ) : (
