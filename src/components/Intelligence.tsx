@@ -630,7 +630,7 @@ export function Intelligence() {
                 className="absolute z-50 inset-x-0 mt-4 p-5 border border-brand/30 rounded-2xl bg-surface/90 backdrop-blur-2xl shadow-2xl shadow-brand/10"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] tracking-widest font-black uppercase text-brand flex items-center gap-1.5">
+                  <span className="text-[10px] tracking-widest font-black uppercase text-brand-active dark:text-brand-2 flex items-center gap-1.5">
                     <Swords size={14} />{' '}
                     {suggestedCompetitors.length
                       ? 'Selecione o Concorrente'
@@ -762,7 +762,7 @@ export function Intelligence() {
               </div>
               <div className="flex items-center gap-3">
                 {isGenerating && (
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-brand animate-pulse">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-brand-active dark:text-brand-2 animate-pulse">
                     Sintetizando...
                   </span>
                 )}
@@ -820,7 +820,7 @@ export function Intelligence() {
                   <h3 className="font-black text-2xl text-ink mb-2 tracking-tight">
                     Gerando Inteligência
                   </h3>
-                  <p className="font-bold text-xs uppercase tracking-[0.2em] text-brand">
+                  <p className="font-bold text-xs uppercase tracking-[0.2em] text-brand-active dark:text-brand-2">
                     Processando algoritmos cognitivos...
                   </p>
 
@@ -844,7 +844,7 @@ export function Intelligence() {
                 >
                   <div className="flex justify-between items-end mb-6">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-brand mb-1 flex items-center gap-1.5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-brand-active dark:text-brand-2 mb-1 flex items-center gap-1.5">
                         <CheckCircle2 size={12} /> Síntese Concluída
                       </p>
                       <h3 className="text-xl font-bold text-ink">
