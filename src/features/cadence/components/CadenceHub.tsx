@@ -580,6 +580,12 @@ function CadenceRunRow({
                   <th className="text-left font-semibold py-1 pr-3">Canal</th>
                   <th className="text-left font-semibold py-1 pr-3">Resultado</th>
                   <th className="text-left font-semibold py-1 pr-3">Erro</th>
+                  {/* `CadenceTouchAttempt.providerMessageId` — id da mensagem no provedor
+                      (WhatsApp/e-mail), coletado e salvo de verdade mas nunca exibido antes
+                      (achado do Piloto 016). Só existe quando `result === 'sent'`, por isso a
+                      célula fica em branco (não "—") nas linhas sem esse dado, em vez de sujar a
+                      tabela com um traço em toda tentativa falha/pulada. */}
+                  <th className="text-left font-semibold py-1 pr-3">ID da mensagem</th>
                   <th className="text-right font-semibold py-1">Quando</th>
                 </tr>
               </thead>
@@ -601,6 +607,12 @@ function CadenceRunRow({
                       title={attempt.error ?? undefined}
                     >
                       {attempt.error ?? '—'}
+                    </td>
+                    <td
+                      className="py-1 pr-3 text-ink-2 font-mono max-w-[10rem] truncate"
+                      title={attempt.providerMessageId ?? undefined}
+                    >
+                      {attempt.providerMessageId ?? ''}
                     </td>
                     <td className="py-1 text-right text-ink-2 [font-variant-numeric:tabular-nums]">
                       {formatDateTime(attempt.attemptedAt)}

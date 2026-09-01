@@ -1,1 +1,8 @@
 *.sh text eol=lf
+# CRLF nesses arquivos (checkout Windows com core.autocrlf=true, sem regra própria antes desta
+# linha) quebra `import`/`import()` de dentro do Vitest — SyntaxError "Invalid or unexpected
+# token" ao importar scripts/ci/check-bundle-budget.mjs a partir de
+# tests/unit/check-bundle-budget.test.ts, mesmo o arquivo sendo JS válido (Node e esbuild direto o
+# leem sem erro; o parser interno do Vitest para .mjs, não). O blob no git já é LF — a regra abaixo
+# só impede o checkout local de reintroduzir CRLF.
+*.mjs text eol=lf

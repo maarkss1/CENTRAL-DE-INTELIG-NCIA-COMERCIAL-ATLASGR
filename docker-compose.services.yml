@@ -148,7 +148,8 @@ services:
 
   # ───────────────────────────────────────────────────────
   # OS-4: Apache Superset — BI self-hosted
-  # http://localhost:8089 (admin / AtlasGR@2026)
+  # http://localhost:8089 — login criado por superset-init (ver abaixo), credenciais em
+  # SUPERSET_ADMIN_USERNAME/SUPERSET_ADMIN_PASSWORD (.env), nunca hardcoded aqui.
   # ───────────────────────────────────────────────────────
   superset:
     image: apache/superset:latest
@@ -175,6 +176,51 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8088/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # Rodar uma vez após o primeiro `up` (`docker compose ... run --rm superset-init`): aplica as
+  # migrations do metadata DB e cria o usuário admin a partir de env var — sem isto, `superset`
+  # sobe mas não tem nenhum usuário para logar. Sai (`restart: "no"`) após terminar, não fica
+  # residente.
+  superset-init:
+    image: apache/superset:latest
+    container_name: atlas_superset_init
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        superset db upgrade &&
+        superset fab create-admin
+        --username "${SUPERSET_ADMIN_USERNAME:-admin}"
+        --firstname Admin --lastname AtlasGR
+        --email "${SUPERSET_ADMIN_EMAIL:-admin@atlasgr.local}"
+        --password "${SUPERSET_ADMIN_PASSWORD:-change-this-superset-admin-password}" || true &&
+        superset init
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-change-this-superset-key-256bits}
+      DATABASE_DB: superset
+      DATABASE_HOST: postgres
+      DATABASE_PASSWORD: ${APP_DB_PASSWORD:-prospector_app_pass}
+      DATABASE_USER: ${POSTGRES_USER:-prospector}
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-prospector_redis_pass}
+    volumes:
+      - atlas_superset_data:/app/superset_home
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    profiles: [tools]
 
   # ───────────────────────────────────────────────────────
   # OS-5: Casdoor — SSO / Identity Provider / RBAC
@@ -353,10 +399,20 @@ services:
       - atlas_pocketbase_data:/pb_data
     security_opt:
       - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8090/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
 
   # ───────────────────────────────────────────────────────
   # OS-7: Plane — Gestão de projetos/ondas
   # http://localhost:3004
+  # Sem healthcheck de propósito: o docker-compose.yml oficial do Plane (makeplane/plane) também
+  # não define um para api/web, só `restart: always` — não inventamos aqui um endpoint não
+  # confirmado, que marcaria o container como "unhealthy" para sempre e travaria qualquer
+  # depends_on: condition: service_healthy que viesse a depender dele.
   # ───────────────────────────────────────────────────────
   plane-api:
     image: makeplane/plane-backend:latest

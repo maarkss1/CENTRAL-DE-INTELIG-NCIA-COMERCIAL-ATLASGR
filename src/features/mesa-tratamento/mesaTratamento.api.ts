@@ -16,6 +16,20 @@ export interface QueueLeadSummary {
   status: string;
   temperature: string | null;
   daysSinceTouch: number | null;
+  owner: string | null;
+}
+
+/** Subconjunto de `LeadQualification` (`src/types/index.ts`) mais relevante pra decidir o que
+ *  fazer agora numa call — não o checklist inteiro (~20 campos), que já tem tela própria de
+ *  edição em outro lugar do CRM. */
+export interface QueueLeadQualificationSnapshot {
+  dorPrincipal?: string;
+  detalhamentoDor?: string;
+  solucaoAtlas?: string;
+  nivelAutoridade?: string;
+  interessePercebido?: string;
+  horizonteDecisao?: string;
+  temaProximaReuniao?: string;
 }
 
 export interface QueueLeadDetail extends QueueLeadSummary {
@@ -27,12 +41,12 @@ export interface QueueLeadDetail extends QueueLeadSummary {
   score: number | null;
   bitrixStageLabel: string | null;
   nextAction: string | null;
+  qualification: QueueLeadQualificationSnapshot | null;
 }
 
 export interface BitrixLeadStageOption {
   id: string;
-  label: string;
-  sort?: number;
+  name: string;
 }
 
 export interface MesaQueueResponse {

@@ -5,6 +5,10 @@ export interface ResolvedFeatureFlag {
   description: string;
   enabled: boolean;
   isOverridden: boolean;
+  /** Id do ADMIN que fez a última alteração do override — só presente quando `isOverridden`. */
+  updatedByUserId?: string | null;
+  /** Quando o override foi alterado pela última vez — string ISO (serializada via JSON). */
+  updatedAt?: string | null;
 }
 
 export const featureFlagsApi = {

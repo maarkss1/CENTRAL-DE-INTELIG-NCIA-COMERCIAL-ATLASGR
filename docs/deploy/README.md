@@ -94,6 +94,43 @@ necessários quando as respectivas flags (`ENABLE_QUEUES`/`ENABLE_SEARCH`) são 
 explicitamente se algum endpoint de runtime apontar para um provedor cloud (Supabase, Neon, Render,
 Railway, Vercel), evitando que o ambiente "local" acabe silenciosamente dependendo de produção.
 
+## 6.1. Overlay opcional de ferramentas extra (`docker-compose.services.yml`)
+
+Além do `docker-compose.yml` descrito acima, existe um **overlay opt-in**,
+`docker-compose.services.yml` ("Ondas OS-3 a OS-7"), que define serviços adicionais que nenhuma
+rota da aplicação depende hoje: Flowise, OpenWebUI, Qdrant, Superset, n8n, Chatwoot, Uptime Kuma,
+Pocketbase e Plane. Ele **não substitui** `docker-compose.yml` nem `docker-compose.opensource.yml`
+— é somado por cima, só quando alguém quer usar uma dessas ferramentas localmente:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.opensource.yml -f docker-compose.services.yml up -d
+```
+
+Nenhum desses serviços entra em `docker-compose.oci.yml` (produção self-hosted) nem em
+`render.yaml` — mesmo critério da seção 6: só passam a fazer parte de um caminho de deploy real
+quando algum código da aplicação de fato depender deles, não só por existirem definidos aqui.
+Flowise e OpenWebUI já têm um consumidor real (`src/lib/ai/gateway/providers/litellm.provider.ts`,
+roteado por prefixo de modelo `flowise/...`/`openwebui/...`, configurado via `FLOWISE_URL`/
+`OPENWEBUI_URL` em `src/config/env.ts`); os demais ainda não têm código de aplicação que os
+consuma — rodá-los localmente é opcional e não afeta `npm run dev`.
+
+### Primeiro acesso — Superset, Uptime Kuma, Pocketbase, Plane
+
+Esses quatro não são consumidos pelo código da aplicação — são ferramentas internas que rodam ao
+lado do CRM, cada uma com sua própria conta de admin:
+
+| Serviço | URL local | Primeiro login |
+| --- | --- | --- |
+| **Apache Superset** | http://localhost:8089 | Não vem com admin pronto — rode uma vez `docker compose -f docker-compose.yml -f docker-compose.services.yml --profile tools run --rm superset-init` (aplica migrations + cria o admin via `SUPERSET_ADMIN_USERNAME`/`SUPERSET_ADMIN_PASSWORD` do `.env`) antes de acessar |
+| **Uptime Kuma** | http://localhost:3003 | Cria o admin na primeira visita à UI (sem variável de ambiente) |
+| **Pocketbase** | http://localhost:8090/_/ | Cria o admin na primeira visita à UI (sem variável de ambiente); serviço com `profiles: [tools, test]`, não sobe com `up -d` sem `--profile` |
+| **Plane** | http://localhost:3004 (frontend) / API em :8091 | Cria o workspace/admin na primeira visita à UI |
+
+Nenhum desses quatro tem healthcheck confiável baseado em endpoint documentado oficialmente pelo
+projeto upstream, **exceto** Superset e Pocketbase (`/health` e `/api/health`, confirmados na
+documentação oficial de cada um) — Plane não define healthcheck nem no próprio
+`docker-compose.yml` oficial do makeplane/plane, então não inventamos um aqui.
+
 ## 7. Para quem for reabrir um caminho cloud no futuro
 
 Ver `docs/development/LOCAL_FIRST.md` ("Critério para voltar à produção"). Quando esse critério

@@ -1,12 +1,27 @@
 import { Meilisearch } from 'meilisearch';
+import { env } from '../../config/env.js';
 import { logger } from '../logger.js';
 
-const MEILI_HOST = process.env.MEILI_HOST || 'http://localhost:7700';
-const MEILI_MASTER_KEY = process.env.MEILI_MASTER_KEY || 'prospector_meili_master_key';
+function resolveMeiliApiKey(): string {
+  if (env.MEILI_MASTER_KEY) return env.MEILI_MASTER_KEY;
+  if (env.NODE_ENV === 'production') {
+    // Fail-closed: mesma regra de CREDENTIALS_ENCRYPTION_KEY/BETTER_AUTH_SECRET (ver
+    // src/lib/crypto/secretFields.ts) — nunca inventa segredo padrão em produção. Uma chave
+    // hardcoded conhecida permitiria consulta cross-tenant a qualquer Meilisearch acessível na
+    // rede (o filtro por organizationId é aplicado pela aplicação, não pelo Meilisearch).
+    throw new Error(
+      'MEILI_MASTER_KEY ausente em produção — obrigatória para autenticar no Meilisearch. Nunca use a master key padrão de desenvolvimento.',
+    );
+  }
+  logger.warn(
+    '[search] MEILI_MASTER_KEY não configurada — usando chave fixa de desenvolvimento local. NUNCA use isso em produção (a trava acima impede a subida sem a variável real).',
+  );
+  return 'insecure-dev-only-meili-key';
+}
 
 export const meili = new Meilisearch({
-  host: MEILI_HOST,
-  apiKey: MEILI_MASTER_KEY,
+  host: env.MEILI_HOST || 'http://localhost:7700',
+  apiKey: resolveMeiliApiKey(),
 });
 
 /**

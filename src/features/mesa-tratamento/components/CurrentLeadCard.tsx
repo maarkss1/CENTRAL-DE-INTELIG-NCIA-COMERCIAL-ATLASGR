@@ -38,6 +38,16 @@ export function CurrentLeadCard({ lead, leadStatuses, onRegistered }: CurrentLea
   const [submitting, setSubmitting] = useState(false);
 
   const disqualifying = isDisqualifyOutcome(outcome);
+  const q = lead.qualification;
+  const hasQualificationSnapshot = !!q && Object.values(q).some((v) => !!v);
+  const nextActionLabel = lead.nextAction
+    ? new Date(lead.nextAction).toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
 
   async function handleSubmit() {
     if (!outcome) return toast.error('Selecione o resultado do contato.');
@@ -125,7 +135,64 @@ export function CurrentLeadCard({ lead, leadStatuses, onRegistered }: CurrentLea
               <span className="text-ink">Não informado</span>
             )}
           </div>
+          <div>
+            <span className="text-ink-2 block text-xs">Etapa atual no Bitrix24</span>
+            <span className="text-ink">{lead.bitrixStageLabel || 'Não informado'}</span>
+          </div>
+          <div>
+            <span className="text-ink-2 block text-xs">Próxima ação já agendada</span>
+            <span className="text-ink">{nextActionLabel ?? 'Nenhuma'}</span>
+          </div>
         </div>
+
+        {hasQualificationSnapshot && (
+          <div className="border-t border-line pt-4 space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wide text-ink-2">
+              Qualificação já registrada
+            </p>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+              {q?.dorPrincipal && (
+                <div className="col-span-2">
+                  <span className="text-ink-2 block text-xs">Dor principal</span>
+                  <span className="text-ink">
+                    {q.dorPrincipal}
+                    {q.detalhamentoDor ? ` — ${q.detalhamentoDor}` : ''}
+                  </span>
+                </div>
+              )}
+              {q?.solucaoAtlas && (
+                <div>
+                  <span className="text-ink-2 block text-xs">Solução Atlas</span>
+                  <span className="text-ink">{q.solucaoAtlas}</span>
+                </div>
+              )}
+              {q?.nivelAutoridade && (
+                <div>
+                  <span className="text-ink-2 block text-xs">Autoridade</span>
+                  <span className="text-ink">{q.nivelAutoridade}</span>
+                </div>
+              )}
+              {q?.interessePercebido && (
+                <div>
+                  <span className="text-ink-2 block text-xs">Interesse percebido</span>
+                  <span className="text-ink">{q.interessePercebido}</span>
+                </div>
+              )}
+              {q?.horizonteDecisao && (
+                <div>
+                  <span className="text-ink-2 block text-xs">Horizonte de decisão</span>
+                  <span className="text-ink">{q.horizonteDecisao}</span>
+                </div>
+              )}
+              {q?.temaProximaReuniao && (
+                <div className="col-span-2">
+                  <span className="text-ink-2 block text-xs">Tema combinado pra próxima reunião</span>
+                  <span className="text-ink">{q.temaProximaReuniao}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="border-t border-line pt-4 space-y-3">
           <p className="text-xs font-bold uppercase tracking-wide text-ink-2">
@@ -164,7 +231,7 @@ export function CurrentLeadCard({ lead, leadStatuses, onRegistered }: CurrentLea
               <option value="">Não alterar etapa</option>
               {leadStatuses.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.label}
+                  {s.name}
                 </option>
               ))}
             </select>

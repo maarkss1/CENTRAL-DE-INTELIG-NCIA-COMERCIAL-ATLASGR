@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
   AlertCircle,
+  BadgeCheck,
   Check,
   Copy,
   KeyRound,
+  Link2,
   Loader2,
   LockKeyholeOpen,
   Shield,
@@ -26,10 +28,20 @@ interface TeamMember {
    * desbloqueio antes do Piloto 024. `null`/data passada = não bloqueado. */
   lockedUntil: string | null;
   failedLoginAttempts: number;
+  /** `emailVerified`, `image`, `bitrixUserId` e `updatedAt` são campos reais do model `User` que
+   * já existiam no schema mas nunca apareciam nesta tela (achado fora de escopo do Piloto 024). */
+  emailVerified: boolean;
+  image: string | null;
+  bitrixUserId: number | null;
+  updatedAt: string;
 }
 
 function isLocked(member: TeamMember): boolean {
   return !!member.lockedUntil && new Date(member.lockedUntil).getTime() > Date.now();
+}
+
+function formatUpdatedAt(updatedAt: string): string {
+  return new Date(updatedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -328,27 +340,67 @@ export function Team() {
                   key={member.id}
                   className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap"
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-ink">{member.name}</span>
-                      {member.mustChangePassword && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning-active dark:text-warning font-bold">
-                          senha temporária
-                        </span>
-                      )}
-                      {isLocked(member) && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-danger/15 text-danger-active dark:text-danger font-bold">
-                          bloqueado até{' '}
-                          {new Date(member.lockedUntil!).toLocaleTimeString('pt-BR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      )}
+                  <div className="flex items-center gap-3 min-w-0">
+                    {member.image ? (
+                      <img
+                        src={member.image}
+                        alt=""
+                        className="w-9 h-9 rounded-full object-cover shrink-0 border border-line"
+                      />
+                    ) : (
+                      <div
+                        aria-hidden="true"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-2 text-sm font-bold text-white shadow-card"
+                      >
+                        {(member.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-ink">{member.name}</span>
+                        {member.mustChangePassword && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning-active dark:text-warning font-bold">
+                            senha temporária
+                          </span>
+                        )}
+                        {isLocked(member) && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-danger/15 text-danger-active dark:text-danger font-bold">
+                            bloqueado até{' '}
+                            {new Date(member.lockedUntil!).toLocaleTimeString('pt-BR', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        )}
+                        {member.emailVerified && (
+                          <span
+                            title="E-mail verificado"
+                            className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-success/10 text-success-active dark:text-success font-bold"
+                          >
+                            <BadgeCheck size={11} /> verificado
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap text-xs text-ink-2">
+                        <span>{member.email}</span>
+                        {member.updatedAt && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span>atualizado em {formatUpdatedAt(member.updatedAt)}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-xs text-ink-2">{member.email}</span>
                   </div>
                   <div className="flex items-center gap-3">
+                    {member.bitrixUserId != null && (
+                      <span
+                        title={`ID Bitrix: ${member.bitrixUserId}`}
+                        className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full bg-surface-2 text-ink-2 border border-line font-mono"
+                      >
+                        <Link2 size={11} /> #{member.bitrixUserId}
+                      </span>
+                    )}
                     <span className="text-[10px] px-2.5 py-1 rounded-full bg-info/15 text-info-active dark:text-info font-bold">
                       {ROLE_LABELS[member.role] || member.role}
                     </span>

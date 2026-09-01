@@ -29,6 +29,12 @@ export interface ResolvedFeatureFlag {
   enabled: boolean;
   /** true quando o valor efetivo vem de um override da organização, não do default global. */
   isOverridden: boolean;
+  /** Id do ADMIN que fez a última alteração do override — só presente quando `isOverridden` é
+   *  true (o default global do catálogo não tem "quem alterou"). Sem FK (ver
+   *  OrganizationFeatureFlag no schema): pode apontar para um usuário já removido. */
+  updatedByUserId?: string | null;
+  /** Quando o override foi alterado pela última vez — mesma condição de `updatedByUserId`. */
+  updatedAt?: Date | null;
 }
 
 export interface FeatureFlagRecord {
@@ -40,6 +46,8 @@ export interface FeatureFlagRecord {
 
 export interface OrganizationOverride {
   enabled: boolean;
+  updatedByUserId?: string | null;
+  updatedAt?: Date;
 }
 
 export interface FeatureFlagRepository {

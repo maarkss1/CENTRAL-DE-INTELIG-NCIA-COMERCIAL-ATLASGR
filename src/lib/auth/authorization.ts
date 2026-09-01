@@ -84,3 +84,15 @@ export const COMMERCIAL_INTELLIGENCE_ROLES: readonly Role[] = ['ADMIN', 'GESTOR'
 export function canAccessCommercialIntelligence(role: string): boolean {
   return hasRequiredRole(role, COMMERCIAL_INTELLIGENCE_ROLES);
 }
+
+/**
+ * Mesa de Tratamento (fila de trabalho SDR do funil de Lead) — mesmo conjunto de papéis do
+ * `mesaRoles` em `mesaTratamento.routes.ts` (backend). Exportado aqui para a rota de frontend
+ * (`RequireRole` em `App.tsx`) e o item de navegação condicional (`Sidebar.tsx`) nunca divergirem
+ * do que o backend realmente exige — só VISUALIZADOR (e papel desconhecido) ficam de fora.
+ */
+export const MESA_TRATAMENTO_ROLES: readonly Role[] = ['ADMIN', 'GESTOR', 'CLOSER', 'SDR'];
+
+export function canAccessMesaTratamento(role: string): boolean {
+  return hasRequiredRole(role, MESA_TRATAMENTO_ROLES);
+}

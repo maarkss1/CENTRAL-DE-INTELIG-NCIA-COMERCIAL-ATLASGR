@@ -64,6 +64,10 @@ function toQueueSummary(lead: QueueLead) {
     status: lead.status,
     temperature: lead.temperature,
     daysSinceTouch: daysSince(lead.lastInteraction),
+    // ADMIN/GESTOR veem a fila do time todo sem filtro de dono (resolveScope acima) — sem isso,
+    // não havia como saber de quem é cada lead da fila compartilhada (achado do Piloto 026). Para
+    // CLOSER/SDR o valor é sempre o próprio nome (fila já vem filtrada por owner), inofensivo.
+    owner: lead.owner ?? null,
   };
 }
 
@@ -78,6 +82,10 @@ function toQueueDetail(lead: QueueLead) {
     score: lead.score,
     bitrixStageLabel: lead.bitrixStageLabel,
     nextAction: lead.nextAction,
+    // Já buscado do banco (leadSelect) mas descartado antes desta correção (achado do Piloto
+    // 026) — checklist de qualificação do SDR (Playbook Comercial AtlasGR §4.2), útil pra decidir
+    // o que fazer agora sem reabrir o cadastro completo do lead em outra tela.
+    qualification: lead.qualification,
   };
 }
 
@@ -249,8 +257,12 @@ router.post(
         data.status = 'Convertido_em_Oportunidade';
       }
 
-      await prisma.lead.update({ where: { id }, data });
-
+      // Bitrix é a fonte da verdade pro funil de SDR (ver AGENTS.md desta pasta) — grava lá
+      // primeiro. Se a escrita no Bitrix falhar (rede, webhook inválido, rate limit), o Atlas não
+      // muda nada localmente antes de propagar o erro, evitando os dois sistemas divergirem: antes
+      // desta correção, `prisma.lead.update` já commitava o novo status local (podendo tirar o
+      // lead da fila via `OPEN_LEAD_STATUSES`) mesmo quando a chamada ao Bitrix falhava depois,
+      // deixando Atlas e Bitrix dessincronizados sem que o SDR soubesse (achado do Piloto 026).
       const comment = `Mesa de Tratamento SDR • ${new Date().toLocaleString('pt-BR')}\nResultado: ${body.outcome}\nObservação: ${body.note.trim()}`;
       await postCommentToBitrix(organizationId, id, comment);
       await exportLeadToBitrixNow(
@@ -259,6 +271,8 @@ router.post(
         connection.id,
         body.bitrixStatusId ? { statusId: body.bitrixStatusId } : undefined,
       );
+
+      await prisma.lead.update({ where: { id }, data });
 
       if (body.nextActionTitle && body.nextActionWhen) {
         const owner = await prisma.user.findUnique({

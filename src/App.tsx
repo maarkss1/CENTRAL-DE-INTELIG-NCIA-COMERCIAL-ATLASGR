@@ -4,7 +4,7 @@ import { MotionConfig } from 'framer-motion';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { RequireRole } from './components/layout/RequireRole';
-import { COMMERCIAL_INTELLIGENCE_ROLES } from './lib/auth/authorization';
+import { COMMERCIAL_INTELLIGENCE_ROLES, MESA_TRATAMENTO_ROLES } from './lib/auth/authorization';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -227,7 +227,19 @@ function AppLayout() {
           <Route path="prospect" element={<ProspectingHub />} />
           <Route path="crm" element={<CrmBoard />} />
           <Route path="crm360" element={<CrmOverview onNavigate={handleCrmOverviewNavigate} />} />
-          <Route path="mesa-tratamento" element={<MesaTratamento />} />
+          {/* /api/mesa-tratamento já exige ADMIN/GESTOR/CLOSER/SDR no backend
+              (mesaTratamento.routes.ts), mas a rota de frontend não tinha o mesmo gate — VISUALIZADOR
+              via o item na Sidebar, navegava direto e só recebia um 403 cru dentro da tela real
+              (achado do Piloto 026, mesmo bug de padrão já corrigido em usage/team/
+              commercial_intelligence). */}
+          <Route
+            path="mesa-tratamento"
+            element={
+              <RequireRole allowedRoles={[...MESA_TRATAMENTO_ROLES]}>
+                <MesaTratamento />
+              </RequireRole>
+            }
+          />
           <Route path="intelligence" element={<IntelligenceHub />} />
           <Route path="companies" element={<CompanyList />} />
           <Route path="contacts" element={<ContactList />} />

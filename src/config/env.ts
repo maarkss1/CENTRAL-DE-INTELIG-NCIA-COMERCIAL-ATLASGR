@@ -109,6 +109,39 @@ const envSchema = z
     INFISICAL_TOKEN: z.string().optional(),
     VAULT_ADDR: z.string().optional(),
 
+    // ── Gateway de IA: Flowise / OpenWebUI (OS-3, docker-compose.services.yml) ──
+    // Ambos opcionais e com fallback de host local: sem eles configurados, litellm.provider.ts
+    // simplesmente não considera esses dois destinos ao rotear por prefixo de modelo
+    // ("flowise/...", "openwebui/..."), sem impedir a aplicação inteira de subir. Antes lidos
+    // direto de process.env dentro do provider (inconsistente com o resto do arquivo) — movidos
+    // para cá para seguir o mesmo padrão de validação/tipagem de todas as outras integrações.
+    FLOWISE_URL: z.string().url().default('http://localhost:3008'),
+    FLOWISE_SECRET_KEY: z.string().optional(),
+    OPENWEBUI_URL: z.string().url().default('http://localhost:3009'),
+    OPENWEBUI_SECRET: z.string().optional(),
+
+    // ── Qdrant (OS-5, docker-compose.services.yml) ───────────────────────────
+    // Cliente registrado em src/lib/qdrant/index.ts, mas hoje sem nenhuma feature plugada nele —
+    // o projeto já tem pgvector em produção (schema.prisma) para embeddings, e duplicar a mesma
+    // necessidade em dois bancos vetoriais sem um caso de uso real distinto seria só complexidade
+    // adicional. Fica disponível para quando (se) surgir uma necessidade concreta que o pgvector
+    // não cubra — só isolado no host, sem default sensível a expor.
+    QDRANT_HOST: z.string().default('localhost'),
+    QDRANT_PORT: z.coerce.number().int().positive().default(6333),
+    QDRANT_API_KEY: z.string().optional(),
+
+    // ── n8n — disparo de workflow de saída (OS-4, docker-compose.services.yml) ──
+    // Helper genérico em src/features/automations/infra/N8nWebhookDispatcher.ts, também sem
+    // nenhum gatilho de negócio ligado a ele ainda — decidir QUAL evento do sistema deve disparar
+    // qual workflow n8n é decisão de produto, não escopo desta integração de infraestrutura.
+    // Default false: chamar uma URL de webhook configurada errado/apontando pra fora não deve
+    // acontecer só porque N8N_WEBHOOK_URL ficou setada em algum .env esquecido.
+    ENABLE_N8N_WEBHOOKS: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    N8N_WEBHOOK_URL: z.string().url().optional(),
+
     // ── SDR de voz (Birth Voices Hub) ────────────────────────────────────────
     // Todas opcionais: sem elas a integração fica inerte (nenhuma ligação é disparada e o webhook
     // responde 503), em vez de impedir a aplicação inteira de subir.
@@ -198,6 +231,14 @@ const envSchema = z
     // webhook de ENTRADA já é real: fail-closed sem o segredo, mesmo esquema de
     // EMAIL_INBOUND_WEBHOOK_SECRET.
     SIGNATURE_INBOUND_WEBHOOK_SECRET: z.string().optional(),
+
+    // Segredo do webhook /api/integrations/chatwoot/webhook (OS-6) — Chatwoot assina cada entrega
+    // com HMAC-SHA256 sobre "{timestamp}.{corpo cru}" (header X-Chatwoot-Signature), verificado em
+    // chatwoot.helpers.ts. Mesmo esquema fail-closed dos webhooks acima: sem este valor, 503.
+    // Diferente de SECRET_KEY_BASE do Chatwoot (variável CHATWOOT_SECRET_KEY em .env.example, que
+    // é o segredo interno da aplicação Rails) — este é o hmac_token de assinatura de webhook,
+    // gerado pelo próprio Chatwoot por inbox/conta e copiado manualmente para cá.
+    CHATWOOT_WEBHOOK_SECRET: z.string().optional(),
 
     // ── Retenção de histórico de extrações Bitrix (BitrixExtractionRun) ─────
     // Onda 6, Agente 01A: o schema não precisa esperar a decisão humana de prazo pra existir, só o

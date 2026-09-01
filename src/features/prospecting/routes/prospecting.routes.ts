@@ -411,7 +411,10 @@ router.get(
   },
 );
 
-// Enriquecimento web usando scraper Crawlee (placeholder)
+// Enriquecimento web via scraper Crawlee — ainda não implementado (achado MEDIUM da auditoria de
+// release-readiness: respondia sempre `success:true` com dados fabricados, o que enganaria
+// qualquer integrador que a chamasse. 501 é honesto sobre o estado real; a rota fica reservada
+// para quando o scraper Crawlee for implementado de verdade.
 router.post('/enrich', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { url } = req.body as { url?: string };
@@ -420,15 +423,9 @@ router.post('/enrich', async (req: Request, res: Response, next: NextFunction): 
       return;
     }
 
-    // Placeholder para execução real do Crawlee
-    res.json({
-      success: true,
-      data: {
-        scrapedUrl: url,
-        emails: [],
-        phones: [],
-        textSnippet: 'Texto extraído pelo scraper (placeholder)',
-      },
+    res.status(501).json({
+      success: false,
+      error: 'Enriquecimento via scraper (Crawlee) ainda não foi implementado.',
     });
   } catch (error) {
     next(error);

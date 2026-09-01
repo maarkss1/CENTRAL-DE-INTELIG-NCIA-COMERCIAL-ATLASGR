@@ -5,6 +5,7 @@
  * terceira nunca terminar), então só vale a pena pagar esse gargalo depois de Groq/OpenAI já
  * terem falhado, nunca antes. Ver ../chat-model.ts para a ordem completa.
  */
+import { env } from '../../../../config/env.js';
 import { callProvider } from '../circuit-breaker.js';
 import { normalizeApiBaseUrl, requestChatCompletion } from '../http-client.js';
 import type { ChatCompletionResponse } from '../types.js';
@@ -20,8 +21,8 @@ function resolveApiKey(): string {
 }
 
 // OS-3 Endpoints and configurations
-export const FLOWISE_URL = process.env.FLOWISE_URL || 'http://localhost:3008';
-export const OPENWEBUI_URL = process.env.OPENWEBUI_URL || 'http://localhost:3009';
+export const FLOWISE_URL = env.FLOWISE_URL;
+export const OPENWEBUI_URL = env.OPENWEBUI_URL;
 
 export const litellmProvider: ProviderAdapter = {
   name: 'litellm',
@@ -39,10 +40,10 @@ export const litellmProvider: ProviderAdapter = {
 
     if (params.resolvedModel.startsWith('flowise/')) {
       targetUrl = `${FLOWISE_URL}/api/v1/prediction/`;
-      targetApiKey = process.env.FLOWISE_SECRET_KEY || '';
+      targetApiKey = env.FLOWISE_SECRET_KEY || '';
     } else if (params.resolvedModel.startsWith('openwebui/')) {
       targetUrl = `${OPENWEBUI_URL}/api/chat/completions`;
-      targetApiKey = process.env.OPENWEBUI_SECRET || '';
+      targetApiKey = env.OPENWEBUI_SECRET || '';
     }
 
     return callProvider('litellm', () =>

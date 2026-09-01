@@ -2088,3 +2088,148 @@ entrada nova.
   ADMIN-only?". Este foi o décimo terceiro e último módulo do roadmap original (Contacts →
   Settings) — antes de continuar para módulos fora dessa lista original (ex.: Mesa de Tratamento),
   vale perguntar ao usuário se o ciclo deve continuar ou está concluído.
+
+## Pilot 026 — Mesa de Tratamento (fila de trabalho SDR do funil de Lead)
+
+- **Objetivo**: primeiro módulo fora do roadmap original de 13, retomado a pedido explícito do
+  usuário depois do fim do ciclo (Piloto 025). Diretório `src/features/mesa-tratamento/`, rota
+  `/app/mesa-tratamento`. Confirmado por auditoria: é uma mesa de trabalho de **SDR do funil
+  Lead** (não Deal) — fila priorizada de leads do Bitrix24, um card por vez, registro de
+  atendimento propagado de volta ao Bitrix.
+- **Achado principal — bug de contrato real, funcionalidade quebrada**: o dropdown "Mover etapa no
+  Bitrix24" do formulário de registro sempre aparecia com todas as opções em branco. Backend
+  (`getLeadStatuses`) devolve `{id, name}`, mas o tipo do client
+  (`BitrixLeadStageOption.label`) e o render (`{s.label}`) do frontend usavam uma chave que nunca
+  existia no payload — confirmado comparando com o único outro consumidor do mesmo dado
+  (`BitrixSyncRulesPanel.tsx`, que já usa `name` corretamente). Corrigido alinhando tipo e render a
+  `name`. A ação não era obrigatória (o formulário ainda submetia sem escolher etapa), então o bug
+  não travava o fluxo, só deixava uma das duas funcionalidades centrais da tela ("mover etapa
+  direto da Mesa de Tratamento") inutilizável.
+- **Achado secundário — divergência de dado real entre Atlas e Bitrix**: `POST
+  /lead/:id/register` gravava o novo status local (`prisma.lead.update`, ex.
+  `Lead_Desqualificado`) **antes** de escrever no Bitrix (`postCommentToBitrix`/
+  `exportLeadToBitrixNow`). Se a escrita no Bitrix falhasse depois (rede, webhook inválido, rate
+  limit), o Atlas já tinha mudado localmente — o lead podia sumir da fila (filtro
+  `OPEN_LEAD_STATUSES`) sem o Bitrix, fonte da verdade do funil de SDR (ver AGENTS.md do módulo),
+  ter sido de fato atualizado, e o SDR só via um toast de erro genérico, sem saber que o estado já
+  tinha mudado. Corrigido reordenando: os dois envios ao Bitrix agora acontecem antes do
+  `prisma.lead.update` — se falharem, nada muda localmente e o erro propagado reflete a realidade.
+  Não implementado (nem necessário para o fix): um mecanismo de saga/compensação — reordenar já
+  resolve o caso real sem adicionar complexidade nova.
+- **RBAC — mesmo padrão "rota de frontend sem `RequireRole`" já corrigido em usage/team/
+  commercial_intelligence, mas aqui em dois lugares**: `/api/mesa-tratamento/*` exige
+  `ADMIN|GESTOR|CLOSER|SDR` no backend, mas a rota de frontend (`App.tsx`) não tinha
+  `<RequireRole>` e o item "Mesa de Tratamento" no grupo "Qualificar" da Sidebar era incondicional
+  — um `VISUALIZADOR` via o item, navegava até a tela e só recebia um 403 cru dentro do card de
+  erro real, com um botão "Tentar novamente" que nunca poderia funcionar para aquele usuário.
+  Corrigido nos dois pontos: `<RequireRole allowedRoles={[...MESA_TRATAMENTO_ROLES]}>` em
+  `App.tsx`, e o item da Sidebar tornado condicional (`canAccessMesaTratamento`). Novo
+  `MESA_TRATAMENTO_ROLES`/`canAccessMesaTratamento` exportados de `authorization.ts` (mesmo padrão
+  de `COMMERCIAL_INTELLIGENCE_ROLES`), pra frontend e backend nunca divergirem sobre quem acessa.
+- **Vitrine de dado real subaproveitado (décima quarta confirmação da série)**: `Lead.qualification`
+  (checklist de qualificação do SDR, Playbook Comercial AtlasGR §4.2) já era buscado do banco
+  (`leadSelect`) mas descartado antes de chegar à API — o SDR decidindo o que fazer agora não via o
+  que já sabia sobre o lead. `Lead.owner` também nunca era devolvido, então numa fila
+  compartilhada (ADMIN/GESTOR veem o time todo sem filtro) não dava pra saber de quem era cada
+  item. `nextAction`/`bitrixStageLabel` já vinham na API mas nunca eram renderizados no card
+  principal. Corrigidos: `qualification` (subconjunto de 7 campos mais relevantes pra decisão —
+  dor, solução Atlas, autoridade, interesse, horizonte, tema da próxima reunião — não o checklist
+  inteiro de ~20 campos) e `owner` adicionados à resposta da API e exibidos (qualificação no card
+  principal, condicional a existir algum campo preenchido; `owner` como "Responsável: X" em cada
+  item da fila lateral); `nextAction`/`bitrixStageLabel` passaram a ser renderizados no card.
+- **Fora de escopo, documentado**: `services/mesa-triage.service.ts`, que mora dentro da pasta
+  `mesa-tratamento/` mas implementa uma coisa completamente diferente (triagem de severidade de
+  incidentes de segurança de carga — jammer, violação de trava, botão de pânico), sem nenhuma tela
+  de operação real (só um playground genérico dentro de `AISuiteHub.tsx`) — nome de pasta
+  enganoso/dois domínios coexistindo, mas mover ou decidir o destino real dessa capacidade é
+  decisão de arquitetura/produto, não ajuste de piloto; sinalizado, não movido.
+  `ai-suite.routes.ts` (onde essa rota mora) não tem `requireRole` em nenhum dos ~20 endpoints do
+  catálogo — achado real, mas pré-existente e maior que este piloto, sinalizado à parte. Nenhuma
+  ação de reatribuir/comentar/marcar decidido para ADMIN/GESTOR na fila compartilhada — já
+  documentado como próxima rodada no próprio AGENTS.md do módulo, não construído aqui.
+- **Preservado**: nenhuma migração. Textos exigidos pelas duas suítes genéricas que tocam o módulo
+  (`tests/e2e/accessibility.spec.ts` — `'Mesa de Tratamento não tem violações críticas/sérias'`;
+  `tests/e2e/mobile-sweep.spec.ts` — módulo `'mesa-tratamento'` na varredura) intactos — ambas só
+  exercitam o estado "Bitrix24 não conectado" (sem `BitrixConnection` no fixture de teste), então
+  não tocam `CurrentLeadCard.tsx`/`QueueList.tsx` de verdade; nenhuma delas cobria os achados deste
+  piloto antes da correção.
+- **Achado de teste, corrigido**: o módulo não tinha nenhum teste unitário — `rankLeadsForQueue`
+  (lógica pura de ordenação da fila, `mesaTratamento.priority.ts`) nunca foi testada. Primeiro
+  teste do módulo criado: `tests/unit/features/mesa-tratamento/mesaTratamento.priority.test.ts` (6
+  casos — urgência de etapa, dias sem toque, lead nunca tocado, desempate por temperatura,
+  imutabilidade do array de entrada, etapa desconhecida no fim da fila).
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo), `npx tsc --noEmit -p .`
+  (0 erros atribuíveis a este piloto), `npx vite build` (sucesso), `npx vitest run -c
+  vitest.unit.config.ts tests/unit/features/mesa-tratamento` (6/6, arquivo novo).
+- **Aprendizado incorporado**: primeiro piloto desta série cujo achado principal é um bug de
+  contrato de nome de campo (`label` vs. `name`) entre backend e frontend dentro do próprio módulo
+  — mesma classe de vigilância já registrada no Piloto 025 (Settings), mas ali era API↔UI; aqui é
+  provedor-externo↔tipo-local. Vale, ao auditar qualquer tela que renderize dado vindo de uma
+  integração externa (Bitrix, aqui), comparar o tipo declarado no frontend contra outro consumidor
+  real do mesmo endpoint antes de assumir que o campo existe. Também a primeira vez que um achado
+  de integridade de dado (3.2) envolveu ordem de escrita entre dois sistemas (Atlas e Bitrix), não
+  RBAC nem soft-delete — o princípio geral fica registrado aqui: quando um sistema externo é "fonte
+  da verdade" documentada, a escrita local nunca deveria commitar antes da escrita externa
+  confirmar sucesso.
+
+## Onda — Resolução paralela de itens "fora de escopo" dos Pilotos 016-024
+
+- **Objetivo**: a pedido explícito do usuário ("lançar agentes em paralelo para resolver os fora de
+  escopo"), 8 agentes rodaram em paralelo (sem worktree - perderia o diff acumulado de 25+ pilotos
+  ainda não commitado; cada agente ficou restrito a um módulo/pasta sem sobreposição de arquivo com
+  os demais) resolvendo itens já documentados como "fora de escopo" em pilotos anteriores. Escopo
+  deliberadamente restrito ao lote de baixo risco (dado real subaproveitado, bugs pequenos, lacuna
+  de teste) - itens que exigiam rota de backend nova, decisão de integridade de dado/LGPD, ou eram
+  features inteiras (unificar motores de IA do Roleplay, persistir Roleplay no Prisma, dashboards
+  WhatsApp/3CX, paridade de IA no Document Editor, editar papel de usuário, confirm() nativo para
+  diálogo estilizado, etc.) ficaram de fora - sinalizados, não resolvidos, mesma disciplina de
+  proporcionalidade de todos os pilotos anteriores.
+- **Playbook (Piloto 017)**: bug real de paginação corrigido - findItems aceitava page/limit mas os
+  use cases chamavam com página fixa (1, 200) e o client descartava meta; itens além de 200 por
+  marca somiam silenciosamente. Corrigido com paginação real ponta-a-ponta (UI usa o Pagination já
+  existente, mesmo padrão de CompanyList/ContactList) nas duas telas (Matriz de Qualificação e
+  Matriz de Objeções). usePlaybookMatrixData.ts (consumido pelo Chatbook, fora do escopo do agente)
+  deliberadamente preservado sem alteração de contrato. createdAt/updatedAt agora exibidos (rodapé
+  discreto, padrão já usado em KanbanCard.tsx).
+- **Knowledge Base (Piloto 019)**: rerankScore (reranking via LLM) agora exibido como badge no card
+  de resultado; aviso "conteúdo truncado na indexação" adicionado quando metadata.truncated.
+  Achado extra durante a implementação: ingestion.service.ts não recalculava
+  metadata.truncated/originalChunkCount ao reeditar um documento já truncado - corrigido para não
+  deixar o novo badge mostrando informação obsoleta.
+- **Document Editor (Piloto 023)**: aria-current={boolean} corrigido para aria-current={condição ?
+  'true' : undefined} (evita aria-current="false" sendo lido como "item atual" por leitor de tela).
+- **Settings (Piloto 025)**: knob branco do switch de Feature Flags analisado e classificado como
+  não-bug (convenção universal de toggle físico, contraste real conferido nos tokens - sem
+  combinação tema×estado onde fique ilegível), documentado em vez de alterado sem necessidade.
+  User.image (avatar) e updatedByUserId/updatedAt de cada override de feature flag agora expostos e
+  exibidos.
+- **Team (Piloto 024)**: emailVerified/bitrixUserId/image/updatedAt do usuário agora exibidos no
+  card de cada membro (selo de verificação, avatar real com fallback de iniciais, pill de ID
+  Bitrix, "atualizado em").
+- **Cadence (Piloto 016)**: CadenceTouchAttempt.providerMessageId agora exibido (monoespaçado,
+  truncado com tooltip) na tabela expandida de tentativas - sem tocar a ação de desativar/excluir
+  sequência (fora de escopo, exige rota nova).
+- **Automations (Piloto 018)**: os campos discriminados de skip de cold call (limite de tentativas,
+  cooldown, sem telefone, suprimido, erro) agora detalhados numa segunda linha do card (antes só a
+  soma total), sem cor categórica (mesma categoria de dado, contagem).
+- **Billing (Piloto 022)**: lacuna real de teste corrigida - usage.routes.test.ts nunca exercitava
+  o requireRole real (injetava role: 'ADMIN' manualmente). Novo
+  tests/integration/rbac-e2e-usage.test.ts, seguindo o mesmo padrão de
+  rbac-e2e-commercial-intelligence.test.ts (sessão real via Better Auth, Postgres/RLS real). Achado
+  colateral: a rota exige ['ADMIN', 'GESTOR'], não só ADMIN como a entrada original do Piloto 022
+  registrava - corrigido no teste novo, refletindo a proteção real do bootstrap/routes.ts.
+- **Verificação agregada** (depois dos 8 agentes, todo o projeto): tsc --noEmit -p . - só 2 erros
+  pré-existentes em src/stories/Button.tsx e Header.tsx ('React' is declared but never read), não
+  relacionados a nenhuma mudança deste lote nem tocados por nenhum agente. vite build - sucesso,
+  mesmos avisos de chunk size pré-existentes. Cada agente também rodou eslint/tsc/build/vitest
+  isolado no seu próprio módulo antes de reportar concluído (resultados individuais nos relatórios
+  de cada agente, não repetidos aqui).
+- **Aprendizado incorporado**: primeira vez que este processo de pilotos rodou como enxame paralelo
+  em vez de sequencial - funcionou porque cada tarefa foi pré-escopada a um módulo/pasta sem
+  sobreposição de arquivo antes de disparar os agentes (feito manualmente, lendo os achados reais
+  de .claude/PILOTS.md primeiro, não delegando essa triagem). Dois agentes (Settings, Billing)
+  precisaram sair do diretório estritamente designado por dependência real de dado/padrão
+  (AuthContext.tsx/feature-flags/ para Settings; bootstrap/routes.ts só pra leitura, teste novo em
+  tests/integration/ para Billing) - nenhum colidiu com outro agente, mas reforça que "fique dentro
+  da pasta X" é uma orientação de baixo risco, não uma garantia; vale revisar o git status agregado
+  antes de qualquer commit deste lote, não só confiar no escopo pedido a cada agente.

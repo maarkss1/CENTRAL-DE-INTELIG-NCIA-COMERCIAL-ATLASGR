@@ -1,7 +1,7 @@
 import { Worker } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
-import { getAiModel } from '../ai/gateway.js';
+import { getAiModel, LOCAL_MODEL } from '../ai/gateway.js';
 import { HumanMessage } from '@langchain/core/messages';
 
 export const dailyReportWorker = new Worker(
@@ -9,7 +9,7 @@ export const dailyReportWorker = new Worker(
   async (job) => {
     logger.info(`Gerando relatório diário para organizationId: ${job.data.organizationId}`);
     try {
-      const model = getAiModel('groq-llama3-70b');
+      const model = getAiModel(LOCAL_MODEL);
       const prompt = `Gere um pequeno resumo inspirador e analítico para um diretor de vendas sobre o dia de ontem.`;
       const result = await model.invoke([new HumanMessage(prompt)]);
 
