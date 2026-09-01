@@ -922,6 +922,23 @@ paths:
         required: true
         schema:
           type: string
+    patch:
+      tags: [Activities]
+      summary: >-
+        Ativa/desativa um link de agendamento sem removê-lo (Piloto 020: `PublicBookingLink.active`
+        já existia no schema, mas não havia rota para alterá-lo depois da criação).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active: { type: boolean }
+      responses:
+        '200':
+          description: Link atualizado
     delete:
       tags: [Activities]
       summary: Desativa ou remove um link de agendamento
@@ -2973,6 +2990,29 @@ paths:
         '400':
           description: Sequência inválida (ver regras de `validateSequence`)
 
+  /cadence/sequences/{id}/deactivate:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Cadence]
+      summary: >-
+        Encerra a sequência de cadência em si (`active: false`, reversível, não exclusão física),
+        impedindo que seja escolhida em novos `POST /cadence/runs` a partir daí — distinto de
+        `POST /cadence/runs/{id}/stop`, que para uma execução individual já em andamento. Restrito
+        a ADMIN/GESTOR/CLOSER/SDR.
+      responses:
+        '200':
+          description: Sequência desativada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Sequência não encontrada nesta organização
+
   /cadence/sequences/from-template/{templateId}:
     parameters:
       - name: templateId
@@ -4580,6 +4620,34 @@ paths:
           description: Assinatura HMAC inválida
         '503':
           description: THREECX_WEBHOOK_SECRET não configurado (fail-closed)
+
+  /integrations/chatwoot/webhook:
+    post:
+      tags: [Webhooks]
+      summary: >-
+        Webhook de ENTRADA do Chatwoot (OS-6, `src/features/integrations/chatwoot/
+        chatwoot.webhook.ts`) — hoje só valida a assinatura e registra o evento em log; não
+        escreve nada no CRM ainda (decisão de produto pendente sobre como uma conversa do Chatwoot
+        deveria virar lead/contato/atividade). Corpo cru (`express.raw`), assinatura HMAC no header
+        `x-chatwoot-signature` calculada sobre `{timestamp}.{corpo cru}` (header
+        `x-chatwoot-timestamp`), segredo `CHATWOOT_WEBHOOK_SECRET`. Idempotente por fingerprint da
+        assinatura (`webhookReplayGuard`) — reentrega devolve `outcome: duplicate-delivery` com 200.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Processado (outcome logged | duplicate-delivery)
+        '400':
+          description: Corpo não é JSON válido
+        '401':
+          description: Assinatura HMAC inválida ou timestamp fora da janela
+        '500':
+          description: Rota montada sem o corpo bruto (erro de configuração, não deveria ocorrer em produção)
+        '503':
+          description: CHATWOOT_WEBHOOK_SECRET não configurado (fail-closed)
 
   /webhooks/voice-result:
     post:
