@@ -316,11 +316,8 @@ export function LoginScreen() {
               )}
             </div>
             <h1 className={`text-3xl font-black text-center ${brandAccent.text}`}>
-              Bem-vindo de volta
+              Bem-vindo
             </h1>
-            <p className={`text-base mt-2 text-center font-semibold ${brandAccent.text}`}>
-              Acesso exclusivo da equipe {brandInfo.name}
-            </p>
           </div>
 
           <motion.div
@@ -520,27 +517,12 @@ export function LoginScreen() {
                       <Loader2 className="animate-spin" size={18} />
                     ) : (
                       <>
-                        {isSignUp ? 'Criar Nova Conta' : 'Entrar na Plataforma'}{' '}
+                        {isSignUp ? 'Criar Nova Conta' : 'Entrar'}{' '}
                         <ArrowRight size={16} />
                       </>
                     )}
                   </motion.button>
                 </form>
-
-                <div className="mt-5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSignUp(!isSignUp);
-                      setError('');
-                    }}
-                    className={`text-sm font-bold hover:underline transition-colors cursor-pointer ${brandAccent.text}`}
-                  >
-                    {isSignUp
-                      ? 'Já possui conta? Fazer Login'
-                      : 'Não possui conta? Registrar Novo Acesso'}
-                  </button>
-                </div>
               </>
             )}
           </motion.div>
