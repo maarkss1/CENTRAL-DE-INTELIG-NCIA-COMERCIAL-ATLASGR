@@ -20,6 +20,14 @@ const SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 // Mascarado via data-testid (blocos puramente informativos, não afetam o layout dos elementos
 // vizinhos) em vez de só alargar o orçamento de diff pra essa tela inteira, que continua no mesmo
 // padrão das outras (600).
+//
+// Achado real (onda 43): mesmo com os dois acima mascarados, o card "Leads Ganhos por Mês"
+// (GlowChart.tsx, `<Area animationDuration={2000}>` do Recharts) ainda causava dezenas de milhares
+// de pixels de diff — a animação de entrada do gráfico (interna ao Recharts/react-smooth, não é
+// CSS, então `disableAnimations` do Playwright não a alcança) fica ~2s desenhando o path da área,
+// e o "captured a stable screenshot" do Playwright trava num frame qualquer dessa animação,
+// diferente a cada execução. Mesmo tratamento: mascarado via data-testid em vez de tentar
+// sincronizar com o fim da animação.
 const DASHBOARD_SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 
 async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 'dark') {
@@ -39,7 +47,11 @@ test.describe('Regressão visual', () => {
       await waitForAppReady(page);
       await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, {
         ...DASHBOARD_SCREENSHOT_OPTIONS,
-        mask: [page.getByTestId('dashboard-greeting'), page.getByTestId('clock-calendar-widget')],
+        mask: [
+          page.getByTestId('dashboard-greeting'),
+          page.getByTestId('clock-calendar-widget'),
+          page.getByTestId('dashboard-analytics-chart'),
+        ],
       });
     });
 
@@ -57,7 +69,10 @@ test.describe('Regressão visual', () => {
     await signUp(page, { email: uniqueTestEmail('visual-contact-form') });
     await page.getByRole('button', { name: 'Decisores' }).click();
     await waitForAppReady(page);
-    await page.getByRole('button', { name: /Novo Contato|Adicionar Primeiro Contato/ }).first().click();
+    await page
+      .getByRole('button', { name: /Novo Contato|Adicionar Primeiro Contato/ })
+      .first()
+      .click();
     await expect(page.getByRole('heading', { name: 'Novo Contato', exact: true })).toBeVisible();
     await expect(page).toHaveScreenshot('contact-form-light.png', { maxDiffPixels: 200 });
   });

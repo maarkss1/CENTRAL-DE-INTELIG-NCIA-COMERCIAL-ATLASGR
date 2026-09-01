@@ -12,7 +12,56 @@ import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 // HTML do Playwright (`attachment`) para triagem incremental, sem travar o CI hoje.
 const BLOCKING_IMPACTS = ['critical', 'serious'];
 
-async function assertNoBlockingViolations(page: import('@playwright/test').Page, testInfo: import('@playwright/test').TestInfo) {
+/**
+ * Achado real (onda 43): mesmo com `reducedMotion: 'reduce'` (linha ~40), o axe-core ainda pegava
+ * um card do Chatbook a meio caminho de um fade-in — `color-contrast` de 4.33:1 (abaixo do mínimo
+ * AA de 4.5:1) numa cor que em repouso tem contraste normal. Causa: `MotionConfig
+ * reducedMotion="user"` (App.tsx) só torna instantâneas as animações "unsafe" (transform/scale/
+ * posição) — a Framer Motion trata opacidade como "safe" (não causa desconforto vestibular) e
+ * continua fazendo o fade normalmente mesmo com essa preferência ativa, então qualquer
+ * `motion.div` com `initial={{ opacity: 0 }}` (ex.: ChatbookHub.tsx) ainda está semi-transparente
+ * no instante em que o axe roda logo após `waitForAppReady` — o mesmo tipo de falso positivo do
+ * toast (comentário abaixo), só que numa propriedade que a Constituição de Motion (`MotionConfig`)
+ * nunca colapsa. Espera qualquer animação da Web Animations API terminar antes de rodar o axe —
+ * cobre qualquer página/componente com fade-in via Framer Motion, não só o Chatbook. Best-effort
+ * (nunca trava o teste): se algo ficar em loop por mais de 2s (spinner de loading, decorativo),
+ * segue com o scan do jeito que está, exatamente como antes desta função existir.
+ */
+async function waitForAnimationsToSettle(page: import('@playwright/test').Page) {
+  // `waitForFunction(pageFunction, arg, options)` — o 2º parâmetro é `arg` (dado repassado pra
+  // função da página), não `options`; passar `{ timeout }` ali faz o Playwright usá-lo como `arg`
+  // (ignorado, já que a função não recebe parâmetro nenhum) e cair no timeout DEFAULT do teste
+  // (45s aqui) em vez dos 2s pretendidos — achado real ao instrumentar esta função (media 42s+ de
+  // fato gasto aqui num caso onde a página tem alguma animação continua não resolvida). `undefined`
+  // explícito no lugar de `arg` é obrigatório pra `options` cair no lugar certo.
+  await page
+    .waitForFunction(
+      () => document.getAnimations().every((a) => a.playState !== 'running'),
+      undefined,
+      {
+        timeout: 2_000,
+      },
+    )
+    .catch(() => {});
+}
+
+async function assertNoBlockingViolations(
+  page: import('@playwright/test').Page,
+  testInfo: import('@playwright/test').TestInfo,
+) {
+  await waitForAnimationsToSettle(page);
+  // Achado real (LoginScreen): mesmo depois de waitForAnimationsToSettle(), o axe-core ainda pegava
+  // o relógio/calendário da tela de login (delay 0.15s + duration 0.4s; título/subtítulo usam
+  // `fadeInUp`, duration 0.45s, ver src/lib/motion.ts) a meio caminho do fade — cor diferente a
+  // cada execução em CI (#cd947f numa tentativa, #e3c8bf na seguinte, nenhuma correspondendo a um
+  // token real), provando captura em instante aleatório da transição, não um bug estático de
+  // contraste. Causa: assim como o Chatbook (comentário acima), `document.getAnimations()` só
+  // enxerga animações da Web Animations API nativa — quando o Framer Motion anima `opacity` via
+  // spring/tween simples, ele usa requestAnimationFrame e escreve o estilo diretamente, sem passar
+  // por `Element.animate()`, daí o wait anterior resolver instantaneamente sem a animação ter de
+  // fato terminado. Buffer fixo cobre a maior entrada de tela conhecida no app (relógio da
+  // LoginScreen, 0.55s) com folga adicional pra variação de performance do runner de CI.
+  await page.waitForTimeout(1000);
   const results = await new AxeBuilder({ page }).analyze();
 
   await testInfo.attach('axe-results', {
@@ -44,7 +93,9 @@ test.describe('Acessibilidade automática (axe-core)', () => {
     await assertNoBlockingViolations(page, testInfo);
   });
 
-  test('Painel Central (dashboard) não tem violações críticas/sérias', async ({ page }, testInfo) => {
+  test('Painel Central (dashboard) não tem violações críticas/sérias', async ({
+    page,
+  }, testInfo) => {
     await signUp(page, { email: uniqueTestEmail('a11y-dash') });
     await waitForAppReady(page);
     await assertNoBlockingViolations(page, testInfo);
@@ -109,7 +160,9 @@ test.describe('Acessibilidade automática (axe-core)', () => {
     await assertNoBlockingViolations(page, testInfo);
   });
 
-  test('Central de Inteligência (IA) não tem violações críticas/sérias', async ({ page }, testInfo) => {
+  test('Central de Inteligência (IA) não tem violações críticas/sérias', async ({
+    page,
+  }, testInfo) => {
     await signUp(page, { email: uniqueTestEmail('a11y-intelligence') });
     await page.goto('/app/intelligence');
     await waitForAppReady(page);
@@ -214,7 +267,9 @@ test.describe('Acessibilidade automática (axe-core)', () => {
     await assertNoBlockingViolations(page, testInfo);
   });
 
-  test('Deck de aprovação de leads (Market Intelligence) não tem violações críticas/sérias', async ({ page }, testInfo) => {
+  test('Deck de aprovação de leads (Market Intelligence) não tem violações críticas/sérias', async ({
+    page,
+  }, testInfo) => {
     await signUp(page, { email: uniqueTestEmail('a11y-mideck') });
     await page.goto('/app/market-intelligence/deck');
     await waitForAppReady(page);
@@ -280,12 +335,16 @@ test.describe('Acessibilidade automática (axe-core)', () => {
     await assertNoBlockingViolations(page, testInfo);
   });
 
-  test('Tela de boas-vindas (pré-login) não tem violações críticas/sérias', async ({ page }, testInfo) => {
+  test('Tela de boas-vindas (pré-login) não tem violações críticas/sérias', async ({
+    page,
+  }, testInfo) => {
     await page.goto('/welcome');
     await assertNoBlockingViolations(page, testInfo);
   });
 
-  test('Seleção de marca (pré-login) não tem violações críticas/sérias', async ({ page }, testInfo) => {
+  test('Seleção de marca (pré-login) não tem violações críticas/sérias', async ({
+    page,
+  }, testInfo) => {
     await page.goto('/select-brand');
     await assertNoBlockingViolations(page, testInfo);
   });

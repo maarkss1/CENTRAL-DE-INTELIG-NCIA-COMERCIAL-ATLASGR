@@ -21,6 +21,10 @@ const findPeopleViaDomainSearchMock = vi.fn();
 const findEmailViaHunterMock = vi.fn();
 const getPaidProspectingKeyMock = vi.fn();
 const getProspectingProviderModeMock = vi.fn();
+const searchGithubOrganizationsMock = vi.fn();
+const getGithubOrganizationProfileMock = vi.fn();
+const searchCompanyNewsMock = vi.fn();
+const getYoutubeVideoInfoMock = vi.fn();
 
 vi.mock('../../services/prospecting.service.js', () => ({
   discoverViaGooglePlaces: (...args: unknown[]) => discoverViaGooglePlacesMock(...args),
@@ -34,6 +38,19 @@ vi.mock('../../services/apollo.service.js', () => ({
 vi.mock('../../services/hunter.service.js', () => ({
   findPeopleViaDomainSearch: (...args: unknown[]) => findPeopleViaDomainSearchMock(...args),
   findEmailViaHunter: (...args: unknown[]) => findEmailViaHunterMock(...args),
+}));
+
+vi.mock('../../services/github.service.js', () => ({
+  searchGithubOrganizations: (...args: unknown[]) => searchGithubOrganizationsMock(...args),
+  getGithubOrganizationProfile: (...args: unknown[]) => getGithubOrganizationProfileMock(...args),
+}));
+
+vi.mock('../../services/news.service.js', () => ({
+  searchCompanyNews: (...args: unknown[]) => searchCompanyNewsMock(...args),
+}));
+
+vi.mock('../../services/youtube.service.js', () => ({
+  getYoutubeVideoInfo: (...args: unknown[]) => getYoutubeVideoInfoMock(...args),
 }));
 
 vi.mock('../../../../config/prospecting-integrations.js', () => ({
@@ -82,9 +99,142 @@ describe('GET /api/prospecting/tools/status', () => {
         googlePlaces: { configured: false },
         apollo: { configured: true },
         hunter: { configured: false },
+        github: { configured: true },
+        news: { configured: true },
+        youtube: { configured: true },
       },
     });
     expect(JSON.stringify(res.body)).not.toContain('secret-key');
+  });
+});
+
+describe('POST /api/prospecting/tools/github', () => {
+  it('rejeita query com menos de 2 caracteres', async () => {
+    const app = buildApp();
+
+    const res = await request(app).post('/api/prospecting/tools/github').send({ query: 'a' });
+
+    expect(res.status).toBe(400);
+    expect(searchGithubOrganizationsMock).not.toHaveBeenCalled();
+  });
+
+  it('busca organizações e repassa o resultado', async () => {
+    searchGithubOrganizationsMock.mockResolvedValue({
+      organizations: [
+        { login: 'atlasgr', htmlUrl: 'https://github.com/atlasgr', avatarUrl: 'https://x/a.png' },
+      ],
+    });
+    const app = buildApp();
+
+    const res = await request(app)
+      .post('/api/prospecting/tools/github')
+      .send({ query: 'atlasgr', limit: 5 });
+
+    expect(res.status).toBe(200);
+    expect(searchGithubOrganizationsMock).toHaveBeenCalledWith('atlasgr', 5);
+    expect(res.body.data.organizations).toHaveLength(1);
+  });
+});
+
+describe('POST /api/prospecting/tools/github/profile', () => {
+  it('rejeita login inválido antes de consultar o GitHub', async () => {
+    const app = buildApp();
+
+    const res = await request(app)
+      .post('/api/prospecting/tools/github/profile')
+      .send({ login: 'não é um login válido' });
+
+    expect(res.status).toBe(400);
+    expect(getGithubOrganizationProfileMock).not.toHaveBeenCalled();
+  });
+
+  it('devolve o perfil encontrado', async () => {
+    getGithubOrganizationProfileMock.mockResolvedValue({
+      profile: {
+        login: 'atlasgr',
+        name: 'AtlasGR',
+        description: null,
+        blog: null,
+        location: null,
+        publicRepos: 3,
+        htmlUrl: 'https://github.com/atlasgr',
+        avatarUrl: 'https://x/a.png',
+      },
+    });
+    const app = buildApp();
+
+    const res = await request(app)
+      .post('/api/prospecting/tools/github/profile')
+      .send({ login: 'atlasgr' });
+
+    expect(res.status).toBe(200);
+    expect(getGithubOrganizationProfileMock).toHaveBeenCalledWith('atlasgr');
+    expect(res.body.data.profile.login).toBe('atlasgr');
+  });
+});
+
+describe('POST /api/prospecting/tools/news', () => {
+  it('rejeita nome de empresa muito curto', async () => {
+    const app = buildApp();
+
+    const res = await request(app).post('/api/prospecting/tools/news').send({ companyName: 'ab' });
+
+    expect(res.status).toBe(400);
+    expect(searchCompanyNewsMock).not.toHaveBeenCalled();
+  });
+
+  it('busca menções de notícias e repassa o resultado', async () => {
+    searchCompanyNewsMock.mockResolvedValue([
+      {
+        title: 'Empresa X expande frota',
+        url: 'https://noticia.com/1',
+        domain: 'noticia.com',
+        seenAt: '20260101T000000Z',
+      },
+    ]);
+    const app = buildApp();
+
+    const res = await request(app)
+      .post('/api/prospecting/tools/news')
+      .send({ companyName: 'Empresa X Transportes' });
+
+    expect(res.status).toBe(200);
+    expect(searchCompanyNewsMock).toHaveBeenCalledWith('Empresa X Transportes');
+    expect(res.body.data.mentions).toHaveLength(1);
+  });
+});
+
+describe('POST /api/prospecting/tools/youtube', () => {
+  it('rejeita URL inválida antes de consultar o YouTube', async () => {
+    const app = buildApp();
+
+    const res = await request(app)
+      .post('/api/prospecting/tools/youtube')
+      .send({ url: 'não-é-url' });
+
+    expect(res.status).toBe(400);
+    expect(getYoutubeVideoInfoMock).not.toHaveBeenCalled();
+  });
+
+  it('devolve os metadados do vídeo', async () => {
+    getYoutubeVideoInfoMock.mockResolvedValue({
+      info: {
+        title: 'Vídeo',
+        authorName: 'Canal',
+        authorUrl: 'https://youtube.com/@canal',
+        thumbnailUrl: 'https://x/t.jpg',
+        videoUrl: 'https://youtube.com/watch?v=abc',
+      },
+    });
+    const app = buildApp();
+
+    const res = await request(app)
+      .post('/api/prospecting/tools/youtube')
+      .send({ url: 'https://youtube.com/watch?v=abc' });
+
+    expect(res.status).toBe(200);
+    expect(getYoutubeVideoInfoMock).toHaveBeenCalledWith('https://youtube.com/watch?v=abc');
+    expect(res.body.data.info.title).toBe('Vídeo');
   });
 });
 
