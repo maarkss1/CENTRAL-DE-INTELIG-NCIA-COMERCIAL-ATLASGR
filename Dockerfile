@@ -44,6 +44,12 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+# prisma.config.ts fica na raiz do projeto (fora de prisma/) e o Prisma CLI (usado abaixo por
+# `prisma migrate deploy`, ver comentário mais adiante) depende dele pra resolver `datasource.url`
+# desde o Prisma 7 — sem essa cópia o container crash-loopava no boot com "The datasource.url
+# property is required in your Prisma config file when using prisma migrate deploy" (reproduzido
+# no deploy do Railway; a imagem buildava com SUCCESS mas nunca ficava saudável em runtime).
+COPY --from=builder /app/prisma.config.ts ./
 
 # Create a non-root user
 RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs nodejs
