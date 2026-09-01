@@ -176,6 +176,9 @@
   "overrides": {
     "brace-expansion": "^2.0.1",
     "uuid": "^14.0.1",
+    "prisma": {
+      "mysql2": "^3.22.0"
+    },
     "@xenova/transformers": {
       "sharp": "^0.35.3"
     },
