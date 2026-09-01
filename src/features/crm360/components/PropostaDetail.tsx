@@ -206,7 +206,7 @@ export function PropostaDetail({ document, onBack, onEdit, onChanged }: Proposta
                 </span>
               )}
               <span className="text-base text-ink-2">
-                Total: <span className="text-brand font-black">{money.format(document.total)}</span>
+                Total: <span className="text-brand-active dark:text-brand-2 font-black">{money.format(document.total)}</span>
               </span>
             </div>
           </div>

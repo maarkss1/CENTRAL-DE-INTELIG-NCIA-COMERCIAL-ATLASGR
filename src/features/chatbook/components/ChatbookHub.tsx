@@ -132,7 +132,7 @@ export function ChatbookHub() {
             ))}
 
             {isSearching && (
-              <div className="flex items-center gap-2 text-sm text-brand bg-surface-2 p-3 rounded-2xl border border-line w-fit animate-pulse">
+              <div className="flex items-center gap-2 text-sm text-brand-active dark:text-brand-2 bg-surface-2 p-3 rounded-2xl border border-line w-fit animate-pulse">
                 <RefreshCw className="w-4 h-4 animate-spin" />
                 <span>Consultando o motor Groq...</span>
               </div>

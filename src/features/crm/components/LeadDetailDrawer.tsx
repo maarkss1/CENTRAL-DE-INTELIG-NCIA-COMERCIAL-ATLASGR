@@ -503,7 +503,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                           }
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
+                          className="text-xs font-semibold text-brand-active dark:text-brand-2 hover:underline flex items-center gap-1"
                         >
                           <Globe className="w-3 h-3" /> {company.website}
                         </a>
@@ -575,7 +575,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                   </div>
                   <button
                     onClick={() => setQualOpen(!qualOpen)}
-                    className="text-xs text-brand hover:underline font-semibold flex items-center gap-1"
+                    className="text-xs text-brand-active dark:text-brand-2 hover:underline font-semibold flex items-center gap-1"
                   >
                     {qualOpen ? (
                       <ChevronUp className="w-3.5 h-3.5" />
@@ -593,7 +593,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-ink flex items-center gap-1.5">
                           🎯 Lead Score:{' '}
-                          <b className="text-sm font-black text-brand">{liveScore.score}</b>/100
+                          <b className="text-sm font-black text-brand-active dark:text-brand-2">{liveScore.score}</b>/100
                         </span>
                         <span className="text-xs font-bold text-ink-2">
                           Classificação:{' '}
@@ -665,7 +665,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-ink">Score Atual:</span>
-                        <span className="px-2 py-0.5 rounded-lg bg-surface border border-line font-black text-xs text-brand">
+                        <span className="px-2 py-0.5 rounded-lg bg-surface border border-line font-black text-xs text-brand-active dark:text-brand-2">
                           {lead.score ?? liveScore.score}/100
                         </span>
                       </div>

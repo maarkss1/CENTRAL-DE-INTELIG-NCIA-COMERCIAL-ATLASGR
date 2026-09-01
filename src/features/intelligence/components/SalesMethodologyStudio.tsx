@@ -808,7 +808,7 @@ function SnapCard({
       </div>
       <p className="text-xs text-ink-2 leading-relaxed font-medium">{content}</p>
       {extra && (
-        <p className="text-xs text-brand font-bold pt-1 border-t border-line">💡 {extra}</p>
+        <p className="text-xs text-brand-active dark:text-brand-2 font-bold pt-1 border-t border-line">💡 {extra}</p>
       )}
       {checklist && (
         <ul className="space-y-1 text-xs text-ink-2 pt-2 border-t border-line">
