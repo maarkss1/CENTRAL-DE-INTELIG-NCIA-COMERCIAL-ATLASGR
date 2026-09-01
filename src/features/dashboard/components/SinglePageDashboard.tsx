@@ -113,7 +113,7 @@ export function SinglePageDashboard() {
         {/* Cabeçalho de saudação */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div data-testid="dashboard-greeting">
-            <p className="text-[11px] font-black uppercase tracking-widest text-brand mb-1">
+            <p className="text-[11px] font-black uppercase tracking-widest text-brand-active dark:text-brand-2 mb-1">
               {todayLabel}
             </p>
             <h1 className="text-2xl font-black text-ink">
