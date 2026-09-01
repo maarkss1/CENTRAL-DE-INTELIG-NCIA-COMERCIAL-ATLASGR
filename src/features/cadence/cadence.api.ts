@@ -8,7 +8,8 @@ import type { CadenceJourneyTemplate } from './domain/cadenceTemplates';
  * o arame, datas chegam como string ISO, não `Date`).
  *
  * Criar sequência e iniciar run para um lead adicionados numa rodada anterior. Pausar/retomar/parar
- * um run em andamento (CYC-009, onda 29) adicionados nesta.
+ * um run em andamento (CYC-009, onda 29) adicionados nesta. Encerrar uma SEQUÊNCIA (distinto de
+ * parar uma execução) adicionado no Piloto 016 (achado fora de escopo, backend novo).
  */
 
 export type CadenceRunStatus = 'active' | 'paused' | 'stopped' | 'completed' | 'failed';
@@ -132,6 +133,11 @@ export const cadenceApi = {
   sequences: () => api.get<CadenceSequenceDTO[]>('/api/cadence/sequences'),
   createSequence: (input: { name: string; description?: string; touches: CadenceTouchInput[] }) =>
     api.post<CadenceSequenceDTO>('/api/cadence/sequences', input),
+  /** Encerra a sequência (reversível — `active: false`, não exclusão física). Distinto de
+   * `stopRun`: aquele para uma execução individual já em andamento; este impede que a sequência
+   * seja escolhida em novas execuções dali em diante. */
+  deactivateSequence: (id: string) =>
+    api.post<CadenceSequenceDTO>(`/api/cadence/sequences/${id}/deactivate`, {}),
   startRun: (input: { leadId: string; sequenceId: string }) =>
     api.post<StartCadenceRunResponse>('/api/cadence/runs', input),
   pauseRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/pause`, {}),

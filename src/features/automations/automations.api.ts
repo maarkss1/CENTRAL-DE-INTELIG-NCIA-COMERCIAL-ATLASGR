@@ -122,6 +122,15 @@ export interface AutomationVersionTimeline {
   history: AutomationVersionTimelineEntry[];
 }
 
+/** Ver `stagnation-scanner.service.ts` (backend) — resultado real de uma execução da varredura. */
+export interface StagnationScanResult {
+  runId: string;
+  automationsEvaluated: number;
+  leadsScanned: number;
+  fired: number;
+  failures: number;
+}
+
 export const automationsApi = {
   list: () => api.get<Automation[]>('/api/automations'),
   create: (draft: AutomationDraft) => api.post<Automation>('/api/automations', draft),
@@ -131,6 +140,10 @@ export const automationsApi = {
   dryRun: (id: string, limit?: number) =>
     api.post<DryRunResult>(`/api/automations/${id}/dry-run`, limit ? { limit } : {}),
   versions: (id: string) => api.get<AutomationVersionTimeline>(`/api/automations/${id}/versions`),
+  /** Dispara `POST /api/automations/stagnation-scan` (ADMIN-only, roda para todas as
+   * organizações) — mesma rota do cron diário, mas sob demanda. Ver Piloto 018. */
+  runStagnationScan: () =>
+    api.post<StagnationScanResult>('/api/automations/stagnation-scan', {}),
 };
 
 const OPERATOR_SYMBOL: Record<keyof AutomationConditionOperator, string> = {

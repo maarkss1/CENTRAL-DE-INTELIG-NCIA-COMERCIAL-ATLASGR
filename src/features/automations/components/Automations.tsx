@@ -13,6 +13,7 @@ import {
   FlaskConical,
   History,
   Pencil,
+  RefreshCw,
 } from 'lucide-react';
 
 import { Card } from '../../../components/ui/Card';
@@ -421,6 +422,11 @@ export function Automations() {
   // CLOSER viam todos os botões habilitados e só descobriam a falta de permissão com um 403 depois
   // de clicar (achado do Piloto 018, mesmo padrão já corrigido no Piloto 017/Playbook).
   const canManage = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
+  // `/api/automations/stagnation-scan` é restrita a ADMIN no backend (roda para TODAS as
+  // organizações, não só a de quem chama — ver `automation.routes.ts`), então o botão de disparo
+  // manual precisa do mesmo corte, mais estrito que `canManage` (ADMIN/GESTOR). Achado do
+  // Piloto 018: a rota já existia, testada, mas sem nenhum ponto de acionamento na UI.
+  const isAdmin = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN']);
   const [items, setItems] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -429,6 +435,7 @@ export function Automations() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [dryRunTarget, setDryRunTarget] = useState<Automation | null>(null);
   const [versionsTarget, setVersionsTarget] = useState<Automation | null>(null);
+  const [scanningStagnation, setScanningStagnation] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -474,6 +481,34 @@ export function Automations() {
     }
   }, []);
 
+  // Roda a varredura de estagnação (cron diário, `runStagnationScan`) sob demanda, para TODAS as
+  // organizações — mesma operação, só que agora, em vez de esperar o horário agendado (03:17). É
+  // uma operação de custo real (reavalia leads de todas as organizações), daí o confirm antes de
+  // disparar, mesmo padrão já usado em `remove` acima para ações administrativas destrutivas.
+  const runStagnationScanNow = useCallback(async () => {
+    if (
+      !window.confirm(
+        'Rodar agora a varredura de estagnação para TODAS as organizações? Isso reavalia imediatamente as automações de "Lead estagnado" já configuradas, sem esperar o cron diário (03:17).',
+      )
+    ) {
+      return;
+    }
+    setScanningStagnation(true);
+    try {
+      const result = await automationsApi.runStagnationScan();
+      toast.success(
+        `Varredura concluída: ${result.automationsEvaluated} automação(ões) avaliada(s), ${result.leadsScanned} lead(s) examinado(s), ${result.fired} disparo(s)${
+          result.failures > 0 ? `, ${result.failures} falha(s)` : ''
+        }.`,
+      );
+      void load();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setScanningStagnation(false);
+    }
+  }, [load]);
+
   return (
     <div className="flex-1 overflow-y-auto bg-bg p-8">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -493,11 +528,29 @@ export function Automations() {
               </p>
             </div>
           </div>
-          {canManage && (
-            <Button type="button" onClick={() => setCreating(true)}>
-              <Plus className="w-4 h-4 mr-2" /> Nova automação
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            {isAdmin && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void runStagnationScanNow()}
+                disabled={scanningStagnation}
+                title='Reavalia agora as automações de "Lead estagnado" para todas as organizações, sem esperar o cron diário'
+              >
+                {scanningStagnation ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Rodar varredura de estagnação agora
+              </Button>
+            )}
+            {canManage && (
+              <Button type="button" onClick={() => setCreating(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Nova automação
+              </Button>
+            )}
+          </div>
         </div>
 
         <ColdCallStatusCard />

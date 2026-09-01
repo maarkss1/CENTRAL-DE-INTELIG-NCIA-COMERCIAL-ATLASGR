@@ -2233,3 +2233,58 @@ entrada nova.
   tests/integration/ para Billing) - nenhum colidiu com outro agente, mas reforça que "fique dentro
   da pasta X" é uma orientação de baixo risco, não uma garantia; vale revisar o git status agregado
   antes de qualquer commit deste lote, não só confiar no escopo pedido a cada agente.
+
+## Onda 2 — Itens de escopo médio que exigiam rota de backend nova (Pilotos 016, 018, 020)
+
+- **Objetivo**: segunda leva de itens "fora de escopo", desta vez os que exigiam desenhar e criar
+  rota de backend nova (não só exibir dado já existente) — deliberadamente separados da Onda 1 por
+  isso. 3 agentes em paralelo, um por módulo, mesmo padrão de isolamento de arquivo da Onda 1.
+- **Cadence (Piloto 016) — encerrar sequência**: nova `POST /api/cadence/sequences/:id/deactivate`
+  (mesmo RBAC de escrita já usado no módulo), passando por um use case novo
+  (`application/sequenceService.ts`) e um repositório novo (`infra/PrismaCadenceSequenceRepository.ts`)
+  em vez de `prisma.update` cru na rota — decisão de design real tomada pelo agente: **desativação
+  reversível** (`active: false`), não exclusão física, porque `CadenceSequence` não está em
+  `auditableModels` (`src/lib/prisma.ts`) e nenhuma rota do módulo já grava `deletedAt` hoje — um
+  soft-delete de verdade seria um padrão novo sem precedente no módulo, não a continuação de um já
+  estabelecido. `CadenceHub.tsx` ganhou uma seção "Sequências" que antes não existia como view
+  própria (a lista só existia dentro do `<select>` do diálogo de iniciar execução) com o botão
+  "Encerrar sequência".
+- **Calendar (Piloto 020) — toggle de link de agendamento público**: nova
+  `PATCH /api/calendar/booking-links/:id` (`{active: boolean}`), autorizada para o dono do link OU
+  ADMIN/GESTOR (mesmo princípio de `requireLeadOwnership.ts`), devolvendo 404 (não 403) quando o
+  link existe mas pertence a outro vendedor — não revela a existência do link a quem não deveria
+  vê-lo. Achado real durante a implementação: a rota pública de agendamento (`GET`/`POST /:slug`)
+  **já checava `active`** antes desta tarefa — o toggle nasceu funcional de verdade (bloqueia novos
+  agendamentos assim que desligado), não cosmético. Switch novo na UI reaproveita o mesmo padrão
+  visual/acessível (`role="switch"`, `aria-checked`) do `FlagSwitch` de Feature Flags, como cópia
+  local — mesma decisão de "promover a `src/components/ui/Switch.tsx` só quando um terceiro
+  consumidor aparecer" já usada no arquivo original.
+- **Automations (Piloto 018) — botão "Rodar agora" da varredura de estagnação**: rota
+  (`POST /api/automations/stagnation-scan`) já existia, testada, ADMIN-only — só faltava o
+  acionamento. Botão colocado no cabeçalho da página (não dentro da lista de automações) porque a
+  varredura reavalia TODAS as automações "Lead estagnado" de TODAS as organizações de uma vez —
+  achado real do agente: é uma ação administrativa de página, não de uma automação específica.
+  Gate de RBAC no frontend replicado como `ADMIN`-only (mais restrito que o `canManage`
+  ADMIN/GESTOR já usado pro resto do CRUD do módulo) — testado explicitamente (GESTOR não vê o
+  botão, mesmo vendo os outros controles de escrita). `window.confirm()` antes de disparar (custo
+  real, afeta todas as organizações) e feedback usa os números reais devolvidos pela API
+  (`automationsEvaluated`/`leadsScanned`/`fired`/`failures`), nunca um resumo inventado.
+- **Achado ambiental, não corrigido (não é problema do trabalho desta onda)**: os 3 agentes
+  reportaram, de forma independente, o mesmo erro de `tsc` pré-existente e não relacionado em
+  `src/features/auth/components/LoginScreen.tsx` (`setIsSignUp` declarado e nunca lido) — arquivo
+  já modificado no working tree antes desta onda, não tocado por nenhum piloto desta série.
+  Confirmado via `git status`/`git log` que a mudança é de outra sessão/trabalho em andamento no
+  mesmo checkout — sinalizado, não corrigido (não é escopo de nenhum destes 3 pilotos).
+- **Preservado**: `tests/e2e/cadence.spec.ts` (textos exatos já protegidos em pilotos anteriores)
+  intacto; nenhuma migração em nenhum dos 3 módulos.
+- **Verificação agregada** (depois dos 3 agentes, todo o projeto): `npx tsc --noEmit -p .` — só o
+  erro pré-existente de `LoginScreen.tsx` acima, nada relacionado a Cadence/Calendar/Automations.
+  `npx vite build` — sucesso. Cada agente também rodou eslint/tsc/build/vitest isolado no seu
+  módulo antes de reportar concluído (Cadence: 78+134 testes; Calendar: 24 testes, 7 novos;
+  Automations: 15 testes, 3 novos).
+- **Aprendizado incorporado**: primeira vez que esta série de pilotos desenhou uma rota de escrita
+  nova do zero (não só exibiu dado existente nem corrigiu um bug num caminho já existente) via
+  agente em paralelo — funcionou porque cada prompt já trazia a pergunta certa a responder (RBAC
+  real do módulo, se `deletedAt`/soft-delete já era um padrão estabelecido ali, quem é dono do
+  recurso) em vez de prescrever a resposta, deixando o agente decidir com base no código real em
+  vez de assumir um padrão genérico de CRUD.

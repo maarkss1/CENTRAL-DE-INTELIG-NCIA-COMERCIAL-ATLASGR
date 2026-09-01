@@ -4,10 +4,12 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronRight,
+  ListChecks,
   Loader2,
   Pause,
   Play,
   Plus,
+  PowerOff,
   RefreshCw,
   Repeat,
   ShieldOff,
@@ -23,6 +25,8 @@ import { Button } from '../../../components/ui/Button';
 import { Dialog } from '../../../components/ui/Dialog';
 import { toast } from '../../../lib/toast';
 import { leadsDB } from '../../../lib/db';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import type { Lead } from '../../../types';
 import type { CadenceJourneyTemplate } from '../domain/cadenceTemplates';
 import {
@@ -95,6 +99,12 @@ const TOUCH_RESULT_LABEL: Record<CadenceTouchResult, string> = {
 };
 
 const STATUS_FILTERS: CadenceRunStatus[] = ['active', 'paused', 'stopped', 'completed', 'failed'];
+
+/** Mesmo conjunto de `writeRoles` do backend (`cadence.routes.ts`) — criar/iniciar/encerrar
+ * sequência e pausar/retomar/parar um run exigem todos o mesmo papel mínimo. Duplicado aqui (não
+ * importável do backend no bundle do cliente) como o resto do app já faz — ver
+ * `ObjectionsMatrixPage.tsx`/`QualificationMatrixPage.tsx`. */
+const CADENCE_WRITE_ROLES = ['ADMIN', 'GESTOR', 'CLOSER', 'SDR'];
 
 function formatDateTime(iso: string | null): string {
   if (!iso) return '—';
@@ -778,6 +788,169 @@ function CadenceRunsSection() {
   );
 }
 
+// ── Sequências ───────────────────────────────────────────────────────────
+
+/**
+ * Achado "fora de escopo" do Piloto 016: `CadenceSequence.active`/`deletedAt` já existiam no
+ * schema e já eram filtrados em toda leitura, mas não existia nenhuma tela listando as sequências
+ * já criadas, nem ação nenhuma pra desligar uma. Esta seção lista o que `GET /sequences` já expõe
+ * (só sequências ativas — o mesmo filtro `active: true, deletedAt: null` de sempre) e adiciona a
+ * única ação de escrita que faltava: encerrar. Distinta de `CadenceRunActions`/`stopRun` (que para
+ * uma EXECUÇÃO de um lead específico) — aqui a ação impede que a SEQUÊNCIA seja escolhida em novas
+ * execuções dali em diante; o histórico de runs já iniciados a partir dela não muda.
+ *
+ * Como `GET /sequences` só devolve sequências ativas, uma sequência encerrada simplesmente some
+ * desta lista na próxima busca — não existe um estado "Encerrada" pra badge aqui, diferente do
+ * status de um run (`CadenceRunStatus`), que é uma máquina de estados com histórico visível.
+ */
+function SequencesSection({ canManage }: { canManage: boolean }) {
+  const [data, setData] = useState<CadenceSequenceDTO[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    cadenceApi
+      .sequences()
+      .then((result) => !cancelled && setData(result))
+      .catch((err) => !cancelled && setError((err as Error).message))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => load(), [load]);
+
+  const handleDeactivate = async (sequence: CadenceSequenceDTO) => {
+    if (
+      !window.confirm(
+        `Encerrar a sequência "${sequence.name}"? Ela deixa de poder ser escolhida para novas cadências — execuções já em andamento não são afetadas.`,
+      )
+    )
+      return;
+    setDeactivatingId(sequence.id);
+    try {
+      await cadenceApi.deactivateSequence(sequence.id);
+      toast.success(`Sequência "${sequence.name}" encerrada.`);
+      load();
+    } catch (err) {
+      toast.error((err as Error).message || 'Não foi possível encerrar a sequência.');
+    } finally {
+      setDeactivatingId(null);
+    }
+  };
+
+  return (
+    <Card padding="sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <ListChecks className="w-4 h-4 text-brand" aria-hidden="true" />
+          <h2 className="text-sm font-bold text-ink">Sequências</h2>
+          {data && data.length > 0 && (
+            <span className="text-[11px] font-semibold text-ink-2 bg-surface-2 border border-line rounded-full px-2 py-0.5">
+              {data.length}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={load}
+          className="p-1.5 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          title="Atualizar"
+          aria-label="Atualizar sequências"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2" role="status" aria-live="polite" aria-label="Carregando sequências">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      ) : error ? (
+        <div
+          className="flex items-center justify-between gap-3 text-sm text-danger-active dark:text-danger py-4"
+          role="alert"
+        >
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
+          </span>
+          <button
+            type="button"
+            onClick={load}
+            className="text-xs font-semibold underline shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
+          >
+            Tentar de novo
+          </button>
+        </div>
+      ) : !data || data.length === 0 ? (
+        <EmptyState
+          title="Nenhuma sequência ativa"
+          description="Crie uma sequência ou use um modelo de jornada para poder iniciar cadências para leads."
+          icon={<ListChecks className="w-8 h-8 text-brand" />}
+        />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-ink-2 border-b border-line">
+                <th className="text-left font-semibold py-1.5 pr-3">Nome</th>
+                <th className="text-center font-semibold py-1.5 pr-3">Toques</th>
+                <th className="text-right font-semibold py-1.5 pr-3">Criada em</th>
+                <th className="text-right font-semibold py-1.5">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((sequence) => (
+                <tr key={sequence.id} className="border-b border-line last:border-0">
+                  <td className="py-1.5 pr-3">
+                    <div className="font-semibold text-ink">{sequence.name}</div>
+                    {sequence.description && (
+                      <div
+                        className="text-ink-2 max-w-sm truncate"
+                        title={sequence.description}
+                      >
+                        {sequence.description}
+                      </div>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-3 text-center text-ink-2 [font-variant-numeric:tabular-nums]">
+                    {sequence.touches.length}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right text-ink-2 [font-variant-numeric:tabular-nums]">
+                    {formatDateTime(sequence.createdAt)}
+                  </td>
+                  <td className="py-1.5 text-right">
+                    {canManage ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDeactivate(sequence)}
+                        disabled={deactivatingId !== null}
+                        aria-label={`Encerrar sequência ${sequence.name}`}
+                        title="Encerrar sequência"
+                        className="inline-flex items-center gap-1 p-1.5 text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-surface-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      >
+                        <PowerOff className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span className="text-ink-2">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ── Nova sequência ───────────────────────────────────────────────────────
 
 const CHANNEL_OPTIONS: CadenceChannel[] = ['email', 'whatsapp', 'voice'];
@@ -1349,7 +1522,13 @@ function JourneyTemplatesDialog({
 // ── Página ───────────────────────────────────────────────────────────────
 
 export function CadenceHub() {
+  const { currentUser } = useAuth();
+  // Mesmo achado de RBAC do Piloto 017 (Playbook): o botão de encerrar sequência só some pra quem
+  // já não pode escrever neste módulo (mesmas `writeRoles` do backend) — a rota já protege de
+  // verdade, isto é só não mostrar uma ação que resultaria em 403.
+  const canManage = !!currentUser && hasRequiredRole(currentUser.role, CADENCE_WRITE_ROLES);
   const [runsKey, setRunsKey] = useState(0);
+  const [sequencesKey, setSequencesKey] = useState(0);
   const [newSequenceOpen, setNewSequenceOpen] = useState(false);
   const [startRunOpen, setStartRunOpen] = useState(false);
   const [journeyTemplatesOpen, setJourneyTemplatesOpen] = useState(false);
@@ -1392,18 +1571,25 @@ export function CadenceHub() {
         </header>
 
         <CadenceRunsSection key={runsKey} />
+        <SequencesSection key={sequencesKey} canManage={canManage} />
         <OptOutsSection />
       </div>
 
       <JourneyTemplatesDialog
         isOpen={journeyTemplatesOpen}
         onClose={() => setJourneyTemplatesOpen(false)}
-        onCreated={() => setRunsKey((k) => k + 1)}
+        onCreated={() => {
+          setRunsKey((k) => k + 1);
+          setSequencesKey((k) => k + 1);
+        }}
       />
       <NewSequenceDialog
         isOpen={newSequenceOpen}
         onClose={() => setNewSequenceOpen(false)}
-        onCreated={() => setRunsKey((k) => k + 1)}
+        onCreated={() => {
+          setRunsKey((k) => k + 1);
+          setSequencesKey((k) => k + 1);
+        }}
       />
       <StartRunDialog
         isOpen={startRunOpen}
