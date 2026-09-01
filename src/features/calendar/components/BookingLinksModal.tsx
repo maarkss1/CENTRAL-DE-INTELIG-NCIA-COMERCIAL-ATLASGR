@@ -18,11 +18,47 @@ interface BookingLinksModalProps {
   onClose: () => void;
 }
 
+/** Switch acessível mínimo (role="switch") — mesmo padrão já usado em
+ *  `src/features/feature-flags/components/FeatureFlagsPanel.tsx` (`FlagSwitch`). Não há um
+ *  primitivo `Switch` em `src/components/ui/` hoje; esta é a segunda cópia local do mesmo padrão
+ *  visual (não um componente novo — ver design-system/SKILL.md sobre não inventar variante à
+ *  toa). Se um terceiro caller aparecer, promover para `src/components/ui/Switch.tsx` passa a
+ *  fazer sentido. */
+function LinkActiveSwitch({
+  checked,
+  disabled,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onChange}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${checked ? 'bg-brand' : 'bg-surface border border-line'}`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
+        aria-hidden="true"
+      />
+    </button>
+  );
+}
+
 export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
   const [links, setLinks] = useState<BookingLink[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: 'Demonstração de Telemetria e Rastreamento',
@@ -78,6 +114,22 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
       fetchLinks();
     } catch {
       toast.error('Erro ao excluir link');
+    }
+  };
+
+  const handleToggleActive = async (link: BookingLink) => {
+    setTogglingId(link.id);
+    // Optimistic: a lista já reflete o novo estado enquanto a request está em voo, com rollback
+    // se falhar — mesmo padrão de feedback imediato usado no toggle de Feature Flags.
+    setLinks((prev) => prev.map((l) => (l.id === link.id ? { ...l, active: !l.active } : l)));
+    try {
+      await api.patch(`/api/calendar/booking-links/${link.id}`, { active: !link.active });
+      toast.success(link.active ? 'Link desativado' : 'Link reativado');
+    } catch (err) {
+      setLinks((prev) => prev.map((l) => (l.id === link.id ? { ...l, active: link.active } : l)));
+      toast.error(err instanceof Error ? err.message : 'Erro ao alterar status do link');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -245,7 +297,9 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                 {links.map((link) => (
                   <div
                     key={link.id}
-                    className="p-4 rounded-2xl bg-surface border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:border-brand/40 transition-colors"
+                    className={`p-4 rounded-2xl bg-surface border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm hover:border-brand/40 transition-colors ${
+                      link.active ? '' : 'opacity-60'
+                    }`}
                   >
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -255,6 +309,11 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand-active dark:text-brand-2">
                           ⏱️ {link.durationMin} min
                         </span>
+                        {!link.active && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-danger/10 text-danger-active dark:text-danger">
+                            Inativo
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-ink-2 font-mono flex items-center gap-1">
                         <Globe className="w-3 h-3 text-ink-2" />
@@ -266,6 +325,16 @@ export function BookingLinksModal({ isOpen, onClose }: BookingLinksModalProps) {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      <LinkActiveSwitch
+                        checked={link.active}
+                        disabled={togglingId === link.id}
+                        onChange={() => handleToggleActive(link)}
+                        label={
+                          link.active
+                            ? `Desativar link ${link.title}`
+                            : `Reativar link ${link.title}`
+                        }
+                      />
                       <button
                         type="button"
                         onClick={() => handleCopy(link.slug)}

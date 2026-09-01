@@ -8,6 +8,7 @@ import {
   type AuthRequest,
 } from '../../../shared/middlewares/authenticateToken.js';
 import { requireTenant } from '../../../shared/middlewares/authorization.js';
+import { hasRequiredRole } from '../../../lib/auth/authorization.js';
 import { z } from 'zod';
 
 // Schema para criação/atualização de link de agendamento
@@ -22,6 +23,45 @@ const bookingLinkSchema = z.object({
   durationMin: z.number().int().min(15).max(120).default(30),
   active: z.boolean().default(true),
 });
+
+// Schema para alternar ativo/inativo de um link já existente
+const bookingLinkActiveSchema = z.object({
+  active: z.boolean(),
+});
+
+/**
+ * Ativa/desativa um link de agendamento já existente. Mesmo padrão de "dono OU gestão" já usado
+ * em `requireLeadOwnership.ts` (`src/lib/auth/authorization.ts`, `ROLE_HIERARCHY`): ADMIN/GESTOR
+ * gerenciam qualquer link da organização; CLOSER/SDR/VISUALIZADOR só o próprio (`userId`). Método
+ * dedicado (não um `prisma.update` cru dentro do handler) para manter a checagem de posse e o
+ * update juntos e testáveis isoladamente do roteamento HTTP.
+ */
+async function setBookingLinkActive(
+  organizationId: string,
+  userId: string,
+  role: string,
+  linkId: string,
+  active: boolean,
+) {
+  const isManager = hasRequiredRole(role, ['ADMIN', 'GESTOR']);
+  const link = await prisma.publicBookingLink.findFirst({
+    where: {
+      id: linkId,
+      organizationId,
+      ...(isManager ? {} : { userId }),
+    },
+  });
+  if (!link) {
+    throw new AppError(
+      'Link de agendamento não encontrado ou você não tem permissão para alterá-lo.',
+      404,
+    );
+  }
+  return prisma.publicBookingLink.update({
+    where: { id: link.id },
+    data: { active },
+  });
+}
 
 // Schema para realização pública de agendamento
 const publicBookSchema = z.object({
@@ -83,6 +123,22 @@ privateBookingRouter.post(
         },
       });
       res.status(201).json({ success: true, data: link });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Ativa/desativa um link de agendamento (achado do Piloto 020: `PublicBookingLink.active` já
+// existia no schema, mas não havia rota nenhuma para alterá-lo depois da criação).
+privateBookingRouter.patch(
+  '/:id',
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { organizationId, id: userId, role } = (req as AuthRequest).user;
+      const { active } = bookingLinkActiveSchema.parse(req.body);
+      const link = await setBookingLinkActive(organizationId, userId, role, req.params.id, active);
+      res.json({ success: true, data: link });
     } catch (err) {
       next(err);
     }

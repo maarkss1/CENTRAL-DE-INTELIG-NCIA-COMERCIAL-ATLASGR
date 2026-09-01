@@ -18,8 +18,10 @@ import {
   type CadenceRunStatus,
 } from './domain/cadence.js';
 import { scheduleVerifiedMeeting } from './application/scheduleMeeting.js';
+import { deactivateCadenceSequence } from './application/sequenceService.js';
 import { prismaMeetingConfirmationNotePort } from './infra/PrismaMeetingConfirmationNotePort.js';
 import { prismaCalendarSchedulerPort } from './infra/PrismaCalendarSchedulerPort.js';
+import { prismaCadenceSequenceRepository } from './infra/PrismaCadenceSequenceRepository.js';
 
 /**
  * Router de cadência multicanal e opt-out unificado. Leitura (opt-outs/runs) desde a Onda 10;
@@ -196,6 +198,36 @@ router.post(
         data: { organizationId, name, description, touches, createdBy: userId },
       });
       res.status(201).json({ success: true, data: sequence });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * Achado "fora de escopo" do Piloto 016 (`.claude/PILOTS.md`): `CadenceSequence.active`/`deletedAt`
+ * já existiam no schema e já eram filtrados em toda leitura (`GET /sequences` acima, `POST /runs`
+ * abaixo), mas não existia NENHUMA ação de escrita que os usasse — uma sequência criada só podia
+ * crescer, nunca ser desligada. Distinto de `POST /runs/:id/stop` (que para uma EXECUÇÃO individual
+ * já em andamento): esta rota encerra a SEQUÊNCIA em si, impedindo que ela seja escolhida em novos
+ * `POST /runs` dali em diante — não afeta runs já iniciados a partir dela.
+ *
+ * Reversível (`active: false`), não exclusão física — ver `application/sequenceService.ts` para a
+ * justificativa completa. Mesmas `writeRoles` de criar sequência/iniciar run.
+ */
+router.post(
+  '/sequences/:id/deactivate',
+  writeRoles,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const sequence = await deactivateCadenceSequence(
+        prismaCadenceSequenceRepository,
+        organizationId,
+        req.params.id,
+      );
+      if (!sequence) throw new AppError('Sequência não encontrada nesta organização.', 404);
+      res.json({ success: true, data: sequence });
     } catch (error) {
       next(error);
     }

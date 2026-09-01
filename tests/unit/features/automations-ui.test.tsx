@@ -204,6 +204,63 @@ describe('Automações', () => {
         expect(enviado.actionConfig.to).toBe('gestor@atlasgr.com.br');
     });
 
+    it('esconde o botão de varredura de estagnação para GESTOR — a rota é ADMIN-only no backend', async () => {
+        // `POST /api/automations/stagnation-scan` é restrita a ADMIN (roda para todas as
+        // organizações, não só a de quem chama — ver `automation.routes.ts`), então mesmo GESTOR
+        // (que já vê os controles de escrita normais) não deve ver este botão.
+        render(<Automations />);
+        await screen.findByText('Nenhuma automação ainda');
+        expect(screen.queryByRole('button', { name: /Rodar varredura de estagnação agora/ })).toBeNull();
+    });
+
+    it('ADMIN vê o botão de varredura de estagnação, confirma e dispara a rota manual — achado do Piloto 018', async () => {
+        useAuthMock.mockReturnValue({ currentUser: { role: 'ADMIN' } });
+        mockList([regra]);
+        let scanCalled = false;
+        server.use(
+            http.post(`${AUTOMATIONS_URL}/stagnation-scan`, () => {
+                scanCalled = true;
+                return HttpResponse.json({
+                    success: true,
+                    data: { runId: 'run-1', automationsEvaluated: 2, leadsScanned: 10, fired: 3, failures: 0 },
+                });
+            }),
+        );
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const user = userEvent.setup();
+        render(<Automations />);
+
+        const botao = await screen.findByRole('button', { name: /Rodar varredura de estagnação agora/ });
+        await user.click(botao);
+
+        expect(confirmSpy).toHaveBeenCalled();
+        await waitFor(() => expect(scanCalled).toBe(true));
+        await waitFor(() => expect((botao as HTMLButtonElement).disabled).toBe(false));
+    });
+
+    it('varredura de estagnação: não chama a rota se o ADMIN cancelar a confirmação', async () => {
+        useAuthMock.mockReturnValue({ currentUser: { role: 'ADMIN' } });
+        mockList([]);
+        let scanCalled = false;
+        server.use(
+            http.post(`${AUTOMATIONS_URL}/stagnation-scan`, () => {
+                scanCalled = true;
+                return HttpResponse.json({
+                    success: true,
+                    data: { runId: 'run-1', automationsEvaluated: 0, leadsScanned: 0, fired: 0, failures: 0 },
+                });
+            }),
+        );
+        vi.spyOn(window, 'confirm').mockReturnValue(false);
+        const user = userEvent.setup();
+        render(<Automations />);
+
+        const botao = await screen.findByRole('button', { name: /Rodar varredura de estagnação agora/ });
+        await user.click(botao);
+
+        expect(scanCalled).toBe(false);
+    });
+
     it('SDR não vê os controles de escrita (criar/editar/excluir/simular/versões) — achado do Piloto 018', async () => {
         // POST/PUT/DELETE/dry-run/versions exigem ADMIN/GESTOR no backend (`automation.routes.ts`);
         // antes deste piloto a UI mostrava esses controles pra qualquer papel autenticado.
