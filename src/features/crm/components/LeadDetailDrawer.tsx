@@ -208,7 +208,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     } finally {
       setCallingVoice(false);
     }
-  }, [lead]);
+  }, [lead, agentType]);
 
   const handleStatusChange = async (newStatus: string) => {
     if (!lead) return;

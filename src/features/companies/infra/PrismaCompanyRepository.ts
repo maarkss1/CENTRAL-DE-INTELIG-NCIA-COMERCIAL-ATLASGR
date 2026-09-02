@@ -3,6 +3,23 @@ import { prisma } from '../../../lib/prisma';
 import type { Prisma } from '@prisma/client';
 import { env } from '../../../config/env';
 import { searchCompanyIds } from '../../../lib/search/index';
+import { toPrismaCompanyStatus, fromPrismaCompanyStatus } from '../../../lib/enumMap';
+// Company['status'] (domain, importado de @prisma/client) e o CompanyStatus que toPrismaCompanyStatus
+// espera (importado de lib/zod, o valor exibido com acento) sao dois tipos TS diferentes para o
+// mesmo dado em runtime — divergencia de contrato pre-existente entre o dominio e a validacao Zod
+// (fora do escopo deste fix). O cast abaixo documenta a ponte, ja que o valor real em `data.status`
+// sempre vem do body validado pelo Zod (accent-value), nunca da chave crua do Prisma.
+import type { CompanyStatus as CompanyStatusLabel } from '../../../lib/zod';
+
+// O Prisma Client devolve a CHAVE do enum (ex.: "Em_analise"), nao o valor mapeado via @map no
+// schema (ex.: "Em análise") — e so aceita a mesma chave em escritas. Ja era tratado para Company
+// aninhada em Lead (PrismaLeadRepository.ts:serializeLead) via toPrismaCompanyStatus/
+// fromPrismaCompanyStatus, mas nunca aqui, no CRUD direto de Company usado pela tela Empresas.
+// Sem isto: POST/PUT com status "Em análise" falha (chave de enum invalida) e GET devolve
+// "Em_analise" cru, que a UI (CompanyList/CompanyForm) nunca reconhece.
+function serializeCompanyStatus<T extends { status: string }>(company: T): T {
+  return { ...company, status: fromPrismaCompanyStatus(company.status) };
+}
 
 export class PrismaCompanyRepository implements CompanyRepository {
   async findAllWithFilters(
@@ -56,7 +73,7 @@ export class PrismaCompanyRepository implements CompanyRepository {
     ]);
 
     return {
-      data: data as unknown as Company[],
+      data: data.map((c) => serializeCompanyStatus(c)) as unknown as Company[],
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -66,13 +83,20 @@ export class PrismaCompanyRepository implements CompanyRepository {
       where: { id, organizationId },
       include: { contacts: true, leads: true },
     });
-    return company as unknown as Company | null;
+    return company ? (serializeCompanyStatus(company) as unknown as Company) : null;
   }
 
   async create(organizationId: string, data: Partial<Company>): Promise<Company> {
-    return prisma.company.create({
-      data: { ...data, organizationId } as Prisma.CompanyCreateInput,
+    const created = await prisma.company.create({
+      data: {
+        ...data,
+        organizationId,
+        ...(data.status
+          ? { status: toPrismaCompanyStatus(data.status as unknown as CompanyStatusLabel) }
+          : {}),
+      } as Prisma.CompanyCreateInput,
     });
+    return serializeCompanyStatus(created) as unknown as Company;
   }
 
   async update(organizationId: string, id: string, data: Partial<Company>): Promise<Company> {
@@ -83,15 +107,22 @@ export class PrismaCompanyRepository implements CompanyRepository {
     // — não corrige uma falha explorável hoje (o pré-check acima + RLS real já bloqueiam um
     // tenant errado), mas deixa a query de escrita autocontida em vez de depender só do
     // pré-check + RLS como únicas camadas.
-    return prisma.company.update({
+    const updated = await prisma.company.update({
       where: { id, organizationId },
-      data: data as Prisma.CompanyUpdateInput,
+      data: {
+        ...data,
+        ...(data.status
+          ? { status: toPrismaCompanyStatus(data.status as unknown as CompanyStatusLabel) }
+          : {}),
+      } as Prisma.CompanyUpdateInput,
     });
+    return serializeCompanyStatus(updated) as unknown as Company;
   }
 
   async delete(organizationId: string, id: string): Promise<Company> {
     const existing = await prisma.company.findFirst({ where: { id, organizationId } });
     if (!existing) throw new Error('Company not found');
-    return prisma.company.delete({ where: { id, organizationId } });
+    const deleted = await prisma.company.delete({ where: { id, organizationId } });
+    return serializeCompanyStatus(deleted) as unknown as Company;
   }
 }

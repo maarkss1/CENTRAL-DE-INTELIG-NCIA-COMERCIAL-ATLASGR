@@ -20,11 +20,10 @@ vi.mock('../../../../lib/ai/memory/mem0.js', () => ({
   },
 }));
 
-// Sem leadId, o teste abaixo prova que o Ops passa direto do gate de consentimento (que só se
-// aplica quando há um Contact real em jogo) — isolado de qualquer chamada de rede real ao provedor
-// de IA, que não está disponível neste ambiente de teste. Precisa devolver uma instância real de
-// AIMessage (não um objeto solto): o reducer do MessagesAnnotation do LangGraph rejeita qualquer
-// coisa que não seja human/AI/system/developer/tool.
+// Usado pelo teste "bloqueia quando um leadId real é informado" — isolado de qualquer chamada de
+// rede real ao provedor de IA, que não está disponível neste ambiente de teste. Precisa devolver
+// uma instância real de AIMessage (não um objeto solto): o reducer do MessagesAnnotation do
+// LangGraph rejeita qualquer coisa que não seja human/AI/system/developer/tool.
 vi.mock('../fallback.util.js', async () => {
   const { AIMessage } = await import('@langchain/core/messages');
   return {
@@ -49,11 +48,11 @@ vi.mock('../../../../lib/prisma.js', () => ({
   },
 }));
 
-// AI-002 (onda 32): ops.agent.ts agora compila o grafo com o checkpointer real de Postgres
-// (src/lib/ai/checkpointer.ts) — o segundo caso abaixo ("não bloqueia sem leadId") chega a invocar
-// o grafo de verdade, e sem este mock tentaria abrir uma conexão Postgres real neste teste
-// unitário. Um MemorySaver real (mesma classe do LangGraph, satisfaz a mesma interface de
-// checkpointer) mantém o comportamento observável idêntico ao de antes desta correção.
+// AI-002 (onda 32): ops.agent.ts compila o grafo com o checkpointer real de Postgres
+// (src/lib/ai/checkpointer.ts) — o caso "permite quando há consentimento registrado" abaixo chega
+// a invocar o grafo de verdade, e sem este mock tentaria abrir uma conexão Postgres real neste
+// teste unitário. Um MemorySaver real (mesma classe do LangGraph, satisfaz a mesma interface de
+// checkpointer) mantém o comportamento observável idêntico ao de produção.
 vi.mock('../../../../lib/ai/checkpointer.js', async () => {
   const { MemorySaver } = await import('@langchain/langgraph');
   return {
@@ -81,15 +80,29 @@ describe('OpsAgent.run — trava de consentimento LGPD', () => {
     expect(result.error).toContain('org-sem-consentimento');
   });
 
-  it('não bloqueia quando não há leadId (instrução sem titular associado)', async () => {
-    // Sem leadId, o Ops nunca chega em get_lead_context com um Contact real — não há PII de
-    // titular em jogo, então a trava de consentimento não se aplica. O modelo é um stub (ver
-    // mock de fallback.util.js acima); o que este teste prova é que o gate foi pulado, não o
-    // comportamento do LLM em si.
+  it('bloqueia também sem leadId (SEC-013c: search_leads pode trazer PII real mesmo sem ID pronto)', async () => {
+    // Regressão do bug real: antes desta correção, uma instrução sem leadId pulava o gate por
+    // completo, mesmo o Ops tendo acesso a `search_leads` (que localiza lead por nome de
+    // empresa/contato e pode devolver um Contact real dentro do loop de tool-calling com o
+    // provedor de IA externo). A trava agora roda sempre, independente de leadId.
     const agent = new OpsAgent();
 
     const result = await requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
       agent.run('Notifique a equipe sobre um risco geral.', 'session-x'),
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('org-sem-consentimento');
+  });
+
+  it('permite quando há consentimento registrado, mesmo sem leadId', async () => {
+    // Prova que a trava não é um bloqueio cego: organizações com base legal registrada
+    // continuam operando normalmente, com ou sem leadId.
+    mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = 'org-com-consentimento';
+    const agent = new OpsAgent();
+
+    const result = await requestContext.run({ tenantId: 'org-com-consentimento' }, () =>
+      agent.run('Notifique a equipe sobre um risco geral.', 'session-y'),
     );
 
     expect(result.success).toBe(true);

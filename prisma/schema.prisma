@@ -2272,7 +2272,7 @@ model AiEngineSetting {
 
 model Prospect {
   id              String  @id @default(cuid())
-  cnpj            String? @unique
+  cnpj            String?
   companyName     String
   fantasyName     String?
   confidenceScore Int     @default(0)
@@ -2298,6 +2298,12 @@ model Prospect {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Era `@@unique` global (auditoria: colidia entre organizações diferentes — a Organização A
+  // cadastrando um Prospect com um CNPJ impedia a Organização B de cadastrar Prospect com o
+  // mesmo CNPJ). Escopado por tenant, mesmo padrão e mesma justificativa já aplicados a
+  // Company.cnpj (ver comentário lá) — depende do mesmo pré-requisito: todo write path de `cnpj`
+  // grava normalizado (dígitos puros, src/lib/cnpj.ts), nunca em formatos diferentes.
+  @@unique([organizationId, cnpj])
   @@index([organizationId])
   @@index([status])
   @@index([companyId])

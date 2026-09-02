@@ -13,17 +13,90 @@ export interface IncidentAlertInput {
   riskZoneClassification?: string;
 }
 
+type SeverityLevel =
+  | 'P0 - Emergência Máxima / Sinistro Iminente'
+  | 'P1 - Alto Risco'
+  | 'P2 - Médio Risco'
+  | 'P3 - Informativo / Operacional';
+
 export interface IncidentTriageOutput {
-  severityLevel:
-    | 'P0 - Emergência Máxima / Sinistro Iminente'
-    | 'P1 - Alto Risco'
-    | 'P2 - Médio Risco'
-    | 'P3 - Informativo / Operacional';
+  severityLevel: SeverityLevel;
   immediateStandardOperatingProcedure: string[];
   shouldTriggerAutomaticLockdown: boolean;
   contactAuthorityRecommendation: boolean;
   operatorChecklist: string[];
   incidentBriefing: string;
+}
+
+// Da mais baixa para a mais alta — usada para comparar/escalar severidade.
+const SEVERITY_ORDER: SeverityLevel[] = [
+  'P3 - Informativo / Operacional',
+  'P2 - Médio Risco',
+  'P1 - Alto Risco',
+  'P0 - Emergência Máxima / Sinistro Iminente',
+];
+
+function normalizeSeverity(level: unknown): SeverityLevel | null {
+  return typeof level === 'string' && (SEVERITY_ORDER as string[]).includes(level)
+    ? (level as SeverityLevel)
+    : null;
+}
+
+function severityIndex(level: SeverityLevel): number {
+  return SEVERITY_ORDER.indexOf(level);
+}
+
+/**
+ * Piso de severidade determinístico, espelhando as "Regras Críticas" do próprio prompt
+ * (violação de trava de baú, Jammer/Anti-Jammer, botão de pânico). Existe para que uma
+ * falha de instruction-following do LLM (ou o fallback de indisponibilidade) nunca
+ * classifique um sinistro real como baixa prioridade. Retorna null quando nenhum
+ * gatilho crítico conhecido é detectado — nesse caso a severidade fica a critério da IA
+ * (ou do default conservador do fallback), sem forçar nada.
+ */
+function computeSeverityFloor(alert: IncidentAlertInput): SeverityLevel | null {
+  const haystack = `${alert.alertType} ${alert.telemetryDataSummary}`.toLowerCase();
+  const isPanic = haystack.includes('pânico') || haystack.includes('panico');
+  const isJammer = haystack.includes('jammer');
+  const isTravaViolation = haystack.includes('trava');
+  const isHighRiskZone = (alert.riskZoneClassification ?? '').toLowerCase().includes('alto');
+
+  if (isPanic || isJammer) {
+    return 'P0 - Emergência Máxima / Sinistro Iminente';
+  }
+  if (isTravaViolation && isHighRiskZone) {
+    return 'P0 - Emergência Máxima / Sinistro Iminente';
+  }
+  if (isTravaViolation) {
+    return 'P1 - Alto Risco';
+  }
+  return null;
+}
+
+function applySeverityFloor(
+  output: IncidentTriageOutput,
+  alert: IncidentAlertInput,
+): IncidentTriageOutput {
+  const floor = computeSeverityFloor(alert);
+  if (!floor || severityIndex(output.severityLevel) >= severityIndex(floor)) {
+    return output;
+  }
+  logger.warn(
+    { alertId: alert.alertId, aiSeverity: output.severityLevel, floor },
+    'Severidade da triagem de sinistro elevada por regra determinística de segurança (piso não respeitado pela IA)',
+  );
+  return {
+    ...output,
+    severityLevel: floor,
+    shouldTriggerAutomaticLockdown:
+      floor === 'P0 - Emergência Máxima / Sinistro Iminente'
+        ? true
+        : output.shouldTriggerAutomaticLockdown,
+    contactAuthorityRecommendation:
+      floor === 'P0 - Emergência Máxima / Sinistro Iminente'
+        ? true
+        : output.contactAuthorityRecommendation,
+  };
 }
 
 export class MesaTriageService {
@@ -68,21 +141,39 @@ Retorne SEMPRE e APENAS um JSON válido no formato:
         promptId: 'mesa-triage-analysis',
       });
 
-      return cleanAndParseJson<IncidentTriageOutput>(response.content);
+      const parsed = cleanAndParseJson<IncidentTriageOutput>(response.content);
+      const normalizedSeverity = normalizeSeverity(parsed.severityLevel);
+      if (!normalizedSeverity) {
+        logger.error(
+          { alertId: alert.alertId, rawSeverity: parsed.severityLevel },
+          'IA retornou severityLevel fora do enum esperado na triagem de sinistro — aplicando piso de segurança',
+        );
+      }
+
+      const result: IncidentTriageOutput = {
+        ...parsed,
+        severityLevel: normalizedSeverity ?? 'P2 - Médio Risco',
+      };
+
+      return applySeverityFloor(result, alert);
     } catch (error) {
-      logger.error({ err: error }, 'Erro na triagem da mesa de tratamento');
+      logger.error(
+        { err: error, alertId: alert.alertId },
+        'Erro na triagem da mesa de tratamento — aplicando fallback determinístico de segurança',
+      );
+      const floor = computeSeverityFloor(alert);
+      const severityLevel = floor ?? 'P2 - Médio Risco';
+      const isP0 = severityLevel === 'P0 - Emergência Máxima / Sinistro Iminente';
+
       return {
-        severityLevel:
-          alert.alertType.includes('Pânico') || alert.alertType.includes('Jammer')
-            ? 'P0 - Emergência Máxima / Sinistro Iminente'
-            : 'P2 - Médio Risco',
+        severityLevel,
         immediateStandardOperatingProcedure: [
           'Realizar checagem padrão de contato com o motorista e validar posição GPS.',
         ],
-        shouldTriggerAutomaticLockdown: false,
-        contactAuthorityRecommendation: false,
+        shouldTriggerAutomaticLockdown: isP0,
+        contactAuthorityRecommendation: isP0,
         operatorChecklist: ['Verificar histórico recente de telemetria'],
-        incidentBriefing: `Alerta recebido para o veículo ${alert.vehiclePlate || 'não informado'}. Protocolo de contingência ativado.`,
+        incidentBriefing: `Alerta recebido para o veículo ${alert.vehiclePlate || 'não informado'}. Protocolo de contingência ativado. Classificação automática de contingência (IA indisponível) — validar manualmente com prioridade.`,
       };
     }
   }

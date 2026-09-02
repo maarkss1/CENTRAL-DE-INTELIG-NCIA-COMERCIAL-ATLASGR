@@ -592,7 +592,11 @@ export class PrismaCrm360Repository implements ICrm360Repository {
     }
 
     const updated = await prisma.lead.update({
-      where: { id: leadId },
+      // organizationId também no `where` (mesmo padrão de defesa-em-profundidade do Piloto 002 e
+      // já usado por convertLead logo abaixo) — não corrige uma falha explorável hoje (o
+      // findFirstOrThrow acima + RLS real já bloqueiam um tenant errado), mas deixa a query de
+      // escrita autocontida em vez de depender só do pré-check + RLS como únicas camadas.
+      where: { id: leadId, organizationId },
       data: updateData,
       include: { company: true, contact: true, pipelineStage: true, dealItems: true },
     });

@@ -80,6 +80,8 @@ beforeEach(() => {
     leadCreate.mockResolvedValue({ id: 'lead-1' });
     activityFindFirst.mockResolvedValue(null);
     activityCreate.mockResolvedValue({ id: 'activity-1' });
+    // Sem conflito de horário por padrão — os testes de conflito específicos sobrescrevem isto.
+    activityFindFirst.mockResolvedValue(null);
 });
 
 describe('GET /public-book/:slug', () => {

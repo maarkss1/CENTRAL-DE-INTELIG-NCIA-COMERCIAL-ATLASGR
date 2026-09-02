@@ -29,6 +29,7 @@ import {
   ArrowUpDown,
   ShieldCheck,
   Zap,
+  XCircle,
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -157,13 +158,13 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
     skipped: number;
     skippedConflicts: number;
     skippedNotOwned: number;
+    failed?: number;
   } | null>(null);
   const [restrictedWarning, setRestrictedWarning] = useState('');
 
   // ── Modal de Edição em Lote ──
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [bulkTemperature, setBulkTemperature] = useState<'Frio' | 'Morno' | 'Quente'>('Morno');
-  const [bulkTriggerVoice, setBulkTriggerVoice] = useState(false);
 
   const currentYear = new Date().getFullYear();
 
@@ -366,7 +367,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
 
   // Importação em Lote
   const importSelected = async () => {
-    if (selected.size === 0) return;
+    if (selected.size === 0) return null;
     setImporting(true);
     setError('');
     setImportResult(null);
@@ -381,15 +382,40 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         skipped: number;
         skippedConflicts: number;
         skippedNotOwned: number;
+        failed: number;
+        importedLeadIds: string[];
       }>(endpoint, body, { timeoutMs: 90_000 });
       setImportResult(result);
       setSelected(new Set());
       setShowBulkEditModal(false);
       await load(start);
+      return result;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao importar os itens selecionados.');
+      return null;
     } finally {
       setImporting(false);
+    }
+  };
+
+  // Confirmação do modal "Editar em Lote": importa e, em seguida, aplica a temperatura inicial
+  // escolhida a cada lead realmente criado. Antes desta correção, bulkTemperature/bulkTriggerVoice
+  // eram só estado local — o usuário configurava, via importSelected (mesma função do botão
+  // "Importar Selecionados" simples), recebia toast de sucesso, e nada era de fato aplicado.
+  const applyBulkEditAndImport = async () => {
+    const result = await importSelected();
+    if (!result?.importedLeadIds?.length) return;
+
+    const outcomes = await Promise.allSettled(
+      result.importedLeadIds.map((id) =>
+        api.put(`/api/leads/${id}`, { temperature: bulkTemperature }),
+      ),
+    );
+    const failedCount = outcomes.filter((o) => o.status === 'rejected').length;
+    if (failedCount > 0) {
+      setError(
+        `Importação concluída, mas a temperatura inicial não pôde ser aplicada a ${failedCount} de ${result.importedLeadIds.length} lead(s) — os demais foram atualizados normalmente.`,
+      );
     }
   };
 
@@ -408,6 +434,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         skipped: number;
         skippedConflicts: number;
         skippedNotOwned: number;
+        failed: number;
       }>(endpoint, body, { timeoutMs: 30_000 });
       setImportResult(result);
       await load(start);
@@ -760,6 +787,13 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
             <p className="text-amber-600 dark:text-amber-400 flex items-center gap-1.5 pl-6">
               <Lock className="w-3.5 h-3.5 shrink-0" /> {importResult.skippedNotOwned} ignorado(s) —
               não atribuídos a você no Bitrix24.
+            </p>
+          )}
+          {!!importResult.failed && importResult.failed > 0 && (
+            <p className="text-red-600 dark:text-red-400 flex items-center gap-1.5 pl-6">
+              <XCircle className="w-3.5 h-3.5 shrink-0" /> {importResult.failed} falharam de verdade
+              (erro de rede/Bitrix) — os demais itens foram importados normalmente; tente novamente
+              só para estes.
             </p>
           )}
         </div>
@@ -1144,25 +1178,33 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
               </div>
 
               <div className="pt-2 border-t border-gray-100 dark:border-white/10">
-                <label className="flex items-start gap-3 p-3.5 bg-orange-500/10 border border-orange-500/20 rounded-2xl cursor-pointer hover:bg-orange-500/15 transition-all">
+                {/* SEC/UX (achado de auditoria): este controle disparava até 100 ligações reais via
+                   provedor pago (Bland AI/Birthub Voices) sem nenhuma proteção de volume — a opção
+                   nunca foi de fato conectada ao backend (o usuário configurava, recebia toast de
+                   sucesso, e nenhuma ligação saía). Em vez de ligar isso silenciosamente numa
+                   correção de bug (decisão de produto/custo/compliance que exige throttling
+                   dedicado, não algo para decidir aqui), o controle fica desabilitado e honesto até
+                   ter uma implementação própria — qualificação por voz individual já funciona (ver
+                   o lead importado no CRM). */}
+                <div className="flex items-start gap-3 p-3.5 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl opacity-70">
                   <input
                     type="checkbox"
-                    checked={bulkTriggerVoice}
-                    onChange={(e) => setBulkTriggerVoice(e.target.checked)}
-                    aria-label="Qualificar via Voz (Bland AI / Birthub Voices)"
-                    className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer mt-0.5"
+                    checked={false}
+                    disabled
+                    aria-label="Qualificar via Voz — ainda não disponível para importação em lote"
+                    className="w-4 h-4 rounded border-gray-300 mt-0.5 cursor-not-allowed"
                   />
                   <div>
-                    <span className="block text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-orange-600" />
-                      Qualificar via Voz (Bland AI / Birthub Voices)
+                    <span className="block text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" />
+                      Qualificar via Voz — em breve
                     </span>
-                    <span className="block text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                      Dispara chamada de qualificação automatizada assim que o lead for importado
-                      para o AtlasGR.
+                    <span className="block text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                      Disparo em lote ainda não está disponível. Depois de importado, você pode
+                      qualificar cada lead individualmente pela ficha dele no CRM.
                     </span>
                   </div>
-                </label>
+                </div>
               </div>
             </div>
 
@@ -1176,7 +1218,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
               </button>
               <button
                 type="button"
-                onClick={importSelected}
+                onClick={applyBulkEditAndImport}
                 disabled={importing}
                 className="flex items-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-xs font-bold rounded-2xl shadow-md shadow-orange-600/20 transition-all disabled:opacity-50"
               >

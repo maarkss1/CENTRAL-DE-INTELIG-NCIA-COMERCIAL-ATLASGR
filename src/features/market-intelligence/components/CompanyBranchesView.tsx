@@ -118,7 +118,7 @@ export function CompanyBranchesView({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-brand text-white text-[10px] font-black uppercase tracking-wider">
+                    <span className="px-2.5 py-0.5 rounded-full bg-brand-active text-white text-[10px] font-black uppercase tracking-wider">
                       Matriz Principal
                     </span>
                     <span className="font-mono text-xs font-bold text-ink">{matriz.cnpj}</span>
@@ -132,7 +132,7 @@ export function CompanyBranchesView({
                     type="button"
                     onClick={() => handleApprove(matriz.cnpj)}
                     disabled={approvingCnpj === matriz.cnpj}
-                    className="px-3 py-1.5 rounded-xl bg-brand text-white text-xs font-bold hover:brightness-110 flex items-center gap-1 shadow-sm transition-all disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-xl bg-brand-active text-white text-xs font-bold hover:brightness-110 flex items-center gap-1 shadow-sm transition-all disabled:opacity-50"
                   >
                     {approvingCnpj === matriz.cnpj ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -18,6 +18,16 @@ vi.mock('../../src/lib/email/mailer.js', () => ({
     MailerNotConfiguredError: class MailerNotConfiguredError extends Error {},
 }));
 
+// `resolveEmailStatus` (gate de e-mail sem domínio/MX válido em cold-email.service.ts, ver
+// `enrichment/domainGuess.ts`) faz uma checagem de MX real — mockado aqui pelo mesmo motivo do
+// `sendEmail` acima: não é o que este teste prova, e o e-mail fixture (`empresa-cliente.com.br`)
+// não tem MX real, o que faria o gate bloquear o envio antes mesmo de chegar no opt-out testado.
+const resolveEmailStatusMock = vi.fn().mockResolvedValue('verified');
+vi.mock('../../src/features/prospecting/services/enrichment/domainGuess.js', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../src/features/prospecting/services/enrichment/domainGuess.js')>()),
+    resolveEmailStatus: (...args: unknown[]) => resolveEmailStatusMock(...args),
+}));
+
 const { sendColdEmail } = await import('../../src/features/prospecting/services/cold-email.service');
 
 const RUN_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

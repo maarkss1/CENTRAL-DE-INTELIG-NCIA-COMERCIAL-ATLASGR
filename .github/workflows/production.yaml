@@ -239,6 +239,10 @@ jobs:
           format: sarif
           output: trivy-image-results.sarif
           trivyignores: .trivyignore.yaml
+          # Mesmo motivo do job trivy-fs-pr-gate em security-trivy.yml: sem isto, `format: sarif`
+          # faz a trivy-action ignorar `severity: HIGH,CRITICAL` e avaliar (inclusive para o
+          # exit-code) achados de qualquer severidade. Ver comentário completo lá.
+          limit-severities-for-sarif: true
 
       - name: Upload SARIF do scan de imagem para a aba Security
         if: always()
