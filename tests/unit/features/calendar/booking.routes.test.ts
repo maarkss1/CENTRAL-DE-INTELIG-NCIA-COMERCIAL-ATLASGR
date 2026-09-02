@@ -30,6 +30,7 @@ const organizationFindUnique = vi.fn();
 const companyUpsert = vi.fn();
 const contactCreate = vi.fn();
 const leadCreate = vi.fn();
+const activityFindFirst = vi.fn();
 const activityCreate = vi.fn();
 
 vi.mock('../../../../src/lib/prisma.js', () => ({
@@ -40,7 +41,10 @@ vi.mock('../../../../src/lib/prisma.js', () => ({
         company: { upsert: (...a: unknown[]) => companyUpsert(...a) },
         contact: { create: (...a: unknown[]) => contactCreate(...a) },
         lead: { create: (...a: unknown[]) => leadCreate(...a) },
-        activity: { create: (...a: unknown[]) => activityCreate(...a) },
+        activity: {
+            findFirst: (...a: unknown[]) => activityFindFirst(...a),
+            create: (...a: unknown[]) => activityCreate(...a),
+        },
     },
 }));
 
@@ -74,6 +78,7 @@ beforeEach(() => {
     companyUpsert.mockResolvedValue({ id: 'company-1' });
     contactCreate.mockResolvedValue({ id: 'contact-1' });
     leadCreate.mockResolvedValue({ id: 'lead-1' });
+    activityFindFirst.mockResolvedValue(null);
     activityCreate.mockResolvedValue({ id: 'activity-1' });
 });
 
