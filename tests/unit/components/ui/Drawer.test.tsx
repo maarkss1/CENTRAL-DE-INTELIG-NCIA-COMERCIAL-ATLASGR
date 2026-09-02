@@ -112,7 +112,7 @@ describe('Drawer', () => {
         await user.click(screen.getByRole('button', { name: 'Fechar gaveta' }));
         expect(onClose).toHaveBeenCalledTimes(1);
 
-        const backdrop = container.querySelector('.fixed.inset-0.bg-slate-950\\/70') as HTMLElement;
+        const backdrop = container.querySelector('.fixed.inset-0.bg-ink\\/50') as HTMLElement;
         expect(backdrop).toBeTruthy();
         await user.click(backdrop);
         expect(onClose).toHaveBeenCalledTimes(2);

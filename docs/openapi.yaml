@@ -3041,27 +3041,6 @@ paths:
         '404':
           description: Modelo de jornada não encontrado
 
-  /cadence/sequences/{id}/deactivate:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema: { type: string }
-    post:
-      tags: [Cadence]
-      summary: >-
-        Desativa uma sequência de cadência da organização autenticada. Restrito a
-        ADMIN/GESTOR/CLOSER/SDR.
-      responses:
-        '200':
-          description: Sequência desativada com sucesso
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DataEnvelope'
-        '404':
-          description: Sequência não encontrada nesta organização
-
   /cadence/runs:
     get:
       tags: [Cadence]
@@ -4797,18 +4776,6 @@ paths:
           description: Processado
         '401':
           description: Segredo da conexão inválido ou conexão não encontrada
-
-  /integrations/chatwoot/webhook:
-    post:
-      tags: [Webhooks]
-      summary: Webhook de entrada do Chatwoot
-      responses:
-        '200':
-          description: Recebido com sucesso
-        '401':
-          description: Assinatura HMAC inválida
-        '503':
-          description: CHATWOOT_WEBHOOK_SECRET não configurado
 
   # ─────────────── Endpoints avulsos ausentes em routers já documentados ───────────────
   /leads/import/bitrix24:
