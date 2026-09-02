@@ -42,3 +42,15 @@ regexes = [
   '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U''',
   '''manualKnownUrl''',
 ]
+
+# ACHADO REAL, JÁ REMEDIADO (02/09/2026): commit 46833fd4 (branch de desenvolvimento, mergeado em
+# main antes desta sessão) tinha uma senha de conta real em texto puro em dois scripts temporários
+# (`_tmp_bitrix_only.mjs`, `_tmp_enrich_and_bitrix.mjs` — nenhum dos dois existe hoje no repo). A
+# senha foi rotacionada imediatamente no Supabase de produção assim que este achado apareceu no gate
+# "secret scan" (invalidando o valor vazado); os dois arquivos nunca foram recriados. Este commit
+# permanece alcançável pela cadeia --first-parent que o gitleaks-action varre a cada push (topologia
+# de um merge anterior a esta sessão, não corrigível sem reescrever histórico — fora de escopo
+# aqui), reaparecendo em todo push subsequente. Suprimido por fingerprint em `.gitleaksignore` (não
+# por regex de conteúdo): a senha já é inválida, então não há segredo real a mascarar, e por
+# fingerprint (commit+arquivo+regra+linha específicos) isso nunca esconde um vazamento NOVO e
+# diferente do mesmo arquivo/regra.
