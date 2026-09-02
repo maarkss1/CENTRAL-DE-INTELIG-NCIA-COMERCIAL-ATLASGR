@@ -36,6 +36,13 @@ const SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 // `workflow_dispatch` separado do job que roda a suíte (minutos de defasagem real), estourando o
 // orçamento e marcando `dashboard-dark` como flaky. Mascarado via `app-topbar-clock`, aplicado
 // também ao `crm-board` pelo mesmo motivo (mesmo AppTopbar).
+//
+// Achado real (merge com origin/main, 2026-09-02): o card "Signal Core 3D" que substituiu a grade
+// de KPIs simples (`DeferredRevenueSignalOrb.tsx` → `RevenueSignalOrb.tsx`, `@react-three/fiber`
+// com `useFrame`) anima continuamente (órbita 3D) e nunca estabiliza — Playwright nunca conseguia
+// "capturar dois screenshots consecutivos estáveis" (timeout de 5s, dezenas de milhares de pixels
+// de diferença entre frames). Mesmo tratamento das outras animações desta lista: mascarado via
+// `dashboard-signal-orb` em vez de tentar sincronizar com uma animação que não tem fim.
 const DASHBOARD_SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 
 async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 'dark') {
@@ -60,6 +67,7 @@ test.describe('Regressão visual', () => {
           page.getByTestId('clock-calendar-widget'),
           page.getByTestId('dashboard-analytics-chart'),
           page.getByTestId('app-topbar-clock'),
+          page.getByTestId('dashboard-signal-orb'),
         ],
       });
     });
