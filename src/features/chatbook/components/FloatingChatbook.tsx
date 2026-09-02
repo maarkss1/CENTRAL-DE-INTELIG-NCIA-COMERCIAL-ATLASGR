@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  MessageSquare,
+  Bot,
   X,
   Globe,
   Send,
@@ -131,7 +131,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
             <div className="p-5 border-b border-line bg-surface backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand to-brand-2 flex items-center justify-center text-white shadow-lg shadow-brand/20">
-                  <MessageSquare className="w-6 h-6" />
+                  <Bot className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">

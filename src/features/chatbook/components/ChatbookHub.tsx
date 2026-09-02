@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Globe, Link2, MessageSquare, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { Bot, Database, Globe, Link2, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useAssistantChat } from '../../../hooks/useAssistantChat';
 import { usePlaybookMatrixData } from '../../../hooks/usePlaybookMatrixData';
@@ -45,7 +45,7 @@ export function ChatbookHub() {
           className="bg-surface/70 backdrop-blur-2xl rounded-[2.5rem] p-8 border border-line shadow-[0_20px_40px_rgba(0,0,0,0.03)] flex items-center gap-4 relative overflow-hidden"
         >
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand to-brand-2 flex items-center justify-center text-white shadow-lg shadow-brand/20 shrink-0">
-            <MessageSquare className="w-7 h-7" />
+            <Bot className="w-7 h-7" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
