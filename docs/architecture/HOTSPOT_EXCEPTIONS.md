@@ -48,7 +48,7 @@ propósito por estar fora de "## Exceções ativas"):
 
 ### `src/features/cadence/components/CadenceHub.tsx`
 
-- **Limite excepcional:** 1500 linhas
+- **Limite excepcional:** 1700 linhas
 - **Dono:** Agente 17 — Cadência Multicanal e Ciclo de Receita
 - **Motivo:** já listado abaixo como débito conhecido em 868 linhas (2026-08-25, dentro do limite
   de aviso); cresceu para 1110 linhas em commits normais de feature depois disso, sem que ninguém
@@ -65,6 +65,15 @@ propósito por estar fora de "## Exceções ativas"):
   sessão. `test:architecture` roda os dois gates encadeados com `&&`; enquanto isso não mudar,
   qualquer falha em `lint:architecture` volta a mascarar `check:hotspots` da mesma forma — vale
   considerar separar os dois comandos em jobs de CI independentes num item de dívida técnica futuro.
+- **Atualização em 2026-09-02:** mesmo padrão de mascaramento de novo — desta vez pelo audit
+  gate/Prettier/`tsc` (PR #326, que só corrigia contraste de título em `globals.css`), não por
+  `no-cross-feature-imports`. O arquivo já estava em 1609 linhas em `origin/main`, acima das 1500
+  registradas acima, sem que nenhum PR anterior tivesse rodado este gate até o fim para notar. `npm
+  run format` (Biome, mudança puramente mecânica de reformatação, mesma PR) somou mais 2-3 linhas
+  de quebra de JSX, chegando a 1612 pela contagem do script — não uma regressão de conteúdo. Limite
+  elevado para 1700 (margem sobre as 1612 atuais); o arquivo em si não foi editado por conteúdo
+  nesta atualização. Aprovado explicitamente pelo dono do repositório. Modularização continua fora
+  do escopo desta correção pontual.
 - **Registrado em:** 2026-08-29
 - **Reavaliar até:** 2026-11-30 (mesmo checkpoint do `KNOWN_VIOLATIONS.md`)
 
