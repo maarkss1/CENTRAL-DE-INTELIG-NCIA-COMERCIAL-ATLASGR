@@ -2346,3 +2346,74 @@ entrada nova.
   Piloto 022 (confirmar o diretório/origem de um processo antes de confiar nele): antes de assumir
   que uma falha de teste é culpa da própria mudança, checar `git log`/`git status` do arquivo
   envolvido para descartar edição concorrente.
+
+## Pilot 027 — Central de Inteligência Comercial (missão "terminar a Central": Health Score, Forecast Accuracy, CLOSEDATE Intelligence, Jornada, Carryover)
+
+- **Objetivo**: executar a missão master do usuário ("terminar a Central de Inteligência Comercial
+  AtlasGR") auditando o módulo `commercial-intelligence` contra o catálogo pedido (Forecast Accuracy
+  com snapshots reais, Health Score explicável, CLOSEDATE Intelligence, Jornada & Cliente —
+  handoffs/reentradas/clientes parados/mapa de transições —, Pipeline Carryover) e completando o
+  que existia só como código órfão ou não existia.
+- **Achados de auditoria (código real + execução real, não relatório antigo)**:
+  - `healthScore()`/`forecastAccuracy` existiam em `application/` com testes, mas sem rota, sem
+    controller, sem API client e sem UI — o Health Score era inalcançável pela interface e o pilar
+    "Confiabilidade de Forecast" nunca lia os snapshots reais (`ForecastSnapshotStore` nunca era
+    injetado na fachada).
+  - O job semanal de snapshot estava registrado só em `worker.ts`; o modo embutido
+    (`bootstrap/workers.ts`, `ENABLE_EMBEDDED_WORKERS`) não o subia.
+  - Nenhum rastro consultável de mudança de `expectedCloseAt` (data prevista) nem de `owner`
+    (responsável) — `TimelineEvent` é texto livre ("Dados do lead atualizados"), então CLOSEDATE
+    Intelligence e Handoffs eram impossíveis de medir sem fabricar histórico.
+  - **P0 de segurança**: `_tmp_bitrix_only.mjs` e `_tmp_enrich_and_bitrix.mjs` estavam commitados
+    (commit `46833fd`) com senha de produção de um usuário real e a URL de webhook do Bitrix24 (que
+    contém o token) em texto puro. Removidos do working tree junto com outros scripts temporários
+    (`_tmp_*`, `check*.ts/mjs`, `test.ts`, `test-apollo.ts`, `fix_analytics.cjs`, `c_space.txt`,
+    `docker_status.txt`) e `_tmp_*` adicionado ao `.gitignore`. **O histórico do git continua
+    recuperável — rotacionar a senha e o webhook é decisão/ação humana pendente**, mesmo padrão do
+    achado do dump em `/AGENTS.md`.
+  - `.env.example` entrega `PLATFORM_OPERATOR_TOKEN=` vazio, e `z.string().min(16).optional()`
+    rejeitava string vazia: copiar o exemplo verbatim impedia o servidor de subir. Corrigido com
+    `z.preprocess` (vazio → `undefined`, fail-closed preservado).
+  - 2 erros pré-existentes de `tsc --noEmit` (tooltip do heatmap ECharts em `charts/index.tsx`,
+    `materialRef` em `AtlasOrb.tsx`) — o gate de typecheck estava vermelho antes desta sessão.
+- **Decisões principais**:
+  - Uma tabela nova e só uma: `LeadFieldChange` (append-only, RLS sem cláusula de bypass, campo +
+    valor anterior/novo serializados), alimentada pelo helper único `src/shared/services/leadFieldChangeHistory.service.ts`
+    nos 4 pontos reais de escrita (`PrismaLeadRepository.update`, `updateLeadStage` do crm360,
+    `batchUpdateLeads`, round-robin). Histórico anterior à migration não existe e cada relatório
+    expõe `trackingSince` — a UI diferencia explicitamente "sem histórico" de "nunca adiado".
+  - Motor de forecast versionado para `v2`: adiamentos reais da data prevista descontam
+    probabilidade (5 por adiamento, teto 15; ≥2 = "constantemente empurrada"), com o fator
+    explicado no drill-down ("por que este negócio tem esse score?"). Snapshots `v1` ficam
+    rotulados como tal no erro histórico.
+  - Forecast Accuracy usa o snapshot **mais antigo** de cada mês já encerrado (a previsão feita
+    com mais antecedência) vs. Fechado realizado; sem snapshot/mês aberto/realizado desconhecido
+    responde o motivo — nunca um erro fabricado. O seed de QA local semeou snapshots de meses
+    anteriores só para exercitar a tela; em produção o histórico começa quando o job semanal roda.
+  - Jornada como aba nova do hub (não rotas/menus novos), reaproveitando `LeadStageHistory` (com
+    `isWon`/`isLost` desnormalizados, já existentes) para reentradas/transições e o limiar de
+    interação do próprio `forecastEngine` para "clientes parados". Carryover entrou no relatório de
+    Pipeline Criado (mesmo `loadScoredDeals`, zero query nova).
+- **Bug de acessibilidade latente encontrado só com dado real**: `KpiTile` renderizava o
+  `MetricInfo` (`<details>/<summary>` focável) DENTRO do `<button>` quando `metricKey` e `onClick`
+  coexistiam (Commit/Best Case) — `nested-interactive` (axe, sério). Nunca apareceu no
+  `accessibility.spec.ts` porque a organização dos specs não tem negócio nem meta, então a tela
+  cai no `EmptyState` sem tile clicável. Corrigido movendo o cabeçalho para fora do botão (nome
+  acessível via `aria-label`). Também: regiões `overflow-x-auto` sem foco de teclado no mobile
+  (novas + a tabela "Proteção 90 dias" pré-existente) e badge "Crítico" com fundo tingido abaixo
+  de 4.5:1 sobre `surface-2` — corrigidos.
+- **Validações executadas**: `npx tsc --noEmit` (0 erros — antes: 2), `npm run lint` (0 erros),
+  `npm run test:unit` completo (verde; as 12 falhas do primeiro baseline eram efeito do `.env`
+  placeholder desta sessão, não do código), 18 testes unitários novos
+  (`closeDateAndJourney.unit.test.ts`), `rbac-e2e-commercial-intelligence.test.ts` com Postgres/RLS
+  reais (9/9, varredura de 403 ampliada aos 4 endpoints novos), E2E Playwright real
+  (`commercial-intelligence-rbac.spec.ts` 4/4 e o spec novo `commercial-intelligence-journey.spec.ts`),
+  navegação real logada nas 8 abas em desktop (1440) e mobile (390) com axe-core (0 violações nas
+  abas Visão Executiva/Pipeline/Jornada após as correções) e varredura de 32 rotas do app com
+  sessão real: 0 respostas 5xx/404 de API. Chromium do ambiente (1194) diverge do que o
+  `playwright-core` hoisted espera (1234) — resolvido com `PLAYWRIGHT_CHROMIUM_EXECUTABLE`, o
+  mecanismo já previsto em `playwright.config.ts`.
+- **Fora do escopo, registrado**: `RealtimeFeed` loga "SSE Error: Failed to fetch" quando a página
+  é descarregada no meio do stream (só em navegação completa, não em unmount de SPA — artefato de
+  unload); `/app/dashboard` nunca atinge `networkidle` por causa do stream SSE aberto (esperado);
+  Google Fonts bloqueado pela rede do sandbox (não é bug do app).
