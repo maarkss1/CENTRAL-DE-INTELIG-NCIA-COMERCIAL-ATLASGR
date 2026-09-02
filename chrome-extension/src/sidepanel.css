@@ -1,0 +1,23 @@
+:root { font-family: Inter, system-ui, sans-serif; color-scheme: dark; }
+body { margin: 0; background: #0a0f1a; color: #f5f7fb; }
+main { padding: 16px; }
+header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+h1 { margin:2px 0 0; font-size:22px; }
+h2 { margin-top:0; font-size:15px; }
+small { color:#94a3b8; }
+.card { background:linear-gradient(180deg,#111827,#0f172a); border:1px solid #22304a; border-radius:16px; padding:14px; margin-bottom:12px; box-shadow:0 12px 35px rgba(0,0,0,.22); }
+.pill { font-size:12px; padding:6px 10px; border-radius:999px; background:#162033; }
+.pill.capturing { background:#7f1d1d; color:#fecaca; }
+.pill.granted { background:#14532d; color:#bbf7d0; }
+label { display:block; margin-bottom:8px; font-size:13px; }
+input[type="text"], input:not([type]) { width:100%; box-sizing:border-box; padding:10px; border-radius:10px; border:1px solid #2b3a55; background:#0b1220; color:white; margin-bottom:10px; }
+button { width:100%; padding:11px; border:0; border-radius:12px; font-weight:700; background:#2563eb; color:#fff; cursor:pointer; }
+button:hover:not(:disabled) { background:#1d4ed8; }
+button:disabled { opacity:.45; cursor:not-allowed; }
+button.danger { background:#dc2626; }
+.consent { display:flex; gap:8px; line-height:1.35; align-items:flex-start; }
+.consent input { width:auto; margin:2px 0 0; }
+.hint { font-size:12px; color:#94a3b8; }
+.error-banner { background:#7f1d1d; color:#fecaca; padding:10px 12px; border-radius:10px; margin-bottom:12px; font-size:13px; }
+.settings { margin-top:8px; }
+.settings summary { cursor:pointer; color:#94a3b8; font-size:13px; margin-bottom:8px; }

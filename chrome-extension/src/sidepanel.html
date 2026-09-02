@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Copiloto Atlas GR</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <small>ATLAS GR</small>
+        <h1>Copiloto IA</h1>
+      </div>
+      <span id="status" class="pill">Aguardando</span>
+    </header>
+
+    <div id="errorBanner" class="error-banner" hidden></div>
+
+    <section class="card">
+      <h2>Google Meet</h2>
+      <p id="meetTitle">Nenhuma reunião detectada. Abra uma chamada em meet.google.com.</p>
+      <small id="meetUrl"></small>
+    </section>
+
+    <section class="card">
+      <h2>CRM (Bitrix24 via backend)</h2>
+      <label for="leadId">Id do Lead na Central Atlas GR</label>
+      <input id="leadId" type="text" placeholder="Cole o id do Lead (ex.: cl9x...)" />
+      <p class="hint">
+        A extensão nunca fala com o Bitrix24 diretamente — só com o backend da Central, que já tem
+        o lead sincronizado. Busca por nome chega numa próxima onda.
+      </p>
+      <button id="linkLead">Vincular reunião a este Lead</button>
+    </section>
+
+    <section class="card" id="consentCard" hidden>
+      <h2>Consentimento (LGPD)</h2>
+      <label class="consent">
+        <input id="consent" type="checkbox" />
+        Informei os participantes e obtive consentimento para esta captura, conforme a política da
+        Atlas GR.
+      </label>
+      <button id="registerConsent">Registrar consentimento</button>
+    </section>
+
+    <section class="card" id="captureCard" hidden>
+      <h2>Captura</h2>
+      <p class="hint">
+        Esta onda controla o CICLO da sessão de captura (início/fim, auditável no backend) — a
+        gravação e transcrição REAL do áudio chegam na próxima onda do roadmap. Nenhum áudio é
+        capturado por esta extensão hoje.
+      </p>
+      <button id="toggleCapture" disabled>Iniciar sessão de captura</button>
+    </section>
+
+    <details class="settings">
+      <summary>Configurações</summary>
+      <label for="apiBaseUrl">URL do backend da Central Atlas GR</label>
+      <input id="apiBaseUrl" type="text" placeholder="http://localhost:3005" />
+      <button id="saveApiBaseUrl">Salvar</button>
+      <p class="hint" id="apiBaseUrlHint"></p>
+    </details>
+  </main>
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
