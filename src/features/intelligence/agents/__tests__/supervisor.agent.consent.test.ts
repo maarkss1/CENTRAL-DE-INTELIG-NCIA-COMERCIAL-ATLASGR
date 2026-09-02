@@ -16,7 +16,7 @@ const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS
 vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
 
 vi.mock('../../../../lib/logger.js', () => ({
-    logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const { requestContext } = await import('../../../../lib/async-context');
@@ -25,38 +25,40 @@ const { PiiConsentRequiredError } = await import('../../services/guardrails.serv
 const checkpointerModule = await import('../../../../lib/ai/checkpointer.js');
 
 afterEach(() => {
-    mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
-    vi.restoreAllMocks();
+  mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
+  vi.restoreAllMocks();
 });
 
 describe('SwarmOrchestrator — trava de consentimento LGPD', () => {
-    it('executeMission rejeita sem base legal registrada, sem preparar o checkpointer', async () => {
-        const ensureSpy = vi.spyOn(checkpointerModule, 'ensureCheckpointerReady');
-        const orchestrator = new SwarmOrchestrator();
+  it('executeMission rejeita sem base legal registrada, sem preparar o checkpointer', async () => {
+    const ensureSpy = vi.spyOn(checkpointerModule, 'ensureCheckpointerReady');
+    const orchestrator = new SwarmOrchestrator();
 
-        await expect(
-            requestContext.run(
-                { tenantId: 'org-sem-consentimento' },
-                () => orchestrator.executeMission('Qualifique o lead da Transportadora ABC.'),
-            ),
-        ).rejects.toThrow(new PiiConsentRequiredError('org-sem-consentimento').message);
+    await expect(
+      requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
+        orchestrator.executeMission('Qualifique o lead da Transportadora ABC.'),
+      ),
+    ).rejects.toThrow(new PiiConsentRequiredError('org-sem-consentimento').message);
 
-        expect(ensureSpy).not.toHaveBeenCalled();
-    });
+    expect(ensureSpy).not.toHaveBeenCalled();
+  });
 
-    it('executeMissionStream rejeita sem base legal registrada, sem emitir nenhum evento', async () => {
-        const ensureSpy = vi.spyOn(checkpointerModule, 'ensureCheckpointerReady');
-        const orchestrator = new SwarmOrchestrator();
-        const onChunk = vi.fn();
+  it('executeMissionStream rejeita sem base legal registrada, sem emitir nenhum evento', async () => {
+    const ensureSpy = vi.spyOn(checkpointerModule, 'ensureCheckpointerReady');
+    const orchestrator = new SwarmOrchestrator();
+    const onChunk = vi.fn();
 
-        await expect(
-            requestContext.run(
-                { tenantId: 'org-sem-consentimento' },
-                () => orchestrator.executeMissionStream('Qualifique o lead da Transportadora ABC.', 'session-x', onChunk),
-            ),
-        ).rejects.toThrow(new PiiConsentRequiredError('org-sem-consentimento').message);
+    await expect(
+      requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
+        orchestrator.executeMissionStream(
+          'Qualifique o lead da Transportadora ABC.',
+          'session-x',
+          onChunk,
+        ),
+      ),
+    ).rejects.toThrow(new PiiConsentRequiredError('org-sem-consentimento').message);
 
-        expect(ensureSpy).not.toHaveBeenCalled();
-        expect(onChunk).not.toHaveBeenCalled();
-    });
+    expect(ensureSpy).not.toHaveBeenCalled();
+    expect(onChunk).not.toHaveBeenCalled();
+  });
 });
