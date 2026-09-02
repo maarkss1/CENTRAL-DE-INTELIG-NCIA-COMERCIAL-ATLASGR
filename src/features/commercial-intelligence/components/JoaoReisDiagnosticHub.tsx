@@ -28,6 +28,11 @@ import {
   Check,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { KpiCard } from '../../../components/ui/KpiCard';
+import { FunnelBars, type FunnelBarItem } from '../../../components/ui/FunnelBars';
+import { ChannelDonut } from '../../../components/ui/ChannelDonut';
+import { CompareBar, DeltaPill } from '../../../components/ui/CompareBar';
+import { DealsGrid, type DealCardData } from '../../../components/ui/DealsGrid';
 
 // Dataset extraído do Diagnóstico SDR — João Reis (BDR ID 392, AtlasGR)
 const DIAGNOSTIC_DATA = {
@@ -646,6 +651,58 @@ const OBJECTIONS_DATABASE = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Adaptadores pro vocabulário de negócio deste diagnóstico (status/estágio Bitrix, canais de
+// cadência) → os primitivos compartilhados em src/components/ui/ (KpiCard, FunnelBars,
+// ChannelDonut, CompareBar, DeltaPill, DealsGrid), promovidos de volta deste arquivo depois que
+// passaram a ser reaproveitados fora do diagnóstico SDR. Mantém a regra de negócio aqui, não no
+// componente base (ver src/components/ui/AGENTS.md).
+// ---------------------------------------------------------------------------
+
+// Cor por canal de atividade — eixo "categoria sem significado externo" (ver design-system
+// SKILL.md): reaproveita tokens semânticos/de marca já existentes em vez de hex novo.
+const CHANNEL_HEX: Record<string, string> = {
+  'Contatar cliente (genérico)': 'var(--ink-2)',
+  'Outro/Tarefa': 'var(--ink-2)',
+  Ligação: 'var(--brand)',
+  WhatsApp: 'var(--ok)',
+  'E-mail': 'var(--warn)',
+  LinkedIn: 'var(--brand-2)',
+};
+
+const DEAL_STAGE_LABEL: Record<string, string> = {
+  NEW: 'Proposta Enviada',
+  UC_A0VPC5: 'Nova Oportunidade',
+  UC_R1YAOS: 'Piloto',
+  UC_5X3WZN: 'Call/Visita Agendada',
+};
+
+function toFunnelItems(
+  items: { status: string; nome: string; leadsUnicos: number }[],
+): FunnelBarItem[] {
+  return items.map((item) => ({
+    id: item.status,
+    label: item.nome,
+    value: item.leadsUnicos,
+    tone: item.status === 'CONVERTED' ? 'ok' : item.status === 'JUNK' ? 'critical' : 'brand',
+  }));
+}
+
+function toDealCardData(
+  deals: { id: string; titulo: string; empresa: string; stage: string; valor: number }[],
+): DealCardData[] {
+  return deals.map((d) => {
+    const status = d.stage === 'WON' ? 'won' : d.stage === 'LOSE' ? 'lost' : 'open';
+    const statusLabel =
+      status === 'won'
+        ? 'Ganho'
+        : status === 'lost'
+          ? 'Perdido'
+          : (DEAL_STAGE_LABEL[d.stage] ?? d.stage);
+    return { id: d.id, title: d.empresa || d.titulo, status, statusLabel, value: d.valor };
+  });
+}
+
 export function JoaoReisDiagnosticHub() {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<
@@ -759,6 +816,27 @@ Data: 01/09/2026 | BDR ID: 392
     setTimeout(() => setCopiedPauta(false), 2000);
   };
 
+  const TAB_ITEMS: {
+    id: typeof activeTab;
+    icon: typeof ClipboardCheck;
+    title: string;
+    subtitle: string;
+  }[] = [
+    {
+      id: 'daily',
+      icon: ClipboardCheck,
+      title: 'Plano Diário',
+      subtitle: `${completedCount}/${dailyTasks.length} (${progressPercent}%)`,
+    },
+    { id: 'iacoach', icon: Bot, title: 'IA Coach SDR', subtitle: 'Pitches & Meet' },
+    { id: 'pauta1to1', icon: FileText, title: 'Pauta de 1:1', subtitle: 'Exportar p/ Gestor' },
+    { id: 'julho', icon: Calendar, title: 'Julho 2026', subtitle: '213 Atividades' },
+    { id: 'agosto', icon: CalendarCheck, title: 'Agosto 2026', subtitle: '530 Atividades' },
+    { id: 'comparativo', icon: BarChart3, title: 'Comparativo', subtitle: 'Jul x Ago Δ' },
+    { id: 'emcadencia', icon: Inbox, title: 'Em Cadência', subtitle: '130 Leads Fila' },
+    { id: 'diagnostico', icon: BookOpen, title: 'Diagnóstico', subtitle: 'Gargalos & Ação' },
+  ];
+
   return (
     <div className="flex-1 overflow-y-auto bg-bg p-4 md:p-8 space-y-6 min-h-screen text-ink">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -782,129 +860,43 @@ Data: 01/09/2026 | BDR ID: 392
           )}
         </div>
 
-        {/* Navegação por Abas */}
-        <div className="grid grid-cols-2 md:grid-cols-8 gap-2">
-          <button
-            onClick={() => setActiveTab('daily')}
-            className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'daily'
-                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
-                : 'bg-surface border-line text-ink hover:bg-surface-2'
-            }`}
-          >
-            <ClipboardCheck className="w-4 h-4" />
-            <div>
-              <p className="text-xs font-black leading-tight">Plano Diário</p>
-              <p className="text-[10px] opacity-80">
-                {completedCount}/{dailyTasks.length} ({progressPercent}%)
-              </p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('iacoach')}
-            className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'iacoach'
-                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
-                : 'bg-surface border-line text-ink hover:bg-surface-2'
-            }`}
-          >
-            <Bot className="w-4 h-4" />
-            <div>
-              <p className="text-xs font-black leading-tight">IA Coach SDR</p>
-              <p className="text-[10px] opacity-80">Pitches &amp; Meet</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('pauta1to1')}
-            className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'pauta1to1'
-                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
-                : 'bg-surface border-line text-ink hover:bg-surface-2'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <div>
-              <p className="text-xs font-black leading-tight">Pauta de 1:1</p>
-              <p className="text-[10px] opacity-80">Exportar p/ Gestor</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('julho')}
-            className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'julho'
-                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
-                : 'bg-surface border-line text-ink hover:bg-surface-2'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <div>
-              <p className="text-xs font-black leading-tight">Julho 2026</p>
-              <p className="text-[10px] opacity-80">213 Atividades</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('agosto')}
-            className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'agosto'
-                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
-                : 'bg-surface border-line text-ink hover:bg-surface-2'
-            }`}
-          >
-            <CalendarCheck className="w-4 h-4" />
-            <div>
-              <p className="text-xs font-black leading-tight">Agosto 2026</p>
-              <p className="text-[10px] opacity-80">530 Atividades</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('comparativo')}
-            className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'comparativo'
-                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
-                : 'bg-surface border-line text-ink hover:bg-surface-2'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <div>
-              <p className="text-xs font-black leading-tight">Comparativo</p>
-              <p className="text-[10px] opacity-80">Jul x Ago Δ</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('emcadencia')}
-            className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'emcadencia'
-                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
-                : 'bg-surface border-line text-ink hover:bg-surface-2'
-            }`}
-          >
-            <Inbox className="w-4 h-4" />
-            <div>
-              <p className="text-xs font-black leading-tight">Em Cadência</p>
-              <p className="text-[10px] opacity-80">130 Leads Fila</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('diagnostico')}
-            className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'diagnostico'
-                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
-                : 'bg-surface border-line text-ink hover:bg-surface-2'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <div>
-              <p className="text-xs font-black leading-tight">Diagnóstico</p>
-              <p className="text-[10px] opacity-80">Gargalos &amp; Ação</p>
-            </div>
-          </button>
+        {/* Navegação por Abas — tab-cards (ícone em chip, barra de destaque no topo quando ativa),
+            mesmo vocabulário visual do Diagnóstico SDR original em vez do pill compacto anterior. */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
+          {TAB_ITEMS.map(({ id, icon: Icon, title, subtitle }) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                className={`relative overflow-hidden flex items-center gap-3 rounded-card border p-3.5 text-left transition-all duration-200 cursor-pointer ${
+                  active
+                    ? 'border-brand/40 bg-surface shadow-card-hover -translate-y-0.5'
+                    : 'border-line bg-surface shadow-card hover:-translate-y-0.5 hover:shadow-card-hover hover:border-brand/20'
+                }`}
+              >
+                <span
+                  className={`absolute inset-x-0 top-0 h-[3px] ${active ? 'bg-gradient-to-r from-brand to-brand-2' : 'bg-line'}`}
+                />
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                    active ? 'bg-brand text-white' : 'bg-brand/10 text-brand'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-xs font-black leading-tight text-ink truncate">
+                    {title}
+                  </span>
+                  <span className="block text-[10px] text-ink-2 leading-snug truncate">
+                    {subtitle}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Conteúdo por Aba */}
@@ -1320,148 +1312,131 @@ Data: 01/09/2026 | BDR ID: 392
 
         {activeTab === 'julho' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-card border border-line bg-surface shadow-card">
-                <div className="flex items-center justify-between text-xs text-ink-2 font-bold uppercase">
-                  <span>Leads Novos</span>
-                  <UserPlus className="w-4 h-4 text-brand" />
-                </div>
-                <p className="text-2xl font-black text-brand mt-2">
-                  {DIAGNOSTIC_DATA.metJul.leadsNovos}
-                </p>
-                <p className="text-[10px] text-ink-2 mt-1">79 leads únicos</p>
-              </div>
-
-              <div className="p-4 rounded-card border border-line bg-surface shadow-card">
-                <div className="flex items-center justify-between text-xs text-ink-2 font-bold uppercase">
-                  <span>Leads Trabalhados</span>
-                  <Users className="w-4 h-4 text-brand" />
-                </div>
-                <p className="text-2xl font-black text-ink mt-2">
-                  {DIAGNOSTIC_DATA.metJul.leadsTrabalhados}
-                </p>
-                <p className="text-[10px] text-ink-2 mt-1">
-                  Taxa de contato: {DIAGNOSTIC_DATA.metJul.taxaContato}%
-                </p>
-              </div>
-
-              <div className="p-4 rounded-card border border-line bg-surface shadow-card">
-                <div className="flex items-center justify-between text-xs text-ink-2 font-bold uppercase">
-                  <span>Reuniões Agendadas</span>
-                  <Calendar className="w-4 h-4 text-gold" />
-                </div>
-                <p className="text-2xl font-black text-gold mt-2">
-                  {DIAGNOSTIC_DATA.metJul.reuniaoAgendada}
-                </p>
-                <p className="text-[10px] text-ink-2 mt-1">
-                  Agendamento: {DIAGNOSTIC_DATA.metJul.taxaAgendamento}%
-                </p>
-              </div>
-
-              <div className="p-4 rounded-card border border-line bg-surface shadow-card">
-                <div className="flex items-center justify-between text-xs text-ink-2 font-bold uppercase">
-                  <span>Convertidos</span>
-                  <CheckCircle className="w-4 h-4 text-ok" />
-                </div>
-                <p className="text-2xl font-black text-ok mt-2">
-                  {DIAGNOSTIC_DATA.metJul.convertido}
-                </p>
-                <p className="text-[10px] text-ink-2 mt-1">
-                  Receita ganha: {formatCurrency(DIAGNOSTIC_DATA.metJul.ganhoValor)}
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <KpiCard
+                icon={UserPlus}
+                tone="brand"
+                label="Leads Novos"
+                value={DIAGNOSTIC_DATA.metJul.leadsNovos}
+                caption="79 leads únicos"
+              />
+              <KpiCard
+                icon={Users}
+                tone="ink"
+                label="Leads Trabalhados"
+                value={DIAGNOSTIC_DATA.metJul.leadsTrabalhados}
+                caption={`Taxa de contato: ${DIAGNOSTIC_DATA.metJul.taxaContato}%`}
+              />
+              <KpiCard
+                icon={Calendar}
+                tone="gold"
+                label="Reuniões Agendadas"
+                value={DIAGNOSTIC_DATA.metJul.reuniaoAgendada}
+                caption={`Agendamento: ${DIAGNOSTIC_DATA.metJul.taxaAgendamento}%`}
+              />
+              <KpiCard
+                icon={CheckCircle}
+                tone="ok"
+                label="Convertidos"
+                value={DIAGNOSTIC_DATA.metJul.convertido}
+                caption={`Receita ganha: ${formatCurrency(DIAGNOSTIC_DATA.metJul.ganhoValor)}`}
+              />
             </div>
 
-            <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card space-y-4">
+            <div className="space-y-4 rounded-card-lg border border-line bg-surface p-6 shadow-card">
               <h3 className="text-sm font-black text-ink">Funil de Leads — Julho de 2026</h3>
-              <div className="space-y-2">
-                {DIAGNOSTIC_DATA.funilJul.map((item) => (
-                  <div key={item.status} className="flex items-center gap-3 text-xs">
-                    <span className="w-36 font-semibold truncate">{item.nome}</span>
-                    <div className="flex-1 bg-surface-2 h-4 rounded-md overflow-hidden border border-line">
-                      <div
-                        className={`h-full rounded-md ${
-                          item.status === 'CONVERTED'
-                            ? 'bg-ok'
-                            : item.status === 'JUNK'
-                              ? 'bg-critical'
-                              : 'bg-brand'
-                        }`}
-                        style={{ width: `${(item.leadsUnicos / 81) * 100}%` }}
-                      />
-                    </div>
-                    <span className="font-mono font-bold w-10 text-right">{item.leadsUnicos}</span>
-                  </div>
-                ))}
-              </div>
+              <FunnelBars items={toFunnelItems(DIAGNOSTIC_DATA.funilJul)} />
+            </div>
+
+            <div className="space-y-3 rounded-card-lg border border-line bg-surface p-6 shadow-card">
+              <h3 className="text-sm font-black text-ink">Canal das atividades — Julho</h3>
+              <ChannelDonut
+                data={DIAGNOSTIC_DATA.canalJul}
+                colorMap={CHANNEL_HEX}
+                totalLabel="atividades"
+                formatLabel={(label) => label.replace(' (genérico)', '')}
+              />
+              <p className="text-[11px] text-ink-2">
+                "Contatar cliente (genérico)" é o rótulo padrão da ferramenta de cadência — o canal
+                real só aparece discriminado numa parte pequena dos registros.
+              </p>
+            </div>
+
+            <div className="space-y-4 rounded-card-lg border border-line bg-surface p-6 shadow-card">
+              <h3 className="text-sm font-black text-ink">
+                Negócios rastreados a partir de Leads convertidos — Julho
+              </h3>
+              <DealsGrid deals={toDealCardData(DIAGNOSTIC_DATA.dealsJulDetalhe)} />
             </div>
           </div>
         )}
 
         {activeTab === 'agosto' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-card border border-line bg-surface shadow-card">
-                <div className="flex items-center justify-between text-xs text-ink-2 font-bold uppercase">
-                  <span>Leads Novos</span>
-                  <UserPlus className="w-4 h-4 text-brand" />
-                </div>
-                <p className="text-2xl font-black text-brand mt-2">
-                  {DIAGNOSTIC_DATA.metAgo.leadsNovos}
-                </p>
-                <p className="text-[10px] text-ink-2 mt-1">131 leads novos</p>
-              </div>
-
-              <div className="p-4 rounded-card border border-line bg-surface shadow-card">
-                <div className="flex items-center justify-between text-xs text-ink-2 font-bold uppercase">
-                  <span>Leads Trabalhados</span>
-                  <Users className="w-4 h-4 text-brand" />
-                </div>
-                <p className="text-2xl font-black text-ink mt-2">
-                  {DIAGNOSTIC_DATA.metAgo.leadsTrabalhados}
-                </p>
-                <p className="text-[10px] text-ink-2 mt-1">530 atividades no mês</p>
-              </div>
-
-              <div className="p-4 rounded-card border border-line bg-surface shadow-card">
-                <div className="flex items-center justify-between text-xs text-ink-2 font-bold uppercase">
-                  <span>Reuniões Agendadas</span>
-                  <Calendar className="w-4 h-4 text-gold" />
-                </div>
-                <p className="text-2xl font-black text-gold mt-2">
-                  {DIAGNOSTIC_DATA.metAgo.reuniaoAgendada}
-                </p>
-                <p className="text-[10px] text-ink-2 mt-1">Realizadas: 6 / No-show: 1</p>
-              </div>
-
-              <div className="p-4 rounded-card border border-line bg-surface shadow-card">
-                <div className="flex items-center justify-between text-xs text-ink-2 font-bold uppercase">
-                  <span>Convertidos</span>
-                  <CheckCircle className="w-4 h-4 text-ok" />
-                </div>
-                <p className="text-2xl font-black text-ok mt-2">
-                  {DIAGNOSTIC_DATA.metAgo.convertido}
-                </p>
-                <p className="text-[10px] text-ink-2 mt-1">
-                  Receita: {formatCurrency(DIAGNOSTIC_DATA.metAgo.ganhoValor)} (+101.8%)
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <KpiCard
+                icon={UserPlus}
+                tone="brand"
+                label="Leads Novos"
+                value={DIAGNOSTIC_DATA.metAgo.leadsNovos}
+                caption="131 leads novos"
+              />
+              <KpiCard
+                icon={Users}
+                tone="ink"
+                label="Leads Trabalhados"
+                value={DIAGNOSTIC_DATA.metAgo.leadsTrabalhados}
+                caption="530 atividades no mês"
+              />
+              <KpiCard
+                icon={Calendar}
+                tone="gold"
+                label="Reuniões Agendadas"
+                value={DIAGNOSTIC_DATA.metAgo.reuniaoAgendada}
+                caption="Realizadas: 6 / No-show: 1"
+              />
+              <KpiCard
+                icon={CheckCircle}
+                tone="ok"
+                label="Convertidos"
+                value={DIAGNOSTIC_DATA.metAgo.convertido}
+                caption={`Receita: ${formatCurrency(DIAGNOSTIC_DATA.metAgo.ganhoValor)} (+101.8%)`}
+              />
             </div>
 
-            <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card space-y-4">
-              <h3 className="text-sm font-black text-ink flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-brand" />
+            <div className="space-y-4 rounded-card-lg border border-line bg-surface p-6 shadow-card">
+              <h3 className="text-sm font-black text-ink">Funil de Leads — Agosto de 2026</h3>
+              <FunnelBars items={toFunnelItems(DIAGNOSTIC_DATA.funilAgo)} />
+            </div>
+
+            <div className="space-y-3 rounded-card-lg border border-line bg-surface p-6 shadow-card">
+              <h3 className="text-sm font-black text-ink">Canal das atividades — Agosto</h3>
+              <ChannelDonut
+                data={DIAGNOSTIC_DATA.canalAgo}
+                colorMap={CHANNEL_HEX}
+                totalLabel="atividades"
+                formatLabel={(label) => label.replace(' (genérico)', '')}
+              />
+              <p className="text-[11px] text-ink-2">
+                "Contatar cliente (genérico)" é o rótulo padrão da ferramenta de cadência — o canal
+                real só aparece discriminado numa parte pequena dos registros.
+              </p>
+            </div>
+
+            <div className="space-y-4 rounded-card-lg border border-line bg-surface p-6 shadow-card">
+              <h3 className="flex items-center gap-2 text-sm font-black text-ink">
+                <ShieldCheck className="h-5 w-5 text-brand" />
                 Reuniões Confirmadas por Transcrição (Google Meet)
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {DIAGNOSTIC_DATA.reuniaoVerificacao.confirmadas.map((c) => (
                   <div
                     key={c.empresa}
-                    className="p-4 rounded-2xl border border-ok/30 bg-ok/5 space-y-2"
+                    className="space-y-2 rounded-2xl border border-ok/30 bg-ok/5 p-4"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-ok">{c.empresa}</span>
-                      <span className="text-[10px] font-bold bg-ok/20 text-ok px-2 py-0.5 rounded-full">
+                      <span className="rounded-full bg-ok/20 px-2 py-0.5 text-[10px] font-bold text-ok">
                         {c.data} · ~{c.duracaoMin}min
                       </span>
                     </div>
@@ -1470,86 +1445,150 @@ Data: 01/09/2026 | BDR ID: 392
                 ))}
               </div>
             </div>
+
+            <div className="space-y-4 rounded-card-lg border border-line bg-surface p-6 shadow-card">
+              <h3 className="text-sm font-black text-ink">
+                Negócios rastreados a partir de Leads convertidos — Agosto
+              </h3>
+              <DealsGrid deals={toDealCardData(DIAGNOSTIC_DATA.dealsAgoDetalhe)} />
+            </div>
           </div>
         )}
 
         {activeTab === 'comparativo' && (
           <div className="space-y-6">
-            <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card space-y-4">
-              <h3 className="text-lg font-black text-ink">
-                Comparativo Completo: Julho vs. Agosto
-              </h3>
+            <div className="space-y-4 rounded-card-lg border border-line bg-surface p-6 shadow-card">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="text-sm font-black text-ink">Julho vs. Agosto — visão geral</h3>
+                <p className="text-[11px] text-ink-2">
+                  Barra maior = valor mais alto entre os meses
+                </p>
+              </div>
+              <div className="flex items-center gap-4 text-[11px] text-ink-2">
+                <span className="inline-flex items-center gap-1.5">
+                  <i className="inline-block h-2.5 w-2.5 rounded-sm bg-brand/30" />
+                  Julho
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <i className="inline-block h-2.5 w-2.5 rounded-sm bg-brand" />
+                  Agosto
+                </span>
+              </div>
+              <div className="space-y-3">
+                <CompareBar
+                  label="Leads novos"
+                  seriesA={{ label: 'Julho', value: DIAGNOSTIC_DATA.metJul.leadsNovos }}
+                  seriesB={{ label: 'Agosto', value: DIAGNOSTIC_DATA.metAgo.leadsNovos }}
+                />
+                <CompareBar
+                  label="Leads trabalhados"
+                  seriesA={{ label: 'Julho', value: DIAGNOSTIC_DATA.metJul.leadsTrabalhados }}
+                  seriesB={{ label: 'Agosto', value: DIAGNOSTIC_DATA.metAgo.leadsTrabalhados }}
+                />
+                <CompareBar
+                  label="Atividades totais"
+                  seriesA={{ label: 'Julho', value: DIAGNOSTIC_DATA.metJul.atividadesTotais }}
+                  seriesB={{ label: 'Agosto', value: DIAGNOSTIC_DATA.metAgo.atividadesTotais }}
+                />
+                <CompareBar
+                  label="Reunião Agendada"
+                  seriesA={{ label: 'Julho', value: DIAGNOSTIC_DATA.metJul.reuniaoAgendada }}
+                  seriesB={{ label: 'Agosto', value: DIAGNOSTIC_DATA.metAgo.reuniaoAgendada }}
+                />
+                <CompareBar
+                  label="Receita ganha"
+                  seriesA={{ label: 'Julho', value: DIAGNOSTIC_DATA.metJul.ganhoValor }}
+                  seriesB={{ label: 'Agosto', value: DIAGNOSTIC_DATA.metAgo.ganhoValor }}
+                  format={formatCurrency}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-card-lg border border-line bg-surface p-6 shadow-card">
+              <h3 className="text-sm font-black text-ink">Todos os indicadores, lado a lado</h3>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-surface-2 text-ink-2 uppercase font-bold text-[10px]">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface-2 text-[10px] font-bold uppercase text-ink-2">
                     <tr>
                       <th className="p-3">Indicador</th>
                       <th className="p-3 text-right">Julho</th>
                       <th className="p-3 text-right">Agosto</th>
-                      <th className="p-3 text-right">Variação (Δ)</th>
+                      <th className="p-3 text-right">Δ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line font-medium">
                     <tr>
-                      <td className="p-3 font-bold">Leads Novos</td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 font-bold text-ink">Leads Novos</td>
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metJul.leadsNovos}
                       </td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metAgo.leadsNovos}
                       </td>
-                      <td className="p-3 text-right font-bold text-ok">+65.8%</td>
+                      <td className="p-3 text-right">
+                        <DeltaPill value={65.8} />
+                      </td>
                     </tr>
                     <tr>
-                      <td className="p-3 font-bold">Leads Trabalhados</td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 font-bold text-ink">Leads Trabalhados</td>
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metJul.leadsTrabalhados}
                       </td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metAgo.leadsTrabalhados}
                       </td>
-                      <td className="p-3 text-right font-bold text-ok">+179.7%</td>
+                      <td className="p-3 text-right">
+                        <DeltaPill value={179.7} />
+                      </td>
                     </tr>
                     <tr>
-                      <td className="p-3 font-bold">Atividades Totais</td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 font-bold text-ink">Atividades Totais</td>
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metJul.atividadesTotais}
                       </td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metAgo.atividadesTotais}
                       </td>
-                      <td className="p-3 text-right font-bold text-ok">+148.8%</td>
+                      <td className="p-3 text-right">
+                        <DeltaPill value={148.8} />
+                      </td>
                     </tr>
                     <tr>
-                      <td className="p-3 font-bold">Reuniões Agendadas</td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 font-bold text-ink">Reuniões Agendadas</td>
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metJul.reuniaoAgendada}
                       </td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metAgo.reuniaoAgendada}
                       </td>
-                      <td className="p-3 text-right font-bold text-critical">-6.25%</td>
+                      <td className="p-3 text-right">
+                        <DeltaPill value={-6.25} />
+                      </td>
                     </tr>
                     <tr>
-                      <td className="p-3 font-bold">Taxa de Agendamento</td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 font-bold text-ink">Taxa de Agendamento</td>
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metJul.taxaAgendamento}%
                       </td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {DIAGNOSTIC_DATA.metAgo.taxaAgendamento}%
                       </td>
-                      <td className="p-3 text-right font-bold text-critical">-66.4% (Gargalo)</td>
+                      <td className="p-3 text-right">
+                        <DeltaPill value={-66.4} note="gargalo" />
+                      </td>
                     </tr>
                     <tr>
-                      <td className="p-3 font-bold">Receita Ganha (João)</td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 font-bold text-ink">Receita Ganha (João)</td>
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {formatCurrency(DIAGNOSTIC_DATA.metJul.ganhoValor)}
                       </td>
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 text-right font-mono tabular-nums">
                         {formatCurrency(DIAGNOSTIC_DATA.metAgo.ganhoValor)}
                       </td>
-                      <td className="p-3 text-right font-bold text-ok">+101.8%</td>
+                      <td className="p-3 text-right">
+                        <DeltaPill value={101.8} />
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -1560,14 +1599,45 @@ Data: 01/09/2026 | BDR ID: 392
 
         {activeTab === 'emcadencia' && (
           <div className="space-y-6">
-            <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card space-y-4">
-              <h3 className="text-lg font-black text-ink">
-                Estoque de Leads em "Em Cadência" (130 Leads)
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <KpiCard
+                icon={Inbox}
+                tone="ink"
+                label="Total em cadência"
+                value={DIAGNOSTIC_DATA.emCadencia.resumo.total}
+                caption={`${DIAGNOSTIC_DATA.emCadencia.resumo.totalAtividadesSoma} atividades somadas`}
+              />
+              <KpiCard
+                icon={AlertTriangle}
+                tone="critical"
+                label="30+ dias parado"
+                value={DIAGNOSTIC_DATA.emCadencia.resumo.parado30d}
+                caption="Prioridade de corte"
+              />
+              <KpiCard
+                icon={AlertTriangle}
+                tone="critical"
+                label="Sem nenhuma atividade"
+                value={DIAGNOSTIC_DATA.emCadencia.resumo.semAtividade}
+                caption="Nunca tocados"
+              />
+              <KpiCard
+                icon={CheckCircle}
+                tone="ok"
+                label="Ativos"
+                value={DIAGNOSTIC_DATA.emCadencia.resumo.ok}
+                caption={`Gap médio geral: ${DIAGNOSTIC_DATA.emCadencia.resumo.mediaGapGeral}d`}
+              />
+            </div>
+
+            <div className="space-y-4 rounded-card-lg border border-line bg-surface p-6 shadow-card">
+              <h3 className="text-sm font-black text-ink">
+                Estoque de Leads em "Em Cadência" ({DIAGNOSTIC_DATA.emCadencia.resumo.total} Leads)
               </h3>
 
-              <div className="overflow-x-auto border border-line rounded-xl">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-surface-2 text-ink-2 uppercase font-bold text-[10px]">
+              <div className="overflow-x-auto rounded-xl border border-line">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface-2 text-[10px] font-bold uppercase text-ink-2">
                     <tr>
                       <th className="p-3">Empresa / Lead</th>
                       <th className="p-3 text-right">Dias Parado</th>
@@ -1579,13 +1649,15 @@ Data: 01/09/2026 | BDR ID: 392
                   <tbody className="divide-y divide-line">
                     {DIAGNOSTIC_DATA.emCadencia.topLeads.map((lead) => (
                       <tr key={lead.id} className="hover:bg-surface-2/50">
-                        <td className="p-3 font-bold">{lead.nome}</td>
-                        <td className="p-3 text-right font-mono">{lead.diasParado}d</td>
-                        <td className="p-3 text-right font-mono">{lead.atividades}</td>
-                        <td className="p-3 text-right font-mono">{lead.gap}</td>
+                        <td className="p-3 font-bold text-ink">{lead.nome}</td>
+                        <td className="p-3 text-right font-mono tabular-nums">
+                          {lead.diasParado}d
+                        </td>
+                        <td className="p-3 text-right font-mono tabular-nums">{lead.atividades}</td>
+                        <td className="p-3 text-right font-mono tabular-nums">{lead.gap}</td>
                         <td className="p-3">
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                               lead.status.includes('30+') || lead.status.includes('Sem')
                                 ? 'bg-critical/20 text-critical'
                                 : 'bg-gold/20 text-gold'
@@ -1611,26 +1683,36 @@ Data: 01/09/2026 | BDR ID: 392
                 Gargalos Críticos Identificados no Diagnóstico
               </h3>
 
-              <div className="space-y-3 text-xs text-ink-2">
-                <div className="p-4 rounded-2xl border border-critical/30 bg-critical/5 space-y-1">
-                  <p className="font-bold text-critical">
-                    1. Queda na Taxa de Agendamento (25% → 8.4%)
-                  </p>
-                  <p>
-                    Apesar de o volume de leads trabalhados quase triplicar (64 → 179), a conversão
-                    para reunião agendada caiu drasticamente. Déficit estimado de ~30 reuniões por
-                    perda de eficiência por lead.
-                  </p>
+              <div className="space-y-3">
+                <div className="flex gap-3 rounded-2xl border border-critical/30 bg-critical/5 p-4 transition-transform hover:translate-x-1">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-critical/15 text-critical">
+                    <AlertTriangle className="h-4 w-4" />
+                  </span>
+                  <div className="space-y-1 text-xs text-ink-2">
+                    <p className="font-bold text-critical">
+                      1. Queda na Taxa de Agendamento (25% → 8.4%)
+                    </p>
+                    <p>
+                      Apesar de o volume de leads trabalhados quase triplicar (64 → 179), a
+                      conversão para reunião agendada caiu drasticamente. Déficit estimado de ~30
+                      reuniões por perda de eficiência por lead.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="p-4 rounded-2xl border border-critical/30 bg-critical/5 space-y-1">
-                  <p className="font-bold text-critical">
-                    2. 88% das atividades registradas como "Contatar cliente" genérico
-                  </p>
-                  <p>
-                    Em agosto, 472 das 530 atividades não discriminaram se foi ligação, WhatsApp,
-                    e-mail ou LinkedIn. Solução: usar as tags de canal no sprint launcher.
-                  </p>
+                <div className="flex gap-3 rounded-2xl border border-critical/30 bg-critical/5 p-4 transition-transform hover:translate-x-1">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-critical/15 text-critical">
+                    <AlertTriangle className="h-4 w-4" />
+                  </span>
+                  <div className="space-y-1 text-xs text-ink-2">
+                    <p className="font-bold text-critical">
+                      2. 88% das atividades registradas como "Contatar cliente" genérico
+                    </p>
+                    <p>
+                      Em agosto, 472 das 530 atividades não discriminaram se foi ligação, WhatsApp,
+                      e-mail ou LinkedIn. Solução: usar as tags de canal no sprint launcher.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
