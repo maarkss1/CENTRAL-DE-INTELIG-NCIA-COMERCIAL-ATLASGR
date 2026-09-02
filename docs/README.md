@@ -72,13 +72,6 @@ do controle de versão em 22/08/2026; ver [`docs/REMOVED-DOCS.md`](REMOVED-DOCS.
   reincidência (ITEM-05).
 - [Local-first](development/LOCAL_FIRST.md)
 
-## Desenvolvimento
-
-- [Política de assets públicos e datasets](development/PUBLIC_ASSETS_AND_DATASETS.md) — o que
-  pertence a `public/` vs. `data/` vs. object storage, e o budget de tamanho que impede
-  reincidência (ITEM-05).
-- [Local-first](development/LOCAL_FIRST.md)
-
 ## Compliance
 
 - [Matriz de compliance](compliance/COMPLIANCE_MATRIX.md)
