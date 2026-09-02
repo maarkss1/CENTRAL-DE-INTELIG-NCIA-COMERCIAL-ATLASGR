@@ -24,8 +24,20 @@ useDefault = true
 # Confirmado rodando `gitleaks detect` local (sem --redact) contra o commit
 # d42daabe5c94b979e0507e0f574ec551d753bf06 — o "Secret" reportado é literalmente o texto
 # "manualKnownUrl".
+# Falso-positivo conhecido #3: os 31 arquivos `__next._tree.txt` do export estático do Next.js em
+# public/tools/treinamento-atlasgr/**/ são metadado de build gerado automaticamente (route tree
+# RSC — buildId, chunk hashes, slugs de rota como "01-bem-vindo-atlasgr"), não código-fonte nem
+# segredo. A regra genérica `generic-api-key` do gitleaks casa com o trecho
+# `"param":{"type":"d","key":"<slug>",...}` por entropia (baixa, ~3.5-4.0 — bem abaixo do limiar
+# típico de credencial real) e derrubava o gate "secret scan" (job obrigatório do CI) em toda
+# execução que incluísse esses commits no intervalo escaneado. Path-based, não regex de conteúdo:
+# o padrão de "key" varia por página/slug, então uma allowlist de conteúdo teria que ser
+# atualizada a cada novo export do treinamento — o caminho do arquivo é o identificador estável.
 [allowlist]
 description = "Fixtures sintéticas de teste e falsos-positivos confirmados (não são segredos reais)"
+paths = [
+  '''public/tools/treinamento-atlasgr/.*/__next\._tree\.txt$''',
+]
 regexes = [
   '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U''',
   '''manualKnownUrl''',
