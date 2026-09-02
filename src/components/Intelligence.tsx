@@ -497,6 +497,7 @@ export function Intelligence() {
                   Matriz de Tom
                 </label>
                 <button
+                  type="button"
                   id="dropdown-tone"
                   onClick={() => setActiveDropdown(activeDropdown === 'tone' ? null : 'tone')}
                   className="w-full px-3 py-2.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink-2 flex items-center justify-between hover:border-line focus:outline-none"
@@ -538,6 +539,7 @@ export function Intelligence() {
                   Vetor de Objetivo
                 </label>
                 <button
+                  type="button"
                   id="dropdown-objective"
                   onClick={() =>
                     setActiveDropdown(activeDropdown === 'objective' ? null : 'objective')
@@ -673,6 +675,7 @@ export function Intelligence() {
                     className="flex-1 p-2.5 bg-surface-2 border border-line rounded-xl text-xs font-medium outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all"
                   />
                   <button
+                    type="button"
                     onClick={() =>
                       customCompetitor.trim() &&
                       handleGenerate('competitor_battlecard', customCompetitor.trim())
@@ -860,6 +863,7 @@ export function Intelligence() {
                       </h3>
                     </div>
                     <button
+                      type="button"
                       onClick={handleCopy}
                       className={`flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer ${
                         copied

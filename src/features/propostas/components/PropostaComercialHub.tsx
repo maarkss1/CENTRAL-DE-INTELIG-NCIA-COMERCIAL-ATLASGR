@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileSignature, ExternalLink, Printer, Search, Sparkles, Layers, Gauge, FileText, Download } from 'lucide-react';
+import { FileSignature, ExternalLink, Search, Sparkles, Layers, Gauge } from 'lucide-react';
 import { ExecutiveHeader } from '../../../components/layout/ExecutiveHeader';
 
 export function PropostaComercialHub() {
