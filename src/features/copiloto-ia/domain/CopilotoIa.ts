@@ -114,8 +114,27 @@ export interface CopilotoCrmFieldSuggestionDTO {
   approvedBy: string | null;
   approvedAt: Date | null;
   writebackAt: Date | null;
+  writebackError: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Onda 4 — mapeamento `semantic_field -> UF_CRM_*` real do portal Bitrix DESTA organização,
+ * nunca um código assumido/hardcoded (ver comentário grande em `CopilotoBitrixFieldMapping` no
+ * schema). */
+export interface CopilotoBitrixFieldMappingDTO {
+  id: string;
+  entityType: CopilotoCrmEntityType;
+  semanticField: string;
+  bitrixFieldCode: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UpsertBitrixFieldMappingInput {
+  entityType: CopilotoCrmEntityType;
+  semanticField: string;
+  bitrixFieldCode: string;
 }
 
 export interface CreateCrmFieldSuggestionInput {
@@ -255,7 +274,13 @@ export interface CopilotoIaRepository {
   updateCrmFieldSuggestionStatus(
     organizationId: string,
     id: string,
-    data: { status: CopilotoSuggestionStatus; approvedBy?: string; approvedAt?: Date },
+    data: {
+      status: CopilotoSuggestionStatus;
+      approvedBy?: string;
+      approvedAt?: Date;
+      writebackAt?: Date;
+      writebackError?: string | null;
+    },
   ): Promise<CopilotoCrmFieldSuggestionDTO>;
   createDealHealthSnapshot(
     organizationId: string,
@@ -265,4 +290,20 @@ export interface CopilotoIaRepository {
     organizationId: string,
     leadId: string,
   ): Promise<CopilotoDealHealthSnapshotDTO[]>;
+
+  /** Onda 4 — mapeamento de campo Bitrix, ver `CopilotoBitrixFieldMappingDTO`. */
+  upsertBitrixFieldMapping(
+    organizationId: string,
+    data: UpsertBitrixFieldMappingInput,
+  ): Promise<CopilotoBitrixFieldMappingDTO>;
+  listBitrixFieldMappings(organizationId: string): Promise<CopilotoBitrixFieldMappingDTO[]>;
+  deleteBitrixFieldMapping(organizationId: string, id: string): Promise<void>;
+  getBitrixFieldCode(
+    organizationId: string,
+    entityType: CopilotoCrmEntityType,
+    semanticField: string,
+  ): Promise<string | null>;
+  /** `null` quando o Lead não existe nesta organização OU ainda não tem `bitrixLeadId` (nunca
+   * sincronizado com o Bitrix) — o chamador não distingue os dois casos, ambos impedem writeback. */
+  getLeadBitrixId(organizationId: string, leadId: string): Promise<string | null>;
 }

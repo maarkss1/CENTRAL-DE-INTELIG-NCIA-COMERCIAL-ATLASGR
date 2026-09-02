@@ -833,6 +833,7 @@ model Organization {
   copilotoCrmFieldSuggestions   CopilotoCrmFieldSuggestion[]
   copilotoDealHealthSnapshots   CopilotoDealHealthSnapshot[]
   copilotoConsentRecords        CopilotoConsentRecord[]
+  copilotoBitrixFieldMappings   CopilotoBitrixFieldMapping[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
   threeCXCallEvents             ThreeCXCallEvent[]
@@ -2069,6 +2070,10 @@ model CopilotoCrmFieldSuggestion {
   approvedBy  String?
   approvedAt  DateTime?
   writebackAt DateTime?
+  /// Preenchido só quando `status` vira FAILED numa tentativa de writeback (Onda 4) — mensagem
+  /// legível (mapeamento ausente, Lead sem bitrixLeadId, erro do Bitrix) para o ADMIN/GESTOR
+  /// entender o motivo sem precisar ler log de servidor.
+  writebackError String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2076,6 +2081,34 @@ model CopilotoCrmFieldSuggestion {
   @@index([organizationId, status])
   @@index([conversationId])
   @@index([organizationId, entityType, entityId])
+}
+
+// ─── Mapeamento de campo Bitrix (Onda 4) ────────────────────────────────────
+// Só existe a partir daqui: antes desta tabela, o writeback de uma `CopilotoCrmFieldSuggestion`
+// aprovada não tinha para onde ir — `BITRIX_FIELD_MAP`
+// (src/features/integrations/bitrix/bitrixFieldMap.ts) é um mapa ESTÁTICO/hardcoded, único para
+// todos os tenants, sem UI de configuração; nunca deve ser usado por este módulo (cada portal
+// Bitrix de cada organização tem seus próprios códigos UF_CRM_* de campo customizado — assumir um
+// código fixo aqui gravaria no campo errado silenciosamente). Configurado por ADMIN/GESTOR depois
+// de consultar o portal real do cliente (ver AGENTS.md deste módulo e docs/BITRIX_FIELD_MAPPING.md
+// do pacote atlasgr_copiloto_ai_pack).
+model CopilotoBitrixFieldMapping {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  entityType CopilotoCrmEntityType
+  /// Mesma chave usada em `CopilotoCrmFieldSuggestion.fieldCode` (ex.: "principal_dor").
+  semanticField String
+  /// Código real do campo no portal Bitrix DESTA organização (ex.: "UF_CRM_1234567890").
+  bitrixFieldCode String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, entityType, semanticField])
+  @@index([organizationId])
 }
 
 // Append-only, mesmo desenho de `ForecastSnapshot`: nunca sobrescrito, cada corrida insere uma

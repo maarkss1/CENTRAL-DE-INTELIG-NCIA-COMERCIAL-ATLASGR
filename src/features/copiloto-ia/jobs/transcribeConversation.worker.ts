@@ -3,7 +3,13 @@
 // subir o áudio da reunião pro storage S3-compatível. Baixa o objeto, transcreve via Whisper,
 // grava os segmentos (reaproveita `CopilotoIaUseCases.addTranscriptSegments` — mesma validação de
 // status/consentimento do resto do módulo, não duplicada aqui) e gera um resumo executivo
-// reaproveitando `MeetingSynthesisService` (já existe em `src/features/chatbook/`, não recriado).
+// reaproveitando `MeetingSynthesisService` (já existe em `src/features/chatbook/`).
+//
+// A dependência de síntese é injetada via `MeetingSynthesisPort` (`src/shared/contracts/
+// meetingSynthesis.contract.ts`), nunca importada diretamente — `no-cross-feature-imports`
+// (.dependency-cruiser.cjs) proíbe `copiloto-ia` importar internals de `chatbook`. Quem monta a
+// instância real (`new MeetingSynthesisService()`) é a composição root de cada processo
+// (`worker.ts`/`src/bootstrap/workers.ts`), passada para `createCopilotoTranscriptionWorker(...)`.
 import { Worker, Queue, type Job } from 'bullmq';
 import { connection, queuesEnabled } from '../../../lib/queue/redis.js';
 import { requestContext } from '../../../lib/async-context.js';
@@ -17,9 +23,9 @@ import {
   isWhisperConfigured,
   WHISPER_USD_PER_MINUTE,
 } from '../infra/whisperTranscription.service.js';
-import { MeetingSynthesisService } from '../../chatbook/services/meeting-synthesis.service.js';
 import { CopilotoIaUseCases } from '../application/CopilotoIaUseCases.js';
 import { PrismaCopilotoIaRepository } from '../infra/PrismaCopilotoIaRepository.js';
+import type { MeetingSynthesisPort } from '../../../shared/contracts/meetingSynthesis.contract.js';
 
 export const COPILOTO_TRANSCRIPTION_QUEUE_NAME = 'copiloto-ia-transcription-queue';
 
@@ -30,7 +36,6 @@ export interface TranscribeConversationJobData {
 
 const repository = new PrismaCopilotoIaRepository();
 const useCases = new CopilotoIaUseCases(repository);
-const synthesisService = new MeetingSynthesisService();
 
 /** Custo do Whisper é por MINUTO de áudio, não por token — não passa por `logAiUsage()` (feito
  * pra chat completions). Grava direto em `AILog` pra entrar na MESMA soma que
@@ -55,6 +60,7 @@ async function recordWhisperCost(organizationId: string, durationSeconds: number
 
 export async function runTranscribeConversationJob(
   data: TranscribeConversationJobData,
+  deps: { meetingSynthesisPort: MeetingSynthesisPort },
 ): Promise<void> {
   const { conversationId, organizationId } = data;
 
@@ -118,7 +124,7 @@ export async function runTranscribeConversationJob(
       }
 
       if (whisperResult.text.trim()) {
-        const synthesis = await synthesisService.synthesizeMeeting({
+        const synthesis = await deps.meetingSynthesisPort.synthesizeMeeting({
           meetingTitle: state.title || 'Reunião comercial',
           participants: [],
           rawTranscript: whisperResult.text,
@@ -144,10 +150,13 @@ export async function runTranscribeConversationJob(
   });
 }
 
-export function createCopilotoTranscriptionWorker() {
+export function createCopilotoTranscriptionWorker(deps: {
+  meetingSynthesisPort: MeetingSynthesisPort;
+}) {
   const worker = new Worker(
     COPILOTO_TRANSCRIPTION_QUEUE_NAME,
-    async (job: Job) => runTranscribeConversationJob(job.data as TranscribeConversationJobData),
+    async (job: Job) =>
+      runTranscribeConversationJob(job.data as TranscribeConversationJobData, deps),
     { connection: connection as any, concurrency: 2 },
   );
 

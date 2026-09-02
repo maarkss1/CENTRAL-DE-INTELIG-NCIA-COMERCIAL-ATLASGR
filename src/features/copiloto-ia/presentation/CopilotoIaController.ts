@@ -6,6 +6,7 @@ import { getUploadUrl } from '../../../lib/storage/index.js';
 import { enqueueTranscribeConversationJob } from '../jobs/transcribeConversation.worker.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import type { CopilotoIaUseCases } from '../application/CopilotoIaUseCases';
+import type { CopilotoBitrixWritebackUseCases } from '../application/CopilotoBitrixWritebackUseCases';
 import type {
   CopilotoConversationSource,
   CopilotoConversationStatus,
@@ -45,7 +46,10 @@ function requireNumber(body: Record<string, unknown>, field: string): number {
 }
 
 export class CopilotoIaController {
-  constructor(private useCases: CopilotoIaUseCases) {}
+  constructor(
+    private useCases: CopilotoIaUseCases,
+    private writebackUseCases: CopilotoBitrixWritebackUseCases,
+  ) {}
 
   createConversation = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -387,6 +391,93 @@ export class CopilotoIaController {
         req.params.leadId,
       );
       res.json({ success: true, data: snapshots });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ─── Onda 4 — mapeamento de campo Bitrix + writeback ────────────────────
+
+  listBitrixFieldMappings = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const mappings = await this.writebackUseCases.listFieldMappings(organizationId);
+      res.json({ success: true, data: mappings });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  upsertBitrixFieldMapping = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId, id: userId } = (req as AuthRequest).user;
+      const body = req.body as Record<string, unknown>;
+      const entityType = requireString(body, 'entityType') as CopilotoCrmEntityType;
+      if (!VALID_ENTITY_TYPES.includes(entityType)) {
+        throw new AppError(
+          `entityType inválido. Valores aceitos: ${VALID_ENTITY_TYPES.join(', ')}.`,
+          400,
+        );
+      }
+      const mapping = await this.writebackUseCases.upsertFieldMapping(organizationId, {
+        entityType,
+        semanticField: requireString(body, 'semanticField'),
+        bitrixFieldCode: requireString(body, 'bitrixFieldCode'),
+      });
+      // Configuração de mapeamento é decisão administrativa que muda o destino de toda escrita
+      // futura no Bitrix — auditada explicitamente, mesmo padrão do resto do módulo.
+      await AuditService.log({
+        action: 'UPDATE',
+        entity: 'COPILOTO_IA_BITRIX_FIELD_MAPPING',
+        entityId: mapping.id,
+        actorId: userId,
+        tenantId: organizationId,
+        ipAddress: req.ip,
+        afterState: { ...mapping },
+      });
+      res.status(201).json({ success: true, data: mapping });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteBitrixFieldMapping = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId, id: userId } = (req as AuthRequest).user;
+      await this.writebackUseCases.deleteFieldMapping(organizationId, req.params.id);
+      await AuditService.log({
+        action: 'DELETE',
+        entity: 'COPILOTO_IA_BITRIX_FIELD_MAPPING',
+        entityId: req.params.id,
+        actorId: userId,
+        tenantId: organizationId,
+        ipAddress: req.ip,
+      });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  writebackCrmFieldSuggestion = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId, id: userId } = (req as AuthRequest).user;
+      const suggestion = await this.writebackUseCases.writebackSuggestion(
+        organizationId,
+        req.params.id,
+      );
+      // EXPORT é a mesma ação usada por exportLeadToBitrixNow (outboundSync.ts) para escrita
+      // real no Bitrix — mantém o mesmo vocabulário de auditoria em toda a plataforma.
+      await AuditService.log({
+        action: 'EXPORT',
+        entity: 'COPILOTO_IA_CRM_FIELD_SUGGESTION',
+        entityId: suggestion.id,
+        actorId: userId,
+        tenantId: organizationId,
+        ipAddress: req.ip,
+        afterState: { status: suggestion.status, writebackError: suggestion.writebackError },
+      });
+      res.json({ success: true, data: suggestion });
     } catch (error) {
       next(error);
     }
