@@ -136,19 +136,59 @@ describe('importSelectedBitrixLeads — corrida de importação concorrente (P2-
     const { importSelectedBitrixLeads } = await import('../leads.js');
     const result = await importSelectedBitrixLeads('org-1', 'conn-1', ['42']);
 
-    expect(result).toEqual({ imported: 0, skipped: 1, skippedConflicts: 0, skippedNotOwned: 0 });
+    expect(result).toEqual({
+      imported: 0,
+      skipped: 1,
+      skippedConflicts: 0,
+      skippedNotOwned: 0,
+      failed: 0,
+      importedLeadIds: [],
+    });
   });
 
-  it('propaga erros que não são P2002 em vez de engolir silenciosamente', async () => {
+  it('conta erros que não são P2002 como "failed" em vez de derrubar o lote inteiro (achado corrigido: auditoria da plataforma)', async () => {
+    // Antes desta correção, um erro não-P2002 num item propagava pra fora do loop inteiro e
+    // descartava os contadores já coletados dos itens anteriores — o frontend mostrava "falha ao
+    // importar" mesmo quando outros itens do lote já tinham sido criados de verdade.
     prismaMock.lead.findFirst.mockResolvedValue(null);
     clientMock.callBitrix.mockResolvedValue({ result: { ID: '42', TITLE: 'Lead' } });
     prismaMock.company.create.mockResolvedValue({ id: 'company-1' });
     prismaMock.lead.create.mockRejectedValue(new Error('Falha de conexão com o banco'));
 
     const { importSelectedBitrixLeads } = await import('../leads.js');
-    await expect(importSelectedBitrixLeads('org-1', 'conn-1', ['42'])).rejects.toThrow(
-      'Falha de conexão com o banco',
-    );
+    const result = await importSelectedBitrixLeads('org-1', 'conn-1', ['42']);
+
+    expect(result).toEqual({
+      imported: 0,
+      skipped: 0,
+      skippedConflicts: 0,
+      skippedNotOwned: 0,
+      failed: 1,
+      importedLeadIds: [],
+    });
+  });
+
+  it('um item com erro real não impede os demais itens do lote de serem importados', async () => {
+    prismaMock.lead.findFirst.mockResolvedValue(null);
+    clientMock.callBitrix
+      .mockResolvedValueOnce({ result: { ID: '1', TITLE: 'Lead com erro' } })
+      .mockResolvedValueOnce({ result: { ID: '2', TITLE: 'Lead ok' } });
+    prismaMock.company.create.mockResolvedValue({ id: 'company-1' });
+    prismaMock.lead.create
+      .mockRejectedValueOnce(new Error('Falha de conexão com o banco'))
+      .mockResolvedValueOnce({ id: 'lead-2' });
+
+    const { importSelectedBitrixLeads } = await import('../leads.js');
+    const result = await importSelectedBitrixLeads('org-1', 'conn-1', ['1', '2']);
+
+    expect(result).toEqual({
+      imported: 1,
+      skipped: 0,
+      skippedConflicts: 0,
+      skippedNotOwned: 0,
+      failed: 1,
+      importedLeadIds: ['lead-2'],
+    });
   });
 });
 
@@ -180,7 +220,14 @@ describe('importSelectedBitrixLeads — owner grava User.id, não User.name (Ond
     const { importSelectedBitrixLeads } = await import('../leads.js');
     const result = await importSelectedBitrixLeads('org-1', 'conn-1', ['42']);
 
-    expect(result).toEqual({ imported: 1, skipped: 0, skippedConflicts: 0, skippedNotOwned: 0 });
+    expect(result).toEqual({
+      imported: 1,
+      skipped: 0,
+      skippedConflicts: 0,
+      skippedNotOwned: 0,
+      failed: 0,
+      importedLeadIds: ['lead-1'],
+    });
     expect(prismaMock.user.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
