@@ -582,6 +582,7 @@ export function Intelligence() {
                     Persona Simulada
                   </label>
                   <button
+                    type="button"
                     id="dropdown-persona"
                     onClick={() =>
                       setActiveDropdown(activeDropdown === 'persona' ? null : 'persona')
@@ -637,6 +638,7 @@ export function Intelligence() {
                       : 'Informe o Concorrente'}
                   </span>
                   <button
+                    type="button"
                     onClick={() => {
                       setCompetitorPickerOpen(false);
                       setActiveTool(null);
@@ -650,6 +652,7 @@ export function Intelligence() {
                 <div className="flex flex-wrap gap-2 mb-4">
                   {suggestedCompetitors.map((c) => (
                     <button
+                      type="button"
                       key={c}
                       onClick={() => {
                         setCompetitor(c);

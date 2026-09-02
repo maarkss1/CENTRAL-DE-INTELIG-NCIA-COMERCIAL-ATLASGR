@@ -1,21 +1,31 @@
 import { useState } from 'react';
-import { PieChart, ExternalLink, RefreshCw, FileText } from 'lucide-react';
+import { PieChart, ExternalLink, FileText, Search, Sparkles, Layers, Compass, Database, BarChart3 } from 'lucide-react';
+import { ExecutiveHeader } from '../../../components/layout/ExecutiveHeader';
 
 export function HubInteligenciaMarketingHub() {
   const [activeTab, setActiveTab] = useState<'censo' | 'lacunas' | 'portal' | 'metodologia'>('censo');
   const [activeDoc, setActiveDoc] = useState<string>('METODOLOGIA.md');
   const [iframeKey, setIframeKey] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const docs = [
-    { file: 'METODOLOGIA.md', title: 'Metodologia de Inteligência de Mercado' },
-    { file: 'CENSO_COMPETITIVO_GR_CONTRIBUICAO_2026_08.md', title: 'Censo Competitivo GR (Contribuição 2026)' },
-    { file: 'RANKING_OPORTUNIDADE_GR_2026_08.md', title: 'Ranking de Oportunidades GR' },
-    { file: 'METODOLOGIA_UNIT_ECONOMICS_V1_2.md', title: 'Unit Economics V1.2' },
-    { file: 'METODOLOGIA_HUB_SUITABILITY_V1.md', title: 'Metodologia Hub Suitability V1' },
-    { file: 'DATA_LINEAGE.md', title: 'Lineage de Dados e Fontes' },
-    { file: 'ARQUITETURA.md', title: 'Arquitetura do Hub de Inteligência' },
-    { file: 'PLANO_EXPANSAO_ATLAS.md', title: 'Plano de Expansão Nacional Atlas' },
+    { file: 'METODOLOGIA.md', title: 'Metodologia de Inteligência de Mercado', desc: 'Estrutura completa de cálculo e fontes' },
+    { file: 'CENSO_COMPETITIVO_GR_CONTRIBUICAO_2026_08.md', title: 'Censo Competitivo GR (2026)', desc: 'Mapeamento nacional de players de GR' },
+    { file: 'RANKING_OPORTUNIDADE_GR_2026_08.md', title: 'Ranking de Oportunidades GR', desc: 'Classificação de praças e territórios' },
+    { file: 'METODOLOGIA_UNIT_ECONOMICS_V1_2.md', title: 'Unit Economics V1.2', desc: 'Viabilidade econômica por município' },
+    { file: 'METODOLOGIA_HUB_SUITABILITY_V1.md', title: 'Metodologia Hub Suitability V1', desc: 'Aderência e score de sinergia de polos' },
+    { file: 'DATA_LINEAGE.md', title: 'Lineage de Dados e Fontes', desc: 'Rastreabilidade de CNPJ, MDF-e e RNTRC' },
+    { file: 'ARQUITETURA.md', title: 'Arquitetura do Hub de Inteligência', desc: 'Pipelines ETL e modelos analíticos' },
+    { file: 'PLANO_EXPANSAO_ATLAS.md', title: 'Plano de Expansão Nacional Atlas', desc: 'Estratégia comercial e penetração regional' },
   ];
+
+  const filteredDocs = docs.filter(
+    (d) =>
+      d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.file.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const currentPath =
     activeTab === 'censo'
@@ -27,113 +37,151 @@ export function HubInteligenciaMarketingHub() {
       : '/tools/hub-inteligencia-marketing/index.html';
 
   return (
-    <div className="flex flex-col h-full space-y-4 p-6 bg-base">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-brand/10 rounded-2xl border border-brand/20 text-brand">
-            <PieChart className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-ink">Hub de Inteligência & Marketing</h1>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                Acervo Estratégico
-              </span>
+    <div className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}>
+      {/* Unified Executive Header */}
+      <ExecutiveHeader
+        title="Hub de Inteligência & Marketing"
+        subtitle="Censo competitivo de GR, mapa de oportunidades territoriais, suitability e linhagem de dados."
+        icon={PieChart}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+        onRefresh={() => setIframeKey((k) => k + 1)}
+      />
+
+      {/* KPI Summary Bar */}
+      {!isFullscreen && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-brand/10 text-brand rounded-xl">
+              <PieChart className="w-5 h-5" />
             </div>
-            <p className="text-xs text-ink-2">
-              Censo competitivo de GR, mapa de oportunidades territoriais, suitability e linhagem de dados.
-            </p>
+            <div>
+              <div className="text-[11px] font-semibold text-ink-2">Censo Competitivo</div>
+              <div className="text-sm font-bold text-ink">Nacional 2026</div>
+            </div>
+          </div>
+          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl">
+              <Compass className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-ink-2">Mapa de Lacunas</div>
+              <div className="text-sm font-bold text-ink">Polos Logísticos</div>
+            </div>
+          </div>
+          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/10 text-purple-500 rounded-xl">
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-ink-2">Data Lineage</div>
+              <div className="text-sm font-bold text-ink">MDF-e + RNTRC</div>
+            </div>
+          </div>
+          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-ink-2">Metodologias</div>
+              <div className="text-sm font-bold text-ink">8 Documentos</div>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="flex items-center gap-2">
+      {/* Sub-tab Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
-            onClick={() => setIframeKey((k) => k + 1)}
-            className="px-3 py-1.5 text-xs font-medium bg-soft text-ink hover:bg-soft-hover rounded-xl border border-line flex items-center gap-1.5 transition-colors"
+            onClick={() => setActiveTab('censo')}
+            className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
+              activeTab === 'censo'
+                ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
+                : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
+            }`}
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
+            Censo Competitivo & Oportunidades GR
           </button>
-          <a
-            href={currentPath}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 text-xs font-medium bg-brand text-white hover:bg-brand-hover rounded-xl flex items-center gap-1.5 transition-colors shadow-sm"
+          <button
+            onClick={() => setActiveTab('lacunas')}
+            className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
+              activeTab === 'lacunas'
+                ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
+                : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
+            }`}
           >
-            <ExternalLink className="w-3.5 h-3.5" />
-            Abrir em Nova Aba
-          </a>
+            Mapa de Lacunas GR Hub
+          </button>
+          <button
+            onClick={() => setActiveTab('portal')}
+            className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
+              activeTab === 'portal'
+                ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
+                : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
+            }`}
+          >
+            Market Intelligence Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('metodologia')}
+            className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
+              activeTab === 'metodologia'
+                ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
+                : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
+            }`}
+          >
+            Metodologias & Documentação (8)
+          </button>
         </div>
+
+        <a
+          href={currentPath}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-semibold text-brand hover:underline flex items-center gap-1.5 self-end sm:self-auto"
+        >
+          Abrir em Nova Aba <ExternalLink className="w-3.5 h-3.5" />
+        </a>
       </div>
 
-      {/* Navigation Sub-tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <button
-          onClick={() => setActiveTab('censo')}
-          className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
-            activeTab === 'censo'
-              ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
-              : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
-          }`}
-        >
-          Censo Competitivo & Oportunidades GR
-        </button>
-        <button
-          onClick={() => setActiveTab('lacunas')}
-          className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
-            activeTab === 'lacunas'
-              ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
-              : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
-          }`}
-        >
-          Mapa de Lacunas GR Hub
-        </button>
-        <button
-          onClick={() => setActiveTab('portal')}
-          className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
-            activeTab === 'portal'
-              ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
-              : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
-          }`}
-        >
-          Market Intelligence Dashboard
-        </button>
-        <button
-          onClick={() => setActiveTab('metodologia')}
-          className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
-            activeTab === 'metodologia'
-              ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
-              : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
-          }`}
-        >
-          Metodologias & Documentação
-        </button>
-      </div>
-
-      {/* Content View */}
-      <div className="flex-1 min-h-[650px] bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col">
+      {/* Main Content Area */}
+      <div className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}>
         {activeTab === 'metodologia' ? (
           <div className="flex flex-col lg:flex-row h-full min-h-[650px]">
-            {/* List of Docs */}
-            <div className="w-full lg:w-80 bg-soft/30 border-r border-line p-4 overflow-y-auto max-h-[650px] space-y-2">
-              <div className="text-xs font-bold text-ink-2 uppercase tracking-wider mb-2">
-                Documentos de Metodologia
+            {/* Sidebar list of docs */}
+            <div className="w-full lg:w-80 bg-soft/30 border-r border-line p-4 overflow-y-auto max-h-[650px] space-y-3">
+              <div className="text-xs font-bold text-ink-2 uppercase tracking-wider">
+                Documentos ({filteredDocs.length})
               </div>
-              {docs.map((d) => (
-                <button
-                  key={d.file}
-                  onClick={() => setActiveDoc(d.file)}
-                  className={`w-full text-left p-3 rounded-xl border transition-all ${
-                    activeDoc === d.file
-                      ? 'bg-brand/10 border-brand/40 text-brand font-bold shadow-sm'
-                      : 'bg-card border-line hover:bg-soft text-ink'
-                  }`}
-                >
-                  <div className="text-xs font-semibold">{d.title}</div>
-                  <div className="text-[11px] text-ink-2 truncate pt-0.5">{d.file}</div>
-                </button>
-              ))}
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-ink-2 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Filtrar por título..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-card border border-line rounded-lg text-ink focus:outline-none focus:border-brand"
+                />
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                {filteredDocs.map((d) => (
+                  <button
+                    key={d.file}
+                    onClick={() => setActiveDoc(d.file)}
+                    className={`w-full text-left p-3 rounded-xl border transition-all ${
+                      activeDoc === d.file
+                        ? 'bg-brand/10 border-brand/40 text-brand font-bold shadow-sm'
+                        : 'bg-card border-line hover:bg-soft text-ink'
+                    }`}
+                  >
+                    <div className="text-xs font-semibold">{d.title}</div>
+                    <div className="text-[11px] text-ink-2 truncate pt-0.5">{d.desc}</div>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex-1 p-6 overflow-y-auto space-y-4">
@@ -146,9 +194,9 @@ export function HubInteligenciaMarketingHub() {
                   href={`/tools/hub-inteligencia-marketing/${activeDoc}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs font-medium text-brand hover:underline flex items-center gap-1"
+                  className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
                 >
-                  Ver Arquivo Bruto <ExternalLink className="w-3.5 h-3.5" />
+                  Abrir Arquivo <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
 

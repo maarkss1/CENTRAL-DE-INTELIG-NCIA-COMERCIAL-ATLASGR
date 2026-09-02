@@ -101,6 +101,7 @@ export function Dialog({
     <dialog
       ref={dialogRef}
       onClick={handleBackdropClick}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
       className={cn(
         'backdrop:bg-ink/50 backdrop:backdrop-blur-sm bg-surface rounded-card-lg shadow-card w-full p-0 outline-none overflow-hidden max-h-[90vh] open:flex open:flex-col',
         maxWidth,
