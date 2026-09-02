@@ -1,15 +1,15 @@
 declare module 'mem0ai' {
   export class MemoryClient {
     constructor(config: { apiKey: string });
-    add(messages: any[], options: any): Promise<void>;
-    search(query: string, options: any): Promise<any[]>;
-    delete_all(options: any): Promise<void>;
+    add(messages: unknown[], options?: Record<string, unknown>): Promise<void>;
+    search(query: string, options?: Record<string, unknown>): Promise<unknown[]>;
+    delete_all(options?: Record<string, unknown>): Promise<void>;
   }
 
   export class Memory {
-    constructor(config: any);
-    add(messages: any[], options: any): Promise<void>;
-    search(query: string, options: any): Promise<any[]>;
-    delete_all(options: any): Promise<void>;
+    constructor(config: Record<string, unknown>);
+    add(messages: unknown[], options?: Record<string, unknown>): Promise<void>;
+    search(query: string, options?: Record<string, unknown>): Promise<unknown[]>;
+    delete_all(options?: Record<string, unknown>): Promise<void>;
   }
 }

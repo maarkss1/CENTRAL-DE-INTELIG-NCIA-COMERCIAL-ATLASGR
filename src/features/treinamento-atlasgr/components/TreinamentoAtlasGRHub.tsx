@@ -1,10 +1,36 @@
-import { useState } from 'react';
-import { GraduationCap, ExternalLink, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { GraduationCap, ExternalLink, BookOpen, Award, CheckCircle, Search, Sparkles, Layers, ShieldCheck } from 'lucide-react';
+import { ExecutiveHeader } from '../../../components/layout/ExecutiveHeader';
 
 export function TreinamentoAtlasGRHub() {
   const [activeSubTab, setActiveSubTab] = useState<'portal' | 'trilha' | 'prova' | 'produtos' | 'ranking'>('portal');
   const [selectedModule, setSelectedModule] = useState<string>('01-bem-vindo-atlasgr.html');
   const [iframeKey, setIframeKey] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [completedModules, setCompletedModules] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('@prospector:treinamento_completed_modules');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('@prospector:treinamento_completed_modules', JSON.stringify(completedModules));
+    } catch {
+      // ignore
+    }
+  }, [completedModules]);
+
+  const toggleModuleCompleted = (file: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCompletedModules((prev) =>
+      prev.includes(file) ? prev.filter((f) => f !== file) : [...prev, file]
+    );
+  };
 
   const subTabs = [
     { id: 'portal', label: 'Portal Principal', path: '/tools/treinamento-atlasgr/index.html' },
@@ -32,6 +58,12 @@ export function TreinamentoAtlasGRHub() {
     { file: '15-preparacao-final.html', name: '15. Preparação Final & Checkup', desc: 'Revisão geral para a prova final' },
   ];
 
+  const filteredModules = trilhaModules.filter(
+    (m) =>
+      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.desc.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const currentTab = subTabs.find((t) => t.id === activeSubTab);
   const currentPath =
     activeSubTab === 'trilha'
@@ -40,90 +72,151 @@ export function TreinamentoAtlasGRHub() {
       ? currentTab.path
       : '/tools/treinamento-atlasgr/index.html';
 
-  return (
-    <div className="flex flex-col h-full space-y-4 p-6 bg-base">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-brand/10 rounded-2xl border border-brand/20 text-brand">
-            <GraduationCap className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-ink">Treinamento AtlasGR</h1>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                Capacitação Oficial
-              </span>
-            </div>
-            <p className="text-xs text-ink-2">
-              Programa completo de formação comercial: 15 módulos didáticos, provas, produtos e certidões.
-            </p>
-          </div>
-        </div>
+  const progressPercentage = Math.round((completedModules.length / trilhaModules.length) * 100);
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIframeKey((k) => k + 1)}
-            className="px-3 py-1.5 text-xs font-medium bg-soft text-ink hover:bg-soft-hover rounded-xl border border-line flex items-center gap-1.5 transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Recarregar
-          </button>
-          <a
-            href={currentPath}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 text-xs font-medium bg-brand text-white hover:bg-brand-hover rounded-xl flex items-center gap-1.5 transition-colors shadow-sm"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            Abrir em Nova Aba
-          </a>
+  return (
+    <div className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}>
+      {/* Unified Executive Header */}
+      <ExecutiveHeader
+        title="Treinamento AtlasGR"
+        subtitle="Programa completo de formação comercial: 15 módulos didáticos, provas, produtos e certidões."
+        icon={GraduationCap}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+        onRefresh={() => setIframeKey((k) => k + 1)}
+      />
+
+      {/* KPI Cards & Progress Bar */}
+      {!isFullscreen && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-brand/10 text-brand rounded-xl">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-ink-2">Trilha Comercial</div>
+              <div className="text-sm font-bold text-ink">15 Módulos</div>
+            </div>
+          </div>
+          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl">
+              <CheckCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-ink-2">Progresso Concluído</div>
+              <div className="text-sm font-bold text-emerald-500">{completedModules.length} de 15 ({progressPercentage}%)</div>
+            </div>
+          </div>
+          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/10 text-purple-500 rounded-xl">
+              <Award className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-ink-2">Certificação</div>
+              <div className="text-sm font-bold text-ink">Prova Final</div>
+            </div>
+          </div>
+          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-ink-2">Ranking & Equipe</div>
+              <div className="text-sm font-bold text-ink">Placar de Líderes</div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Sub-tab Selector */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {subTabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id as typeof activeSubTab)}
-            className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
-              activeSubTab === tab.id
-                ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
-                : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {subTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as typeof activeSubTab)}
+              className={`px-4 py-2 text-xs font-semibold rounded-xl border whitespace-nowrap transition-all ${
+                activeSubTab === tab.id
+                  ? 'bg-brand/10 border-brand/40 text-brand shadow-sm'
+                  : 'bg-soft/50 border-line text-ink-2 hover:bg-soft hover:text-ink'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <a
+          href={currentPath}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-semibold text-brand hover:underline flex items-center gap-1.5 self-end sm:self-auto"
+        >
+          Abrir em Nova Aba <ExternalLink className="w-3.5 h-3.5" />
+        </a>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 min-h-[650px] bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col">
+      <div className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}>
         {activeSubTab === 'trilha' ? (
           <div className="flex flex-col lg:flex-row h-full min-h-[650px]">
-            {/* Sidebar list of 15 modules */}
-            <div className="w-full lg:w-80 bg-soft/30 border-r border-line p-4 overflow-y-auto max-h-[650px] space-y-2">
-              <div className="text-xs font-bold text-ink-2 uppercase tracking-wider mb-2">
-                Módulos da Trilha (15)
+            {/* Sidebar list of 15 modules with search & progress checkboxes */}
+            <div className="w-full lg:w-80 bg-soft/30 border-r border-line p-4 overflow-y-auto max-h-[650px] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-ink-2 uppercase tracking-wider">
+                  Módulos ({filteredModules.length})
+                </span>
+                <span className="text-xs font-semibold text-brand">
+                  {completedModules.length}/15 Concluídos
+                </span>
               </div>
-              {trilhaModules.map((m) => (
-                <button
-                  key={m.file}
-                  onClick={() => setSelectedModule(m.file)}
-                  className={`w-full text-left p-3 rounded-xl border transition-all ${
-                    selectedModule === m.file
-                      ? 'bg-brand/10 border-brand/40 text-brand font-bold shadow-sm'
-                      : 'bg-card border-line hover:bg-soft text-ink'
-                  }`}
-                >
-                  <div className="text-xs font-semibold">{m.name}</div>
-                  <div className="text-[11px] text-ink-2 truncate pt-0.5">{m.desc}</div>
-                </button>
-              ))}
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-ink-2 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Filtrar módulos..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-card border border-line rounded-lg text-ink focus:outline-none focus:border-brand"
+                />
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                {filteredModules.map((m) => {
+                  const isDone = completedModules.includes(m.file);
+                  const isSelected = selectedModule === m.file;
+                  return (
+                    <div
+                      key={m.file}
+                      onClick={() => setSelectedModule(m.file)}
+                      className={`w-full text-left p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-2 ${
+                        isSelected
+                          ? 'bg-brand/10 border-brand/40 text-brand font-bold shadow-sm'
+                          : 'bg-card border-line hover:bg-soft text-ink'
+                      }`}
+                    >
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-semibold">{m.name}</div>
+                        <div className="text-[11px] text-ink-2 truncate">{m.desc}</div>
+                      </div>
+                      <button
+                        onClick={(e) => toggleModuleCompleted(m.file, e)}
+                        className={`p-1 rounded-md transition-colors ${
+                          isDone ? 'text-emerald-500 hover:bg-emerald-500/10' : 'text-ink-2 hover:bg-soft'
+                        }`}
+                        title={isDone ? 'Marcar como não concluído' : 'Marcar como concluído'}
+                      >
+                        <CheckCircle className={`w-4 h-4 ${isDone ? 'fill-emerald-500/20' : ''}`} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Content Viewer for selected module */}
+            {/* Content Viewer */}
             <div className="flex-1 h-full min-h-[650px]">
               <iframe
                 key={`trilha-${selectedModule}-${iframeKey}`}
