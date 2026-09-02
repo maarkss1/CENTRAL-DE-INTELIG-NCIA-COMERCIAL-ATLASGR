@@ -28,6 +28,8 @@ import type {
   CopilotoDealHealthSnapshotDTO,
   RecordConsentInput,
   CopilotoConsentRecordDTO,
+  CompleteAudioUploadInput,
+  ConversationStateDTO,
 } from '../domain/CopilotoIa';
 
 /** Únicas fontes que não gravam áudio/vídeo — dispensam consentimento explícito de gravação. */
@@ -152,6 +154,34 @@ export class CopilotoIaUseCases {
       status: 'PROCESSING',
       endedAt: new Date(),
     });
+  }
+
+  /**
+   * Confirma que a conversa existe e está num status onde faz sentido ter um áudio anexado
+   * (CAPTURING — upload iniciado antes de `stopCapture`; PROCESSING — upload logo depois). Não
+   * gera a URL assinada em si — isso é infraestrutura (`src/lib/storage`), fica no controller,
+   * mesmo raciocínio de manter `application/` testável sem depender de S3 real (ver AGENTS.md
+   * deste módulo e o comentário equivalente sobre `AuditService.log` no controller).
+   */
+  async assertCanUploadAudio(organizationId: string, id: string): Promise<ConversationStateDTO> {
+    const state = await this.requireState(organizationId, id);
+    if (state.status !== 'CAPTURING' && state.status !== 'PROCESSING') {
+      throw new AppError(
+        `Só é possível anexar áudio durante CAPTURING/PROCESSING (status atual: ${state.status}).`,
+        409,
+      );
+    }
+    return state;
+  }
+
+  async completeAudioUpload(
+    organizationId: string,
+    id: string,
+    input: CompleteAudioUploadInput,
+  ): Promise<CopilotoConversationDTO> {
+    await this.assertCanUploadAudio(organizationId, id);
+    if (!input.objectKey.trim()) throw new AppError('objectKey vazio.', 400);
+    return this.repository.updateConversationAudio(organizationId, id, input);
   }
 
   async markReady(organizationId: string, id: string): Promise<CopilotoConversationDTO> {

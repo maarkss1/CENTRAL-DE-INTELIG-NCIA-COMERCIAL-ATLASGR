@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../../../shared/middlewares/errorHandler';
 import { AuditService } from '../../../lib/audit/audit.service';
+import { getUploadUrl } from '../../../lib/storage/index.js';
+import { enqueueTranscribeConversationJob } from '../jobs/transcribeConversation.worker.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import type { CopilotoIaUseCases } from '../application/CopilotoIaUseCases';
 import type {
@@ -178,6 +181,50 @@ export class CopilotoIaController {
         afterState: { granted, method, textVersion },
       });
       res.status(201).json({ success: true, data: record });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  requestAudioUploadUrl = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const conversationId = req.params.id;
+      await this.useCases.assertCanUploadAudio(organizationId, conversationId);
+
+      const body = req.body as Record<string, unknown>;
+      const mimeType =
+        typeof body.mimeType === 'string' && body.mimeType.trim()
+          ? body.mimeType.trim()
+          : 'audio/webm';
+      const extension = mimeType.split('/')[1]?.split(';')[0] || 'bin';
+      const objectKey = `copiloto-ia/${organizationId}/${conversationId}/${randomUUID()}.${extension}`;
+
+      const { signedUrl } = await getUploadUrl(objectKey, mimeType);
+      res.json({ success: true, data: { signedUrl, objectKey, mimeType } });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  completeAudioUpload = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const conversationId = req.params.id;
+      const body = req.body as Record<string, unknown>;
+
+      const conversation = await this.useCases.completeAudioUpload(organizationId, conversationId, {
+        objectKey: requireString(body, 'objectKey'),
+        mimeType: requireString(body, 'mimeType'),
+        sizeBytes: requireNumber(body, 'sizeBytes'),
+        durationMs: typeof body.durationMs === 'number' ? body.durationMs : undefined,
+      });
+
+      // Enfileirado aqui (não em CopilotoIaUseCases) pelo mesmo motivo de AuditService.log acima:
+      // manter `application/` testável sem depender de Redis/BullMQ real.
+      await enqueueTranscribeConversationJob({ conversationId, organizationId });
+
+      res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
     }

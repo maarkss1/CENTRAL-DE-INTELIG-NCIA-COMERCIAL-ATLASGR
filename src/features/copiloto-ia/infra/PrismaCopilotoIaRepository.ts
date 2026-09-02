@@ -19,6 +19,7 @@ import type {
   CopilotoDealHealthSnapshotDTO,
   RecordConsentInput,
   CopilotoConsentRecordDTO,
+  CompleteAudioUploadInput,
 } from '../domain/CopilotoIa';
 
 const CONVERSATION_DETAIL_INCLUDE = {
@@ -69,7 +70,13 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
   ): Promise<ConversationStateDTO | null> {
     return prisma.copilotoConversation.findFirst({
       where: { id, organizationId },
-      select: { status: true, consentStatus: true },
+      select: {
+        status: true,
+        consentStatus: true,
+        title: true,
+        audioObjectKey: true,
+        audioMimeType: true,
+      },
     });
   }
 
@@ -118,6 +125,37 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
     return prisma.copilotoConversation.update({
       where: { id, organizationId },
       data: { consentStatus },
+    });
+  }
+
+  async updateConversationAudio(
+    organizationId: string,
+    id: string,
+    data: CompleteAudioUploadInput,
+  ): Promise<CopilotoConversationDTO> {
+    return prisma.copilotoConversation.update({
+      where: { id, organizationId },
+      data: {
+        audioObjectKey: data.objectKey,
+        audioMimeType: data.mimeType,
+        audioSizeBytes: data.sizeBytes,
+        audioDurationMs: data.durationMs,
+      },
+    });
+  }
+
+  async updateTranscriptionStatus(
+    organizationId: string,
+    id: string,
+    data: {
+      transcriptionStartedAt?: Date;
+      transcriptionCompletedAt?: Date;
+      transcriptionError?: string | null;
+    },
+  ): Promise<CopilotoConversationDTO> {
+    return prisma.copilotoConversation.update({
+      where: { id, organizationId },
+      data,
     });
   }
 

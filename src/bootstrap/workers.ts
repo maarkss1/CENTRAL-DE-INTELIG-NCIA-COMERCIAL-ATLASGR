@@ -56,6 +56,7 @@ import {
   createForecastSnapshotWorker,
   scheduleForecastSnapshotJob,
 } from '../features/commercial-intelligence/jobs/forecastSnapshotWeekly.worker.js';
+import { createCopilotoTranscriptionWorker } from '../features/copiloto-ia/jobs/transcribeConversation.worker.js';
 
 type CloseableWorker = Worker<any, any, string> | null;
 
@@ -83,6 +84,8 @@ export interface EmbeddedWorkersHandle {
   accountIntelligenceSchedulerWorker: CloseableWorker;
   /** Snapshot semanal do Forecast (Comercial Inteligente) — já registrado em worker.ts; aqui para o modo embutido não ficar sem ele. */
   forecastSnapshotWorker: CloseableWorker;
+  /** Transcrição de conversa do Copiloto IA (Onda 3) — mesmo raciocínio do forecastSnapshotWorker acima. */
+  copilotoTranscriptionWorker: CloseableWorker;
   searchWorker: CloseableWorker;
   coldCallWorker: CloseableWorker;
   swarmSchedulerWorker: CloseableWorker;
@@ -121,6 +124,7 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
       ? createAccountIntelligenceSchedulerWorker()
       : null,
     forecastSnapshotWorker: embeddedWorkersEnabled ? createForecastSnapshotWorker() : null,
+    copilotoTranscriptionWorker: embeddedWorkersEnabled ? createCopilotoTranscriptionWorker() : null,
     searchWorker: null,
     coldCallWorker: null,
     swarmSchedulerWorker: null,

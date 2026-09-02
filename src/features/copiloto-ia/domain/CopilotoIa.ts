@@ -38,8 +38,22 @@ export interface CopilotoConversationDTO {
   createdBy: string | null;
   startedAt: Date | null;
   endedAt: Date | null;
+  audioObjectKey: string | null;
+  audioMimeType: string | null;
+  audioSizeBytes: number | null;
+  audioDurationMs: number | null;
+  transcriptionStartedAt: Date | null;
+  transcriptionCompletedAt: Date | null;
+  transcriptionError: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CompleteAudioUploadInput {
+  objectKey: string;
+  mimeType: string;
+  sizeBytes: number;
+  durationMs?: number;
 }
 
 export interface CreateConversationInput {
@@ -164,6 +178,9 @@ export interface CopilotoConversationDetailDTO extends CopilotoConversationDTO {
 export interface ConversationStateDTO {
   status: CopilotoConversationStatus;
   consentStatus: CopilotoConsentStatus;
+  title: string | null;
+  audioObjectKey: string | null;
+  audioMimeType: string | null;
 }
 
 export interface CopilotoIaRepository {
@@ -198,6 +215,16 @@ export interface CopilotoIaRepository {
     organizationId: string,
     id: string,
     consentStatus: CopilotoConsentStatus,
+  ): Promise<CopilotoConversationDTO>;
+  updateConversationAudio(
+    organizationId: string,
+    id: string,
+    data: CompleteAudioUploadInput,
+  ): Promise<CopilotoConversationDTO>;
+  updateTranscriptionStatus(
+    organizationId: string,
+    id: string,
+    data: { transcriptionStartedAt?: Date; transcriptionCompletedAt?: Date; transcriptionError?: string | null },
   ): Promise<CopilotoConversationDTO>;
   createConsentRecord(
     organizationId: string,
