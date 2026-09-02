@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { OPEN_COMMAND_PALETTE_EVENT } from '../../lib/paletteIntent';
 import { notificationsApi } from '../../features/notifications/notifications.api';
-import { isUiSoundEnabled, playUiSound, setUiSoundEnabled } from '../../lib/sound';
+import { SoundFX } from '../../lib/soundEffects';
 
 interface AppTopbarProps {
   activeTab: TabType;
@@ -22,7 +22,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
   const navigate = useNavigate();
   const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
   const Icon = meta.icon;
-  const [soundEnabled, setSoundEnabled] = useState(() => isUiSoundEnabled());
+  const [soundEnabled, setSoundEnabled] = useState(() => SoundFX.isEnabled());
 
   // Contagem real de não lidas — GET /api/notifications?unread=1 (mesmo endpoint usado pela
   // tela de Notificações). Sem isso o sino era cenográfico: nenhum clique navegava e o ponto
@@ -60,7 +60,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
 
   const toggleSound = () => {
     const next = !soundEnabled;
-    setUiSoundEnabled(next);
+    SoundFX.setEnabled(next);
     setSoundEnabled(next);
   };
 
@@ -87,7 +87,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
       <button
         type="button"
         onClick={() => {
-          playUiSound('focus');
+          SoundFX.play('focus');
           window.dispatchEvent(new Event(OPEN_COMMAND_PALETTE_EVENT));
         }}
         className="group ml-2 hidden max-w-sm flex-1 items-center gap-2 rounded-xl border border-line bg-surface-2/80 px-3 py-2 text-ink-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-[transform,border-color,box-shadow,color] duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:text-ink hover:shadow-card md:flex"
@@ -108,7 +108,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
         <button
           type="button"
           onClick={() => {
-            playUiSound('navigate');
+            SoundFX.play('navigate');
             toggleTheme();
           }}
           className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-transparent text-ink-2 transition-[transform,background-color,border-color,color] duration-200 hover:-translate-y-0.5 hover:border-line hover:bg-surface-2 hover:text-ink active:translate-y-0"
@@ -136,7 +136,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
         <button
           type="button"
           onClick={() => {
-            playUiSound('navigate');
+            SoundFX.play('navigate');
             navigate('/app/notifications');
           }}
           className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-transparent text-ink-2 transition-[transform,background-color,border-color,color] duration-200 hover:-translate-y-0.5 hover:border-line hover:bg-surface-2 hover:text-ink active:translate-y-0"
