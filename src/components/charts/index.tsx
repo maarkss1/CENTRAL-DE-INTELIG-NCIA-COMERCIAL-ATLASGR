@@ -10,7 +10,7 @@
  *   <FunnelChart data={stageData} title="Pipeline de Vendas" />
  */
 import { useEffect, useRef } from 'react';
-import type { EChartsOption } from 'echarts';
+import type { EChartsOption, TooltipComponentFormatterCallbackParams } from 'echarts';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Importa apenas os módulos necessários (tree-shaking manual do ECharts)
@@ -242,8 +242,16 @@ export function HeatmapChart({
       : undefined,
     tooltip: {
       position: 'top' as const,
-      formatter: (params: { data: (number | string)[] }) =>
-        `${WEEKDAYS[params.data[1] as number]} ${HOURS[params.data[0] as number]}: ${params.data[2] as number} atividades`,
+      // O heatmap sempre passa um único item (nunca o array de séries empilhadas de outros
+      // charts), mas o tipo da lib (TopLevelFormatterParams) cobre os dois casos e permite
+      // `data` ausente/não-array — normaliza em vez de assumir o shape.
+      formatter: (rawParams: TooltipComponentFormatterCallbackParams) => {
+        const item = Array.isArray(rawParams) ? rawParams[0] : rawParams;
+        const cell = item?.data;
+        if (!Array.isArray(cell)) return '';
+        const [hourIndex, dayIndex, value] = cell as (number | string)[];
+        return `${WEEKDAYS[dayIndex as number]} ${HOURS[hourIndex as number]}: ${value} atividades`;
+      },
     },
     grid: { top: title ? 40 : 10, bottom: 30, left: 40, right: 10 },
     xAxis: {

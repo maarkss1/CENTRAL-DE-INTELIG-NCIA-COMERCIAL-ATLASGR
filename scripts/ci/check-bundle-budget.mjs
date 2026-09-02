@@ -85,6 +85,19 @@ export const DOCUMENTED_LARGE_CHUNKS = [
     reason: 'AtlasOrb (three.js) compartilhado entre OnboardingTour e LoginScreen — ambos lazy e adiados.',
   },
   {
+    // Float (@react-three/drei, usado por SignalScene em RevenueSignalOrb.tsx no dashboard) e
+    // AtlasOrb.tsx (Login/OnboardingTour) agora compartilham o mesmo import do drei/three — o
+    // Rollup deduplica o chunk e o nomeia "Float-*" em vez de "AtlasOrb-*" quando ha mais de dois
+    // pontos de entrada para o mesmo modulo compartilhado. RevenueSignalOrb so carrega via
+    // DeferredRevenueSignalOrb.tsx (React.lazy + IntersectionObserver, so quando entra na
+    // viewport do dashboard) — mesmo padrao lazy+condicional documentado para AtlasOrb acima, so
+    // que com um terceiro ponto de entrada mudando o nome do chunk compartilhado.
+    pattern: /^Float-/,
+    maxGzipBytes: 260 * 1024,
+    reason:
+      'Float (three.js via drei, compartilhado entre AtlasOrb e RevenueSignalOrb) — ambos lazy e condicionais/adiados.',
+  },
+  {
     // recharts (CartesianChart) e usado por varias telas de analytics/relatorios, sempre via
     // import dinamico de cada feature — nunca no chunk de entrada.
     pattern: /^CartesianChart-/,
