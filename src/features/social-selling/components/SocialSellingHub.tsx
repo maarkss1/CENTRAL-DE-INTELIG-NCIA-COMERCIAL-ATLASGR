@@ -300,7 +300,7 @@ export function SocialSellingHub() {
                   href="/tools/social-selling/Manual de Identidade Visual – Atlas_compressed (1).pdf"
                   target="_blank"
                   download
-                  className="w-full py-2.5 px-4 bg-brand text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-brand-hover transition-colors shadow-sm"
+                  className="w-full py-2.5 px-4 bg-brand-active text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-brand-hover transition-colors shadow-sm"
                   rel="noopener"
                 >
                   <Download className="w-4 h-4" /> Download Manual (PDF)
@@ -325,7 +325,7 @@ export function SocialSellingHub() {
                   href="/tools/social-selling/Social Selling Atlas.pptx"
                   target="_blank"
                   download
-                  className="w-full py-2.5 px-4 bg-brand text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-brand-hover transition-colors shadow-sm"
+                  className="w-full py-2.5 px-4 bg-brand-active text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-brand-hover transition-colors shadow-sm"
                   rel="noopener"
                 >
                   <Download className="w-4 h-4" /> Download Apresentação (PPTX)

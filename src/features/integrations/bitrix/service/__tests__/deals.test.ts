@@ -64,7 +64,14 @@ describe('importSelectedBitrixDeals — owner grava User.id, não User.name (Ond
     const { importSelectedBitrixDeals } = await import('../deals.js');
     const result = await importSelectedBitrixDeals('org-1', 'conn-1', ['99']);
 
-    expect(result).toEqual({ imported: 1, skipped: 0, skippedConflicts: 0, skippedNotOwned: 0 });
+    expect(result).toEqual({
+      imported: 1,
+      skipped: 0,
+      skippedConflicts: 0,
+      skippedNotOwned: 0,
+      failed: 0,
+      importedLeadIds: ['lead-1'],
+    });
     expect(prismaMock.user.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -106,5 +113,32 @@ describe('importSelectedBitrixDeals — owner grava User.id, não User.name (Ond
     expect(prismaMock.lead.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ owner: null }) }),
     );
+  });
+});
+
+describe('importSelectedBitrixDeals — falha de item não derruba o lote inteiro (achado corrigido: auditoria da plataforma)', () => {
+  it('conta um erro não-P2002 como "failed" em vez de rejeitar a promise e descartar os contadores já coletados', async () => {
+    prismaMock.lead.findFirst.mockResolvedValue(null);
+    prismaMock.company.create.mockResolvedValue({ id: 'company-1' });
+    prismaMock.lead.create.mockRejectedValue(new Error('Falha de conexão com o banco'));
+
+    clientMock.callBitrix.mockImplementation(async (_url: string, method: string) => {
+      if (method === 'crm.deal.get') {
+        return { result: { ID: '101', TITLE: 'Negócio com erro' } };
+      }
+      throw new Error(`método Bitrix inesperado neste teste: ${method}`);
+    });
+
+    const { importSelectedBitrixDeals } = await import('../deals.js');
+    const result = await importSelectedBitrixDeals('org-1', 'conn-1', ['101']);
+
+    expect(result).toEqual({
+      imported: 0,
+      skipped: 0,
+      skippedConflicts: 0,
+      skippedNotOwned: 0,
+      failed: 1,
+      importedLeadIds: [],
+    });
   });
 });

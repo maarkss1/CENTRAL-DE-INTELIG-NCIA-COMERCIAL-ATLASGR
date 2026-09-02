@@ -5,11 +5,19 @@ import {
   type AuthenticationCreds,
 } from '@whiskeysockets/baileys';
 import type { Redis } from 'ioredis';
+import { encryptField, decryptField } from '../../../lib/crypto/secretFields.js';
 
 /**
  * Adaptador de estado de autenticação do Baileys (WhatsApp) para o Redis.
  * Permite que múltiplas instâncias da aplicação compartilhem a mesma sessão,
  * e sobrevive a reinicializações de contêineres sem perder o login.
+ *
+ * SEC-014: creds/keys de sessão do Baileys (equivalente a um token de sessão do WhatsApp —
+ * quem lê o Redis sequestra a sessão sem precisar escanear QR de novo) são cifradas em repouso
+ * com o mesmo AES-256-GCM (secretFields.ts) já usado para credenciais Google/Bitrix, em vez de
+ * JSON.stringify puro. decryptField já é tolerante a valores legados sem o prefixo "enc:v1:"
+ * (sessões gravadas antes desta correção continuam sendo lidas normalmente e são re-cifradas no
+ * próximo saveCreds/set).
  */
 export const useRedisAuthState = async (
   redisClient: Redis,
@@ -18,13 +26,15 @@ export const useRedisAuthState = async (
   const prefix = `wa-auth:${organizationId}:`;
 
   const writeData = async (key: string, data: any) => {
-    await redisClient.set(`${prefix}${key}`, JSON.stringify(data, BufferJSON.replacer));
+    const serialized = JSON.stringify(data, BufferJSON.replacer);
+    await redisClient.set(`${prefix}${key}`, encryptField(serialized));
   };
 
   const readData = async (key: string) => {
-    const data = await redisClient.get(`${prefix}${key}`);
-    if (!data) return null;
-    return JSON.parse(data, BufferJSON.reviver);
+    const stored = await redisClient.get(`${prefix}${key}`);
+    if (!stored) return null;
+    const serialized = decryptField(stored);
+    return JSON.parse(serialized, BufferJSON.reviver);
   };
 
   const removeData = async (key: string) => {

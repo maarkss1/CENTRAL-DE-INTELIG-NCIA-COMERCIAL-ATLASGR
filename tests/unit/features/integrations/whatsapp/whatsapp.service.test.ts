@@ -102,7 +102,12 @@ vi.mock('@whiskeysockets/baileys', async (importOriginal) => {
         DisconnectReason: { loggedOut: 401 },
         Browsers: { macOS: () => ['Atlas', 'Desktop', '1.0'] },
         initAuthCreds: vi.fn(() => ({})),
-        BufferJSON: { replacer: vi.fn(), reviver: vi.fn() }
+        // BufferJSON.replacer/reviver reais (via ...actual acima) — não sobrepostos por um stub:
+        // um vi.fn() sem implementação devolve undefined pra toda chave, e JSON.stringify(data,
+        // replacer) com um replacer assim serializa a raiz inteira como undefined. Antes da cifra
+        // de credenciais em repouso (useRedisAuthState.ts) isso passava despercebido porque nada
+        // validava a string serializada; agora encryptField exige uma string real (crypto nativo
+        // do Node), e o gap deste mock vira um erro real de teste.
     };
 });
 

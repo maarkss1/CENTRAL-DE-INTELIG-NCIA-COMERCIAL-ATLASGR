@@ -3,6 +3,7 @@ import { sendEmail, MailerNotConfiguredError } from '../../../lib/email/mailer.j
 import { toE164BR } from '../../../lib/phone.js';
 import { isOptedOut } from '../../cadence/application/optOutService.js';
 import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutRepository.js';
+import { resolveEmailStatus } from './enrichment/domainGuess.js';
 
 export interface ColdEmailCampaign {
   id: string;
@@ -56,6 +57,12 @@ function emailDomain(email: string | undefined): string | undefined {
  *    em QUALQUER canal (voz, WhatsApp, e-mail) para o mesmo lead/e-mail/telefone bloqueia este
  *    disparo quando `scope` é `'global'` ou `'email'`. A tentativa bloqueada nunca é tratada como
  *    enviada — mesma disciplina de honestidade do item 1 acima (commit `2e42a557`).
+ * 4. Verificação de entregabilidade (auditoria da plataforma): antes desta correção, um e-mail
+ *    sintaticamente válido mas sem domínio real (sem registro MX) ainda recebia o disparo real,
+ *    gerando bounce e custo de reputação de domínio — `resolveEmailStatus` (mesma verificação já
+ *    usada em `enrichment.service.ts`/`enrichmentCascade.service.ts` ao salvar Contact) roda antes
+ *    do envio; `emailStatus === 'invalid'` bloqueia o disparo com a mesma disciplina de honestidade
+ *    do opt-out (nunca tratado como enviado).
  *
  * NOTA para o handoff: o ideal de UX (distinguir "não enviado por falta de config"/"bloqueado por
  * opt-out" de "falhou de verdade", sem responder 500 para os dois primeiros casos) exige mudar como
@@ -96,6 +103,16 @@ export async function sendColdEmail(campaign: ColdEmailCampaign): Promise<boolea
       logger.info(
         { campaignId: campaign.id, toDomain, reason: 'opt-out' },
         'Cold email não enviado: titular optou por não receber contato neste canal (opt-out).',
+      );
+      return false;
+    }
+
+    const emailStatus = await resolveEmailStatus(campaign.targetEmail);
+    if (emailStatus === 'invalid') {
+      // Mesma disciplina de honestidade do opt-out acima — nunca tratado como enviado.
+      logger.info(
+        { campaignId: campaign.id, toDomain, reason: 'invalid-email' },
+        'Cold email não enviado: e-mail sem domínio/MX válido (checkEmailDeliverability).',
       );
       return false;
     }

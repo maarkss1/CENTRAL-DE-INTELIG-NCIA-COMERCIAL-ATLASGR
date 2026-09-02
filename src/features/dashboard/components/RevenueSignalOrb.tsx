@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Float } from '@react-three/drei';
 import { useReducedMotion } from 'framer-motion';
@@ -17,8 +17,8 @@ function SignalScene({
   pendingActivities,
   closedThisMonth,
   isAtlas,
-  reduceMotion,
-}: RevenueSignalOrbProps & { isAtlas: boolean; reduceMotion: boolean }) {
+  animate,
+}: RevenueSignalOrbProps & { isAtlas: boolean; animate: boolean }) {
   const group = useRef<THREE.Group>(null);
   const brand = isAtlas ? '#ff5618' : '#008fce';
   const secondary = isAtlas ? '#ffc500' : '#374898';
@@ -27,14 +27,14 @@ function SignalScene({
   const closedIntensity = Math.min(Math.max(closedThisMonth, 0), 30) / 30;
 
   useFrame((_state, delta) => {
-    if (reduceMotion || !group.current) return;
+    if (!animate || !group.current) return;
     group.current.rotation.y += delta * (0.09 + pendingIntensity * 0.08);
     group.current.rotation.x = Math.sin(group.current.rotation.y * 0.65) * 0.08;
   });
 
   return (
     <group ref={group}>
-      <Float speed={reduceMotion ? 0 : 1.25} rotationIntensity={0.12} floatIntensity={0.18}>
+      <Float speed={animate ? 1.25 : 0} rotationIntensity={0.12} floatIntensity={0.18}>
         <mesh scale={0.76 + conversion / 260}>
           <icosahedronGeometry args={[1, 4]} />
           <meshStandardMaterial
@@ -72,9 +72,42 @@ export function RevenueSignalOrb({
 }: RevenueSignalOrbProps) {
   const { isAtlas } = useBrandAccent();
   const reduceMotion = Boolean(useReducedMotion());
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isIntersecting, setIsIntersecting] = useState(true);
+  const [isTabVisible, setIsTabVisible] = useState(
+    () => typeof document === 'undefined' || !document.hidden,
+  );
+
+  // Pausa o loop de render do Canvas (frameloop 'demand') sempre que o orb sai da viewport ou a
+  // aba/app fica em segundo plano — sem isto, o r3f renderiza a 60fps indefinidamente enquanto o
+  // componente estiver montado, mesmo rolado para fora de vista ou com o app minimizado no
+  // Android (Capacitor). Observer intencionalmente NÃO desconecta após a primeira interseção
+  // (diferente de DeferredRevenueSignalOrb, que só adia o carregamento inicial).
+  useEffect(() => {
+    const node = sectionRef.current;
+    if (!node || !('IntersectionObserver' in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => setIsIntersecting(entries.some((entry) => entry.isIntersecting)),
+      { threshold: 0.05 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => setIsTabVisible(!document.hidden);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  const shouldAnimate = !reduceMotion && isIntersecting && isTabVisible;
 
   return (
-    <section className="relative min-h-[20rem] overflow-hidden rounded-[1.6rem] border border-line bg-surface/94 shadow-[0_28px_70px_-42px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)]">
+    <section
+      ref={sectionRef}
+      className="relative min-h-[20rem] overflow-hidden rounded-[1.6rem] border border-line bg-surface/94 shadow-[0_28px_70px_-42px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)]"
+    >
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute inset-0 opacity-60 ${
@@ -96,14 +129,14 @@ export function RevenueSignalOrb({
           </p>
         </div>
         <span className="rounded-full border border-line bg-surface-2/80 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-ink-2">
-          {reduceMotion ? 'estático' : 'ao vivo'}
+          {shouldAnimate ? 'ao vivo' : 'estático'}
         </span>
       </div>
 
       <div className="h-[15rem] pt-16" aria-hidden="true">
         <Canvas
           dpr={[1, 1.5]}
-          frameloop={reduceMotion ? 'demand' : 'always'}
+          frameloop={shouldAnimate ? 'always' : 'demand'}
           camera={{ position: [0, 0, 5.2], fov: 42 }}
         >
           <ambientLight intensity={0.72} />
@@ -122,7 +155,7 @@ export function RevenueSignalOrb({
             pendingActivities={pendingActivities}
             closedThisMonth={closedThisMonth}
             isAtlas={isAtlas}
-            reduceMotion={reduceMotion}
+            animate={shouldAnimate}
           />
         </Canvas>
       </div>

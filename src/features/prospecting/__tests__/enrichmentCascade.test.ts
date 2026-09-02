@@ -58,6 +58,17 @@ vi.mock('@/features/prospecting/services/enrichment/cnpjLookup.js', () => ({
     .mockResolvedValue({ found: false, cnpj: '', source: 'BrasilAPI-CNPJ', error: 'not_found' }),
 }));
 
+// resolveEmailStatus (nova checagem antes de criar Contact — auditoria da plataforma) faz uma
+// verificação de MX real (checkEmailDeliverability); mockado para não depender de rede/DNS neste
+// teste unitário. extractDomainFromWebsite/guessDomainAndEmails continuam reais (funções puras).
+vi.mock('@/features/prospecting/services/enrichment/domainGuess.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('@/features/prospecting/services/enrichment/domainGuess.js')
+    >();
+  return { ...actual, resolveEmailStatus: vi.fn().mockResolvedValue(null) };
+});
+
 const baseCompany = {
   id: 'comp-1',
   organizationId: 'org-1',
@@ -181,6 +192,35 @@ describe('runEnrichmentCascade', () => {
       expect(prisma.contact.create).toHaveBeenCalledTimes(1);
       expect(vi.mocked(prisma.contact.create).mock.calls[0][0]).toMatchObject({
         data: expect.objectContaining({ name: 'Maria Souza' }),
+      });
+    });
+
+    it('preenche emailStatus do Contact novo com o resultado de resolveEmailStatus (achado corrigido: antes ficava sempre null)', async () => {
+      const { resolveEmailStatus } = await import(
+        '@/features/prospecting/services/enrichment/domainGuess.js'
+      );
+      vi.mocked(resolveEmailStatus).mockResolvedValue('verified');
+
+      vi.mocked(prisma.company.findFirst).mockResolvedValue({ ...baseCompany } as never);
+      vi.mocked(enrichOrganizationByDomain).mockResolvedValue({ organization: null } as never);
+      vi.mocked(enrichOrganizationWithContacts).mockResolvedValue({
+        contacts: [
+          {
+            name: 'Maria Souza',
+            title: 'Compras',
+            email: 'maria@empresa.com.br',
+            phone: null,
+            linkedin_url: null,
+          },
+        ],
+      } as never);
+      vi.mocked(searchGooglePlaceDetailed).mockResolvedValue({ place: null } as never);
+
+      await runEnrichmentCascade('org-1', 'comp-1');
+
+      expect(resolveEmailStatus).toHaveBeenCalledWith('maria@empresa.com.br');
+      expect(vi.mocked(prisma.contact.create).mock.calls[0][0]).toMatchObject({
+        data: expect.objectContaining({ emailStatus: 'verified' }),
       });
     });
   });

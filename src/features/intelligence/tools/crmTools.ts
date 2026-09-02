@@ -54,7 +54,19 @@ export const searchLeadsTool = tool(
       leads.length > 1
         ? '\n\nMais de um lead corresponde à busca — confirme qual antes de agir, ou peça mais detalhes se não estiver claro.'
         : '';
-    return `Encontrado(s) ${leads.length} lead(s):\n${lines.join('\n')}${disambiguationHint}`;
+    const result = `Encontrado(s) ${leads.length} lead(s):\n${lines.join('\n')}${disambiguationHint}`;
+
+    // SEC-013b: mesmo tratamento de get_lead_context — este texto vira uma ToolMessage
+    // devolvida ao LLM externo (Groq/OpenAI) dentro do loop de tool-calling; sem isto, o
+    // nome real de cada contato encontrado ia direto pro provedor só por buscar por nome
+    // de empresa/lead sem leadId pronto.
+    const contactTokens: Array<{ token: string; value: string }> = [];
+    for (const l of leads) {
+      if (l.contact?.name) {
+        contactTokens.push({ token: '[NOME_DO_CONTATO]', value: l.contact.name });
+      }
+    }
+    return contactTokens.length > 0 ? minimizePii(result, contactTokens).text : result;
   },
   {
     name: 'search_leads',
