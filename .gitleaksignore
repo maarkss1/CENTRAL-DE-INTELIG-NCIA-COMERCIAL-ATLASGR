@@ -1,0 +1,8 @@
+# Fingerprints de achados do gitleaks já investigados e tratados — ver o comentário
+# correspondente em .gitleaks.toml para o contexto completo de cada um. Formato: uma fingerprint
+# por linha, exatamente como o gitleaks reporta em "Fingerprint:" na saída do finding.
+
+# Senha real de conta em texto puro, JÁ ROTACIONADA no Supabase de produção em 02/09/2026 — ver
+# comentário em .gitleaks.toml. Os dois arquivos não existem mais no repositório.
+46833fd443e28916b2d0908382d7683245be1b86:_tmp_bitrix_only.mjs:generic-api-key:3
+46833fd443e28916b2d0908382d7683245be1b86:_tmp_enrich_and_bitrix.mjs:generic-api-key:3
