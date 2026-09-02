@@ -93,7 +93,6 @@ export {
 export type { BitrixSyncLogSummary } from './service/syncLogs.js';
 export { listRecentBitrixSyncLogs } from './service/syncLogs.js';
 
-
 // Serviço real de Extrações Bitrix (Onda 7, Agente 06/06A) — ver service/extraction.ts para o
 // racional de arquitetura (execução em segundo plano sem worker BullMQ dedicado nesta rodada).
 export type { CreateExtractionRunInput } from './service/extraction.js';
