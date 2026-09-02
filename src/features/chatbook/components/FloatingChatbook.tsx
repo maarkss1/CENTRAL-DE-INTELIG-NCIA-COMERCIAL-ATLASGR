@@ -116,7 +116,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-[999]"
+            className="fixed inset-0 bg-ink/50 backdrop-blur-md z-[999]"
           />
 
           {/* Master Omni-Drawer */}
