@@ -56,6 +56,17 @@ jobs:
           format: sarif
           output: trivy-fs-results.sarif
           trivyignores: .trivyignore.yaml
+          # Sem isto, o entrypoint da trivy-action faz `unset TRIVY_SEVERITY` sempre que
+          # `format: sarif` (ver aquasecurity/trivy-action@ed142fd0/entrypoint.sh, bloco "Handle
+          # SARIF") — ou seja, o `severity: HIGH,CRITICAL` acima era ignorado silenciosamente e o
+          # scan (e o `exit-code: 1`) considerava TODAS as severidades (UNKNOWN/LOW/MEDIUM
+          # incluídas), apesar do nome deste job e de todo comentário deste workflow dizerem
+          # "HIGH/CRITICAL". Achado investigando o PR #328: `GHSA-rgwj-5xj2-c3m3` (mysql2, MEDIUM,
+          # mesma cadeia dev-only via prisma CLI dos waivers abaixo) bloqueava o gate mesmo sem
+          # nenhum waiver cobri-lo, porque nunca deveria ter sido avaliado por este gate HIGH/
+          # CRITICAL em primeiro lugar. Com esta flag, a action mantém `TRIVY_SEVERITY` como
+          # configurado — o SARIF/exit-code passam a refletir de fato só HIGH/CRITICAL.
+          limit-severities-for-sarif: true
 
       - name: Upload SARIF para a aba Security
         if: always()
