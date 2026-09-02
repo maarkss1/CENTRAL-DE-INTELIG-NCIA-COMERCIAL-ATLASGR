@@ -29,6 +29,10 @@ import {
   FileSignature,
   Headset,
   Bot,
+  ClipboardCheck,
+  Share2,
+  GraduationCap,
+  PieChart,
 } from 'lucide-react';
 
 /**
@@ -75,12 +79,18 @@ export type TabType =
   | 'editor'
   | 'team'
   | 'settings'
-  | 'commercial_intelligence';
+  | 'sdr-diagnostic-joao'
+  | 'commercial_intelligence'
+  | 'social-selling'
+  | 'treinamento-atlasgr'
+  | 'proposta-comercial'
+  | 'hub-inteligencia-marketing';
 
 /** Metadados (rótulo + ícone) de cada módulo navegável — fonte única usada pelo topbar e pelo Command Palette. */
 export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
   dashboard: { label: 'Painel Central', icon: Home },
   commercial_intelligence: { label: 'Comercial Inteligente', icon: LineChart },
+  'sdr-diagnostic-joao': { label: 'Diagnóstico & Plano SDR', icon: ClipboardCheck },
   prospect: { label: 'Prospecção', icon: Search },
   crm: { label: 'Pipeline CRM', icon: LayoutTemplate },
   crm360: { label: 'Cockpit CRM', icon: Gauge },
@@ -110,4 +120,8 @@ export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
   editor: { label: 'Editor de Documentos', icon: FileText },
   team: { label: 'Equipe', icon: UserCog },
   settings: { label: 'Configurações', icon: SettingsIcon },
+  'social-selling': { label: 'Social Selling', icon: Share2 },
+  'treinamento-atlasgr': { label: 'Treinamento AtlasGR', icon: GraduationCap },
+  'proposta-comercial': { label: 'Proposta Comercial', icon: FileSignature },
+  'hub-inteligencia-marketing': { label: 'Hub Inteligência & Mkt', icon: PieChart },
 };

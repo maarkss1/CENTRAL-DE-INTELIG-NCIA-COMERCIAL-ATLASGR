@@ -42,6 +42,12 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
   const canAccessMesaTratamento =
     !!currentUser && hasRequiredRole(currentUser.role, MESA_TRATAMENTO_ROLES);
 
+  const isJoaoReisOrAdmin =
+    !!currentUser &&
+    (currentUser.email.toLowerCase().includes('joao.reis') ||
+      currentUser.name.toLowerCase().includes('joão reis') ||
+      canManageOperations);
+
   const selectTab = (tab: TabType) => {
     navigate(`/app/${tab}`);
     onCloseMobile?.();
@@ -62,10 +68,31 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     'settings',
   ];
 
+  const isMarcelo =
+    !!currentUser && currentUser.email.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
+
+  const executiveRepoItems: TabType[] = [
+    'social-selling',
+    'treinamento-atlasgr',
+    'proposta-comercial',
+    'hub-inteligencia-marketing',
+  ];
+
   // Navegação orientada pela jornada comercial, não pela árvore técnica do projeto.
   // TAB_META é a fonte única de rótulo/ícone e TabType impede destinos fantasma.
   const navGroupsByJourney: NavGroupDefinition[] = [
-    { title: 'Visão Geral', items: ['dashboard'] },
+    {
+      title: 'Visão Geral',
+      items: ['dashboard', ...(isJoaoReisOrAdmin ? (['sdr-diagnostic-joao'] as TabType[]) : [])],
+    },
+    ...(isMarcelo
+      ? [
+          {
+            title: 'Repositórios Executivos',
+            items: executiveRepoItems,
+          },
+        ]
+      : []),
     { title: 'Captar', items: ['prospect', 'market-intelligence'] },
     {
       title: 'Qualificar',
