@@ -91,46 +91,41 @@ export function LeadApprovalDeck() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-emerald-400">Carregando IA Deck...</div>;
+  if (loading) return <div className="p-8 text-center text-ink-2">Carregando IA Deck...</div>;
   if (currentIndex >= accounts.length)
     return <div className="p-8 text-center text-ink-2">Você zerou os leads de hoje! 🎉</div>;
 
   const account = accounts[currentIndex];
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 min-h-[600px] bg-slate-950">
-      <h1 className="text-2xl text-emerald-400 mb-8 font-bold flex items-center gap-2">
-        <BrainCircuit /> LDR - Aprovação Ágil
+    <div className="flex flex-col items-center justify-center p-8 min-h-[600px] bg-bg">
+      <h1 className="text-2xl text-ink mb-8 font-bold flex items-center gap-2">
+        <BrainCircuit className="text-brand" /> LDR - Aprovação Ágil
       </h1>
       {feedback && (
-        <div className="mb-4 p-3 bg-emerald-950/80 border border-emerald-800 text-emerald-300 rounded text-sm max-w-md w-full text-center">
+        <div className="mb-4 p-3 bg-success/15 border border-success/30 text-success-active dark:text-success rounded text-sm max-w-md w-full text-center">
           {feedback}
         </div>
       )}
-      <Card className="w-full max-w-md bg-slate-900 border-slate-800 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-cyan-500" />
+      <Card accentBar className="w-full max-w-md relative overflow-hidden">
         <CardHeader>
           <div className="flex justify-between items-start">
-            <CardTitle className="text-xl text-slate-100">
-              {account.nomeFantasia || account.razaoSocial}
-            </CardTitle>
-            <Badge variant="outline" className="text-emerald-400 border-emerald-900">
-              {account.icpTier || 'FIT ALTO'}
-            </Badge>
+            <CardTitle className="text-xl">{account.nomeFantasia || account.razaoSocial}</CardTitle>
+            <Badge variant="success">{account.icpTier || 'FIT ALTO'}</Badge>
           </div>
-          <p className="text-sm text-slate-400">{account.cnpj}</p>
+          <p className="text-sm text-ink-2">{account.cnpj}</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-4 bg-slate-950 rounded border border-slate-800">
-            <p className="text-sm text-slate-300">
+          <div className="p-4 bg-surface-2 rounded border border-line">
+            <p className="text-sm text-ink">
               <strong>Capital Social:</strong> R${' '}
               {Number(account.capitalSocial || 0).toLocaleString('pt-BR')}
             </p>
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-ink">
               <strong>Local:</strong> {account.municipioNome} - {account.uf}
             </p>
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-ink-2">
             {account.cnaePrincipalDescricao || 'Atividade principal não informada no snapshot.'}
             {account.icpScore != null ? ` · Score ICP ${account.icpScore}` : ''}
           </div>
@@ -144,11 +139,7 @@ export function LeadApprovalDeck() {
           >
             <ThumbsDown className="mr-2 h-4 w-4" /> Descartar
           </Button>
-          <Button
-            className="w-full bg-emerald-600 hover:bg-emerald-500"
-            disabled={submitting}
-            onClick={() => handleAction(true)}
-          >
+          <Button className="w-full" disabled={submitting} onClick={() => handleAction(true)}>
             <ThumbsUp className="mr-2 h-4 w-4" /> Aprovar
           </Button>
         </CardFooter>

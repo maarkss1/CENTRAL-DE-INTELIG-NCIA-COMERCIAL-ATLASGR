@@ -202,7 +202,7 @@ export function Account360() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen space-x-3 text-emerald-500">
+      <div className="flex items-center justify-center h-screen space-x-3 text-brand">
         <Loader2 className="w-10 h-10 animate-spin" />
         <span className="text-lg font-medium">Carregando Inteligência...</span>
       </div>
@@ -211,7 +211,7 @@ export function Account360() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen text-rose-500 space-y-4">
+      <div className="flex flex-col items-center justify-center h-screen text-critical space-y-4">
         <AlertCircle className="w-12 h-12" />
         <span className="text-xl font-semibold">{error}</span>
         <Button variant="outline" onClick={() => fetchIntelligence()}>
@@ -225,17 +225,17 @@ export function Account360() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 pb-6 gap-4">
+      <header className="flex flex-col md:flex-row md:items-center justify-between border-b border-line pb-6 gap-4">
         <div className="flex items-start md:items-center space-x-4">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="hover:bg-white/5">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="hover:bg-surface-2">
             <ArrowLeft className="w-5 h-5 mr-2" /> Voltar
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center tracking-tight">
-              <Building2 className="w-8 h-8 mr-3 text-emerald-500" />
+            <h1 className="text-3xl font-bold text-ink flex items-center tracking-tight">
+              <Building2 className="w-8 h-8 mr-3 text-brand" />
               {intelligence?.account.tradeName || intelligence?.account.legalName || `Conta: ${id}`}
             </h1>
-            <p className="text-sm text-white/50 mt-1 flex items-center">
+            <p className="text-sm text-ink-2 mt-1 flex items-center">
               <Zap className="w-4 h-4 mr-1" /> Última atualização:{' '}
               {intelligence?.facts?.generatedAt
                 ? new Date(intelligence.facts.generatedAt).toLocaleString('pt-BR')
@@ -244,7 +244,7 @@ export function Account360() {
           </div>
         </div>
         <Button
-          className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+          className="bg-brand-active hover:brightness-105 text-white shadow-card"
           disabled={refreshing}
           onClick={handleRefresh}
         >
@@ -258,61 +258,61 @@ export function Account360() {
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-white/5 to-transparent border-white/10">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-white/70 flex items-center">
-              <Target className="w-4 h-4 mr-2 text-blue-400" />
+            <CardTitle className="text-sm font-medium text-ink-2 flex items-center">
+              <Target className="w-4 h-4 mr-2 text-brand" />
               Account Score
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold text-ink">
               {formatScore(intelligence?.latestInference?.total)}
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-white/5 to-transparent border-white/10">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-white/70 flex items-center">
-              <TrendingUp className="w-4 h-4 mr-2 text-emerald-400" />
+            <CardTitle className="text-sm font-medium text-ink-2 flex items-center">
+              <TrendingUp className="w-4 h-4 mr-2 text-brand" />
               ICP / Fit
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold text-ink">
               {formatScore(intelligence?.latestInference?.fit)}
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-white/5 to-transparent border-white/10">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-white/70 flex items-center">
-              <Zap className="w-4 h-4 mr-2 text-amber-400" />
+            <CardTitle className="text-sm font-medium text-ink-2 flex items-center">
+              <Zap className="w-4 h-4 mr-2 text-brand" />
               Intent
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold text-ink">
               {formatScore(intelligence?.latestInference?.intent)}
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-white/5 to-transparent border-white/10">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-white/70 flex items-center">
-              <Users className="w-4 h-4 mr-2 text-purple-400" />
+            <CardTitle className="text-sm font-medium text-ink-2 flex items-center">
+              <Users className="w-4 h-4 mr-2 text-brand" />
               Novos Sinais
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold text-ink">
               {intelligence?.collections.signals ?? 0}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="border-b border-white/10">
+      <div className="border-b border-line">
         <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
           {TABS.map((tab) => (
             <button
@@ -321,13 +321,13 @@ export function Account360() {
               aria-current={activeTab === tab.id ? 'page' : undefined}
               className={`${
                 activeTab === tab.id
-                  ? 'border-emerald-500 text-emerald-400'
-                  : 'border-transparent text-white/60 hover:text-white/80 hover:border-white/30'
+                  ? 'border-brand-active text-brand-active'
+                  : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
               {tab.label}
               {tab.id !== 'overview' && tabState[tab.id]?.result ? (
-                <span className="ml-2 text-xs text-white/40">
+                <span className="ml-2 text-xs text-ink-2">
                   ({tabState[tab.id]?.result?.total ?? 0})
                 </span>
               ) : null}
@@ -338,12 +338,12 @@ export function Account360() {
 
       <div className="mt-6">
         {activeTab === 'overview' && (
-          <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg">Resumo Executivo (IA)</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-white/80 leading-relaxed text-lg">
+              <p className="text-ink leading-relaxed text-lg">
                 {intelligence?.facts?.summary ||
                   'Nenhum resumo de inteligência foi gerado para esta conta ainda.'}
               </p>
@@ -362,7 +362,7 @@ export function Account360() {
         {activeTab !== 'overview' && !currentTab?.loading && currentTab?.error && (
           <div className="flex flex-col items-center gap-3 py-10">
             <EmptyState
-              icon={<AlertCircle className="w-8 h-8 text-rose-400" />}
+              icon={<AlertCircle className="w-8 h-8 text-critical" />}
               title="Não foi possível carregar"
               description={currentTab.error}
             />
@@ -403,7 +403,7 @@ export function Account360() {
           !currentTab?.error &&
           (currentTab?.result?.items.length ?? 0) === 0 && (
             <EmptyState
-              icon={<AlertCircle className="w-8 h-8 text-amber-400" />}
+              icon={<AlertCircle className="w-8 h-8 text-ink-2" />}
               title="Sem dados"
               description={`Não há registros disponíveis para ${TABS.find((t) => t.id === activeTab)?.label?.toLowerCase()}.`}
             />
@@ -483,21 +483,21 @@ function AccountRecordCard({
   const confidence = typeof item.confidence === 'number' ? item.confidence : null;
 
   return (
-    <Card className="border-white/10 bg-white/5">
+    <Card>
       <CardContent className="flex items-center justify-between gap-4 py-4">
         <div>
-          <p className="text-white font-medium">{title}</p>
-          {subtitle && <p className="text-sm text-white/50 mt-0.5">{subtitle}</p>}
+          <p className="text-ink font-medium">{title}</p>
+          {subtitle && <p className="text-sm text-ink-2 mt-0.5">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {evidenceMeta && <Badge variant={evidenceMeta.variant}>{evidenceMeta.label}</Badge>}
           {confidence != null && (
-            <span className="text-xs text-white/50 whitespace-nowrap">
+            <span className="text-xs text-ink-2 whitespace-nowrap">
               {Math.round(confidence * 100)}% confiança
             </span>
           )}
           {status && (
-            <span className="text-xs px-2 py-1 rounded-full border border-white/10 text-white/70 whitespace-nowrap">
+            <span className="text-xs px-2 py-1 rounded-full border border-line text-ink-2 whitespace-nowrap">
               {status}
             </span>
           )}

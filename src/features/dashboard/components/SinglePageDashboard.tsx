@@ -158,14 +158,14 @@ export function SinglePageDashboard() {
           <GlowChart data={dashboard?.monthly ?? []} error={dashboardError} />
 
           {statsError ? (
-            <div className="p-4 rounded-card border border-red-500/30 bg-red-500/10 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 text-sm text-red-300">
+            <div className="p-4 rounded-card border border-danger/30 bg-danger/10 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 text-sm text-danger-active dark:text-danger">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 Não foi possível carregar as métricas agora.
               </div>
               <button
                 onClick={() => refetchStats()}
-                className="text-xs font-bold text-red-300 hover:underline cursor-pointer shrink-0"
+                className="text-xs font-bold text-danger-active dark:text-danger hover:underline cursor-pointer shrink-0"
               >
                 Tentar novamente
               </button>
@@ -218,13 +218,13 @@ export function SinglePageDashboard() {
               <p className="text-sm text-ink-2">Carregando compromissos...</p>
             ) : agendaError ? (
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 text-sm text-red-300">
+                <div className="flex items-center gap-2.5 text-sm text-danger-active dark:text-danger">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
                   Não foi possível carregar a agenda de hoje.
                 </div>
                 <button
                   onClick={() => refetchAgenda()}
-                  className="text-xs font-bold text-red-300 hover:underline cursor-pointer shrink-0"
+                  className="text-xs font-bold text-danger-active dark:text-danger hover:underline cursor-pointer shrink-0"
                 >
                   Tentar novamente
                 </button>
