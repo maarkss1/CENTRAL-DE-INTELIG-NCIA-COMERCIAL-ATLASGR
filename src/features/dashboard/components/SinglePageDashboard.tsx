@@ -181,7 +181,7 @@ export function SinglePageDashboard() {
                 <motion.div
                   key={kpi.label}
                   variants={staggerItem}
-                  className="p-4 rounded-card border border-line bg-surface shadow-card flex items-center gap-3"
+                  className="p-4 rounded-card border border-line bg-surface shadow-card hover:shadow-card-hover hover:border-brand/20 transition-all flex items-center gap-3"
                 >
                   <div className="p-2 rounded-xl bg-soft text-brand shrink-0">{kpi.icon}</div>
                   <div className="min-w-0">
@@ -236,7 +236,7 @@ export function SinglePageDashboard() {
                 {sortedAgenda.map((a) => (
                   <div
                     key={a.id}
-                    className="flex items-start gap-3 p-3.5 rounded-card bg-surface-2 border border-line"
+                    className="flex items-start gap-3 p-3.5 rounded-card bg-surface-2 border border-line hover:border-brand/20 transition-colors"
                   >
                     <div className="p-2 rounded-lg bg-surface border border-line text-brand shrink-0">
                       {TYPE_ICONS[a.type?.toLowerCase()] ?? <ActivityIcon className="w-4 h-4" />}
