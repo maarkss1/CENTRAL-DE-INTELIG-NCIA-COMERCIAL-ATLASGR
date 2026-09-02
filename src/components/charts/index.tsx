@@ -240,11 +240,14 @@ export function HeatmapChart({
           },
         }
       : undefined,
+    // A tipagem de `formatter` do ECharts é uma união ampla de callbacks (TooltipOption); o
+    // parâmetro de um heatmap chega como `{ data: [x, y, valor] }` — o cast do objeto inteiro
+    // mantém o contrato real sem afrouxar para `any`.
     tooltip: {
-      position: 'top' as const,
+      position: 'top',
       formatter: (params: { data: (number | string)[] }) =>
         `${WEEKDAYS[params.data[1] as number]} ${HOURS[params.data[0] as number]}: ${params.data[2] as number} atividades`,
-    },
+    } as unknown as EChartsOption['tooltip'],
     grid: { top: title ? 40 : 10, bottom: 30, left: 40, right: 10 },
     xAxis: {
       type: 'category',
