@@ -1,0 +1,1016 @@
+<title>Atlas GR Social Selling</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --bg:#F6F5F2;
+    --bg-alt:#EFEAE0;
+    --bg-raised:#FFFFFF;
+    --bg-sunken:#ECE5D8;
+    --ink:#242019;
+    --ink-soft:#4A4038;
+    --muted:#8B8074;
+    --line:#E2DACD;
+    --accent:#FF5618;
+    --accent-ink:#1C1108;
+    --accent-soft:#FFE4D6;
+    --spark:#A8710A;
+    --quente:#1F7A49;
+    --quente-ink:#FFFFFF;
+    --frio:#B93B31;
+    --frio-ink:#FFFFFF;
+    --morno:#9C6B08;
+    --morno-ink:#FFFFFF;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#161210;
+      --bg-alt:#1C160F;
+      --bg-raised:#241C15;
+      --bg-sunken:#0F0C0A;
+      --ink:#F5EEE3;
+      --ink-soft:#C8BCAB;
+      --muted:#8C8072;
+      --line:#3A2E22;
+      --accent:#FF5B1F;
+      --accent-ink:#181008;
+      --accent-soft:#3A2313;
+      --spark:#FFC500;
+      --quente:#3FA873;
+      --quente-ink:#0B1A12;
+      --frio:#E2685C;
+      --frio-ink:#210805;
+      --morno:#E0B34D;
+      --morno-ink:#221706;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#161210;
+    --bg-alt:#1C160F;
+    --bg-raised:#241C15;
+    --bg-sunken:#0F0C0A;
+    --ink:#F5EEE3;
+    --ink-soft:#C8BCAB;
+    --muted:#8C8072;
+    --line:#3A2E22;
+    --accent:#FF5B1F;
+    --accent-ink:#181008;
+    --accent-soft:#3A2313;
+    --spark:#FFC500;
+    --quente:#3FA873;
+    --quente-ink:#0B1A12;
+    --frio:#E2685C;
+    --frio-ink:#210805;
+    --morno:#E0B34D;
+    --morno-ink:#221706;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",Arial,sans-serif;font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--accent);color:var(--accent-ink)}
+  a{color:var(--accent)}
+  h1,h2,h3{font-family:"Montserrat",Arial,sans-serif;text-wrap:balance;letter-spacing:-0.01em;margin:0}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+  code,.mono{font-family:"IBM Plex Mono",monospace}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button{font:inherit}
+
+  /* ===== reveal on scroll ===== */
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .55s ease, transform .55s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  /* ===== hero ===== */
+  header.hero{position:relative;padding:88px 28px 70px;background:var(--bg-sunken);border-bottom:1px solid var(--line);overflow:hidden;min-height:78vh;display:flex;align-items:center}
+  header.hero canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.8}
+  header.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(760px 480px at 12% 20%, rgba(255,91,31,0.22), transparent 62%),radial-gradient(620px 420px at 92% 84%, rgba(255,197,0,0.09), transparent 58%)}
+  .hero-inner{position:relative;z-index:2;max-width:880px;margin:0 auto;width:100%}
+  .hero-inner .eyebrow{display:block;margin-bottom:22px}
+  .hero-inner h1{font-size:clamp(34px,6.4vw,60px);font-weight:900;line-height:1.02;color:var(--ink);max-width:820px}
+  .hero-inner h1 em{font-style:normal;color:var(--accent)}
+  .hero-inner p.lead{margin:22px 0 0;max-width:600px;font-size:17.5px;color:var(--ink-soft)}
+  .hero-meta{display:flex;flex-wrap:wrap;gap:10px 26px;margin-top:32px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted)}
+  .hero-meta b{color:var(--ink-soft);font-weight:600}
+  .scrollcue{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:2;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:8px}
+  .scrollcue .bar{width:1px;height:28px;background:var(--accent);animation:cuemove 1.8s ease-in-out infinite}
+  @media (prefers-reduced-motion: reduce){ .scrollcue .bar{animation:none} }
+  @keyframes cuemove{0%,100%{opacity:.25}50%{opacity:1}}
+
+  /* ===== marquee ===== */
+  .marquee{overflow:hidden;background:var(--bg-raised);border-bottom:1px solid var(--line);padding:13px 0}
+  .marquee-track{display:flex;width:max-content;animation:mscroll 30s linear infinite}
+  @media (prefers-reduced-motion: reduce){ .marquee-track{animation:none} }
+  .marquee-track span.word{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);white-space:nowrap;padding:0 22px}
+  .marquee-track span.sep{color:var(--line)}
+  @keyframes mscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+  /* ===== nav ===== */
+  nav.jump{position:sticky;top:0;z-index:20;background:color-mix(in srgb, var(--bg) 92%, transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+  nav.jump .navbar-inner{max-width:880px;margin:0 auto;padding:0 20px 0 28px;display:flex;align-items:center;gap:10px}
+  nav.jump .row{flex:1;min-width:0;display:flex;align-items:center;gap:2px;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+  nav.jump .row::-webkit-scrollbar{display:none}
+  nav.jump .brand-logo{display:flex;align-items:center;flex:0 0 auto;height:22px;padding-right:16px;margin-right:6px;border-right:1px solid var(--line);color:var(--ink)}
+  nav.jump .brand-logo svg{height:16px;width:auto;display:block}
+  nav.jump a{display:inline-block;padding:14px 13px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.03em;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent;flex:0 0 auto}
+  nav.jump a:hover{color:var(--ink);border-bottom-color:var(--accent)}
+  #themeToggle{flex:0 0 auto;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;padding:0}
+  #themeToggle:hover{border-color:var(--accent);color:var(--ink)}
+  #themeToggle svg{width:15px;height:15px}
+  #themeToggle .icon-moon{display:none}
+
+  main{margin:0}
+  .wrap{max-width:880px;margin:0 auto;padding:0 28px}
+  section{padding:64px 0;border-bottom:1px solid var(--line)}
+  section:nth-of-type(even){background:var(--bg-alt)}
+  section:last-of-type{border-bottom:none}
+
+  .sec-head{display:flex;gap:18px;align-items:flex-start;margin-bottom:22px}
+  .sec-head .num{font-family:"Montserrat",sans-serif;font-weight:900;font-size:58px;line-height:.8;color:var(--accent);opacity:.32;flex:0 0 auto;letter-spacing:-2px}
+  .sec-head .htext .eyebrow{display:block;margin-bottom:6px}
+  .sec-head h2{font-size:clamp(26px,3.6vw,34px);font-weight:800;color:var(--ink)}
+  section > .wrap > p.intro{color:var(--ink-soft);max-width:640px;margin:0 0 28px;font-size:15.5px}
+
+  h3.sub{font-size:13px;font-weight:700;margin:0 0 14px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;font-family:"IBM Plex Mono",monospace}
+
+  .pull{font-family:"Montserrat",sans-serif;font-weight:800;font-size:clamp(22px,3.2vw,30px);line-height:1.18;color:var(--ink);border-left:4px solid var(--accent);padding:2px 0 2px 20px;margin:0 0 28px;max-width:660px}
+  .pull span{color:var(--accent)}
+
+  /* ===== grids & cards ===== */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media (max-width:680px){ .grid2,.grid3{grid-template-columns:1fr} }
+
+  .card{background:var(--bg-raised);border:1px solid var(--line);padding:22px 22px 24px;transition:border-color .15s ease}
+  .card:hover{border-color:var(--accent)}
+  .card.strong{border-top:3px solid var(--accent)}
+  .card h3{font-size:16px;font-weight:700;margin-bottom:10px;color:var(--ink)}
+  .card p{margin:0 0 8px;font-size:14.5px;color:var(--ink-soft)}
+  .card .tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .tag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;letter-spacing:.03em;padding:3px 8px;background:var(--accent);color:var(--accent-ink)}
+
+  ul.plain{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+  ul.plain li{font-size:15px;color:var(--ink-soft);padding-left:18px;position:relative}
+  ul.plain li::before{content:"\2014";position:absolute;left:0;top:0;color:var(--accent)}
+  ul.plain li b{color:var(--ink)}
+
+  .seg{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px}
+  .seg.quente{background:var(--quente);color:var(--quente-ink)}
+  .seg.morno{background:var(--morno);color:var(--morno-ink)}
+  .seg.frio{background:var(--frio);color:var(--frio-ink)}
+
+  /* ===== tables ===== */
+  .twrap{overflow-x:auto;border:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;background:var(--bg-raised);font-size:14px;min-width:520px}
+  th,td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600;background:var(--bg-sunken)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:rgba(255,91,31,0.05)}
+  td.num,th.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.day{font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--accent);white-space:nowrap}
+
+  /* ===== checklist ===== */
+  ul.checklist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+  ul.checklist li{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:var(--ink-soft)}
+  ul.checklist li::before{content:"";flex:0 0 auto;width:15px;height:15px;margin-top:3px;border:1.5px solid var(--accent)}
+
+  /* ===== real checkboxes ===== */
+  ul.checklist-real{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:11px}
+  ul.checklist-real li{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:var(--ink-soft)}
+  ul.checklist-real input[type="checkbox"]{margin-top:3px;width:16px;height:16px;accent-color:var(--accent);flex:0 0 auto;cursor:pointer}
+  ul.checklist-real label{cursor:pointer}
+  ul.checklist-real input:checked + label{color:var(--muted);text-decoration:line-through}
+
+  /* ===== formula strip ===== */
+  .formula{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:22px 0 26px}
+  .formula .step{background:var(--bg-raised);border:1px solid var(--accent);padding:10px 14px;font-size:13px;font-weight:700;color:var(--ink)}
+  .formula .arrow{color:var(--accent);font-family:"IBM Plex Mono",monospace;font-weight:700}
+
+  /* ===== kpi tiles ===== */
+  .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+  @media (max-width:680px){.kpi-grid{grid-template-columns:1fr 1fr}}
+  .kpi{background:var(--bg-raised);border:1px solid var(--line);border-top:2px solid var(--accent);padding:16px 16px 14px}
+  .kpi .k-label{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .kpi .k-val{font-family:"Montserrat",sans-serif;font-weight:800;font-size:20px;margin-top:6px;color:var(--ink)}
+  .kpi .k-sub{font-size:12px;color:var(--ink-soft);margin-top:2px}
+
+  blockquote{margin:20px 0;padding:16px 20px;border-left:4px solid var(--accent);background:var(--accent-soft);font-size:15px;color:var(--ink);font-style:normal;font-weight:600}
+  .callout{display:flex;gap:12px;padding:16px 18px;background:var(--bg-raised);border:1px solid var(--morno);font-size:14px;color:var(--ink-soft);margin-top:20px}
+  .callout b{color:var(--spark)}
+
+  /* ===== diagrams ===== */
+  figure.diagram{margin:24px 0 8px;color:var(--ink)}
+  figure.diagram svg{width:100%;height:auto;display:block}
+  figcaption{margin-top:12px;font-size:12.5px;color:var(--muted);font-family:"IBM Plex Mono",monospace}
+
+  /* ===== tabbed interactive components ===== */
+  .tabbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .tabbar button{background:transparent;border:1px solid var(--line);color:var(--ink-soft);padding:10px 18px;cursor:pointer;transition:all .15s ease;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .tabbar button:hover{border-color:var(--accent);color:var(--ink)}
+  .tabbar button.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .tabpanel{display:none}
+  .tabpanel.active{display:block}
+
+  /* ===== profile card ===== */
+  .pcard{background:var(--bg-raised);border:1px solid var(--line)}
+  .pcard .pbanner{height:64px;background:linear-gradient(120deg,var(--accent),#C93E0F);position:relative}
+  .pcard .pbody{padding:0 22px 22px;position:relative}
+  .pcard .avatar{width:74px;height:74px;border-radius:50%;background:var(--bg-raised);border:4px solid var(--bg-raised);outline:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-family:"Montserrat",sans-serif;font-weight:800;font-size:26px;color:var(--accent);margin-top:-37px;position:relative}
+  .pcard .pm-name{font-family:"Montserrat",sans-serif;font-weight:800;font-size:17px;margin-top:14px;color:var(--ink)}
+  .pcard .pm-headline{font-size:14px;color:var(--ink-soft);margin-top:6px;line-height:1.55;max-width:520px}
+  .pcard .pm-formula{margin-top:14px;font-size:12.5px;color:var(--muted)}
+
+  /* ===== phone message mock ===== */
+  .phone{background:var(--bg-raised);border:1px solid var(--line)}
+  .phone-bar{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-sunken);border-bottom:1px solid var(--line)}
+  .phone-bar .pavatar{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-family:"Montserrat",sans-serif;font-weight:800;font-size:11px;flex:0 0 auto}
+  .phone-bar .pname{font-size:12px;font-weight:700;color:var(--ink)}
+  .phone-bar .ptag{margin-left:auto}
+  .phone-body{padding:18px}
+  .phone-msg{background:var(--bg-sunken);border-radius:14px 14px 14px 3px;padding:12px 14px;font-size:14px;color:var(--ink);line-height:1.55}
+  .phone-note{margin-top:10px;font-size:12px;color:var(--muted)}
+
+  /* ===== icon flow ===== */
+  .flowrow{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:6px 0 16px}
+  .flowrow .fitem{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px;width:118px;text-align:center}
+  .flowrow .ficon{width:54px;height:54px;border-radius:50%;background:var(--bg-raised);border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:12px;color:var(--accent)}
+  .flowrow .flabel{font-size:11.5px;color:var(--ink-soft);line-height:1.35}
+  .flowrow .farrow{color:var(--accent);font-family:"IBM Plex Mono",monospace;flex:0 0 auto;font-size:16px}
+
+  /* ===== time allocation bar ===== */
+  .timebar{display:flex;height:36px;overflow:hidden;border:1px solid var(--line);margin:18px 0 12px}
+  .timebar span{display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:10.5px;color:var(--accent-ink);white-space:nowrap}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--ink-soft)}
+  .legend .dot{display:inline-block;width:9px;height:9px;margin-right:6px;vertical-align:middle}
+
+  /* ===== roadmap horizontal ===== */
+  .rmap{position:relative;display:flex;gap:0;margin-top:8px}
+  .rmap::before{content:"";position:absolute;top:26px;left:26px;right:26px;height:2px;background:var(--line)}
+  .rmap .stage{flex:1;position:relative;padding:0 16px 0 0}
+  .rmap .stage:last-child{padding-right:0}
+  .rmap .dot{width:52px;height:52px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:13px;position:relative;z-index:1;margin-bottom:18px}
+  .rmap .prange{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--accent);margin-bottom:8px;display:block}
+  .rmap h3{font-size:16px;font-weight:700;margin-bottom:6px;color:var(--ink)}
+  .rmap p{margin:0;color:var(--ink-soft);font-size:14px}
+  @media (max-width:760px){ .rmap{flex-direction:column;gap:30px} .rmap::before{display:none} .rmap .stage{padding-right:0} }
+
+  footer{max-width:880px;margin:0 auto;padding:34px 28px 60px;color:var(--muted);font-size:12.5px;font-family:"IBM Plex Mono",monospace;border-top:1px solid var(--line)}
+</style>
+
+<header class="hero">
+  <canvas id="netbg" aria-hidden="true"></canvas>
+  <div class="hero-inner">
+    <span class="eyebrow">Atlas GR &middot; Operação Solo</span>
+    <h1>Você não tem controle. <em>Tem um problema melhor documentado.</em></h1>
+    <p class="lead">Essa frase é a sua voz — a auditoria já provou isso. Este é o motor que garante que ela vire hábito: post, comentário, convite e resposta, toda semana, sem depender de mais ninguém.</p>
+    <div class="hero-meta">
+      <span><b>Base:</b> Auditoria (Receita Previsível) + Kit Campanha LinkedIn (Spinner)</span>
+      <span><b>Executa:</b> só você</span>
+      <span><b>Revisão:</b> semanal 30 min &middot; mensal 90 min</span>
+    </div>
+  </div>
+  <div class="scrollcue" aria-hidden="true"><span>Role</span><span class="bar"></span></div>
+</header>
+
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    <span class="word">Fricção</span><span class="sep">&#9670;</span>
+    <span class="word">Exceção</span><span class="sep">&#9670;</span>
+    <span class="word">Tratativa</span><span class="sep">&#9670;</span>
+    <span class="word">Evidência</span><span class="sep">&#9670;</span>
+    <span class="word">Governança</span><span class="sep">&#9670;</span>
+    <span class="word">Previsibilidade</span><span class="sep">&#9670;</span>
+    <span class="word">Controle real</span><span class="sep">&#9670;</span>
+    <span class="word">Fricção</span><span class="sep">&#9670;</span>
+    <span class="word">Exceção</span><span class="sep">&#9670;</span>
+    <span class="word">Tratativa</span><span class="sep">&#9670;</span>
+    <span class="word">Evidência</span><span class="sep">&#9670;</span>
+    <span class="word">Governança</span><span class="sep">&#9670;</span>
+    <span class="word">Previsibilidade</span><span class="sep">&#9670;</span>
+    <span class="word">Controle real</span><span class="sep">&#9670;</span>
+  </div>
+</div>
+
+<nav class="jump" aria-label="Seções do plano">
+  <div class="navbar-inner">
+    <div class="row">
+      <span class="brand-logo" aria-label="Atlas GR"><svg viewBox="0 0 800 174.78" xmlns="http://www.w3.org/2000/svg"><defs><style>.cls-1{fill:currentColor}.cls-2{fill:var(--accent)}</style></defs><g><g><path class="cls-1" d="M403.66,171.69l-10-28.49h-57l-9.78,28.49H294.09L350.17,21.5h29.14L437.2,171.69ZM365,61.19l-18.66,53.73H383.9Z"/><path class="cls-1" d="M494.61,145.14h13.58v26.55H487q-18.16,0-28.69-10.53t-10.53-28.89v-47h-21.4V78.88L472.8,32.47h4.35V61.31h31v24H477.65v43q0,8.08,4.39,12.47t12.57,4.39"/><rect class="cls-1" x="529.49" y="21.5" width="29.84" height="150.2"/><path class="cls-1" d="M670.83,61.12h22.36V171.49H669.73l-2.59-9.88q-15.07,13.17-35.73,13.17a58.64,58.64,0,0,1-29.64-7.58,54.09,54.09,0,0,1-20.76-21,60.29,60.29,0,0,1-7.48-29.89A59.58,59.58,0,0,1,581,86.61a53.89,53.89,0,0,1,20.76-20.85,58.92,58.92,0,0,1,29.64-7.54q21.06,0,36.23,13.47ZM612.3,137.91q8.54,8.63,21.51,8.63t21.5-8.58q8.54-8.58,8.54-21.66t-8.54-21.65q-8.52-8.58-21.5-8.59T612.3,94.7q-8.53,8.63-8.53,21.6t8.53,21.61"/><path class="cls-1" d="M753.69,174.78q-20.75,0-33.48-10.82t-12.82-28.6h29q.11,7.09,5.14,10.88T754.89,150A20.3,20.3,0,0,0,766,147.14a9.17,9.17,0,0,0,4.54-8.18,7.43,7.43,0,0,0-1.55-4.69,11.43,11.43,0,0,0-4.84-3.35,43.86,43.86,0,0,0-6.48-2.09q-3.2-.75-8.39-1.65-4.68-.8-7.88-1.45t-7.73-1.94a44.3,44.3,0,0,1-7.64-2.85,43.08,43.08,0,0,1-6.54-4.14,23,23,0,0,1-5.49-5.74,29.62,29.62,0,0,1-3.39-7.63,34.21,34.21,0,0,1-1.35-9.88,31.18,31.18,0,0,1,12.28-25.5q12.27-9.82,32.13-9.83t32,10.13q12.07,10.13,12.17,26.7H769.56q-.09-6.49-4.44-9.78T752.9,82q-6.9,0-10.83,2.9a9.07,9.07,0,0,0-3.94,7.68,7.92,7.92,0,0,0,.64,3.25,5.9,5.9,0,0,0,2.3,2.49q1.65,1,3.09,1.8a22.06,22.06,0,0,0,4.39,1.49c2,.5,3.56.87,4.79,1.1l5.64,1q16.07,2.89,23.16,6,17.86,8,17.86,27.94,0,16.86-12.67,27t-33.64,10.12"/><polygon class="cls-2" points="153.4 87.56 167.65 62.87 167.68 62.85 178.13 44.72 178.11 44.68 178.15 44.68 203.95 0 182.97 0 152.31 0 110.4 0 99.17 0 73.37 44.68 73.35 44.72 62.87 62.87 48.62 87.56 48.41 87.94 0 171.76 83.81 171.76 104.78 171.76 125.74 135.49 125.76 135.44 153.19 87.94 153.4 87.56"/><polygon class="cls-2" points="203.07 87.94 175.75 87.94 153.9 125.79 153.9 125.83 137.02 155.01 146.7 171.76 209.57 171.76 251.48 171.76 203.07 87.94"/></g></g></svg></span>
+      <a href="#escopo">Escopo</a>
+      <a href="#voz">Voz</a>
+      <a href="#perfil">Perfil</a>
+      <a href="#ritmo">Ritmo</a>
+      <a href="#conteudo">Conteúdo</a>
+      <a href="#abordagem">Abordagem</a>
+      <a href="#prospeccao">Prospecção</a>
+      <a href="#pago">Pago</a>
+      <a href="#metricas">Métricas</a>
+      <a href="#roadmap">Roadmap</a>
+    </div>
+    <button type="button" id="themeToggle" aria-label="Alternar entre modo claro e escuro">
+      <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="currentColor"/><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="1.5" x2="12" y2="4.5"/><line x1="12" y1="19.5" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="4.5" y2="12"/><line x1="19.5" y1="12" x2="22.5" y2="12"/><line x1="4.4" y1="4.4" x2="6.5" y2="6.5"/><line x1="17.5" y1="17.5" x2="19.6" y2="19.6"/><line x1="4.4" y1="19.6" x2="6.5" y2="17.5"/><line x1="17.5" y1="6.5" x2="19.6" y2="4.4"/></g></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 14.4A8.6 8.6 0 1 1 9.6 4a7 7 0 0 0 10.4 10.4z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<main>
+
+  <section id="escopo">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">01</span><div class="htext"><span class="eyebrow">Antes de tudo</span><h2>Isso é seu. Isso não é.</h2></div></div>
+      <p class="intro">A Receita Previsível entregou a auditoria uma vez — não vai continuar postando, comentando ou mandando DM por você. A Spinner só opera o motor de anúncio. Tudo que faz o social selling acontecer, de fato, depende só de você, todo dia.</p>
+      <div class="grid2 reveal">
+        <div class="card strong">
+          <h3>Já entregue — não repete</h3>
+          <ul class="plain">
+            <li><b>Auditoria de voz, crenças e ICPs</b> — Receita Previsível, entrega pontual, já concluída.</li>
+            <li><b>Campanhas pagas + Lead Gen Forms + diagnóstico</b> — Spinner mantém e otimiza só o anúncio, não a conversa.</li>
+          </ul>
+        </div>
+        <div class="card strong">
+          <h3>Contínuo — 100% seu</h3>
+          <ul class="plain">
+            <li><b>Escrever, publicar e comentar</b> toda semana.</li>
+            <li><b>Conectar e mandar DM</b> seguindo a cadência.</li>
+            <li><b>Responder o lead</b> que vem do anúncio, na hora.</li>
+            <li><b>Pontuar e revisar</b> quente/morno/frio toda sexta.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="voz">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">02</span><div class="htext"><span class="eyebrow">Fundação</span><h2>Sete peças. Uma voz.</h2></div></div>
+      <p class="pull reveal">"Não é motivacional. É <span>cirúrgica, crítica e construtiva.</span>"</p>
+      <p class="intro">Os 7 elementos que a auditoria já fixou. Você não decide isso de novo a cada post — só aplica.</p>
+
+      <figure class="diagram reveal">
+        <svg viewBox="0 0 600 460" role="img" aria-label="Mapa mental com sete elementos da voz única ao redor de um centro: intensidade, vocabulário próprio, linha narrativa, tendência emocional, energia pessoal, ritual operacional e vulnerabilidade.">
+          <g style="stroke:var(--line);stroke-width:1.6">
+            <line x1="300" y1="220" x2="300" y2="82"/>
+            <line x1="300" y1="220" x2="410" y2="140"/>
+            <line x1="300" y1="220" x2="438" y2="248"/>
+            <line x1="300" y1="220" x2="358" y2="342"/>
+            <line x1="300" y1="220" x2="242" y2="342"/>
+            <line x1="300" y1="220" x2="162" y2="248"/>
+            <line x1="300" y1="220" x2="190" y2="140"/>
+          </g>
+          <circle cx="300" cy="220" r="60" style="fill:var(--accent)"/>
+          <text x="300" y="215" text-anchor="middle" style="fill:var(--accent-ink);font-family:Montserrat,sans-serif;font-weight:800;font-size:14px">Voz Única</text>
+          <text x="300" y="233" text-anchor="middle" style="fill:var(--accent-ink);font-family:'IBM Plex Mono',monospace;font-size:10px">Murilo &middot; Atlas GR</text>
+
+          <circle cx="300" cy="72" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="300" y="44" text-anchor="middle" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px">Intensidade</text>
+          <text x="300" y="59" text-anchor="middle" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:10.5px">pressão intelectual, não agressão</text>
+
+          <circle cx="422" cy="132" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="440" y="120" text-anchor="start" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px">Vocabulário</text>
+          <text x="440" y="135" text-anchor="start" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:10.5px">fricção, exceção, tratativa</text>
+          <text x="440" y="149" text-anchor="start" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:10.5px">evidência, governança</text>
+
+          <circle cx="450" cy="256" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="468" y="252" text-anchor="start" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px">Linha narrativa</text>
+          <text x="468" y="267" text-anchor="start" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:10.5px">diagnóstico &#8594; confronto &#8594; resposta</text>
+
+          <circle cx="366" cy="350" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="366" y="382" text-anchor="middle" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px">Tendência emocional</text>
+          <text x="366" y="397" text-anchor="middle" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:10.5px">alívio + lucidez + controle</text>
+
+          <circle cx="234" cy="350" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="234" y="382" text-anchor="middle" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px">Energia pessoal</text>
+          <text x="234" y="397" text-anchor="middle" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:10.5px">clareza prática, inconformismo</text>
+
+          <circle cx="150" cy="256" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="132" y="252" text-anchor="end" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px">Ritual operacional</text>
+          <text x="132" y="267" text-anchor="end" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:10.5px">checklist fixo antes de publicar</text>
+
+          <circle cx="178" cy="132" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="160" y="120" text-anchor="end" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px">Vulnerabilidade</text>
+          <text x="160" y="135" text-anchor="end" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:10.5px">erro de leitura, nunca confissão</text>
+        </svg>
+        <figcaption>Os 7 elementos fixados na auditoria — o que muda a cada post é só o ângulo, nunca a estrutura.</figcaption>
+      </figure>
+
+      <div class="grid2 reveal" style="margin-top:30px">
+        <div class="card">
+          <h3>3 crenças-mãe</h3>
+          <p><b>1.</b> Tecnologia só vale quando reduz fricção operacional real.</p>
+          <p><b>2.</b> Segurança logística não é acessório — é condição de performance.</p>
+          <p><b>3.</b> Operação boa não depende de herói; depende de processo, visibilidade e dado.</p>
+        </div>
+        <div class="card">
+          <h3>2 ICPs</h3>
+          <p><b>Gerente de Transportes/Logística</b> — fala em SLA, ETA, integração, "tirar a operação do modo incêndio".</p>
+          <p><b>Head/Gerente de GR</b> — fala em evidência, auditoria, governança, redução de sinistro. Co-decisor: se compra a tese, vende para cima.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="perfil">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">03</span><div class="htext"><span class="eyebrow">Configuração</span><h2>Diagnóstico do seu perfil real</h2></div></div>
+      <p class="intro">Auditoria feita em cima do perfil que está no ar hoje, não de um exemplo genérico. O vocabulário certo já apareceu sozinho — o que falta é estrutura, e três coisas estão te sabotando sem você perceber.</p>
+
+      <div class="callout reveal" style="border-color:var(--frio)">
+        <div>
+          <b>Prioridade 1 — corrige primeiro:</b><br>
+          <b style="color:var(--ink)">"Principais competências":</b> hoje mostra Equities, Investment Banking, CPA 10 — sobra de outra fase de carreira. Quem abre o perfil vindo de logística ou GR desconfia que caiu no perfil errado. Troca por SLA, Gestão de Risco, Governança Operacional, Segurança Logística.<br><br>
+          <b style="color:var(--ink)">Localização:</b> está salva como "Рибейран-Прету, SP" — em cirílico, por bug de importação. Corrige pra "Ribeirão Preto, SP".<br><br>
+          <b style="color:var(--ink)">Foto de perfil:</b> tem texto sobreposto ("MURILO MARQUES ATLAS GR") por cima da própria foto — parece crachá de evento, não headshot. Troca por uma foto limpa, sem texto.
+        </div>
+      </div>
+
+      <h3 class="sub reveal" style="margin-top:28px">Headline — de cargo pra tese</h3>
+      <div class="pcard reveal">
+        <div class="pbanner"></div>
+        <div class="pbody">
+          <div class="avatar">M</div>
+          <div class="pm-name">Murilo Marques &middot; Atlas</div>
+          <div class="pm-headline" style="text-decoration:line-through;color:var(--muted)">Hoje: Executivo comercial em logística | Gestão de risco, governança operacional e previsibilidade no transporte</div>
+          <div class="pm-headline" style="margin-top:10px">Proposta: Ajudo operações de logística e GR a trocar planilha e herói por processo, evidência e previsibilidade &middot; Atlas</div>
+          <div class="pm-formula">O vocabulário já está certo (risco, governança, previsibilidade) — só falta abrir com o que você resolve, não com o cargo.</div>
+        </div>
+      </div>
+
+      <h3 class="sub reveal" style="margin-top:28px">"Sobre" — o vocabulário está certo, a estrutura não</h3>
+      <p class="intro" style="margin-bottom:16px">O texto atual já usa "controle real", "governança" e "previsibilidade" — a auditoria pegou. Mas ele é reflexivo ("construí minha trajetória...", "acredito em relações...") em vez de confrontador: nunca nomeia um erro específico do mercado, nunca traz uma prova concreta, fecha morno. É a fórmula de sempre, só faltando os dois primeiros passos:</p>
+
+      <div class="grid3 reveal">
+        <div class="card">
+          <h3>Parágrafo 1 — nomeia o erro</h3>
+          <p style="font-style:italic">"Muita operação confunde visibilidade com controle. Rastrear não é a mesma coisa que resolver — se a exceção não tem regra, SLA e evidência, você não tem controle, tem um problema mais bem documentado."</p>
+        </div>
+        <div class="card">
+          <h3>Parágrafo 2 — prova concreta</h3>
+          <p style="font-style:italic">"Foi assim que ajudei operações a reduzir em média 32% o tempo de homologação e blindar a tratativa de risco com evidência auditável — trocando planilha e herói por processo."</p>
+        </div>
+        <div class="card">
+          <h3>Parágrafo 3 — convite direto</h3>
+          <p style="font-style:italic">"Se sua operação em logística ou GR ainda roda no feeling, comento e respondo por aqui todo dia. Bora trocar isso por rotina."</p>
+        </div>
+      </div>
+
+      <div class="twrap reveal" style="margin-top:22px">
+        <table>
+          <thead><tr><th style="width:150px">Onde</th><th>Hoje</th><th>Trocar por</th></tr></thead>
+          <tbody>
+            <tr><td><b>Banner</b></td><td>"Tecnologia com segurança e inovação" — genérico, não parece você</td><td>Uma frase de confronto: <b>"Ver não é controlar."</b></td></tr>
+            <tr><td><b>Destaques</b></td><td>Vazio — só o prompt automático "vocês trabalham na Atlas"</td><td>Fixar o post-âncora da semana + link do diagnóstico Spinner (GR e RH) assim que estiverem no ar</td></tr>
+            <tr><td><b>Experiência (Atlas)</b></td><td>Sem nenhuma descrição no cargo</td><td>"Estruturo e vendo soluções de gestão de risco e segurança logística para operações que ainda dependem de planilha, WhatsApp e herói — foco em reduzir homologação lenta, fricção e sinistro."</td></tr>
+            <tr><td><b>Seguros (Yasuda, Allianz)</b></td><td>Sem contexto, parece desconexo</td><td>Não esconder — é credibilidade real na conversa com Head de GR, que fala a língua de seguradora/corretora</td></tr>
+            <tr><td><b>Creator mode</b></td><td>Inativo</td><td>Ativar com tópico "Logística". Hashtags fixos: <span class="mono">#GovernançaOperacional #GestãoDeRisco #LogísticaInteligente</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="ritmo">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">04</span><div class="htext"><span class="eyebrow">Operação</span><h2>Ritmo semanal</h2></div></div>
+      <p class="intro">Sozinho, o motor só funciona se couber em menos de 1h/dia. Cinco blocos fixos — o calendário já decidiu o tema antes da semana começar. Clique num dia:</p>
+
+      <div class="reveal" data-tabgroup>
+        <div class="tabbar" role="tablist" aria-label="Dias da semana">
+          <button type="button" data-tab="seg" class="active">Seg</button>
+          <button type="button" data-tab="ter">Ter</button>
+          <button type="button" data-tab="qua">Qua</button>
+          <button type="button" data-tab="qui">Qui</button>
+          <button type="button" data-tab="sex">Sex</button>
+        </div>
+        <div class="card tabpanel active" data-panel="seg">
+          <h3>Preparação &middot; <span class="mono" style="color:var(--accent)">40 min</span></h3>
+          <p>Revisar sinais e scoring da semana anterior. Confirmar tema e ângulos dos 2 posts da semana.</p>
+        </div>
+        <div class="card tabpanel" data-panel="ter">
+          <h3>Publicação + engajamento &middot; <span class="mono" style="color:var(--accent)">30 min</span></h3>
+          <p>Post 1 no ar. Comentar em posts de contatos quentes e mornos + 2-3 comentários em contas fora da sua rede.</p>
+        </div>
+        <div class="card tabpanel" data-panel="qua">
+          <h3>Prospecção fria &middot; <span class="mono" style="color:var(--accent)">30 min</span></h3>
+          <p>10–15 convites personalizados a frios qualificados. Revisar DMs pendentes.</p>
+        </div>
+        <div class="card tabpanel" data-panel="qui">
+          <h3>Publicação + engajamento &middot; <span class="mono" style="color:var(--accent)">30 min</span></h3>
+          <p>Post 2 no ar. Comentários + 2-3 comentários fora da rede. Responder inbox.</p>
+        </div>
+        <div class="card tabpanel" data-panel="sex">
+          <h3>Fechamento &middot; <span class="mono" style="color:var(--accent)">40 min</span></h3>
+          <p>DMs de follow-up (toque 3). Pontuar interações da semana. Revisão semanal.</p>
+        </div>
+      </div>
+
+      <h3 class="sub reveal" style="margin-top:32px">Para onde vai seu tempo (&#126;170 min/semana)</h3>
+      <div class="timebar reveal" role="img" aria-label="Distribuição do tempo semanal: 26% conteúdo, 24% engajamento, 32% prospecção, 18% revisão">
+        <span style="width:26%;background:var(--accent)">26%</span>
+        <span style="width:24%;background:var(--quente);color:var(--quente-ink)">24%</span>
+        <span style="width:32%;background:var(--frio);color:var(--frio-ink)">32%</span>
+        <span style="width:18%;background:var(--morno);color:var(--morno-ink)">18%</span>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--accent)"></span>Conteúdo — 45 min</span>
+        <span><span class="dot" style="background:var(--quente)"></span>Engajamento — 40 min</span>
+        <span><span class="dot" style="background:var(--frio)"></span>Prospecção — 55 min</span>
+        <span><span class="dot" style="background:var(--morno)"></span>Revisão — 30 min</span>
+      </div>
+
+      <div class="callout reveal"><b>Regra de limite:</b> nunca mais de 2 posts autorais por semana. O gargalo não é volume de conteúdo — é profundidade de engajamento em quem já deu sinal.</div>
+    </div>
+  </section>
+
+  <section id="conteudo">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">05</span><div class="htext"><span class="eyebrow">Conteúdo</span><h2>Calendário de temas</h2></div></div>
+      <p class="intro">Os 5 temas da auditoria em ciclo fixo de 5 semanas. Mesma fórmula, ângulo diferente — nunca o mesmo argumento duas vezes.</p>
+
+      <figure class="diagram reveal" style="max-width:420px;margin-left:auto;margin-right:auto">
+        <svg viewBox="0 0 400 400" role="img" aria-label="Diagrama circular mostrando o ciclo de 5 semanas: operação reativa vs governável, tecnologia útil vs cosmética, segurança como performance, risco antes do sinistro, improviso vs processo escalável — e depois volta para o início.">
+          <circle cx="200" cy="200" r="150" style="fill:none;stroke:var(--line);stroke-width:1.6;stroke-dasharray:3 5"/>
+          <circle cx="200" cy="200" r="52" style="fill:var(--accent)"/>
+          <text x="200" y="196" text-anchor="middle" style="fill:var(--accent-ink);font-family:Montserrat,sans-serif;font-weight:800;font-size:13px">Ciclo</text>
+          <text x="200" y="212" text-anchor="middle" style="fill:var(--accent-ink);font-family:'IBM Plex Mono',monospace;font-size:9.5px">5 semanas</text>
+
+          <circle cx="200" cy="70" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="200" y="46" text-anchor="middle" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:11.5px">Sem. 1</text>
+          <text x="200" y="60" text-anchor="middle" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:9px">reativa vs governável</text>
+
+          <circle cx="323.6" cy="159.8" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="338" y="150" text-anchor="start" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:11.5px">Sem. 2</text>
+          <text x="338" y="164" text-anchor="start" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:9px">tech útil vs cosmética</text>
+
+          <circle cx="276.4" cy="305.2" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="288" y="322" text-anchor="start" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:11.5px">Sem. 3</text>
+          <text x="288" y="336" text-anchor="start" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:9px">segurança = performance</text>
+
+          <circle cx="123.6" cy="305.2" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="112" y="322" text-anchor="end" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:11.5px">Sem. 4</text>
+          <text x="112" y="336" text-anchor="end" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:9px">risco antes do sinistro</text>
+
+          <circle cx="76.4" cy="159.8" r="9" style="fill:var(--bg-raised);stroke:var(--accent);stroke-width:1.8"/>
+          <text x="62" y="150" text-anchor="end" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:11.5px">Sem. 5</text>
+          <text x="62" y="164" text-anchor="end" style="fill:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:9px">improviso vs escalável</text>
+        </svg>
+        <figcaption>Depois da semana 5, o ciclo recomeça na 1 — com casos novos, nunca o mesmo argumento.</figcaption>
+      </figure>
+
+      <div class="reveal" data-tabgroup style="margin-top:10px">
+        <div class="tabbar" role="tablist" aria-label="Semanas do ciclo">
+          <button type="button" data-tab="1" class="active">Semana 1</button>
+          <button type="button" data-tab="2">Semana 2</button>
+          <button type="button" data-tab="3">Semana 3</button>
+          <button type="button" data-tab="4">Semana 4</button>
+          <button type="button" data-tab="5">Semana 5</button>
+        </div>
+        <div class="card tabpanel active" data-panel="1">
+          <h3>Operação reativa vs. governável</h3>
+          <p><b>Post 1:</b> nomear a dependência de herói.</p>
+          <p><b>Post 2:</b> caso reconstruído — decisão no feeling vs. na regra.</p>
+        </div>
+        <div class="card tabpanel" data-panel="2">
+          <h3>Tecnologia útil vs. cosmética</h3>
+          <p><b>Post 1:</b> tecnologia que só digitaliza a bagunça.</p>
+          <p><b>Post 2:</b> o que muda quando ela elimina gargalo de verdade.</p>
+        </div>
+        <div class="card tabpanel" data-panel="3">
+          <h3>Segurança como performance</h3>
+          <p><b>Post 1:</b> segurança não é área de suporte.</p>
+          <p><b>Post 2:</b> o custo invisível de tratar risco como apêndice.</p>
+        </div>
+        <div class="card tabpanel" data-panel="4">
+          <h3>Risco antes do sinistro</h3>
+          <p><b>Post 1:</b> o sinistro é só o fim da história.</p>
+          <p><b>Post 2:</b> onde o processo frouxo começa a custar caro.</p>
+        </div>
+        <div class="card tabpanel" data-panel="5">
+          <h3>Improviso vs. processo escalável</h3>
+          <p><b>Post 1:</b> planilha e WhatsApp não escalam governança.</p>
+          <p><b>Post 2:</b> o que muda quando a exceção tem dono e SLA.</p>
+        </div>
+      </div>
+
+      <h3 class="sub reveal" style="margin-top:32px">Fórmula fixa de cada post</h3>
+      <div class="formula reveal">
+        <div class="step">Tese / confronto</div><span class="arrow">&#8594;</span>
+        <div class="step">Erro de leitura do mercado</div><span class="arrow">&#8594;</span>
+        <div class="step">Impacto real</div><span class="arrow">&#8594;</span>
+        <div class="step">Resposta concreta</div><span class="arrow">&#8594;</span>
+        <div class="step">Frase de fechamento</div>
+      </div>
+
+      <ul class="checklist reveal">
+        <li>O post deixa uma tese clara — se o leitor não sai com uma frase forte, não publica.</li>
+        <li>Nomeia fricção, exceção, tratativa ou evidência — não jargão de vendedor genérico.</li>
+        <li>Resposta é sempre ação (regra, rotina, SLA, integração), nunca abstração.</li>
+        <li>Comentários: aprofundar com pergunta, nunca "excelente ponto" ou resposta motivacional vazia.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="abordagem">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">06</span><div class="htext"><span class="eyebrow">Scripts</span><h2>Como abordar</h2></div></div>
+      <p class="intro">Quatro situações reais, prontas para copiar e ajustar. Nunca pitch no primeiro contato.</p>
+
+      <div class="grid2 reveal">
+        <div class="phone">
+          <div class="phone-bar"><span class="pavatar">M</span><span class="pname">Convite &middot; Logística</span><span class="ptag seg frio">frio</span></div>
+          <div class="phone-body">
+            <div class="phone-msg">Vi que vocês têm operação com bastante volume de rota e terceiro. Hoje a liberação ainda passa por WhatsApp e planilha, ou já tem tratativa com regra e SLA? Sigo comentando sobre isso por aqui.</div>
+            <div class="phone-note">Nota de conexão — sem oferta, ancorada numa fricção específica do cargo.</div>
+          </div>
+        </div>
+        <div class="phone">
+          <div class="phone-bar"><span class="pavatar">M</span><span class="pname">Comentário</span><span class="ptag seg morno">morno</span></div>
+          <div class="phone-body">
+            <div class="phone-msg">Concordo em parte. A questão é: vocês tratam a exceção ou só registram?</div>
+            <div class="phone-note">Sempre pergunta que aprofunda — nunca "excelente ponto" ou "gratidão".</div>
+          </div>
+        </div>
+        <div class="phone">
+          <div class="phone-bar"><span class="pavatar">M</span><span class="pname">DM &middot; lead Spinner (GR)</span><span class="ptag seg quente">quente</span></div>
+          <div class="phone-body">
+            <div class="phone-msg">Vi seu resultado no diagnóstico: risco elevado por evidência frágil na tratativa. É o padrão que mais aparece antes do sinistro. Faz sentido eu te mostrar como isso costuma ser resolvido na prática?</div>
+            <div class="phone-note">Usa o próprio resultado do quiz como gancho — nunca "obrigado pelo interesse".</div>
+          </div>
+        </div>
+        <div class="phone">
+          <div class="phone-bar"><span class="pavatar">M</span><span class="pname">DM toque 3 &middot; dia 7–10</span><span class="ptag seg frio">frio</span></div>
+          <div class="phone-body">
+            <div class="phone-msg">E aí — sem call, só uma pergunta: hoje a homologação do motorista aí é mais dor de processo ou de tecnologia?</div>
+            <div class="phone-note">Pergunta aberta sobre a dor do cargo, nunca proposta de reunião no toque 3.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="prospeccao">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">07</span><div class="htext"><span class="eyebrow">Relacionamento</span><h2>Prospecção por temperatura</h2></div></div>
+      <p class="pull reveal">Pular etapa <span>queima o contato.</span></p>
+      <p class="intro">Toda pessoa no radar tem uma temperatura e uma ação correspondente. Escolha uma:</p>
+
+      <div class="reveal" data-tabgroup>
+        <div class="tabbar" role="tablist" aria-label="Temperatura do contato">
+          <button type="button" data-tab="frio" class="active">Frio</button>
+          <button type="button" data-tab="morno">Morno</button>
+          <button type="button" data-tab="quente">Quente</button>
+        </div>
+        <div class="card tabpanel active" data-panel="frio">
+          <span class="seg frio">frio</span>
+          <p style="margin-top:14px">Qualificado pelo ICP, zero interação até agora.</p>
+          <p><b>Ação:</b> convite com nota curta ancorada numa fricção do cargo. Sem pitch, sem "vamos marcar uma call".</p>
+        </div>
+        <div class="card tabpanel" data-panel="morno">
+          <span class="seg morno">morno</span>
+          <p style="margin-top:14px">Está no ICP, comentou ou seguiu uma vez, sem interação recente.</p>
+          <p><b>Ação:</b> curtir/comentar 2–3 vezes antes de conectar, sempre com nota personalizada.</p>
+        </div>
+        <div class="card tabpanel" data-panel="quente">
+          <span class="seg quente">quente</span>
+          <p style="margin-top:14px">Interagiu nos últimos 30 dias ou veio do formulário pago.</p>
+          <p><b>Ação:</b> DM direta ligada ao post ou ao resultado do diagnóstico. Responder em até 24h.</p>
+        </div>
+      </div>
+
+      <div class="card strong reveal" style="margin-top:26px">
+        <h3 class="sub" style="margin-bottom:10px">A alavanca que falta: fora da sua rede</h3>
+        <p>Comentar só em quem já é seu contato tem teto baixo — você só aparece pra quem já te conhece. Comentar em contas maiores e adjacentes (não concorrentes, não clientes ainda) coloca você na frente da audiência delas.</p>
+        <ul class="plain" style="margin-top:12px">
+          <li><b>Quem:</b> 5 contas fixas — outros especialistas de logística/GR, palestrantes do setor, criadores B2B relevantes para o seu ICP.</li>
+          <li><b>Quanto:</b> 2–3 comentários substantivos por semana, distribuídos em terça e quinta.</li>
+          <li><b>Como:</b> mesma régua do checklist de comentários — pergunta ou contraponto, nunca "excelente ponto".</li>
+        </ul>
+      </div>
+
+      <figure class="diagram reveal" style="margin-top:30px">
+        <svg viewBox="0 0 780 300" role="img" aria-label="Fluxo de prospecção: contato frio recebe convite e comentários e vira morno; morno responde ou aceita reunião e vira quente; lead pago do formulário Spinner entra direto como quente após responder o diagnóstico; quente sem resposta em 30 dias volta para morno; quente é respondido em até 24 horas e vira conversa.">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:currentColor"/>
+            </marker>
+            <marker id="arrowAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/>
+            </marker>
+          </defs>
+
+          <rect x="440" y="40" width="140" height="56" rx="2" style="fill:var(--bg-raised);stroke:var(--line)"/>
+          <text x="510" y="64" text-anchor="middle" style="fill:currentColor;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px">Lead pago</text>
+          <text x="510" y="80" text-anchor="middle" style="fill:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:9.5px">diagnóstico Spinner</text>
+
+          <rect x="20" y="172" width="140" height="56" rx="2" style="fill:var(--bg-raised);stroke:var(--frio);stroke-width:1.6"/>
+          <text x="90" y="196" text-anchor="middle" style="fill:var(--frio);font-family:Montserrat,sans-serif;font-weight:800;font-size:12.5px">FRIO</text>
+          <text x="90" y="212" text-anchor="middle" style="fill:var(--ink-soft);font-family:'IBM Plex Sans',sans-serif;font-size:9.5px">qualificado, zero contato</text>
+
+          <rect x="235" y="172" width="140" height="56" rx="2" style="fill:var(--bg-raised);stroke:var(--morno);stroke-width:1.6"/>
+          <text x="305" y="196" text-anchor="middle" style="fill:var(--morno);font-family:Montserrat,sans-serif;font-weight:800;font-size:12.5px">MORNO</text>
+          <text x="305" y="212" text-anchor="middle" style="fill:var(--ink-soft);font-family:'IBM Plex Sans',sans-serif;font-size:9.5px">engajou 1x, sem recência</text>
+
+          <rect x="450" y="172" width="140" height="56" rx="2" style="fill:var(--bg-raised);stroke:var(--quente);stroke-width:1.6"/>
+          <text x="520" y="196" text-anchor="middle" style="fill:var(--quente);font-family:Montserrat,sans-serif;font-weight:800;font-size:12.5px">QUENTE</text>
+          <text x="520" y="212" text-anchor="middle" style="fill:var(--ink-soft);font-family:'IBM Plex Sans',sans-serif;font-size:9.5px">interagiu há &lt;30 dias</text>
+
+          <rect x="640" y="172" width="120" height="56" rx="2" style="fill:var(--accent);stroke:var(--accent)"/>
+          <text x="700" y="204" text-anchor="middle" style="fill:var(--accent-ink);font-family:Montserrat,sans-serif;font-weight:800;font-size:12.5px">Conversa</text>
+
+          <line x1="510" y1="96" x2="516" y2="172" style="stroke:currentColor;stroke-width:1.6" marker-end="url(#arrow)"/>
+          <text x="524" y="140" text-anchor="start" style="fill:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:9.5px">diagnóstico</text>
+          <text x="524" y="152" text-anchor="start" style="fill:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:9.5px">respondido</text>
+
+          <line x1="160" y1="200" x2="235" y2="200" style="stroke:currentColor;stroke-width:1.6" marker-end="url(#arrow)"/>
+          <text x="197" y="192" text-anchor="middle" style="fill:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:9px">convite + comentários</text>
+
+          <line x1="375" y1="200" x2="450" y2="200" style="stroke:currentColor;stroke-width:1.6" marker-end="url(#arrow)"/>
+          <text x="412" y="192" text-anchor="middle" style="fill:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:9px">responde / aceita</text>
+
+          <line x1="590" y1="200" x2="640" y2="200" style="stroke:var(--accent);stroke-width:1.8" marker-end="url(#arrowAccent)"/>
+          <text x="615" y="192" text-anchor="middle" style="fill:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:8.5px">&lt;24h</text>
+
+          <path d="M 520 228 C 520 272 305 272 305 228" style="fill:none;stroke:var(--spark);stroke-width:1.6;stroke-dasharray:4 3" marker-end="url(#arrow)"/>
+          <text x="412" y="262" text-anchor="middle" style="fill:var(--spark);font-family:'IBM Plex Mono',monospace;font-size:9.5px">30 dias sem resposta &#8594; esfria</text>
+        </svg>
+        <figcaption>Único caminho direto para quente sem passar por morno: lead que respondeu o diagnóstico pago. Todo o resto sobe um degrau de cada vez — e esfria de volta se ninguém mantiver contato.</figcaption>
+      </figure>
+
+      <div class="twrap reveal" style="margin-top:26px">
+        <table>
+          <thead><tr><th style="width:90px">Toque</th><th>Quando</th><th>Ação</th></tr></thead>
+          <tbody>
+            <tr><td class="day">1</td><td>Dia 0</td><td>Convite personalizado, sem oferta</td></tr>
+            <tr><td class="day">2</td><td>Dia 3–5</td><td>Comentar ou reagir a algo que a pessoa publicou</td></tr>
+            <tr><td class="day">3</td><td>Dia 7–10</td><td>DM com pergunta aberta sobre a dor do cargo — não pitch</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="sub reveal" style="margin-top:36px">Depois da "conversa" — sem isso, a cadência desmorona</h3>
+      <p class="intro">"Conversa" não é o fim — é onde a maioria dos planos de social selling para de existir, porque ninguém escreveu quem tem que ligar pra quem. Dois degraus a mais e um lugar pra anotar:</p>
+
+      <div class="formula reveal">
+        <div class="step">Conversa</div><span class="arrow">&#8594;</span>
+        <div class="step">Reunião marcada</div><span class="arrow">&#8594;</span>
+        <div class="step">Proposta enviada</div><span class="arrow">&#8594;</span>
+        <div class="step">Fechado (ganho/perdido)</div>
+      </div>
+
+      <p class="reveal" style="font-size:14.5px;color:var(--ink-soft);margin-bottom:16px">Nada de planilha externa: o rastreador é um HTML só, salva sozinho, calcula atraso e taxa de conversão automaticamente, e gera um resumo pronto pra colar numa conversa com o Claude quando você quiser uma análise de verdade.</p>
+
+      <div class="card strong reveal" style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;justify-content:space-between">
+        <div>
+          <h3 style="margin-bottom:6px">Atlas GR Pipeline</h3>
+          <p style="margin:0">Adicionar contato, marcar toque, ver quem está atrasado — atualizado toda sexta, junto com a revisão semanal.</p>
+        </div>
+        <a href="https://claude.ai/code/artifact/e1a63602-73ea-4aa2-b309-f7f4f3ad81c0" target="_blank" rel="noopener" class="tag" style="font-size:12.5px;padding:10px 18px">Abrir o rastreador &#8594;</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="pago">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">08</span><div class="htext"><span class="eyebrow">Integração</span><h2>Orgânico + pago</h2></div></div>
+      <p class="intro">O Kit Spinner roda duas campanhas de Lead Gen — GR/Logística e RH/Contratação —, cada uma com um diagnóstico de 5 perguntas que calcula risco e captura o lead.</p>
+
+      <div class="flowrow reveal">
+        <div class="fitem"><div class="ficon">AD</div><div class="flabel">Anúncio LinkedIn (GR ou RH)</div></div>
+        <div class="farrow">&#8594;</div>
+        <div class="fitem"><div class="ficon">FM</div><div class="flabel">Lead Gen Form nativo</div></div>
+        <div class="farrow">&#8594;</div>
+        <div class="fitem"><div class="ficon">DG</div><div class="flabel">Diagnóstico, 5 perguntas</div></div>
+        <div class="farrow">&#8594;</div>
+        <div class="fitem"><div class="ficon">LD</div><div class="flabel">Lead com score calculado</div></div>
+        <div class="farrow">&#8594;</div>
+        <div class="fitem"><div class="ficon" style="border-color:var(--spark);color:var(--spark)">VC</div><div class="flabel">Você responde em &lt;4h</div></div>
+      </div>
+
+      <blockquote class="reveal">Um lead que respondeu o diagnóstico já disse, nas próprias palavras, qual é a dor dele. A primeira mensagem tem que usar exatamente isso — não um "obrigado pelo interesse, vamos agendar uma call?".</blockquote>
+
+      <div class="twrap reveal">
+        <table>
+          <thead><tr><th>Fonte</th><th>Vertical</th><th>Entra como</th><th>O que você faz</th></tr></thead>
+          <tbody>
+            <tr><td>Simulação LinkedIn GR</td><td>Logística / GR</td><td class="num"><span class="seg quente">quente</span></td><td>Conferir o painel 2x/dia úteis · comentar/conectar citando o resultado em até 4h</td></tr>
+            <tr><td>Diagnóstico de Risco (RH)</td><td>Contratação</td><td class="num"><span class="seg quente">quente</span></td><td>Responder com o score do diagnóstico como abertura — sem roteiro genérico</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="metricas">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">09</span><div class="htext"><span class="eyebrow">Medição</span><h2>Métricas que decidem algo</h2></div></div>
+      <p class="intro">Poucas métricas, olhadas toda semana. Se uma métrica não muda uma decisão, ela sai do painel.</p>
+
+      <div class="kpi-grid reveal">
+        <div class="kpi"><div class="k-label">Taxa de engajamento / post</div><div class="k-val">Semanal</div><div class="k-sub">Baseline no mês 1, meta definida depois</div></div>
+        <div class="kpi"><div class="k-label">Convites aceitos (frio)</div><div class="k-val">Semanal</div><div class="k-sub">Sinal de qualidade da nota de convite</div></div>
+        <div class="kpi"><div class="k-label">Resposta a DM</div><div class="k-val">Semanal</div><div class="k-sub">Sinal de qualidade do gancho / toque 3</div></div>
+        <div class="kpi"><div class="k-label">Resposta a lead Spinner</div><div class="k-val">&lt; 4h úteis</div><div class="k-sub">Meta fixa desde a semana 1</div></div>
+        <div class="kpi"><div class="k-label">Reuniões geradas</div><div class="k-val">Mensal</div><div class="k-sub">Meta sua, revisada a cada mês</div></div>
+        <div class="kpi"><div class="k-label">Pipeline originado</div><div class="k-val">Mensal</div><div class="k-sub">Cruzado com CRM, não só LinkedIn</div></div>
+      </div>
+
+      <p class="reveal" style="font-size:14.5px;color:var(--ink-soft);margin-bottom:30px"><b style="color:var(--ink)">Sexta (30 min):</b> revisar os números da semana, pontuar quente/morno/frio, atualizar o rastreador (Atlas GR Pipeline), travar o tema da próxima semana.<br><b style="color:var(--ink)">Fim do mês (90 min):</b> o que funcionou vira mais peso no calendário; o que não funcionou sai — inclusive um dos 5 temas, se precisar.</p>
+
+      <h3 class="sub reveal">Checklist &middot; toda sexta</h3>
+      <ul class="checklist-real reveal">
+        <li><input type="checkbox" id="chk1"><label for="chk1">Taxa de engajamento subiu, caiu ou ficou igual à semana anterior?</label></li>
+        <li><input type="checkbox" id="chk2"><label for="chk2">Quantos convites frios foram aceitos essa semana?</label></li>
+        <li><input type="checkbox" id="chk3"><label for="chk3">Teve resposta em pelo menos uma DM de toque 3?</label></li>
+        <li><input type="checkbox" id="chk4"><label for="chk4">Todo lead do Spinner foi respondido em menos de 4h?</label></li>
+        <li><input type="checkbox" id="chk5"><label for="chk5">O rastreador (Atlas GR Pipeline) está atualizado, sem atrasado esquecido?</label></li>
+      </ul>
+
+      <h3 class="sub reveal" style="margin-top:26px">Checklist &middot; fim do mês</h3>
+      <ul class="checklist-real reveal">
+        <li><input type="checkbox" id="chk6"><label for="chk6">Quantas reuniões saíram do social selling esse mês?</label></li>
+        <li><input type="checkbox" id="chk7"><label for="chk7">O pipeline (proposta enviada) cresceu em relação ao mês passado?</label></li>
+        <li><input type="checkbox" id="chk8"><label for="chk8">Algum dos 5 temas está claramente performando pior — trocar?</label></li>
+        <li><input type="checkbox" id="chk9"><label for="chk9">O SSI do LinkedIn mudou? (só termômetro, nunca meta)</label></li>
+        <li><input type="checkbox" id="chk10"><label for="chk10">Perfil ainda está alinhado (headline, destaques, sobre) ou precisa de ajuste?</label></li>
+      </ul>
+
+      <h3 class="sub reveal" style="margin-top:26px">Sinais de que algo está errado</h3>
+      <div class="twrap reveal">
+        <table>
+          <thead><tr><th>Sinal</th><th>O que fazer</th></tr></thead>
+          <tbody>
+            <tr><td>3 semanas seguidas sem resposta de DM</td><td>Não é falta de sorte — o gancho do toque 3 está errado. Reveja o script.</td></tr>
+            <tr><td>Engajamento caiu pela metade de repente</td><td>O tema cansou. Force um ângulo novo dentro do mesmo tema ou pule pro próximo.</td></tr>
+            <tr><td>Zero reunião em 30 dias com pipeline saudável</td><td>O problema não é geração, é conversão — revise o passo "Conversa &#8594; Reunião marcada".</td></tr>
+            <tr><td>Leads do Spinner acumulando sem resposta</td><td>O gargalo virou você, não o motor. Bloqueie os horários fixos de resposta na agenda.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="wrap">
+      <div class="sec-head reveal"><span class="num">10</span><div class="htext"><span class="eyebrow">Horizonte</span><h2>Roadmap de 90 dias</h2></div></div>
+
+      <div class="rmap reveal">
+        <div class="stage">
+          <div class="dot">01</div>
+          <span class="prange">Semanas 1–4</span>
+          <h3>Ativar o ritmo</h3>
+          <p>Configurar o perfil, rodar o ciclo completo sozinho, criar baseline de métricas. Priorizar quente/morno já qualificado. Meta: 8 posts publicados.</p>
+        </div>
+        <div class="stage">
+          <div class="dot">02</div>
+          <span class="prange">Semanas 5–8</span>
+          <h3>Expandir e cruzar com o pago</h3>
+          <p>Abrir prospecção fria em volume. Testar o handoff com as campanhas GR e RH da Spinner rodando em paralelo.</p>
+        </div>
+        <div class="stage">
+          <div class="dot">03</div>
+          <span class="prange">Semanas 9–13</span>
+          <h3>Consolidar</h3>
+          <p>Revisar vocabulário e crenças-mãe com base em performance real — decisão sua. Definir se abre uma segunda voz ou mantém só no seu perfil.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>Atlas GR &middot; Motor de Social Selling &middot; construído sobre a Auditoria (Receita Previsível) e o Kit Campanha LinkedIn (Spinner) &middot; execução 100% própria</footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var root = document.documentElement;
+  var themeBtn = document.getElementById('themeToggle');
+  function storedTheme(){
+    try{ return localStorage.getItem('agr-theme'); }catch(e){ return null; }
+  }
+  function effectiveTheme(){
+    var s = storedTheme();
+    if(s === 'light' || s === 'dark') return s;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  function paintToggle(){
+    if(!themeBtn) return;
+    var eff = effectiveTheme();
+    themeBtn.querySelector('.icon-sun').style.display = eff === 'light' ? 'block' : 'none';
+    themeBtn.querySelector('.icon-moon').style.display = eff === 'dark' ? 'block' : 'none';
+  }
+  var initialStored = storedTheme();
+  if(initialStored === 'light' || initialStored === 'dark'){ root.setAttribute('data-theme', initialStored); }
+  paintToggle();
+  if(themeBtn){
+    themeBtn.addEventListener('click', function(){
+      var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try{ localStorage.setItem('agr-theme', next); }catch(e){}
+      paintToggle();
+    });
+  }
+
+  var reveals = document.querySelectorAll('.reveal');
+  if(reduce){
+    for(var i=0;i<reveals.length;i++){ reveals[i].classList.add('in'); }
+  } else {
+    var pending = Array.prototype.slice.call(reveals);
+    function checkReveals(){
+      var vh = window.innerHeight;
+      pending = pending.filter(function(el){
+        var r = el.getBoundingClientRect();
+        if(r.top < vh*0.94 && r.bottom > 0){ el.classList.add('in'); return false; }
+        return true;
+      });
+      if(!pending.length){
+        window.removeEventListener('scroll', checkReveals);
+        window.removeEventListener('resize', checkReveals);
+      }
+    }
+    window.addEventListener('scroll', checkReveals, {passive:true});
+    window.addEventListener('resize', checkReveals);
+    checkReveals();
+  }
+
+  var groups = document.querySelectorAll('[data-tabgroup]');
+  groups.forEach(function(group){
+    var triggers = group.querySelectorAll('[data-tab]');
+    var panels = group.querySelectorAll('[data-panel]');
+    triggers.forEach(function(t){
+      t.addEventListener('click', function(){
+        var key = t.getAttribute('data-tab');
+        triggers.forEach(function(x){ x.classList.toggle('active', x===t); });
+        panels.forEach(function(p){ p.classList.toggle('active', p.getAttribute('data-panel')===key); });
+      });
+    });
+  });
+
+  var canvas = document.getElementById('netbg');
+  if(canvas && canvas.getContext){
+    var ctx = canvas.getContext('2d');
+    var nodes = [];
+    var heroEl = canvas.closest('header.hero');
+    var running = false;
+    function heroVisible(){
+      var r = heroEl.getBoundingClientRect();
+      return r.bottom > 0 && r.top < window.innerHeight;
+    }
+    function setup(){
+      var rect = canvas.getBoundingClientRect();
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      var count = Math.min(28, Math.max(10, Math.floor(rect.width/48)));
+      nodes = [];
+      for(var i=0;i<count;i++){
+        nodes.push({
+          x: Math.random()*rect.width,
+          y: Math.random()*rect.height,
+          vx: (Math.random()-0.5)*0.18,
+          vy: (Math.random()-0.5)*0.18
+        });
+      }
+    }
+    function frame(){
+      var rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0,0,rect.width,rect.height);
+      for(var i=0;i<nodes.length;i++){
+        var n = nodes[i];
+        n.x += n.vx; n.y += n.vy;
+        if(n.x<0||n.x>rect.width) n.vx*=-1;
+        if(n.y<0||n.y>rect.height) n.vy*=-1;
+      }
+      for(var a=0;a<nodes.length;a++){
+        for(var b=a+1;b<nodes.length;b++){
+          var dx=nodes[a].x-nodes[b].x, dy=nodes[a].y-nodes[b].y;
+          var d=Math.sqrt(dx*dx+dy*dy);
+          if(d<130){
+            ctx.strokeStyle = 'rgba(255,91,31,'+(0.16*(1-d/130))+')';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(nodes[a].x, nodes[a].y);
+            ctx.lineTo(nodes[b].x, nodes[b].y);
+            ctx.stroke();
+          }
+        }
+      }
+      for(var c=0;c<nodes.length;c++){
+        ctx.fillStyle = 'rgba(255,91,31,0.6)';
+        ctx.beginPath();
+        ctx.arc(nodes[c].x, nodes[c].y, 1.7, 0, Math.PI*2);
+        ctx.fill();
+      }
+      if(!reduce && heroVisible()){ requestAnimationFrame(frame); }
+      else { running = false; }
+    }
+    function maybeStart(){
+      if(!running && heroVisible()){ running = true; frame(); }
+    }
+    setup();
+    window.addEventListener('resize', setup);
+    window.addEventListener('scroll', maybeStart, {passive:true});
+    maybeStart();
+    if(reduce){ frame(); }
+  }
+})();
+</script>
