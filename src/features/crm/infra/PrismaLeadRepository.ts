@@ -74,16 +74,14 @@ export class PrismaLeadRepository implements LeadRepository {
 
     const skip = (page - 1) * limit;
 
-    const [leads, total] = await prisma.$transaction([
-      prisma.lead.findMany({
-        where,
-        skip,
-        take: limit,
-        include: { company: true, contact: true },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.lead.count({ where }),
-    ]);
+    const leads = await prisma.lead.findMany({
+      where,
+      skip,
+      take: limit,
+      include: { company: true, contact: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const total = await prisma.lead.count({ where });
 
     return {
       data: leads.map(serializeLead) as unknown as Lead[],
