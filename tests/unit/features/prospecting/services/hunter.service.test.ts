@@ -12,6 +12,7 @@ vi.mock('@/lib/logger.js', () => ({
 }));
 
 import { findEmailViaHunter, findPeopleViaDomainSearch } from '@/features/prospecting/services/hunter.service.js';
+import { resetProviderCacheForTests } from '@/features/prospecting/services/providerCache.js';
 
 function jsonResponse(status: number, body: unknown = {}): Response {
     return new Response(JSON.stringify(body), { status });
@@ -19,9 +20,14 @@ function jsonResponse(status: number, body: unknown = {}): Response {
 
 const originalEnv = { ...process.env };
 
-beforeEach(() => {
+beforeEach(async () => {
     process.env.PROSPECTING_PROVIDER_MODE = 'hybrid';
     process.env.HUNTER_API_KEY = 'test-hunter-key';
+    // Sem isto, o cache de provider (Redis quando configurado, memória caso contrário) faz o
+    // resultado bem-sucedido de um teste vazar como cache hit indevido para o próximo teste que
+    // espera exercitar o caminho de erro (mesma chave: domínio + nome) — ver comentário de
+    // `resetProviderCacheForTests` em providerCache.ts.
+    await resetProviderCacheForTests();
 });
 
 afterEach(() => {
