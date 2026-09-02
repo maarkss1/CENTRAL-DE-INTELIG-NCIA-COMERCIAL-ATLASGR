@@ -39,7 +39,10 @@ export async function checkQdrantHealth(): Promise<boolean> {
     await qdrant.getCollections();
     return true;
   } catch (err) {
-    logger.debug({ err }, '[qdrant] health check falhou — serviço indisponível ou não configurado.');
+    logger.debug(
+      { err },
+      '[qdrant] health check falhou — serviço indisponível ou não configurado.',
+    );
     return false;
   }
 }

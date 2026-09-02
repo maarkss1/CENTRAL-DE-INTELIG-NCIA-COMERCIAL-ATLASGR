@@ -274,7 +274,8 @@ export function CommandPalette() {
     result.push(...quickActions.filter((a) => !q || normalize(a.label).includes(q)));
 
     const isMarcelo =
-      !!currentUser && currentUser.email.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
+      !!currentUser &&
+      currentUser.email.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
     const visibleModuleOrder = isMarcelo
       ? MODULE_ORDER
       : MODULE_ORDER.filter((t) => !EXECUTIVE_TABS.includes(t));

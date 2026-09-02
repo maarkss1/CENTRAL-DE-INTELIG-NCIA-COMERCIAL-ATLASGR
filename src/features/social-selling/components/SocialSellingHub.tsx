@@ -1,18 +1,44 @@
 import { useState } from 'react';
-import { Share2, ExternalLink, FileText, Download, Layers, Search, Copy, Check, Sparkles, Target, Award } from 'lucide-react';
+import {
+  Share2,
+  ExternalLink,
+  FileText,
+  Download,
+  Layers,
+  Search,
+  Copy,
+  Check,
+  Sparkles,
+  Target,
+  Award,
+} from 'lucide-react';
 import { ExecutiveHeader } from '../../../components/layout/ExecutiveHeader';
 
 export function SocialSellingHub() {
-  const [activeSubTab, setActiveSubTab] = useState<'motor' | 'pipeline' | 'linkedin' | 'posts' | 'materiais'>('motor');
+  const [activeSubTab, setActiveSubTab] = useState<
+    'motor' | 'pipeline' | 'linkedin' | 'posts' | 'materiais'
+  >('motor');
   const [iframeKey, setIframeKey] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedPostIndex, setCopiedPostIndex] = useState<number | null>(null);
 
   const subTabs = [
-    { id: 'motor', label: 'Motor de Social Selling', path: '/tools/social-selling/Motor de Social Selling Atlas GR.html' },
-    { id: 'pipeline', label: 'Pipeline Tracker', path: '/tools/social-selling/Atlas GR Pipeline.html' },
-    { id: 'linkedin', label: 'LinkedIn Campaign Kit', path: '/tools/social-selling/AtlasGR Kit Campanha LinkedIn Completo.html' },
+    {
+      id: 'motor',
+      label: 'Motor de Social Selling',
+      path: '/tools/social-selling/Motor de Social Selling Atlas GR.html',
+    },
+    {
+      id: 'pipeline',
+      label: 'Pipeline Tracker',
+      path: '/tools/social-selling/Atlas GR Pipeline.html',
+    },
+    {
+      id: 'linkedin',
+      label: 'LinkedIn Campaign Kit',
+      path: '/tools/social-selling/AtlasGR Kit Campanha LinkedIn Completo.html',
+    },
     { id: 'posts', label: 'Posts Semanais (1-5)' },
     { id: 'materiais', label: 'Manual & Apresentação' },
   ] as const;
@@ -55,7 +81,7 @@ export function SocialSellingHub() {
       p.semana.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.tema.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.copy.toLowerCase().includes(searchQuery.toLowerCase())
+      p.copy.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleCopyCopy = (text: string, index: number) => {
@@ -67,7 +93,9 @@ export function SocialSellingHub() {
   const currentTab = subTabs.find((t) => t.id === activeSubTab);
 
   return (
-    <div className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}>
+    <div
+      className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}
+    >
       {/* Unified Executive Header */}
       <ExecutiveHeader
         title="Social Selling Atlas GR"
@@ -151,7 +179,9 @@ export function SocialSellingHub() {
       </div>
 
       {/* Main View Container */}
-      <div className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}>
+      <div
+        className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
+      >
         {activeSubTab === 'motor' && (
           <iframe
             key={`motor-${iframeKey}`}
@@ -183,8 +213,12 @@ export function SocialSellingHub() {
           <div className="p-6 space-y-6 overflow-y-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold text-ink">Acervo de Posts para LinkedIn (Semanas 1 a 5)</h2>
-                <p className="text-xs text-ink-2">Textos estratégicos e copys prontas para publicação e engajamento comercial em GR.</p>
+                <h2 className="text-base font-bold text-ink">
+                  Acervo de Posts para LinkedIn (Semanas 1 a 5)
+                </h2>
+                <p className="text-xs text-ink-2">
+                  Textos estratégicos e copys prontas para publicação e engajamento comercial em GR.
+                </p>
               </div>
 
               {/* Quick Search Bar */}
@@ -202,7 +236,10 @@ export function SocialSellingHub() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredPosts.map((item, idx) => (
-                <div key={idx} className="p-5 bg-soft/30 rounded-2xl border border-line space-y-3 flex flex-col justify-between hover:border-brand/30 transition-all">
+                <div
+                  key={idx}
+                  className="p-5 bg-soft/30 rounded-2xl border border-line space-y-3 flex flex-col justify-between hover:border-brand/30 transition-all"
+                >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-brand/10 text-brand border border-brand/20">
@@ -242,7 +279,9 @@ export function SocialSellingHub() {
           <div className="p-6 space-y-6 overflow-y-auto">
             <div>
               <h2 className="text-base font-bold text-ink">Materiais e Ativos Institucionais</h2>
-              <p className="text-xs text-ink-2">Documentos oficiais de apresentação e guia de marca para o Social Selling.</p>
+              <p className="text-xs text-ink-2">
+                Documentos oficiais de apresentação e guia de marca para o Social Selling.
+              </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="p-5 bg-soft/40 rounded-2xl border border-line space-y-4">
@@ -251,7 +290,9 @@ export function SocialSellingHub() {
                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-ink">Manual de Identidade Visual Atlas</h3>
+                    <h3 className="text-sm font-bold text-ink">
+                      Manual de Identidade Visual Atlas
+                    </h3>
                     <p className="text-xs text-ink-2">Guia completo de aplicação da marca (PDF)</p>
                   </div>
                 </div>
@@ -259,7 +300,8 @@ export function SocialSellingHub() {
                   href="/tools/social-selling/Manual de Identidade Visual – Atlas_compressed (1).pdf"
                   target="_blank"
                   download
-                  className="w-full py-2.5 px-4 bg-brand text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-brand-hover transition-colors shadow-sm" rel="noopener"
+                  className="w-full py-2.5 px-4 bg-brand text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-brand-hover transition-colors shadow-sm"
+                  rel="noopener"
                 >
                   <Download className="w-4 h-4" /> Download Manual (PDF)
                 </a>
@@ -271,15 +313,20 @@ export function SocialSellingHub() {
                     <FileText className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-ink">Apresentação Social Selling Atlas</h3>
-                    <p className="text-xs text-ink-2">Deck comercial oficial de Social Selling (PPTX)</p>
+                    <h3 className="text-sm font-bold text-ink">
+                      Apresentação Social Selling Atlas
+                    </h3>
+                    <p className="text-xs text-ink-2">
+                      Deck comercial oficial de Social Selling (PPTX)
+                    </p>
                   </div>
                 </div>
                 <a
                   href="/tools/social-selling/Social Selling Atlas.pptx"
                   target="_blank"
                   download
-                  className="w-full py-2.5 px-4 bg-brand text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-brand-hover transition-colors shadow-sm" rel="noopener"
+                  className="w-full py-2.5 px-4 bg-brand text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-brand-hover transition-colors shadow-sm"
+                  rel="noopener"
                 >
                   <Download className="w-4 h-4" /> Download Apresentação (PPTX)
                 </a>

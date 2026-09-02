@@ -142,8 +142,7 @@ export const automationsApi = {
   versions: (id: string) => api.get<AutomationVersionTimeline>(`/api/automations/${id}/versions`),
   /** Dispara `POST /api/automations/stagnation-scan` (ADMIN-only, roda para todas as
    * organizações) — mesma rota do cron diário, mas sob demanda. Ver Piloto 018. */
-  runStagnationScan: () =>
-    api.post<StagnationScanResult>('/api/automations/stagnation-scan', {}),
+  runStagnationScan: () => api.post<StagnationScanResult>('/api/automations/stagnation-scan', {}),
 };
 
 const OPERATOR_SYMBOL: Record<keyof AutomationConditionOperator, string> = {

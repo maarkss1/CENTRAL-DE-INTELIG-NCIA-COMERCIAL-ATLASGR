@@ -91,11 +91,16 @@ export function GlowChart({ data, error }: GlowChartProps) {
             </div>
             <h3 className="text-lg font-black text-ink">Entrada, ganho e perda por mês</h3>
             <p className="mt-1 text-sm text-ink-2">
-              Explore as séries reais dos últimos {chartData.length} meses e isole o sinal que quer analisar.
+              Explore as séries reais dos últimos {chartData.length} meses e isole o sinal que quer
+              analisar.
             </p>
           </div>
 
-          <div role="group" aria-label="Séries exibidas no gráfico" className="flex flex-wrap gap-2">
+          <div
+            role="group"
+            aria-label="Séries exibidas no gráfico"
+            className="flex flex-wrap gap-2"
+          >
             {SERIES.map((series) => {
               const active = visible[series.key];
               return (
@@ -135,7 +140,10 @@ export function GlowChart({ data, error }: GlowChartProps) {
 
         <div className="min-h-0 flex-1">
           {error ? (
-            <div className="flex h-64 flex-col items-center justify-center gap-2 px-4 text-center" role="status">
+            <div
+              className="flex h-64 flex-col items-center justify-center gap-2 px-4 text-center"
+              role="status"
+            >
               <AlertTriangle className="h-5 w-5 text-warning" />
               <p className="text-sm font-semibold text-warning-active dark:text-warning">
                 Não foi possível carregar a série mensal.
@@ -152,7 +160,14 @@ export function GlowChart({ data, error }: GlowChartProps) {
                 <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
                   <defs>
                     {SERIES.map((series) => (
-                      <linearGradient key={series.key} id={series.fillId} x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient
+                        key={series.key}
+                        id={series.fillId}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
                         <stop offset="5%" stopColor={series.color} stopOpacity={0.32} />
                         <stop offset="92%" stopColor={series.color} stopOpacity={0.015} />
                       </linearGradient>

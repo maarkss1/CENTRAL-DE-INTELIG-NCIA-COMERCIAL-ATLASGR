@@ -336,9 +336,7 @@ export function LoginScreen() {
                 <TotalTrackLogo className="h-8 w-auto" />
               )}
             </div>
-            <h1 className={`text-3xl font-black text-center ${brandAccent.text}`}>
-              Bem-vindo
-            </h1>
+            <h1 className={`text-3xl font-black text-center ${brandAccent.text}`}>Bem-vindo</h1>
           </div>
 
           <motion.div
@@ -538,8 +536,7 @@ export function LoginScreen() {
                       <Loader2 className="animate-spin" size={18} />
                     ) : (
                       <>
-                        {isSignUp ? 'Criar Nova Conta' : 'Entrar'}{' '}
-                        <ArrowRight size={16} />
+                        {isSignUp ? 'Criar Nova Conta' : 'Entrar'} <ArrowRight size={16} />
                       </>
                     )}
                   </motion.button>

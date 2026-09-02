@@ -117,7 +117,10 @@ export function SinglePageDashboard() {
 
   return (
     <div className="relative flex min-h-screen flex-1 flex-col items-center overflow-y-auto bg-transparent p-4 font-sans md:p-8">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 overflow-hidden" aria-hidden="true">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-72 overflow-hidden"
+        aria-hidden="true"
+      >
         <div
           className={`absolute left-[18%] top-[-11rem] h-80 w-80 rounded-full blur-[110px] ${
             isAtlas ? 'bg-brand/10' : 'bg-brand-2/10'

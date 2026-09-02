@@ -15,7 +15,13 @@ describe('isValidChatwootSignature', () => {
     const timestampHeader = String(Math.floor(NOW_MS / 1000));
     const signatureHeader = sign(rawBody.toString('utf8'), timestampHeader);
     expect(
-      isValidChatwootSignature({ rawBody, signatureHeader, timestampHeader, secret: SECRET, nowMs: NOW_MS }),
+      isValidChatwootSignature({
+        rawBody,
+        signatureHeader,
+        timestampHeader,
+        secret: SECRET,
+        nowMs: NOW_MS,
+      }),
     ).toBe(true);
   });
 
@@ -54,7 +60,13 @@ describe('isValidChatwootSignature', () => {
     const timestampHeader = String(Math.floor(NOW_MS / 1000));
     const signatureHeader = sign('{}', timestampHeader, 'outro-segredo');
     expect(
-      isValidChatwootSignature({ rawBody, signatureHeader, timestampHeader, secret: SECRET, nowMs: NOW_MS }),
+      isValidChatwootSignature({
+        rawBody,
+        signatureHeader,
+        timestampHeader,
+        secret: SECRET,
+        nowMs: NOW_MS,
+      }),
     ).toBe(false);
   });
 
