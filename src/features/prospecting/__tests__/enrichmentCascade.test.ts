@@ -62,9 +62,10 @@ vi.mock('@/features/prospecting/services/enrichment/cnpjLookup.js', () => ({
 // verificação de MX real (checkEmailDeliverability); mockado para não depender de rede/DNS neste
 // teste unitário. extractDomainFromWebsite/guessDomainAndEmails continuam reais (funções puras).
 vi.mock('@/features/prospecting/services/enrichment/domainGuess.js', async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import('@/features/prospecting/services/enrichment/domainGuess.js')
-  >();
+  const actual =
+    await importOriginal<
+      typeof import('@/features/prospecting/services/enrichment/domainGuess.js')
+    >();
   return { ...actual, resolveEmailStatus: vi.fn().mockResolvedValue(null) };
 });
 
