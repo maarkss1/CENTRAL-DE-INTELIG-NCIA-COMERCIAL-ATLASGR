@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileSignature, ExternalLink, RefreshCw, Layers, Gauge, FileText } from 'lucide-react';
+import { FileSignature, ExternalLink, RefreshCw } from 'lucide-react';
 
 export function PropostaComercialHub() {
   const [activeTab, setActiveTab] = useState<'selecao' | 'modelos' | 'cockpit-atlas' | 'cockpit-totaltrac'>('selecao');

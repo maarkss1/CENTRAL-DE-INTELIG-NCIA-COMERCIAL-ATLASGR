@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GraduationCap, ExternalLink, RefreshCw, BookOpen, Award, CheckCircle } from 'lucide-react';
+import { GraduationCap, ExternalLink, RefreshCw } from 'lucide-react';
 
 export function TreinamentoAtlasGRHub() {
   const [activeSubTab, setActiveSubTab] = useState<'portal' | 'trilha' | 'prova' | 'produtos' | 'ranking'>('portal');

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PieChart, ExternalLink, RefreshCw, BarChart3, Database, FileText, Compass } from 'lucide-react';
+import { PieChart, ExternalLink, RefreshCw, FileText } from 'lucide-react';
 
 export function HubInteligenciaMarketingHub() {
   const [activeTab, setActiveTab] = useState<'censo' | 'lacunas' | 'portal' | 'metodologia'>('censo');

@@ -57,4 +57,8 @@ const TAB_ROUTE_SET: Record<TabType, true> = {
   propostas: true,
   'mesa-tratamento': true,
   'sdr-diagnostic-joao': true,
+  'social-selling': true,
+  'treinamento-atlasgr': true,
+  'proposta-comercial': true,
+  'hub-inteligencia-marketing': true,
 };
