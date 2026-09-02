@@ -95,55 +95,280 @@ const DIAGNOSTIC_DATA = {
     ganhoValor: 363.2,
     taxaVitoriaDeal: 71.4,
   },
-  slaJul: { leadsDoMes: 82, comPrimeiroContato: 65, semContato: 17, mediaHoras: 386.2, medianaHoras: 426.0 },
-  slaAgo: { leadsDoMes: 97, comPrimeiroContato: 81, semContato: 16, mediaHoras: 125.9, medianaHoras: 84.7 },
+  slaJul: {
+    leadsDoMes: 82,
+    comPrimeiroContato: 65,
+    semContato: 17,
+    mediaHoras: 386.2,
+    medianaHoras: 426.0,
+  },
+  slaAgo: {
+    leadsDoMes: 97,
+    comPrimeiroContato: 81,
+    semContato: 16,
+    mediaHoras: 125.9,
+    medianaHoras: 84.7,
+  },
   diasUteisJul: 23,
   diasUteisAgo: 21,
-  dealsJulResumo: { total: 10, ganhos: 1, perdidos: 1, abertos: 8, pipelineValor: 9521.7, ganhoValor: 180 },
-  dealsAgoResumo: { total: 15, ganhos: 5, perdidos: 2, abertos: 8, pipelineValor: 4388.3, ganhoValor: 363.2 },
-  canalJul: { 'Contatar cliente (genérico)': 184, 'Ligação': 4, 'Outro/Tarefa': 8, 'WhatsApp': 2, 'E-mail': 15 },
-  canalAgo: { 'WhatsApp': 9, 'Contatar cliente (genérico)': 472, 'LinkedIn': 4, 'E-mail': 31, 'Ligação': 2, 'Outro/Tarefa': 12 },
+  dealsJulResumo: {
+    total: 10,
+    ganhos: 1,
+    perdidos: 1,
+    abertos: 8,
+    pipelineValor: 9521.7,
+    ganhoValor: 180,
+  },
+  dealsAgoResumo: {
+    total: 15,
+    ganhos: 5,
+    perdidos: 2,
+    abertos: 8,
+    pipelineValor: 4388.3,
+    ganhoValor: 363.2,
+  },
+  canalJul: {
+    'Contatar cliente (genérico)': 184,
+    Ligação: 4,
+    'Outro/Tarefa': 8,
+    WhatsApp: 2,
+    'E-mail': 15,
+  },
+  canalAgo: {
+    WhatsApp: 9,
+    'Contatar cliente (genérico)': 472,
+    LinkedIn: 4,
+    'E-mail': 31,
+    Ligação: 2,
+    'Outro/Tarefa': 12,
+  },
   dealsJulDetalhe: [
-    { id: '25300', titulo: 'Transac | Transportadora | João Reis', empresa: 'Transac Transporte Rodoviario LTDA', stage: 'NEW', valor: 3949.8 },
-    { id: '25450', titulo: 'Dori Edson | e-book | João Reis', empresa: 'Nobelkraft Embalagens de Papelão', stage: 'LOSE', valor: 119.5 },
-    { id: '25470', titulo: 'ACP Bioenergia | Profile RH | João Reis', empresa: 'ACP Bioenergia LTDA', stage: 'UC_R1YAOS', valor: 0 },
-    { id: '25532', titulo: 'Transcarlos | Transportadora | João Reis', empresa: 'TransCarlos Transportes Ltda', stage: 'NEW', valor: 1224.9 },
-    { id: '25548', titulo: 'CCM | Profile RH | João Reis', empresa: 'CCM Tecnologia', stage: 'NEW', valor: 191.2 },
-    { id: '25708', titulo: 'Mendes Mundin Serviços | Profile RH | João Reis', empresa: 'Mendes Mundin Serviços', stage: 'NEW', valor: 358.5 },
-    { id: '25722', titulo: 'Usina Pitangueiras | RH | João Reis ', empresa: 'Pitangueiras Açúcar e Álcool LTDA', stage: 'NEW', valor: 3450 },
-    { id: '25764', titulo: 'Cerealista Malanski | Profile | João Reis', empresa: 'Cerealista Malanski Ltda', stage: 'WON', valor: 180 },
-    { id: '25770', titulo: 'Tupi Rio Transportes | Profile | João Reis', empresa: 'Cimento Tupi', stage: 'NEW', valor: 47.8 },
-    { id: '25790', titulo: '[PILOTO PROFILE] | Alfa | João Reis', empresa: 'Alfa Transportes LTDA', stage: 'UC_A0VPC5', valor: 0 },
+    {
+      id: '25300',
+      titulo: 'Transac | Transportadora | João Reis',
+      empresa: 'Transac Transporte Rodoviario LTDA',
+      stage: 'NEW',
+      valor: 3949.8,
+    },
+    {
+      id: '25450',
+      titulo: 'Dori Edson | e-book | João Reis',
+      empresa: 'Nobelkraft Embalagens de Papelão',
+      stage: 'LOSE',
+      valor: 119.5,
+    },
+    {
+      id: '25470',
+      titulo: 'ACP Bioenergia | Profile RH | João Reis',
+      empresa: 'ACP Bioenergia LTDA',
+      stage: 'UC_R1YAOS',
+      valor: 0,
+    },
+    {
+      id: '25532',
+      titulo: 'Transcarlos | Transportadora | João Reis',
+      empresa: 'TransCarlos Transportes Ltda',
+      stage: 'NEW',
+      valor: 1224.9,
+    },
+    {
+      id: '25548',
+      titulo: 'CCM | Profile RH | João Reis',
+      empresa: 'CCM Tecnologia',
+      stage: 'NEW',
+      valor: 191.2,
+    },
+    {
+      id: '25708',
+      titulo: 'Mendes Mundin Serviços | Profile RH | João Reis',
+      empresa: 'Mendes Mundin Serviços',
+      stage: 'NEW',
+      valor: 358.5,
+    },
+    {
+      id: '25722',
+      titulo: 'Usina Pitangueiras | RH | João Reis ',
+      empresa: 'Pitangueiras Açúcar e Álcool LTDA',
+      stage: 'NEW',
+      valor: 3450,
+    },
+    {
+      id: '25764',
+      titulo: 'Cerealista Malanski | Profile | João Reis',
+      empresa: 'Cerealista Malanski Ltda',
+      stage: 'WON',
+      valor: 180,
+    },
+    {
+      id: '25770',
+      titulo: 'Tupi Rio Transportes | Profile | João Reis',
+      empresa: 'Cimento Tupi',
+      stage: 'NEW',
+      valor: 47.8,
+    },
+    {
+      id: '25790',
+      titulo: '[PILOTO PROFILE] | Alfa | João Reis',
+      empresa: 'Alfa Transportes LTDA',
+      stage: 'UC_A0VPC5',
+      valor: 0,
+    },
   ],
   dealsAgoDetalhe: [
-    { id: '25808', titulo: 'Grupo RH | Profile RH | João Reis', empresa: 'Grupo RH Serviços', stage: 'NEW', valor: 1175 },
-    { id: '25810', titulo: 'Pessegueiro | GR + Profile | João Reis', empresa: 'Pessegueiro Transportes de Cargas Ltda', stage: 'WON', valor: 136.9 },
-    { id: '25828', titulo: 'Solfarma | Reunião 07/07/2026 | João Reis', empresa: 'SOLFARMA COMÉRCIO DE PRODUTOS FARMACÊUTICOS', stage: 'LOSE', valor: 392.8 },
-    { id: '25830', titulo: 'Rodomac | Reunião 22/07/2026 | João Reis', empresa: 'Rodomac Transportes', stage: 'LOSE', valor: 0 },
-    { id: '25846', titulo: 'Vulk Seguros | Seguradora | João Reis', empresa: 'Vulk Seguros', stage: 'NEW', valor: 119.5 },
-    { id: '25848', titulo: 'AKB | Profile + Torre | João Reis', empresa: 'AKB Transportes Ltda', stage: 'WON', valor: 58.8 },
-    { id: '25854', titulo: 'Vlog Transportes | Profile | Marcelo', empresa: 'Vlog Transporte', stage: 'UC_A0VPC5', valor: 0 },
-    { id: '25864', titulo: 'H B Correia Transportes | Profile | João Reis', empresa: 'H B Correia Transportes Logística', stage: 'WON', valor: 47.8 },
-    { id: '25892', titulo: 'B. Tobace | e-book | João Reis', empresa: 'B. Tobace Instalações Elétricas', stage: 'UC_A0VPC5', valor: 0 },
-    { id: '25896', titulo: 'RPSV Transportes ', empresa: 'R.P.S.V. Transportes LTDA', stage: 'WON', valor: 71.9 },
-    { id: '25986', titulo: 'Palmares | RH | João Reis', empresa: 'Agricultura Pecuária Palmares', stage: 'NEW', valor: 47.8 },
-    { id: '25994', titulo: 'Vivian | Profile | João Reis', empresa: 'Transportes Ap Itu LTDA', stage: 'WON', valor: 47.8 },
-    { id: '26004', titulo: 'Jefferson | Corretora | João Reis', empresa: 'Superseg Corretora de Seguros', stage: 'UC_A0VPC5', valor: 0 },
-    { id: '26016', titulo: 'Usina Colorado | RH | João Reis', empresa: 'Usina Colorado', stage: 'NEW', valor: 1990 },
-    { id: '26146', titulo: 'Usina Santa Adélia | RH | João Reis', empresa: 'Usina Santa Adélia S/A', stage: 'NEW', valor: 300 },
+    {
+      id: '25808',
+      titulo: 'Grupo RH | Profile RH | João Reis',
+      empresa: 'Grupo RH Serviços',
+      stage: 'NEW',
+      valor: 1175,
+    },
+    {
+      id: '25810',
+      titulo: 'Pessegueiro | GR + Profile | João Reis',
+      empresa: 'Pessegueiro Transportes de Cargas Ltda',
+      stage: 'WON',
+      valor: 136.9,
+    },
+    {
+      id: '25828',
+      titulo: 'Solfarma | Reunião 07/07/2026 | João Reis',
+      empresa: 'SOLFARMA COMÉRCIO DE PRODUTOS FARMACÊUTICOS',
+      stage: 'LOSE',
+      valor: 392.8,
+    },
+    {
+      id: '25830',
+      titulo: 'Rodomac | Reunião 22/07/2026 | João Reis',
+      empresa: 'Rodomac Transportes',
+      stage: 'LOSE',
+      valor: 0,
+    },
+    {
+      id: '25846',
+      titulo: 'Vulk Seguros | Seguradora | João Reis',
+      empresa: 'Vulk Seguros',
+      stage: 'NEW',
+      valor: 119.5,
+    },
+    {
+      id: '25848',
+      titulo: 'AKB | Profile + Torre | João Reis',
+      empresa: 'AKB Transportes Ltda',
+      stage: 'WON',
+      valor: 58.8,
+    },
+    {
+      id: '25854',
+      titulo: 'Vlog Transportes | Profile | Marcelo',
+      empresa: 'Vlog Transporte',
+      stage: 'UC_A0VPC5',
+      valor: 0,
+    },
+    {
+      id: '25864',
+      titulo: 'H B Correia Transportes | Profile | João Reis',
+      empresa: 'H B Correia Transportes Logística',
+      stage: 'WON',
+      valor: 47.8,
+    },
+    {
+      id: '25892',
+      titulo: 'B. Tobace | e-book | João Reis',
+      empresa: 'B. Tobace Instalações Elétricas',
+      stage: 'UC_A0VPC5',
+      valor: 0,
+    },
+    {
+      id: '25896',
+      titulo: 'RPSV Transportes ',
+      empresa: 'R.P.S.V. Transportes LTDA',
+      stage: 'WON',
+      valor: 71.9,
+    },
+    {
+      id: '25986',
+      titulo: 'Palmares | RH | João Reis',
+      empresa: 'Agricultura Pecuária Palmares',
+      stage: 'NEW',
+      valor: 47.8,
+    },
+    {
+      id: '25994',
+      titulo: 'Vivian | Profile | João Reis',
+      empresa: 'Transportes Ap Itu LTDA',
+      stage: 'WON',
+      valor: 47.8,
+    },
+    {
+      id: '26004',
+      titulo: 'Jefferson | Corretora | João Reis',
+      empresa: 'Superseg Corretora de Seguros',
+      stage: 'UC_A0VPC5',
+      valor: 0,
+    },
+    {
+      id: '26016',
+      titulo: 'Usina Colorado | RH | João Reis',
+      empresa: 'Usina Colorado',
+      stage: 'NEW',
+      valor: 1990,
+    },
+    {
+      id: '26146',
+      titulo: 'Usina Santa Adélia | RH | João Reis',
+      empresa: 'Usina Santa Adélia S/A',
+      stage: 'NEW',
+      valor: 300,
+    },
   ],
   reuniaoVerificacao: {
     confirmadas: [
-      { empresa: 'AKB Transportes (Kátia)', data: '2026-08-04', duracaoMin: 27, resumo: 'Ligação completa sobre gerenciamento de risco e monitoramento veicular — apresentou a plataforma ao vivo, explicou exigências da seguradora e alinhou envio de proposta por escrito.' },
-      { empresa: 'Lei de Cargas (Henrique)', data: '2026-08-05', duracaoMin: 21, resumo: 'Ligação completa sobre cadastro de motoristas e veículos — identificou os dois decisores (Henrique e a esposa) e travou prazo de retorno até sexta-feira.' },
+      {
+        empresa: 'AKB Transportes (Kátia)',
+        data: '2026-08-04',
+        duracaoMin: 27,
+        resumo:
+          'Ligação completa sobre gerenciamento de risco e monitoramento veicular — apresentou a plataforma ao vivo, explicou exigências da seguradora e alinhou envio de proposta por escrito.',
+      },
+      {
+        empresa: 'Lei de Cargas (Henrique)',
+        data: '2026-08-05',
+        duracaoMin: 21,
+        resumo:
+          'Ligação completa sobre cadastro de motoristas e veículos — identificou os dois decisores (Henrique e a esposa) e travou prazo de retorno até sexta-feira.',
+      },
     ],
     semConversaReal: [
-      { empresa: 'AKB Transportes (Kátia) — retorno', data: '2026-08-11', quem: 'João Reis (convidado)' },
-      { empresa: 'Hospital Guararapes', data: '2026-07-22', quem: 'João Reis (convidado, junto com colegas)' },
-      { empresa: 'Verzani & Sandrini', data: '2026-07-15', quem: 'Barbara Lopes / Matheus Hernandes' },
-      { empresa: 'Turner & Townsend', data: '2026-07-10', quem: 'Barbara Lopes / Matheus Hernandes' },
-      { empresa: 'Usina Pitangueiras', data: '2026-07-16', quem: 'Barbara Lopes / Matheus Hernandes' },
-      { empresa: 'Generall Segurança e Serviços', data: '2026-07-08', quem: 'Barbara Lopes / Matheus Hernandes' },
+      {
+        empresa: 'AKB Transportes (Kátia) — retorno',
+        data: '2026-08-11',
+        quem: 'João Reis (convidado)',
+      },
+      {
+        empresa: 'Hospital Guararapes',
+        data: '2026-07-22',
+        quem: 'João Reis (convidado, junto com colegas)',
+      },
+      {
+        empresa: 'Verzani & Sandrini',
+        data: '2026-07-15',
+        quem: 'Barbara Lopes / Matheus Hernandes',
+      },
+      {
+        empresa: 'Turner & Townsend',
+        data: '2026-07-10',
+        quem: 'Barbara Lopes / Matheus Hernandes',
+      },
+      {
+        empresa: 'Usina Pitangueiras',
+        data: '2026-07-16',
+        quem: 'Barbara Lopes / Matheus Hernandes',
+      },
+      {
+        empresa: 'Generall Segurança e Serviços',
+        data: '2026-07-08',
+        quem: 'Barbara Lopes / Matheus Hernandes',
+      },
     ],
   },
   emCadencia: {
@@ -160,22 +385,134 @@ const DIAGNOSTIC_DATA = {
       mediaGapGeral: 5.2,
     },
     topLeads: [
-      { id: '18672', nome: 'CDGN Logística | Embarcador (Gás)', diasParado: 182, atividades: 7, gap: '3.3d', status: '30+ dias parado' },
-      { id: '18676', nome: 'Copacol | Cooperativa agroindustrial', diasParado: 182, atividades: 6, gap: '3.9d', status: '30+ dias parado' },
-      { id: '18680', nome: 'RodoViva Transportes', diasParado: 182, atividades: 3, gap: '9.5d', status: '30+ dias parado' },
-      { id: '18682', nome: 'Sanfe Transporte e Logistica Ltda', diasParado: 182, atividades: 4, gap: '6.3d', status: '30+ dias parado' },
-      { id: '19872', nome: 'Actual Serviços Terceirizados', diasParado: 82, atividades: 1, gap: '—', status: '30+ dias parado' },
-      { id: '19762', nome: 'Pratika Serviços Terceirizados', diasParado: 81, atividades: 6, gap: '2.0d', status: '30+ dias parado' },
-      { id: '19880', nome: 'Elite Serviços', diasParado: 80, atividades: 4, gap: '1.4d', status: '30+ dias parado' },
-      { id: '19866', nome: 'BRASIL SERVIÇOS GERAIS', diasParado: 68, atividades: 2, gap: '14d', status: '30+ dias parado' },
-      { id: '19992', nome: 'Diana Bioenergia', diasParado: 68, atividades: 4, gap: '1.0d', status: '30+ dias parado' },
-      { id: '19864', nome: 'PETERSA BRASIL SERVIÇOS', diasParado: 66, atividades: 5, gap: '4.3d', status: '30+ dias parado' },
-      { id: '20272', nome: 'Ayrton Luis', diasParado: 36, atividades: 0, gap: '—', status: 'Sem atividade' },
-      { id: '20284', nome: 'Ana Albacete', diasParado: 35, atividades: 0, gap: '—', status: 'Sem atividade' },
-      { id: '20580', nome: 'Maria Lucia', diasParado: 6, atividades: 0, gap: '—', status: 'Sem atividade' },
-      { id: '20586', nome: 'angelita braga', diasParado: 4, atividades: 0, gap: '—', status: 'Sem atividade' },
-      { id: '20588', nome: 'Lidiane', diasParado: 4, atividades: 0, gap: '—', status: 'Sem atividade' },
-      { id: '20590', nome: 'Patrícia de Souza Marques', diasParado: 4, atividades: 0, gap: '—', status: 'Sem atividade' },
+      {
+        id: '18672',
+        nome: 'CDGN Logística | Embarcador (Gás)',
+        diasParado: 182,
+        atividades: 7,
+        gap: '3.3d',
+        status: '30+ dias parado',
+      },
+      {
+        id: '18676',
+        nome: 'Copacol | Cooperativa agroindustrial',
+        diasParado: 182,
+        atividades: 6,
+        gap: '3.9d',
+        status: '30+ dias parado',
+      },
+      {
+        id: '18680',
+        nome: 'RodoViva Transportes',
+        diasParado: 182,
+        atividades: 3,
+        gap: '9.5d',
+        status: '30+ dias parado',
+      },
+      {
+        id: '18682',
+        nome: 'Sanfe Transporte e Logistica Ltda',
+        diasParado: 182,
+        atividades: 4,
+        gap: '6.3d',
+        status: '30+ dias parado',
+      },
+      {
+        id: '19872',
+        nome: 'Actual Serviços Terceirizados',
+        diasParado: 82,
+        atividades: 1,
+        gap: '—',
+        status: '30+ dias parado',
+      },
+      {
+        id: '19762',
+        nome: 'Pratika Serviços Terceirizados',
+        diasParado: 81,
+        atividades: 6,
+        gap: '2.0d',
+        status: '30+ dias parado',
+      },
+      {
+        id: '19880',
+        nome: 'Elite Serviços',
+        diasParado: 80,
+        atividades: 4,
+        gap: '1.4d',
+        status: '30+ dias parado',
+      },
+      {
+        id: '19866',
+        nome: 'BRASIL SERVIÇOS GERAIS',
+        diasParado: 68,
+        atividades: 2,
+        gap: '14d',
+        status: '30+ dias parado',
+      },
+      {
+        id: '19992',
+        nome: 'Diana Bioenergia',
+        diasParado: 68,
+        atividades: 4,
+        gap: '1.0d',
+        status: '30+ dias parado',
+      },
+      {
+        id: '19864',
+        nome: 'PETERSA BRASIL SERVIÇOS',
+        diasParado: 66,
+        atividades: 5,
+        gap: '4.3d',
+        status: '30+ dias parado',
+      },
+      {
+        id: '20272',
+        nome: 'Ayrton Luis',
+        diasParado: 36,
+        atividades: 0,
+        gap: '—',
+        status: 'Sem atividade',
+      },
+      {
+        id: '20284',
+        nome: 'Ana Albacete',
+        diasParado: 35,
+        atividades: 0,
+        gap: '—',
+        status: 'Sem atividade',
+      },
+      {
+        id: '20580',
+        nome: 'Maria Lucia',
+        diasParado: 6,
+        atividades: 0,
+        gap: '—',
+        status: 'Sem atividade',
+      },
+      {
+        id: '20586',
+        nome: 'angelita braga',
+        diasParado: 4,
+        atividades: 0,
+        gap: '—',
+        status: 'Sem atividade',
+      },
+      {
+        id: '20588',
+        nome: 'Lidiane',
+        diasParado: 4,
+        atividades: 0,
+        gap: '—',
+        status: 'Sem atividade',
+      },
+      {
+        id: '20590',
+        nome: 'Patrícia de Souza Marques',
+        diasParado: 4,
+        atividades: 0,
+        gap: '—',
+        status: 'Sem atividade',
+      },
     ],
   },
 };
@@ -196,7 +533,8 @@ const DEFAULT_DAILY_PLAN: DailyTask[] = [
     id: 'task-1',
     timeBlock: '08:30 - 09:30',
     title: 'Bloco 1: Higiene de SLA & Reação Rápida',
-    description: 'Verificar Leads novos que entraram no Bitrix em < 24h e realizar o 1º contato imediato. Atacar prioritariamente os 8 leads sem nenhuma atividade.',
+    description:
+      'Verificar Leads novos que entraram no Bitrix em < 24h e realizar o 1º contato imediato. Atacar prioritariamente os 8 leads sem nenhuma atividade.',
     tool: 'Bitrix24 (Filtro Leads Novos sem atividade) + Agenda de Prospecção',
     targetCount: '15 a 20 toques rápidos',
     completed: false,
@@ -205,7 +543,8 @@ const DEFAULT_DAILY_PLAN: DailyTask[] = [
     id: 'task-2',
     timeBlock: '09:30 - 11:30',
     title: 'Bloco 2: Prospecção em Lote (Sprint de Toques)',
-    description: 'Disparar cadência no WhatsApp, E-mail e LinkedIn. REGRA OBRIGATÓRIA: Nunca salvar como "Contatar cliente" genérico — indicar sempre o canal real (ex: "WhatsApp - Proposta enviados").',
+    description:
+      'Disparar cadência no WhatsApp, E-mail e LinkedIn. REGRA OBRIGATÓRIA: Nunca salvar como "Contatar cliente" genérico — indicar sempre o canal real (ex: "WhatsApp - Proposta enviados").',
     tool: 'Bitrix24 / Ferramenta de Cadência + WhatsApp Web',
     targetCount: '40 a 50 atividades com canal discriminado',
     completed: false,
@@ -214,7 +553,8 @@ const DEFAULT_DAILY_PLAN: DailyTask[] = [
     id: 'task-3',
     timeBlock: '11:30 - 12:00',
     title: 'Bloco 3: Cadência & Follow-up de Reuniões',
-    description: 'Verificar reuniões do dia ou do dia anterior. Carimbar no CRM o status real: "Reunião Realizada" ou "No-Show" antes de qualquer outra ação.',
+    description:
+      'Verificar reuniões do dia ou do dia anterior. Carimbar no CRM o status real: "Reunião Realizada" ou "No-Show" antes de qualquer outra ação.',
     tool: 'Bitrix24 (Estágio Reunião Agendada)',
     targetCount: '100% das reuniões carimbadas no dia',
     completed: false,
@@ -223,7 +563,8 @@ const DEFAULT_DAILY_PLAN: DailyTask[] = [
     id: 'task-4',
     timeBlock: '14:00 - 16:00',
     title: 'Bloco 4: Limpeza de Estoque (Aging Cut)',
-    description: 'Atacar a fila de 130 leads parados em "Em Cadência" (especialmente os 55 parados há > 30 dias). Decidir: aplicar cadência de 6-8 toques ou mover para Desqualificado (JUNK).',
+    description:
+      'Atacar a fila de 130 leads parados em "Em Cadência" (especialmente os 55 parados há > 30 dias). Decidir: aplicar cadência de 6-8 toques ou mover para Desqualificado (JUNK).',
     tool: 'Bitrix24 (Filtro Em Cadência > 15 dias)',
     targetCount: 'Revisar e movimentar 25 a 30 leads parados',
     completed: false,
@@ -232,7 +573,8 @@ const DEFAULT_DAILY_PLAN: DailyTask[] = [
     id: 'task-5',
     timeBlock: '16:00 - 17:30',
     title: 'Bloco 5: Calls de Qualificação & Fechamento',
-    description: 'Conduzir chamadas agendadas. Foco: Qualificar perfil nas primeiras falas (evitar 20min de demo em lead de 1 veículo) e sair da call SEMPRE com data travada ("Quando você consegue me dar o retorno?").',
+    description:
+      'Conduzir chamadas agendadas. Foco: Qualificar perfil nas primeiras falas (evitar 20min de demo em lead de 1 veículo) e sair da call SEMPRE com data travada ("Quando você consegue me dar o retorno?").',
     tool: 'Google Meet / Softphone Bitrix24',
     targetCount: '2 a 4 reuniões/calls qualificadoras',
     completed: false,
@@ -241,7 +583,8 @@ const DEFAULT_DAILY_PLAN: DailyTask[] = [
     id: 'task-6',
     timeBlock: '17:30 - 18:00',
     title: 'Bloco 6: Encerramento & Batimento de Meta',
-    description: 'Conferir o volume total de atividades lançadas no dia (Meta: 60-100/dia), atualizar compromissos de amanhã e registrar o diário de prospecção.',
+    description:
+      'Conferir o volume total de atividades lançadas no dia (Meta: 60-100/dia), atualizar compromissos de amanhã e registrar o diário de prospecção.',
     tool: 'Painel Central AtlasGR + CRM Bitrix24',
     targetCount: 'Meta mínima de 60 atividades batida',
     completed: false,
@@ -281,30 +624,45 @@ const OBJECTIONS_DATABASE = [
   {
     id: 'obj-1',
     objeção: '“Já temos Gerenciadora de Risco / Rastreador.”',
-    diagnostico: 'O lead acha que o produto substitui o que ele tem, quando na verdade pode integrar ou complementar.',
-    respostaRecomendada: 'Perfeito, [Nome]! Nós não substituímos sua gerenciadora nem exigimos troca de rastreadores. A AtlasGR integra com a sua infraestrutura atual para homologar cadastros mais rápido e automatizar a conformidade com a seguradora. Quantas horas hoje sua equipe leva pra liberar um motorista agregado?',
+    diagnostico:
+      'O lead acha que o produto substitui o que ele tem, quando na verdade pode integrar ou complementar.',
+    respostaRecomendada:
+      'Perfeito, [Nome]! Nós não substituímos sua gerenciadora nem exigimos troca de rastreadores. A AtlasGR integra com a sua infraestrutura atual para homologar cadastros mais rápido e automatizar a conformidade com a seguradora. Quantas horas hoje sua equipe leva pra liberar um motorista agregado?',
   },
   {
     id: 'obj-2',
     objeção: '“Pode me mandar a proposta por e-mail pra eu analisar?”',
-    diagnostico: 'Objeção de esquiva clássica. Enviar e-mail sem qualificação tem 90% de chance de virar lead morto.',
-    respostaRecomendada: 'Consigo enviar sim, [Nome]! Mas como temos diferentes planos e módulos (como validação de motorista vs torre de controle), levaria 5 minutos numa breve call pra eu ajustar o valor exato pro seu volume real. Você tem 5 minutos amanhã às 10h ou 14h?',
+    diagnostico:
+      'Objeção de esquiva clássica. Enviar e-mail sem qualificação tem 90% de chance de virar lead morto.',
+    respostaRecomendada:
+      'Consigo enviar sim, [Nome]! Mas como temos diferentes planos e módulos (como validação de motorista vs torre de controle), levaria 5 minutos numa breve call pra eu ajustar o valor exato pro seu volume real. Você tem 5 minutos amanhã às 10h ou 14h?',
   },
   {
     id: 'obj-3',
     objeção: '“Somos uma empresa pequena, temos só 2 ou 3 caminhões.”',
     diagnostico: 'Lead pensa que a plataforma é cara ou feita apenas para grandes frotas.',
-    respostaRecomendada: 'Entendo perfeitamente, [Nome]! Inclusive temos uma oferta enxuta desenhada exatamente para frotas de pequeno porte cumprirem a exigência da seguradora sem peso fixo alto. Se eu te mostrar em 10 minutos como fica acessível pro seu tamanho, faz sentido avaliarmos?',
+    respostaRecomendada:
+      'Entendo perfeitamente, [Nome]! Inclusive temos uma oferta enxuta desenhada exatamente para frotas de pequeno porte cumprirem a exigência da seguradora sem peso fixo alto. Se eu te mostrar em 10 minutos como fica acessível pro seu tamanho, faz sentido avaliarmos?',
   },
 ];
 
 export function JoaoReisDiagnosticHub() {
   const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'daily' | 'julho' | 'agosto' | 'comparativo' | 'emcadencia' | 'diagnostico' | 'iacoach' | 'pauta1to1'>('daily');
+  const [activeTab, setActiveTab] = useState<
+    | 'daily'
+    | 'julho'
+    | 'agosto'
+    | 'comparativo'
+    | 'emcadencia'
+    | 'diagnostico'
+    | 'iacoach'
+    | 'pauta1to1'
+  >('daily');
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>(DEFAULT_DAILY_PLAN);
   const [dailyNotes, setDailyNotes] = useState<string>('');
   const [todayActivitiesCount, setTodayActivitiesCount] = useState<number>(28); // Simulação do dia atual
-  const [selectedSegment, setSelectedSegment] = useState<keyof typeof PITCHES_BY_SEGMENT>('transportadora');
+  const [selectedSegment, setSelectedSegment] =
+    useState<keyof typeof PITCHES_BY_SEGMENT>('transportadora');
   const [callTranscriptInput, setCallTranscriptInput] = useState<string>('');
   const [callAnalysisResult, setCallAnalysisResult] = useState<{
     score: number;
@@ -315,16 +673,22 @@ export function JoaoReisDiagnosticHub() {
     improvements: string[];
   } | null>(null);
 
-  const [channelTag, setChannelTag] = useState<'[WhatsApp]' | '[Ligação]' | '[E-mail]' | '[LinkedIn]'>('[WhatsApp]');
+  const [channelTag, setChannelTag] = useState<
+    '[WhatsApp]' | '[Ligação]' | '[E-mail]' | '[LinkedIn]'
+  >('[WhatsApp]');
   const [sprintLeadIndex, setSprintLeadIndex] = useState<number>(0);
-  const [modalContent, setModalContent] = useState<{ title: string; body: React.ReactNode } | null>(null);
+  const [modalContent, setModalContent] = useState<{ title: string; body: React.ReactNode } | null>(
+    null,
+  );
   const [copiedPauta, setCopiedPauta] = useState(false);
 
-  const isJoaoReis = currentUser?.email?.toLowerCase().includes('joao.reis') || currentUser?.name?.toLowerCase().includes('joão reis');
+  const isJoaoReis =
+    currentUser?.email?.toLowerCase().includes('joao.reis') ||
+    currentUser?.name?.toLowerCase().includes('joão reis');
 
   const toggleTask = (id: string) => {
     setDailyTasks((prev) =>
-      prev.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task))
+      prev.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task)),
     );
   };
 
@@ -405,9 +769,7 @@ Data: 01/09/2026 | BDR ID: 392
               <Sparkles className="w-4 h-4 text-brand" />
               Diagnóstico SDR &amp; Plano Diário Operacional · BDR ID 392
             </div>
-            <h1 className="text-2xl md:text-3xl font-black text-ink">
-              João Reis da AtlasGR
-            </h1>
+            <h1 className="text-2xl md:text-3xl font-black text-ink">João Reis da AtlasGR</h1>
             <p className="text-sm text-ink-2 mt-1">
               Hub completo de performance, automações de prospecção, IA Coach e pauta de 1:1.
             </p>
@@ -433,7 +795,9 @@ Data: 01/09/2026 | BDR ID: 392
             <ClipboardCheck className="w-4 h-4" />
             <div>
               <p className="text-xs font-black leading-tight">Plano Diário</p>
-              <p className="text-[10px] opacity-80">{completedCount}/{dailyTasks.length} ({progressPercent}%)</p>
+              <p className="text-[10px] opacity-80">
+                {completedCount}/{dailyTasks.length} ({progressPercent}%)
+              </p>
             </div>
           </button>
 
@@ -553,9 +917,13 @@ Data: 01/09/2026 | BDR ID: 392
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Flame className="w-5 h-5 text-brand" />
-                    <h3 className="text-sm font-black text-ink">Medidor de Pace Diário (Meta 60 toques)</h3>
+                    <h3 className="text-sm font-black text-ink">
+                      Medidor de Pace Diário (Meta 60 toques)
+                    </h3>
                   </div>
-                  <span className="text-xs font-bold font-mono text-brand">{todayActivitiesCount} / 60 toques</span>
+                  <span className="text-xs font-bold font-mono text-brand">
+                    {todayActivitiesCount} / 60 toques
+                  </span>
                 </div>
                 <div className="w-full bg-surface-2 h-4 rounded-full overflow-hidden border border-line">
                   <div
@@ -564,7 +932,9 @@ Data: 01/09/2026 | BDR ID: 392
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs text-ink-2">
-                  <span>Ritmo atual: <b>~3.5 toques/hora</b></span>
+                  <span>
+                    Ritmo atual: <b>~3.5 toques/hora</b>
+                  </span>
                   <button
                     onClick={() => setTodayActivitiesCount((prev) => prev + 1)}
                     className="px-3 py-1 rounded-xl bg-brand/10 text-brand font-bold text-[11px] hover:bg-brand/20 transition-all cursor-pointer"
@@ -580,7 +950,10 @@ Data: 01/09/2026 | BDR ID: 392
                   <AlertTriangle className="w-5 h-5 shrink-0" />
                   <h3 className="text-xs font-black uppercase">Alerta de SLA (&lt; 24h)</h3>
                 </div>
-                <p className="text-xs text-ink-2"><b>16 leads novos de Agosto</b> estão sem contato inicial. Tempo médio de reação a ser corrigido.</p>
+                <p className="text-xs text-ink-2">
+                  <b>16 leads novos de Agosto</b> estão sem contato inicial. Tempo médio de reação a
+                  ser corrigido.
+                </p>
                 <button
                   onClick={() => setActiveTab('emcadencia')}
                   className="w-full py-1.5 rounded-xl bg-critical text-white font-bold text-xs shadow-sm hover:brightness-110 transition-all cursor-pointer"
@@ -598,7 +971,9 @@ Data: 01/09/2026 | BDR ID: 392
                     <Zap className="w-4 h-4 text-gold" />
                     Sprint Launcher de Prospecção &amp; Validador de Registros Bitrix24
                   </h3>
-                  <p className="text-xs text-ink-2">Selecione a tag de canal real obrigatória antes de registrar sua atividade.</p>
+                  <p className="text-xs text-ink-2">
+                    Selecione a tag de canal real obrigatória antes de registrar sua atividade.
+                  </p>
                 </div>
                 {/* Seleção de Tag de Canal */}
                 <div className="flex items-center gap-1.5 bg-surface-2 p-1 rounded-xl border border-line">
@@ -607,7 +982,9 @@ Data: 01/09/2026 | BDR ID: 392
                       key={tag}
                       onClick={() => setChannelTag(tag)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        channelTag === tag ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'
+                        channelTag === tag
+                          ? 'bg-brand text-white shadow-sm'
+                          : 'text-ink-2 hover:text-ink'
                       }`}
                     >
                       {tag}
@@ -619,18 +996,26 @@ Data: 01/09/2026 | BDR ID: 392
               {/* Fila do Sprint em 1 Clique */}
               <div className="p-4 rounded-2xl border border-brand/20 bg-soft flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black uppercase text-brand tracking-widest">Fila do Sprint (Lead {sprintLeadIndex + 1} de {DIAGNOSTIC_DATA.emCadencia.topLeads.length})</span>
+                  <span className="text-[10px] font-black uppercase text-brand tracking-widest">
+                    Fila do Sprint (Lead {sprintLeadIndex + 1} de{' '}
+                    {DIAGNOSTIC_DATA.emCadencia.topLeads.length})
+                  </span>
                   <h4 className="text-base font-black text-ink">
                     {DIAGNOSTIC_DATA.emCadencia.topLeads[sprintLeadIndex].nome}
                   </h4>
-                  <p className="text-xs text-ink-2">Status: {DIAGNOSTIC_DATA.emCadencia.topLeads[sprintLeadIndex].status} · Parado há {DIAGNOSTIC_DATA.emCadencia.topLeads[sprintLeadIndex].diasParado} dias</p>
+                  <p className="text-xs text-ink-2">
+                    Status: {DIAGNOSTIC_DATA.emCadencia.topLeads[sprintLeadIndex].status} · Parado
+                    há {DIAGNOSTIC_DATA.emCadencia.topLeads[sprintLeadIndex].diasParado} dias
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
                       setTodayActivitiesCount((p) => p + 1);
-                      setSprintLeadIndex((prev) => (prev + 1) % DIAGNOSTIC_DATA.emCadencia.topLeads.length);
+                      setSprintLeadIndex(
+                        (prev) => (prev + 1) % DIAGNOSTIC_DATA.emCadencia.topLeads.length,
+                      );
                     }}
                     className="px-4 py-2.5 rounded-xl bg-brand text-white font-bold text-xs shadow-md hover:brightness-105 transition-all cursor-pointer flex items-center gap-2"
                   >
@@ -638,7 +1023,11 @@ Data: 01/09/2026 | BDR ID: 392
                     Salvar toque como {channelTag}
                   </button>
                   <button
-                    onClick={() => setSprintLeadIndex((prev) => (prev + 1) % DIAGNOSTIC_DATA.emCadencia.topLeads.length)}
+                    onClick={() =>
+                      setSprintLeadIndex(
+                        (prev) => (prev + 1) % DIAGNOSTIC_DATA.emCadencia.topLeads.length,
+                      )
+                    }
                     className="px-3 py-2.5 rounded-xl border border-line bg-surface text-ink-2 font-bold text-xs hover:bg-surface-2 transition-all cursor-pointer"
                   >
                     Pular Lead
@@ -675,7 +1064,11 @@ Data: 01/09/2026 | BDR ID: 392
                     }`}
                   >
                     <span className={`mt-1 shrink-0 ${task.completed ? 'text-ok' : 'text-ink-2'}`}>
-                      {task.completed ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6" />}
+                      {task.completed ? (
+                        <CheckSquare className="w-6 h-6" />
+                      ) : (
+                        <Square className="w-6 h-6" />
+                      )}
                     </span>
 
                     <div className="flex-1 space-y-1">
@@ -690,7 +1083,9 @@ Data: 01/09/2026 | BDR ID: 392
                         )}
                       </div>
 
-                      <h4 className={`text-sm font-black ${task.completed ? 'line-through text-ink-2' : 'text-ink'}`}>
+                      <h4
+                        className={`text-sm font-black ${task.completed ? 'line-through text-ink-2' : 'text-ink'}`}
+                      >
                         {task.title}
                       </h4>
 
@@ -728,33 +1123,48 @@ Data: 01/09/2026 | BDR ID: 392
                     <Sparkles className="w-4 h-4 text-brand" />
                     Gerador de Pitch de 3 Minutos por Segmento
                   </h3>
-                  <p className="text-xs text-ink-2">Roteiros sob medida para o João abordar cada perfil de empresa sem perder tempo.</p>
+                  <p className="text-xs text-ink-2">
+                    Roteiros sob medida para o João abordar cada perfil de empresa sem perder tempo.
+                  </p>
                 </div>
                 <div className="flex items-center gap-1.5 bg-surface-2 p-1 rounded-xl border border-line">
-                  {(Object.keys(PITCHES_BY_SEGMENT) as Array<keyof typeof PITCHES_BY_SEGMENT>).map((seg) => (
-                    <button
-                      key={seg}
-                      onClick={() => setSelectedSegment(seg)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
-                        selectedSegment === seg ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'
-                      }`}
-                    >
-                      {seg}
-                    </button>
-                  ))}
+                  {(Object.keys(PITCHES_BY_SEGMENT) as Array<keyof typeof PITCHES_BY_SEGMENT>).map(
+                    (seg) => (
+                      <button
+                        key={seg}
+                        onClick={() => setSelectedSegment(seg)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
+                          selectedSegment === seg
+                            ? 'bg-brand text-white shadow-sm'
+                            : 'text-ink-2 hover:text-ink'
+                        }`}
+                      >
+                        {seg}
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
 
               <div className="p-5 rounded-2xl border border-brand/20 bg-soft space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-brand uppercase tracking-wider">{PITCHES_BY_SEGMENT[selectedSegment].segmento}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand">Foco de Abordagem</span>
+                  <span className="text-xs font-black text-brand uppercase tracking-wider">
+                    {PITCHES_BY_SEGMENT[selectedSegment].segmento}
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand">
+                    Foco de Abordagem
+                  </span>
                 </div>
-                <p className="text-xs font-semibold text-ink-2">Dor Principal: {PITCHES_BY_SEGMENT[selectedSegment].dor}</p>
+                <p className="text-xs font-semibold text-ink-2">
+                  Dor Principal: {PITCHES_BY_SEGMENT[selectedSegment].dor}
+                </p>
                 <div className="p-3.5 rounded-xl bg-surface border border-line text-xs font-medium text-ink leading-relaxed">
                   {PITCHES_BY_SEGMENT[selectedSegment].pitch}
                 </div>
-                <p className="text-xs font-bold text-brand">Pergunta Chave de Qualificação: “{PITCHES_BY_SEGMENT[selectedSegment].perguntaChave}”</p>
+                <p className="text-xs font-bold text-brand">
+                  Pergunta Chave de Qualificação: “
+                  {PITCHES_BY_SEGMENT[selectedSegment].perguntaChave}”
+                </p>
               </div>
             </div>
 
@@ -764,7 +1174,10 @@ Data: 01/09/2026 | BDR ID: 392
                 <Bot className="w-4 h-4 text-brand" />
                 Analisador Inteligente de Chamadas (Google Meet / Ata)
               </h3>
-              <p className="text-xs text-ink-2">Cole a transcrição ou resumo da reunião com o cliente para a IA avaliar tempo de fala, qualificação de frota e fechamento do próximo passo.</p>
+              <p className="text-xs text-ink-2">
+                Cole a transcrição ou resumo da reunião com o cliente para a IA avaliar tempo de
+                fala, qualificação de frota e fechamento do próximo passo.
+              </p>
 
               <div className="space-y-3">
                 <textarea
@@ -786,8 +1199,12 @@ Data: 01/09/2026 | BDR ID: 392
               {callAnalysisResult && (
                 <div className="p-5 rounded-2xl border border-ok/30 bg-ok/5 space-y-4 animate-fadeIn">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-ok uppercase">Pontuação da Reunião</span>
-                    <span className="text-2xl font-black text-ok">{callAnalysisResult.score} / 100</span>
+                    <span className="text-xs font-black text-ok uppercase">
+                      Pontuação da Reunião
+                    </span>
+                    <span className="text-2xl font-black text-ok">
+                      {callAnalysisResult.score} / 100
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
@@ -796,12 +1213,20 @@ Data: 01/09/2026 | BDR ID: 392
                       <p className="font-bold text-ink">{callAnalysisResult.talkListenRatio}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-surface border border-line">
-                      <p className="text-[10px] font-bold text-ink-2 uppercase">Tempo de Qualificação</p>
+                      <p className="text-[10px] font-bold text-ink-2 uppercase">
+                        Tempo de Qualificação
+                      </p>
                       <p className="font-bold text-ink">{callAnalysisResult.qualificationTime}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-surface border border-line">
-                      <p className="text-[10px] font-bold text-ink-2 uppercase">Próximo Passo Travado?</p>
-                      <p className="font-bold text-ok">{callAnalysisResult.lockedNextStep ? '✓ Sim (Data/Hora alinhadas)' : '✗ Não'}</p>
+                      <p className="text-[10px] font-bold text-ink-2 uppercase">
+                        Próximo Passo Travado?
+                      </p>
+                      <p className="font-bold text-ok">
+                        {callAnalysisResult.lockedNextStep
+                          ? '✓ Sim (Data/Hora alinhadas)'
+                          : '✗ Não'}
+                      </p>
                     </div>
                   </div>
 
@@ -836,9 +1261,14 @@ Data: 01/09/2026 | BDR ID: 392
 
               <div className="space-y-3">
                 {OBJECTIONS_DATABASE.map((obj) => (
-                  <div key={obj.id} className="p-4 rounded-2xl border border-line bg-surface-2 space-y-2">
+                  <div
+                    key={obj.id}
+                    className="p-4 rounded-2xl border border-line bg-surface-2 space-y-2"
+                  >
                     <p className="text-xs font-black text-brand">{obj.objeção}</p>
-                    <p className="text-xs text-ink-2"><b>Diagnóstico:</b> {obj.diagnostico}</p>
+                    <p className="text-xs text-ink-2">
+                      <b>Diagnóstico:</b> {obj.diagnostico}
+                    </p>
                     <div className="p-3 rounded-xl bg-surface border border-line text-xs text-ink font-medium leading-relaxed">
                       <b>Resposta Recomendada:</b> {obj.respostaRecomendada}
                     </div>
@@ -859,7 +1289,10 @@ Data: 01/09/2026 | BDR ID: 392
                     <FileText className="w-5 h-5 text-brand" />
                     Pauta de Acompanhamento 1:1 — João Reis &amp; Gestor
                   </h3>
-                  <p className="text-xs text-ink-2">Relatório executivo formatado pronto para apresentação na reunião individual de alinhamento.</p>
+                  <p className="text-xs text-ink-2">
+                    Relatório executivo formatado pronto para apresentação na reunião individual de
+                    alinhamento.
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -893,7 +1326,9 @@ Data: 01/09/2026 | BDR ID: 392
                   <span>Leads Novos</span>
                   <UserPlus className="w-4 h-4 text-brand" />
                 </div>
-                <p className="text-2xl font-black text-brand mt-2">{DIAGNOSTIC_DATA.metJul.leadsNovos}</p>
+                <p className="text-2xl font-black text-brand mt-2">
+                  {DIAGNOSTIC_DATA.metJul.leadsNovos}
+                </p>
                 <p className="text-[10px] text-ink-2 mt-1">79 leads únicos</p>
               </div>
 
@@ -902,8 +1337,12 @@ Data: 01/09/2026 | BDR ID: 392
                   <span>Leads Trabalhados</span>
                   <Users className="w-4 h-4 text-brand" />
                 </div>
-                <p className="text-2xl font-black text-ink mt-2">{DIAGNOSTIC_DATA.metJul.leadsTrabalhados}</p>
-                <p className="text-[10px] text-ink-2 mt-1">Taxa de contato: {DIAGNOSTIC_DATA.metJul.taxaContato}%</p>
+                <p className="text-2xl font-black text-ink mt-2">
+                  {DIAGNOSTIC_DATA.metJul.leadsTrabalhados}
+                </p>
+                <p className="text-[10px] text-ink-2 mt-1">
+                  Taxa de contato: {DIAGNOSTIC_DATA.metJul.taxaContato}%
+                </p>
               </div>
 
               <div className="p-4 rounded-card border border-line bg-surface shadow-card">
@@ -911,8 +1350,12 @@ Data: 01/09/2026 | BDR ID: 392
                   <span>Reuniões Agendadas</span>
                   <Calendar className="w-4 h-4 text-gold" />
                 </div>
-                <p className="text-2xl font-black text-gold mt-2">{DIAGNOSTIC_DATA.metJul.reuniaoAgendada}</p>
-                <p className="text-[10px] text-ink-2 mt-1">Agendamento: {DIAGNOSTIC_DATA.metJul.taxaAgendamento}%</p>
+                <p className="text-2xl font-black text-gold mt-2">
+                  {DIAGNOSTIC_DATA.metJul.reuniaoAgendada}
+                </p>
+                <p className="text-[10px] text-ink-2 mt-1">
+                  Agendamento: {DIAGNOSTIC_DATA.metJul.taxaAgendamento}%
+                </p>
               </div>
 
               <div className="p-4 rounded-card border border-line bg-surface shadow-card">
@@ -920,8 +1363,12 @@ Data: 01/09/2026 | BDR ID: 392
                   <span>Convertidos</span>
                   <CheckCircle className="w-4 h-4 text-ok" />
                 </div>
-                <p className="text-2xl font-black text-ok mt-2">{DIAGNOSTIC_DATA.metJul.convertido}</p>
-                <p className="text-[10px] text-ink-2 mt-1">Receita ganha: {formatCurrency(DIAGNOSTIC_DATA.metJul.ganhoValor)}</p>
+                <p className="text-2xl font-black text-ok mt-2">
+                  {DIAGNOSTIC_DATA.metJul.convertido}
+                </p>
+                <p className="text-[10px] text-ink-2 mt-1">
+                  Receita ganha: {formatCurrency(DIAGNOSTIC_DATA.metJul.ganhoValor)}
+                </p>
               </div>
             </div>
 
@@ -934,7 +1381,11 @@ Data: 01/09/2026 | BDR ID: 392
                     <div className="flex-1 bg-surface-2 h-4 rounded-md overflow-hidden border border-line">
                       <div
                         className={`h-full rounded-md ${
-                          item.status === 'CONVERTED' ? 'bg-ok' : item.status === 'JUNK' ? 'bg-critical' : 'bg-brand'
+                          item.status === 'CONVERTED'
+                            ? 'bg-ok'
+                            : item.status === 'JUNK'
+                              ? 'bg-critical'
+                              : 'bg-brand'
                         }`}
                         style={{ width: `${(item.leadsUnicos / 81) * 100}%` }}
                       />
@@ -955,7 +1406,9 @@ Data: 01/09/2026 | BDR ID: 392
                   <span>Leads Novos</span>
                   <UserPlus className="w-4 h-4 text-brand" />
                 </div>
-                <p className="text-2xl font-black text-brand mt-2">{DIAGNOSTIC_DATA.metAgo.leadsNovos}</p>
+                <p className="text-2xl font-black text-brand mt-2">
+                  {DIAGNOSTIC_DATA.metAgo.leadsNovos}
+                </p>
                 <p className="text-[10px] text-ink-2 mt-1">131 leads novos</p>
               </div>
 
@@ -964,7 +1417,9 @@ Data: 01/09/2026 | BDR ID: 392
                   <span>Leads Trabalhados</span>
                   <Users className="w-4 h-4 text-brand" />
                 </div>
-                <p className="text-2xl font-black text-ink mt-2">{DIAGNOSTIC_DATA.metAgo.leadsTrabalhados}</p>
+                <p className="text-2xl font-black text-ink mt-2">
+                  {DIAGNOSTIC_DATA.metAgo.leadsTrabalhados}
+                </p>
                 <p className="text-[10px] text-ink-2 mt-1">530 atividades no mês</p>
               </div>
 
@@ -973,7 +1428,9 @@ Data: 01/09/2026 | BDR ID: 392
                   <span>Reuniões Agendadas</span>
                   <Calendar className="w-4 h-4 text-gold" />
                 </div>
-                <p className="text-2xl font-black text-gold mt-2">{DIAGNOSTIC_DATA.metAgo.reuniaoAgendada}</p>
+                <p className="text-2xl font-black text-gold mt-2">
+                  {DIAGNOSTIC_DATA.metAgo.reuniaoAgendada}
+                </p>
                 <p className="text-[10px] text-ink-2 mt-1">Realizadas: 6 / No-show: 1</p>
               </div>
 
@@ -982,8 +1439,12 @@ Data: 01/09/2026 | BDR ID: 392
                   <span>Convertidos</span>
                   <CheckCircle className="w-4 h-4 text-ok" />
                 </div>
-                <p className="text-2xl font-black text-ok mt-2">{DIAGNOSTIC_DATA.metAgo.convertido}</p>
-                <p className="text-[10px] text-ink-2 mt-1">Receita: {formatCurrency(DIAGNOSTIC_DATA.metAgo.ganhoValor)} (+101.8%)</p>
+                <p className="text-2xl font-black text-ok mt-2">
+                  {DIAGNOSTIC_DATA.metAgo.convertido}
+                </p>
+                <p className="text-[10px] text-ink-2 mt-1">
+                  Receita: {formatCurrency(DIAGNOSTIC_DATA.metAgo.ganhoValor)} (+101.8%)
+                </p>
               </div>
             </div>
 
@@ -994,10 +1455,15 @@ Data: 01/09/2026 | BDR ID: 392
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {DIAGNOSTIC_DATA.reuniaoVerificacao.confirmadas.map((c) => (
-                  <div key={c.empresa} className="p-4 rounded-2xl border border-ok/30 bg-ok/5 space-y-2">
+                  <div
+                    key={c.empresa}
+                    className="p-4 rounded-2xl border border-ok/30 bg-ok/5 space-y-2"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-ok">{c.empresa}</span>
-                      <span className="text-[10px] font-bold bg-ok/20 text-ok px-2 py-0.5 rounded-full">{c.data} · ~{c.duracaoMin}min</span>
+                      <span className="text-[10px] font-bold bg-ok/20 text-ok px-2 py-0.5 rounded-full">
+                        {c.data} · ~{c.duracaoMin}min
+                      </span>
                     </div>
                     <p className="text-xs text-ink-2">{c.resumo}</p>
                   </div>
@@ -1010,8 +1476,10 @@ Data: 01/09/2026 | BDR ID: 392
         {activeTab === 'comparativo' && (
           <div className="space-y-6">
             <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card space-y-4">
-              <h3 className="text-lg font-black text-ink">Comparativo Completo: Julho vs. Agosto</h3>
-              
+              <h3 className="text-lg font-black text-ink">
+                Comparativo Completo: Julho vs. Agosto
+              </h3>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-surface-2 text-ink-2 uppercase font-bold text-[10px]">
@@ -1025,38 +1493,62 @@ Data: 01/09/2026 | BDR ID: 392
                   <tbody className="divide-y divide-line font-medium">
                     <tr>
                       <td className="p-3 font-bold">Leads Novos</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metJul.leadsNovos}</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metAgo.leadsNovos}</td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metJul.leadsNovos}
+                      </td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metAgo.leadsNovos}
+                      </td>
                       <td className="p-3 text-right font-bold text-ok">+65.8%</td>
                     </tr>
                     <tr>
                       <td className="p-3 font-bold">Leads Trabalhados</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metJul.leadsTrabalhados}</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metAgo.leadsTrabalhados}</td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metJul.leadsTrabalhados}
+                      </td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metAgo.leadsTrabalhados}
+                      </td>
                       <td className="p-3 text-right font-bold text-ok">+179.7%</td>
                     </tr>
                     <tr>
                       <td className="p-3 font-bold">Atividades Totais</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metJul.atividadesTotais}</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metAgo.atividadesTotais}</td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metJul.atividadesTotais}
+                      </td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metAgo.atividadesTotais}
+                      </td>
                       <td className="p-3 text-right font-bold text-ok">+148.8%</td>
                     </tr>
                     <tr>
                       <td className="p-3 font-bold">Reuniões Agendadas</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metJul.reuniaoAgendada}</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metAgo.reuniaoAgendada}</td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metJul.reuniaoAgendada}
+                      </td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metAgo.reuniaoAgendada}
+                      </td>
                       <td className="p-3 text-right font-bold text-critical">-6.25%</td>
                     </tr>
                     <tr>
                       <td className="p-3 font-bold">Taxa de Agendamento</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metJul.taxaAgendamento}%</td>
-                      <td className="p-3 text-right font-mono">{DIAGNOSTIC_DATA.metAgo.taxaAgendamento}%</td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metJul.taxaAgendamento}%
+                      </td>
+                      <td className="p-3 text-right font-mono">
+                        {DIAGNOSTIC_DATA.metAgo.taxaAgendamento}%
+                      </td>
                       <td className="p-3 text-right font-bold text-critical">-66.4% (Gargalo)</td>
                     </tr>
                     <tr>
                       <td className="p-3 font-bold">Receita Ganha (João)</td>
-                      <td className="p-3 text-right font-mono">{formatCurrency(DIAGNOSTIC_DATA.metJul.ganhoValor)}</td>
-                      <td className="p-3 text-right font-mono">{formatCurrency(DIAGNOSTIC_DATA.metAgo.ganhoValor)}</td>
+                      <td className="p-3 text-right font-mono">
+                        {formatCurrency(DIAGNOSTIC_DATA.metJul.ganhoValor)}
+                      </td>
+                      <td className="p-3 text-right font-mono">
+                        {formatCurrency(DIAGNOSTIC_DATA.metAgo.ganhoValor)}
+                      </td>
                       <td className="p-3 text-right font-bold text-ok">+101.8%</td>
                     </tr>
                   </tbody>
@@ -1069,7 +1561,9 @@ Data: 01/09/2026 | BDR ID: 392
         {activeTab === 'emcadencia' && (
           <div className="space-y-6">
             <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card space-y-4">
-              <h3 className="text-lg font-black text-ink">Estoque de Leads em "Em Cadência" (130 Leads)</h3>
+              <h3 className="text-lg font-black text-ink">
+                Estoque de Leads em "Em Cadência" (130 Leads)
+              </h3>
 
               <div className="overflow-x-auto border border-line rounded-xl">
                 <table className="w-full text-xs text-left">
@@ -1090,11 +1584,13 @@ Data: 01/09/2026 | BDR ID: 392
                         <td className="p-3 text-right font-mono">{lead.atividades}</td>
                         <td className="p-3 text-right font-mono">{lead.gap}</td>
                         <td className="p-3">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            lead.status.includes('30+') || lead.status.includes('Sem')
-                              ? 'bg-critical/20 text-critical'
-                              : 'bg-gold/20 text-gold'
-                          }`}>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              lead.status.includes('30+') || lead.status.includes('Sem')
+                                ? 'bg-critical/20 text-critical'
+                                : 'bg-gold/20 text-gold'
+                            }`}
+                          >
                             {lead.status}
                           </span>
                         </td>
@@ -1117,13 +1613,24 @@ Data: 01/09/2026 | BDR ID: 392
 
               <div className="space-y-3 text-xs text-ink-2">
                 <div className="p-4 rounded-2xl border border-critical/30 bg-critical/5 space-y-1">
-                  <p className="font-bold text-critical">1. Queda na Taxa de Agendamento (25% → 8.4%)</p>
-                  <p>Apesar de o volume de leads trabalhados quase triplicar (64 → 179), a conversão para reunião agendada caiu drasticamente. Déficit estimado de ~30 reuniões por perda de eficiência por lead.</p>
+                  <p className="font-bold text-critical">
+                    1. Queda na Taxa de Agendamento (25% → 8.4%)
+                  </p>
+                  <p>
+                    Apesar de o volume de leads trabalhados quase triplicar (64 → 179), a conversão
+                    para reunião agendada caiu drasticamente. Déficit estimado de ~30 reuniões por
+                    perda de eficiência por lead.
+                  </p>
                 </div>
 
                 <div className="p-4 rounded-2xl border border-critical/30 bg-critical/5 space-y-1">
-                  <p className="font-bold text-critical">2. 88% das atividades registradas como "Contatar cliente" genérico</p>
-                  <p>Em agosto, 472 das 530 atividades não discriminaram se foi ligação, WhatsApp, e-mail ou LinkedIn. Solução: usar as tags de canal no sprint launcher.</p>
+                  <p className="font-bold text-critical">
+                    2. 88% das atividades registradas como "Contatar cliente" genérico
+                  </p>
+                  <p>
+                    Em agosto, 472 das 530 atividades não discriminaram se foi ligação, WhatsApp,
+                    e-mail ou LinkedIn. Solução: usar as tags de canal no sprint launcher.
+                  </p>
                 </div>
               </div>
             </div>

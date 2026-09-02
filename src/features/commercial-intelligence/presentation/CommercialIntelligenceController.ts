@@ -235,6 +235,46 @@ export class CommercialIntelligenceController {
     }
   };
 
+  getHealthScore = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const data = await this.useCases.healthScore(organizationId, parseFilter(req));
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getForecastAccuracy = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const data = await this.useCases.forecastAccuracy(organizationId);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getCloseDateIntelligence = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const data = await this.useCases.closeDateIntelligence(organizationId, parseFilter(req));
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getJourney = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const data = await this.useCases.journey(organizationId, parseFilter(req));
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getHistoricalTrends = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;

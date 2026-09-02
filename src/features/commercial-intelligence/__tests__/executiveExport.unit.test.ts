@@ -142,6 +142,16 @@ const CREATION: PipelineCreation = {
   paceExpectedAmount: 114_285.71,
   pacePercent: 105,
   paceGapAmount: -5_714.29,
+  carryover: {
+    count: 3,
+    amount: 90_000,
+    stillOpenCount: 2,
+    stillOpenAmount: 60_000,
+    closedInPeriodCount: 1,
+    wonInPeriodAmount: 30_000,
+    lostInPeriodAmount: 0,
+    shareOfPeriodPipeline: 42.86,
+  },
 };
 
 const ALERTS: ExecutiveAlert[] = [

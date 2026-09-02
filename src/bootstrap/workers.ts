@@ -52,6 +52,10 @@ import {
   createStagnationScannerWorker,
   scheduleStagnationScannerJob,
 } from '../features/automations/application/stagnation-scanner.service.js';
+import {
+  createForecastSnapshotWorker,
+  scheduleForecastSnapshotJob,
+} from '../features/commercial-intelligence/jobs/forecastSnapshotWeekly.worker.js';
 
 type CloseableWorker = Worker<any, any, string> | null;
 
@@ -77,6 +81,8 @@ export interface EmbeddedWorkersHandle {
   coldLeadsScannerWorker: CloseableWorker;
   stagnationScannerWorker: CloseableWorker;
   accountIntelligenceSchedulerWorker: CloseableWorker;
+  /** Snapshot semanal do Forecast (Comercial Inteligente) — já registrado em worker.ts; aqui para o modo embutido não ficar sem ele. */
+  forecastSnapshotWorker: CloseableWorker;
   searchWorker: CloseableWorker;
   coldCallWorker: CloseableWorker;
   swarmSchedulerWorker: CloseableWorker;
@@ -114,6 +120,7 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
     accountIntelligenceSchedulerWorker: embeddedWorkersEnabled
       ? createAccountIntelligenceSchedulerWorker()
       : null,
+    forecastSnapshotWorker: embeddedWorkersEnabled ? createForecastSnapshotWorker() : null,
     searchWorker: null,
     coldCallWorker: null,
     swarmSchedulerWorker: null,
@@ -157,6 +164,9 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
       .catch((err) => logger.error({ err }, 'Falha ao agendar job do LDR scheduler'));
     scheduleStagnationScannerJob().catch((err) =>
       logger.error({ err }, 'Falha ao agendar job do stagnation scanner'),
+    );
+    scheduleForecastSnapshotJob().catch((err) =>
+      logger.error({ err }, 'Falha ao agendar o snapshot semanal de forecast'),
     );
   }
 

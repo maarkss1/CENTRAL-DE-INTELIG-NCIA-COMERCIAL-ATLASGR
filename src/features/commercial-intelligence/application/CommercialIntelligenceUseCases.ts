@@ -42,6 +42,9 @@ import type {
   HistoricalTrendsReport,
   ForecastAccuracySummary,
   HealthScoreResult,
+  ForecastSnapshotStore,
+  CloseDateIntelligenceReport,
+  JourneyReport,
 } from '../domain/CommercialIntelligence';
 import { getGoal as getGoalCommand, setGoal as setGoalCommand } from './goalCommands';
 import { buildExecutiveOverview } from './queries/executiveOverviewReport';
@@ -54,8 +57,10 @@ import { buildAlerts } from './queries/alertsReport';
 import { buildCrmQuality } from './queries/crmQualityReport';
 import { buildDealsDrillDown, buildForecastExplain } from './queries/drillDownReport';
 import { buildHistoricalTrends } from './queries/historicalTrendsReport';
+import { buildForecastAccuracy } from './queries/forecastAccuracyReport';
+import { buildCloseDateIntelligence } from './queries/closeDateIntelligenceReport';
+import { buildJourney } from './queries/journeyReport';
 import { buildExecutiveExport, type ExecutiveExportPayload } from './executiveExport';
-import { summarizeForecastAccuracy } from './forecastAccuracy';
 import { computeHealthScore } from './healthScore';
 
 // ─── Re-exports de compatibilidade — consumidos fora deste arquivo (ver cabeçalho) ───────────────
@@ -67,7 +72,16 @@ export {
 } from './coverageProtection';
 
 export class CommercialIntelligenceUseCases {
-  constructor(private repository: CommercialIntelligenceRepository) {}
+  /**
+   * `snapshotStore` é opcional só para preservar os consumidores existentes (testes, serviços
+   * que nunca precisam de erro histórico). Em produção (`shared/di/setup.ts`) é sempre o
+   * `PrismaForecastSnapshotStore` real — sem ele, `forecastAccuracy()`/o pilar "Confiabilidade
+   * de Forecast" respondem "sem histórico suficiente" de forma honesta, nunca um número.
+   */
+  constructor(
+    private repository: CommercialIntelligenceRepository,
+    private snapshotStore: ForecastSnapshotStore | null = null,
+  ) {}
 
   // ─── Metas ──────────────────────────────────────────────────────────────
   async getGoal(
@@ -223,31 +237,64 @@ export class CommercialIntelligenceUseCases {
     return buildHistoricalTrends(this.repository, organizationId, filter, now);
   }
 
-  // ─── Health Score composto (Pipeline/Conversão/Produtividade/Qualidade de CRM/Follow-up/
-  // Confiabilidade de Forecast) — gap de auditoria CPI, ver application/healthScore.ts.
+  // ─── Erro histórico do Forecast (previsto vs. realizado) ─────────────────
   //
-  // `forecastAccuracy` é um parâmetro explícito (não buscado por esta fachada) porque a
-  // persistência do snapshot semanal (application/forecastSnapshot.ts) ainda depende de handoff
-  // de schema para o Agente 01 — sem tabela real ainda, não há histórico de snapshot para ler
-  // aqui. Omitir o parâmetro é uma resposta válida e honesta hoje: o pilar "Confiabilidade de
-  // Forecast" retorna "não disponível" em vez de um número fabricado, exatamente como os demais
-  // pilares fazem quando faltam dados (ver `application/healthScore.ts`).
+  // Lê os snapshots REAIS gravados pelo job semanal (`jobs/forecastSnapshotWeekly.worker.ts`,
+  // model `ForecastSnapshot`) e compara o snapshot mais antigo de cada mês já encerrado com o
+  // Fechado realizado daquele mês. Sem store injetado, sem snapshot ou sem período encerrado,
+  // devolve `available: false` com o motivo — nunca um erro fabricado.
+  async forecastAccuracy(
+    organizationId: string,
+    now = new Date(),
+  ): Promise<ForecastAccuracySummary> {
+    return buildForecastAccuracy(this.repository, this.snapshotStore, organizationId, now);
+  }
+
+  // ─── Health Score composto (Pipeline/Conversão/Produtividade/Qualidade de CRM/Follow-up/
+  // Confiabilidade de Forecast) — ver application/healthScore.ts.
+  //
+  // `forecastAccuracy` pode ser injetado explicitamente (testes/backtest de uma amostra
+  // específica); omitido, é calculado a partir dos snapshots reais via `forecastAccuracy()`.
+  // Sem histórico, o pilar "Confiabilidade de Forecast" retorna "não disponível" em vez de um
+  // número fabricado, exatamente como os demais pilares fazem quando faltam dados.
   async healthScore(
     organizationId: string,
     filter: CommercialIntelligenceFilter,
     now = new Date(),
-    forecastAccuracy: ForecastAccuracySummary = summarizeForecastAccuracy([]),
+    forecastAccuracy?: ForecastAccuracySummary,
   ): Promise<HealthScoreResult> {
-    const [overview, performance, aging, leadingIndicators, crmQuality] = await Promise.all([
-      this.executiveOverview(organizationId, filter, now),
-      this.performance(organizationId, filter, now),
-      this.aging(organizationId, filter, now),
-      this.leadingIndicators(organizationId, now),
-      this.crmQuality(organizationId, filter, now),
-    ]);
+    const [overview, performance, aging, leadingIndicators, crmQuality, accuracy] =
+      await Promise.all([
+        this.executiveOverview(organizationId, filter, now),
+        this.performance(organizationId, filter, now),
+        this.aging(organizationId, filter, now),
+        this.leadingIndicators(organizationId, now),
+        this.crmQuality(organizationId, filter, now),
+        forecastAccuracy
+          ? Promise.resolve(forecastAccuracy)
+          : this.forecastAccuracy(organizationId, now),
+      ]);
     return computeHealthScore(
-      { overview, performance, aging, leadingIndicators, crmQuality, forecastAccuracy },
+      { overview, performance, aging, leadingIndicators, crmQuality, forecastAccuracy: accuracy },
       now,
     );
+  }
+
+  // ─── CLOSEDATE Intelligence (adiamentos/antecipações da data prevista) ────
+  async closeDateIntelligence(
+    organizationId: string,
+    filter: CommercialIntelligenceFilter,
+    now = new Date(),
+  ): Promise<CloseDateIntelligenceReport> {
+    return buildCloseDateIntelligence(this.repository, organizationId, filter, now);
+  }
+
+  // ─── Jornada (handoffs, reentradas, sem interação, mapa de transições) ─────
+  async journey(
+    organizationId: string,
+    filter: CommercialIntelligenceFilter,
+    now = new Date(),
+  ): Promise<JourneyReport> {
+    return buildJourney(this.repository, organizationId, filter, now);
   }
 }

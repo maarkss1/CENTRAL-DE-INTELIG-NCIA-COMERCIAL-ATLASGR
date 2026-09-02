@@ -86,6 +86,17 @@ export interface PipelineCreationBreakdown {
   amount: number;
 }
 
+export interface PipelineCarryover {
+  count: number;
+  amount: number;
+  stillOpenCount: number;
+  stillOpenAmount: number;
+  closedInPeriodCount: number;
+  wonInPeriodAmount: number;
+  lostInPeriodAmount: number;
+  shareOfPeriodPipeline: number | null;
+}
+
 export interface PipelineCreation {
   period: string;
   count: number;
@@ -100,6 +111,7 @@ export interface PipelineCreation {
   paceExpectedAmount: number | null;
   pacePercent: number | null;
   paceGapAmount: number | null;
+  carryover: PipelineCarryover;
 }
 
 export type ExportFormat = 'csv' | 'json' | 'html';
@@ -356,6 +368,188 @@ export interface TrendMomentum {
   deltaPercentagePoints: number;
 }
 
+// ─── Health Score composto + erro histórico do Forecast ─────────────────────
+
+export type HealthClassification = 'saudavel' | 'atencao' | 'critico';
+export type HealthPillarKey =
+  | 'pipeline'
+  | 'conversao'
+  | 'produtividade'
+  | 'qualidadeCrm'
+  | 'followUp'
+  | 'confiabilidadeForecast';
+export interface HealthPillarScore {
+  pillar: HealthPillarKey;
+  label: string;
+  score: number | null;
+  classification: HealthClassification | null;
+  explanation: string;
+  metricsUsed: string[];
+  unavailableReason: string | null;
+}
+export interface HealthScoreResult {
+  period: string;
+  pillars: HealthPillarScore[];
+  overallScore: number | null;
+  generatedAt: string;
+}
+
+export type ForecastAccuracyUnavailableReason =
+  | 'periodo_nao_fechou'
+  | 'sem_snapshot'
+  | 'sem_realizado';
+export interface ForecastAccuracyResult {
+  available: boolean;
+  period: string;
+  reason: ForecastAccuracyUnavailableReason | null;
+  snapshotAt: string | null;
+  rulesVersion: string | null;
+  predictedForecastAmount: number | null;
+  realizedClosedAmount: number | null;
+  errorAmount: number | null;
+  errorPercent: number | null;
+  direction: 'superestimou' | 'subestimou' | 'acertou' | null;
+}
+export interface ForecastAccuracySummary {
+  available: boolean;
+  reason: 'sem_historico_suficiente' | null;
+  sampleSize: number;
+  meanAbsoluteErrorPercent: number | null;
+  samples: ForecastAccuracyResult[];
+}
+
+// ─── CLOSEDATE Intelligence ─────────────────────────────────────────────────
+
+export interface CloseDateDealRow {
+  leadId: string;
+  title: string | null;
+  companyName: string | null;
+  owner: string | null;
+  amount: number;
+  stageName: string | null;
+  tier: ForecastTier;
+  originalCloseAt: string | null;
+  currentCloseAt: string | null;
+  slips: number;
+  pullIns: number;
+  netDaysShifted: number | null;
+  lastChangedAt: string | null;
+  chronic: boolean;
+}
+export interface CloseDateBreakdown {
+  label: string;
+  dealsWithSlips: number;
+  totalSlips: number;
+  chronicDeals: number;
+  amountAtRisk: number;
+}
+export interface CloseDateIntelligenceReport {
+  period: string;
+  trackingSince: string | null;
+  openDealsEvaluated: number;
+  dealsWithAnyChange: number;
+  dealsWithSlips: number;
+  totalSlips: number;
+  totalPullIns: number;
+  chronicDeals: number;
+  amountWithSlips: number;
+  averageDaysSlippedPerSlip: number | null;
+  slippedIntoPeriodCount: number;
+  slippedOutOfPeriodCount: number;
+  slippedOutOfPeriodAmount: number;
+  byOwner: CloseDateBreakdown[];
+  byProduct: CloseDateBreakdown[];
+  byStage: CloseDateBreakdown[];
+  deals: CloseDateDealRow[];
+  rulesVersion: string;
+}
+
+// ─── Jornada (handoffs, reentradas, sem interação, transições) ──────────────
+
+export interface HandoffRow {
+  leadId: string;
+  title: string | null;
+  companyName: string | null;
+  amount: number;
+  fromOwner: string | null;
+  toOwner: string | null;
+  changedAt: string;
+  source: string;
+  isOpen: boolean;
+}
+export interface HandoffPairBreakdown {
+  fromOwner: string | null;
+  toOwner: string | null;
+  count: number;
+}
+export interface HandoffsSummary {
+  trackingSince: string | null;
+  countInPeriod: number;
+  dealsWithHandoffInPeriod: number;
+  openDealsWithMultipleHandoffs: number;
+  byPair: HandoffPairBreakdown[];
+  recent: HandoffRow[];
+}
+export interface ReentryRow {
+  leadId: string;
+  title: string | null;
+  companyName: string | null;
+  owner: string | null;
+  amount: number;
+  fromTerminalStage: string;
+  toStage: string;
+  reenteredAt: string;
+  currentStatus: 'aberto' | 'ganho' | 'perdido';
+}
+export interface ReentriesSummary {
+  trackingSince: string | null;
+  countInPeriod: number;
+  totalTracked: number;
+  recoveredCount: number;
+  recoveredAmount: number;
+  reactivatedOpenCount: number;
+  reactivatedOpenAmount: number;
+  rows: ReentryRow[];
+}
+export interface NoInteractionRow {
+  leadId: string;
+  title: string | null;
+  companyName: string | null;
+  owner: string | null;
+  amount: number;
+  stageName: string | null;
+  daysSinceInteraction: number | null;
+  tier: ForecastTier;
+}
+export interface NoInteractionSummary {
+  thresholdDays: number;
+  openDealsEvaluated: number;
+  count: number;
+  amount: number;
+  neverInteractedCount: number;
+  rows: NoInteractionRow[];
+}
+export interface StageTransitionEdge {
+  fromStage: string;
+  toStage: string;
+  count: number;
+  medianDaysInFrom: number | null;
+  backward: boolean;
+}
+export interface StageTransitionsSummary {
+  trackingSince: string | null;
+  totalTransitions: number;
+  backwardTransitions: number;
+  edges: StageTransitionEdge[];
+}
+export interface JourneyReport {
+  period: string;
+  handoffs: HandoffsSummary;
+  reentries: ReentriesSummary;
+  noInteraction: NoInteractionSummary;
+  transitions: StageTransitionsSummary;
+}
+
 // ─── Mentor Comercial (playbook de recomendações por IA) ─────────────────────
 
 export type MentorRecommendationPriority = 'alta' | 'media' | 'baixa';
@@ -423,6 +617,12 @@ export const commercialIntelligenceApi = {
   filterOptions: () => api.get<FilterOptions>(`${BASE}/filter-options`),
   trends: (filter: CommercialFilter) =>
     api.get<HistoricalTrendsReport>(`${BASE}/trends?${qs(filter)}`),
+  healthScore: (filter: CommercialFilter) =>
+    api.get<HealthScoreResult>(`${BASE}/health-score?${qs(filter)}`),
+  forecastAccuracy: () => api.get<ForecastAccuracySummary>(`${BASE}/forecast-accuracy`),
+  closeDateIntelligence: (filter: CommercialFilter) =>
+    api.get<CloseDateIntelligenceReport>(`${BASE}/close-date-intelligence?${qs(filter)}`),
+  journey: (filter: CommercialFilter) => api.get<JourneyReport>(`${BASE}/journey?${qs(filter)}`),
   getGoal: (month: string) => api.get<CommercialGoalDTO | null>(`${BASE}/goals?month=${month}`),
   setGoal: (period: string, amount: number, currency = 'BRL') =>
     api.put<CommercialGoalDTO>(`${BASE}/goals`, { period, amount, currency }),

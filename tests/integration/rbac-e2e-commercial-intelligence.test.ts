@@ -131,6 +131,10 @@ describe('RBAC ponta-a-ponta — Comercial Inteligente', () => {
                 '/api/commercial-intelligence/goals',
                 '/api/commercial-intelligence/filter-options',
                 '/api/commercial-intelligence/trends',
+                '/api/commercial-intelligence/health-score',
+                '/api/commercial-intelligence/forecast-accuracy',
+                '/api/commercial-intelligence/close-date-intelligence',
+                '/api/commercial-intelligence/journey',
             ];
             for (const endpoint of endpoints) {
                 const res = await request(app).get(`${endpoint}?month=${MONTH}`).set('Cookie', vendedorA.cookie);

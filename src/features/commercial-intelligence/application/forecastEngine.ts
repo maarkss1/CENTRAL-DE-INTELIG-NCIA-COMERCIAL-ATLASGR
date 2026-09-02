@@ -24,6 +24,12 @@ export interface ForecastSignals {
   daysInCurrentStage: number | null;
   /** Duração média histórica (dias) de negócios que já passaram por esta etapa, calculada a partir de `LeadStageHistory` real. `null` sem amostra suficiente. */
   stageAverageDurationDays: number | null;
+  /**
+   * Quantas vezes a data prevista de fechamento foi ADIADA (nova data > anterior), segundo
+   * `LeadFieldChange` real (CLOSEDATE Intelligence). `null`/ausente quando não há histórico
+   * rastreado — o fator simplesmente não se aplica, nunca é estimado.
+   */
+  closeDateSlips?: number | null;
 }
 
 export interface ForecastResult {
@@ -52,6 +58,11 @@ export const FORECAST_RULES = {
   COMMIT_THRESHOLD: 70,
   BEST_CASE_THRESHOLD: 40,
   PIPELINE_THRESHOLD: 10,
+  /** Penalidade por adiamento da data prevista (CLOSEDATE Intelligence), com teto — v2. */
+  CLOSE_DATE_SLIP_PENALTY: 5,
+  CLOSE_DATE_SLIP_MAX_PENALTY: 15,
+  /** A partir deste número de adiamentos a oportunidade é tratada como "constantemente empurrada". */
+  CLOSE_DATE_CHRONIC_SLIPS: 2,
 } as const;
 
 /**
@@ -62,7 +73,10 @@ export const FORECAST_RULES = {
  * versões diferentes da fórmula é uma decisão explícita de quem lê o relatório, nunca um número
  * silenciosamente incomparável apresentado como se fosse a mesma régua.
  */
-export const FORECAST_RULES_VERSION = 'v1' as const;
+// v2: adiamentos reais da data prevista (`LeadFieldChange.field = expectedCloseAt`) passaram a
+// descontar probabilidade (CLOSE_DATE_SLIP_PENALTY por adiamento, teto CLOSE_DATE_SLIP_MAX_PENALTY).
+// Snapshots gravados como 'v1' não incluem esse fator.
+export const FORECAST_RULES_VERSION = 'v2' as const;
 
 /** Pontua uma única oportunidade. Clampa a probabilidade final em [0, 100]. */
 export function scoreOpportunity(signals: ForecastSignals): ForecastResult {
@@ -125,6 +139,20 @@ export function scoreOpportunity(signals: ForecastSignals): ForecastResult {
   ) {
     probability -= 10;
     negativeFactors.push('Parado na etapa há mais que o dobro do tempo médio histórico');
+  }
+
+  // Adiamentos da data prevista (CLOSEDATE Intelligence) — só com histórico real rastreado.
+  if (signals.closeDateSlips != null && signals.closeDateSlips > 0) {
+    const penalty = Math.min(
+      FORECAST_RULES.CLOSE_DATE_SLIP_MAX_PENALTY,
+      signals.closeDateSlips * FORECAST_RULES.CLOSE_DATE_SLIP_PENALTY,
+    );
+    probability -= penalty;
+    negativeFactors.push(
+      signals.closeDateSlips >= FORECAST_RULES.CLOSE_DATE_CHRONIC_SLIPS
+        ? `Data prevista adiada ${signals.closeDateSlips} vezes (oportunidade constantemente empurrada)`
+        : 'Data prevista de fechamento já foi adiada uma vez',
+    );
   }
 
   probability = Math.min(100, Math.max(0, Math.round(probability)));
