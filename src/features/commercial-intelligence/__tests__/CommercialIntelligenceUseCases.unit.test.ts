@@ -14,6 +14,7 @@ import type {
   StageDefinition,
   CommercialGoalDTO,
   GoalMetric,
+  LeadFieldChangeRow,
 } from '../domain/CommercialIntelligence';
 
 const NOW = new Date('2026-08-15T12:00:00Z');
@@ -136,6 +137,10 @@ class FakeRepository implements CommercialIntelligenceRepository {
   }
   async findStageHistory() {
     return this.history;
+  }
+  fieldChanges: LeadFieldChangeRow[] = [];
+  async findFieldChanges(): Promise<LeadFieldChangeRow[]> {
+    return this.fieldChanges;
   }
   async countDuplicateCompanyGroupsAmongOpenDeals(): Promise<number> {
     return this.duplicateGroups;

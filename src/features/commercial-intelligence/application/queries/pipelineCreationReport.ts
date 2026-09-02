@@ -7,8 +7,10 @@ import type {
   CommercialIntelligenceFilter,
   CommercialIntelligenceRepository,
   DealRow,
+  PipelineCarryover,
   PipelineCreation,
 } from '../../domain/CommercialIntelligence';
+import { isDealOpen } from '../pipelineEligibility';
 import { countBusinessDays } from '../executiveCalendar';
 import { roundMoney } from '../shared/mathUtils';
 import { monthRange } from '../shared/period';
@@ -79,6 +81,36 @@ export async function buildPipelineCreation(
       : null;
   const paceGapAmount = paceExpectedAmount != null ? roundMoney(paceExpectedAmount - amount) : null;
 
+  // ─── Pipeline Carryover: o que JÁ estava aberto no primeiro instante do mês ─────────────────
+  // "Aberto no início do mês" = criado antes do início E (ainda sem fechamento OU fechado depois
+  // do início). Usa closedAt (só setado na transição terminal) — mesma regra de "Fechado".
+  const carryoverDeals = inScope
+    .filter(
+      (s) => s.deal.createdAt < start && (s.deal.closedAt == null || s.deal.closedAt >= start),
+    )
+    .map((s) => s);
+  const carryoverAmount = roundMoney(carryoverDeals.reduce((sum, s) => sum + s.deal.amount, 0));
+  const stillOpen = carryoverDeals.filter((s) => isDealOpen(s.deal));
+  const closedInPeriod = carryoverDeals.filter(
+    (s) => s.deal.closedAt && s.deal.closedAt >= start && s.deal.closedAt < end,
+  );
+  const periodPipeline = carryoverAmount + amount;
+  const carryover: PipelineCarryover = {
+    count: carryoverDeals.length,
+    amount: carryoverAmount,
+    stillOpenCount: stillOpen.length,
+    stillOpenAmount: roundMoney(stillOpen.reduce((sum, s) => sum + s.deal.amount, 0)),
+    closedInPeriodCount: closedInPeriod.length,
+    wonInPeriodAmount: roundMoney(
+      closedInPeriod.filter((s) => s.deal.stageIsWon).reduce((sum, s) => sum + s.deal.amount, 0),
+    ),
+    lostInPeriodAmount: roundMoney(
+      closedInPeriod.filter((s) => s.deal.stageIsLost).reduce((sum, s) => sum + s.deal.amount, 0),
+    ),
+    shareOfPeriodPipeline:
+      periodPipeline > 0 ? roundMoney((carryoverAmount / periodPipeline) * 100) : null,
+  };
+
   return {
     period: filter.month,
     count: created.length,
@@ -93,5 +125,6 @@ export async function buildPipelineCreation(
     paceExpectedAmount,
     pacePercent,
     paceGapAmount,
+    carryover,
   };
 }

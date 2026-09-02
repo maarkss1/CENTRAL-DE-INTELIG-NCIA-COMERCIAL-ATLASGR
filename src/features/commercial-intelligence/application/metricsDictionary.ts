@@ -371,7 +371,7 @@ export const METRICS_DICTIONARY: MetricDefinition[] = [
       'Registro append-only do que o Forecast previa para um período em um instante específico — base para medir o erro real do motor depois que o período fecha.',
     formula: `Copia Commit/Best Case/Forecast de ExecutiveOverview no momento do snapshot, junto da versão das regras do motor (rulesVersion = "${FORECAST_RULES_VERSION}").`,
     source:
-      'application/forecastSnapshot.ts, persistido via infra/PrismaForecastSnapshotStore.ts (model ForecastSnapshot, migration 20260827020000). Ainda falta o disparo periódico real (cron/worker) que chama ForecastSnapshotStore.save — hoje só é exercitado por teste/uso manual.',
+      'application/forecastSnapshot.ts, persistido via infra/PrismaForecastSnapshotStore.ts (model ForecastSnapshot, migration 20260827020000) e gravado toda segunda-feira 06:00 pelo job jobs/forecastSnapshotWeekly.worker.ts (processo worker.ts, ou embutido com ENABLE_EMBEDDED_WORKERS).',
     period: 'Instantâneo, um registro por (organização, período previsto, momento do snapshot)',
     inclusionRules:
       'Nunca sobrescrito — cada snapshot é um registro novo, mesmo para o mesmo período (permite comparar como a previsão evoluiu até o fechamento).',
@@ -384,10 +384,11 @@ export const METRICS_DICTIONARY: MetricDefinition[] = [
       'Compara o Forecast previsto por um snapshot antigo com o valor realmente fechado, depois que o período de referência já encerrou — "o motor costuma acertar quanto?".',
     formula:
       'Erro = Forecast previsto (snapshot) − Fechado realizado. Erro % = |Erro| / Fechado realizado × 100. Erro Percentual Absoluto Médio = média do Erro % entre os períodos já fechados com snapshot disponível.',
-    source: 'application/forecastAccuracy.ts',
+    source:
+      'application/forecastAccuracy.ts + application/queries/forecastAccuracyReport.ts (GET /commercial-intelligence/forecast-accuracy)',
     period: 'Só períodos (meses) já encerrados',
     inclusionRules:
-      'Precisa das 3 condições: período já fechado, snapshot existente daquele período, e valor realizado conhecido.',
+      'Precisa das 3 condições: período já fechado, snapshot existente daquele período, e valor realizado conhecido. Para cada mês usa o snapshot MAIS ANTIGO (a previsão feita com mais antecedência); o instante do snapshot é devolvido junto para leitura da antecedência.',
     exclusionRules:
       'Faltando qualquer uma das 3 condições, retorna explicitamente "sem histórico suficiente" — nunca um erro fabricado. Logo após esta implementação, é o resultado esperado até existir snapshot antigo o bastante para ter fechado.',
   },
@@ -402,5 +403,83 @@ export const METRICS_DICTIONARY: MetricDefinition[] = [
     inclusionRules: `Limiares por pilar documentados em HEALTH_SCORE_RULES (ex.: Conversão saudável ≥${HEALTH_SCORE_RULES.WIN_RATE_HEALTHY_PCT}%, atenção ≥${HEALTH_SCORE_RULES.WIN_RATE_WARNING_PCT}%).`,
     exclusionRules:
       'Pilar sem dado suficiente retorna "Não disponível" individualmente (nunca um score fabricado) e fica fora da média do Score geral — o Score geral só fica "Não disponível" se NENHUM pilar tiver dado.',
+  },
+  {
+    key: 'carryover',
+    name: 'Pipeline Carryover',
+    description:
+      'Negócios que já estavam abertos no primeiro instante do mês (vieram de meses anteriores), em oposição ao Pipeline Criado (novos no mês).',
+    formula:
+      'Carryover = negócios com createdAt < início do mês E (closedAt nulo OU closedAt ≥ início do mês). Ainda aberto = subconjunto sem fechamento até agora. Fechado no mês = subconjunto com closedAt dentro do mês (ganho/perdido separados). Participação = Carryover / (Carryover + Pipeline Criado), em valor.',
+    source: 'Lead (application/queries/pipelineCreationReport.ts)',
+    period: 'Mês do filtro',
+    inclusionRules:
+      'Usa closedAt (setado só na transição terminal), nunca updatedAt — mesma regra de "Fechado".',
+    exclusionRules:
+      'Sem nenhum pipeline (carryover + criado = 0), a participação retorna "Não disponível".',
+  },
+  {
+    key: 'closedate_intelligence',
+    name: 'CLOSEDATE Intelligence (adiamentos da data prevista)',
+    description:
+      'Quantas vezes a data prevista de fechamento de cada negócio aberto foi adiada/antecipada, data original vs. atual, dias deslocados, e quais negócios estão "constantemente empurrados".',
+    formula: `Para cada mudança real de Lead.expectedCloseAt registrada em LeadFieldChange: nova data > anterior = adiamento; nova data < anterior = antecipação. Data original = valor anterior da 1ª mudança rastreada. Dias deslocados = data atual − data original. Constantemente empurrada = adiamentos ≥ ${FORECAST_RULES.CLOSE_DATE_CHRONIC_SLIPS}. No Forecast Ponderado (${FORECAST_RULES_VERSION}), cada adiamento desconta ${FORECAST_RULES.CLOSE_DATE_SLIP_PENALTY} pontos de probabilidade (teto ${FORECAST_RULES.CLOSE_DATE_SLIP_MAX_PENALTY}).`,
+    source:
+      'LeadFieldChange (migration 20260902100000, escrita por src/shared/services/leadFieldChangeHistory.service.ts) via application/queries/closeDateIntelligenceReport.ts',
+    period:
+      'Instantâneo sobre negócios abertos; "entrou/saiu do mês" compara cada mudança com o mês do filtro',
+    inclusionRules:
+      'Só mudanças com data anterior E nova preenchidas contam como adiamento/antecipação — preencher a data pela primeira vez ou limpá-la é mudança de completude (Qualidade do CRM), não deslocamento.',
+    exclusionRules:
+      'Histórico começa na criação da tabela (trackingSince). Sem nenhuma linha, todo negócio aparece com 0 mudanças — isso é "sem histórico", nunca "nunca adiado"; a UI exibe a diferença.',
+  },
+  {
+    key: 'handoffs',
+    name: 'Handoffs (trocas de responsável)',
+    description: 'Quantas vezes negócios mudaram de responsável e entre quem.',
+    formula:
+      'Cada mudança real de Lead.owner registrada em LeadFieldChange = 1 handoff. No mês = changedAt dentro do mês do filtro. Negócios abertos com ≥2 trocas em todo o histórico = retrabalho de relacionamento.',
+    source: 'LeadFieldChange (field = owner) via application/queries/journeyReport.ts',
+    period: 'Mês do filtro (contagem) + histórico completo (múltiplas trocas)',
+    inclusionRules:
+      'Origens rastreadas: edição do lead (crm), lote (batch) e atribuição automática de lead novo (round_robin, sempre de vazio → alguém).',
+    exclusionRules:
+      'Sem histórico (trackingSince nulo), retorna 0 — nunca inferido do estado atual.',
+  },
+  {
+    key: 'reentradas',
+    name: 'Reentradas (recuperados / reativados)',
+    description:
+      'Negócios que saíram de uma etapa terminal (ganho/perdido/cancelado) e voltaram a uma etapa aberta.',
+    formula:
+      'Em LeadStageHistory, uma linha de etapa terminal seguida (no mesmo negócio) de uma linha de etapa aberta = 1 reentrada. Recuperado = reentrada cujo negócio está ganho hoje. Reativado = reentrada cujo negócio segue aberto hoje.',
+    source: 'LeadStageHistory via application/queries/journeyReport.ts',
+    period: 'Mês do filtro (contagem) + histórico completo (recuperados/reativados)',
+    inclusionRules: 'Usa as flags isWon/isLost desnormalizadas na própria linha de histórico.',
+    exclusionRules: 'Negócio sem histórico de etapa nunca conta como reentrada.',
+  },
+  {
+    key: 'sem_interacao',
+    name: 'Clientes parados / sem interação',
+    description: 'Negócios abertos sem nenhuma interação recente registrada.',
+    formula: `Negócios abertos com lastInteraction nulo OU (AGORA − lastInteraction) > ${FORECAST_RULES.STALE_INTERACTION_DAYS} dias — mesmo limiar de "interação vencida" do Forecast Ponderado.`,
+    source: 'Lead.lastInteraction via application/queries/journeyReport.ts',
+    period: 'Instantâneo',
+    inclusionRules: 'Ordenado por valor decrescente (maior valor parado primeiro).',
+    exclusionRules: 'Negócios fechados não entram.',
+  },
+  {
+    key: 'mapa_transicoes',
+    name: 'Mapa de transições (etapa → etapa)',
+    description:
+      'Quantas vezes cada par etapa de origem → etapa de destino aconteceu e quanto tempo o negócio ficou na origem.',
+    formula:
+      'Para cada par de linhas consecutivas de LeadStageHistory do mesmo negócio: 1 transição origem→destino; dias na origem = enteredAt(destino) − enteredAt(origem), agregado por MEDIANA. Regressão = destino com sortOrder menor que a origem.',
+    source:
+      'LeadStageHistory + CrmPipelineStage.sortOrder via application/queries/journeyReport.ts',
+    period: 'Histórico completo no escopo do filtro',
+    inclusionRules: '—',
+    exclusionRules:
+      'Etapas sem stageId (histórico legado gravado só com nome) não classificam regressão.',
   },
 ];
