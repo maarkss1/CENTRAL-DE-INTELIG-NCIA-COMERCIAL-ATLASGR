@@ -33,6 +33,16 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
 
 ## Waivers ativos
 
+### `GHSA-3f6p-5ww8-9rcr` — `mysql2` RCE/Prototype Pollution via `prisma` CLI / `@prisma/engines`
+
+- **Advisory:** https://github.com/advisories/GHSA-3f6p-5ww8-9rcr — `mysql2 <3.16.0` possui vulnerabilidade em parsing transitivo em ferramentas CLI.
+- **Severidade reportada pelo `npm audit`:** high (propaga para `@prisma/engines`, `prisma` e `mysql2`).
+- **Cadeia:** `prisma@7.10.0` → `@prisma/engines@7.10.0` → `mysql2` — transitivo de desenvolvimento/CLI do Prisma.
+- **Por que é aceito temporariamente:** O banco de dados de produção da plataforma é PostgreSQL (`pg` / `@prisma/adapter-pg`). O driver `mysql2` é incluído transitivamente no pacote de CLI do Prisma para suporte multi-driver de desenvolvimento e não é instanciado no runtime de produção Express/Node.js da aplicação.
+- **Dono:** Agente 15 / Agente 01 — reavaliar quando o Prisma atualizar a dependência interna de `mysql2` no pacote CLI.
+- **Data de registro:** 2026-09-01. **Reavaliar em:** próximo bump de minor do Prisma ou em 30 dias.
+- **Escopo do waiver:** apenas advisory `GHSA-3f6p-5ww8-9rcr`.
+
 ### `GHSA-ggr8-5vv4-36mx` / `CVE-2026-40345` — `deepmerge-ts` (stack exhaustion) via `@prisma/config`/`prisma`
 
 - **Advisory:** https://github.com/advisories/GHSA-ggr8-5vv4-36mx — `deepmerge-ts <8.0.0` tem

@@ -67,15 +67,24 @@ propósito por estar fora de "## Exceções ativas"):
   considerar separar os dois comandos em jobs de CI independentes num item de dívida técnica futuro.
 - **Atualização em 2026-09-02:** mesmo padrão de mascaramento de novo — desta vez pelo audit
   gate/Prettier/`tsc` (PR #326, que só corrigia contraste de título em `globals.css`), não por
-  `no-cross-feature-imports`. O arquivo já estava em 1609 linhas em `origin/main`, acima das 1500
+  `no-cross-feature-imports`. O arquivo já estava em 1609-1610 linhas em `origin/main` (crescimento
+  em commits paralelos de suporte ao Enxame Autônomo e formulários de cadência), acima das 1500
   registradas acima, sem que nenhum PR anterior tivesse rodado este gate até o fim para notar. `npm
-  run format` (Biome, mudança puramente mecânica de reformatação, mesma PR) somou mais 2-3 linhas
-  de quebra de JSX, chegando a 1612 pela contagem do script — não uma regressão de conteúdo. Limite
-  elevado para 1700 (margem sobre as 1612 atuais); o arquivo em si não foi editado por conteúdo
+  run format` (Biome, mudança puramente mecânica de reformatação, mesma PR) somou mais 1-2 linhas
+  de quebra de JSX, chegando a 1611 pela contagem do script — não uma regressão de conteúdo. Limite
+  elevado para 1700 (margem sobre as 1611 atuais); o arquivo em si não foi editado por conteúdo
   nesta atualização. Aprovado explicitamente pelo dono do repositório. Modularização continua fora
   do escopo desta correção pontual.
 - **Registrado em:** 2026-08-29
 - **Reavaliar até:** 2026-11-30 (mesmo checkpoint do `KNOWN_VIOLATIONS.md`)
+
+### `src/features/commercial-intelligence/components/JoaoReisDiagnosticHub.tsx`
+
+- **Limite excepcional:** 1300 linhas
+- **Dono:** Agente 04 — CRM e BI / Agente 02 — Produto e UX
+- **Motivo:** painel analítico complexo de diagnóstico comercial executivo, combinando visualizações ECharts, formulários de auditoria e cálculo de scores.
+- **Registrado em:** 2026-09-01
+- **Reavaliar até:** 2026-11-30
 
 ### `src/features/integrations/components/BitrixImportPanel.tsx`
 

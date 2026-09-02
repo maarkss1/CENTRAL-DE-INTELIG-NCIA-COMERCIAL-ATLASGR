@@ -382,6 +382,7 @@ export function Intelligence() {
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setPickerOpen(true)}
                     className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-ink-2 hover:bg-brand-active hover:text-white transition-colors shrink-0"
                     title="Trocar Lead"
@@ -392,6 +393,7 @@ export function Intelligence() {
               </motion.div>
             ) : (
               <button
+                type="button"
                 onClick={() => setPickerOpen(true)}
                 className="w-full p-5 rounded-2xl border-2 border-dashed border-line hover:border-brand/60 hover:bg-orange-50/50 text-ink-2 hover:text-brand transition-all flex flex-col items-center justify-center gap-3 group"
               >
@@ -425,6 +427,7 @@ export function Intelligence() {
                     <Fingerprint size={12} /> Selecionar Alvo
                   </span>
                   <button
+                    type="button"
                     onClick={() => setPickerOpen(false)}
                     aria-label="Fechar"
                     className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-2 text-ink-2"
@@ -455,6 +458,7 @@ export function Intelligence() {
                   )}
                   {filteredLeads.map((l) => (
                     <button
+                      type="button"
                       key={l.id}
                       onClick={() => {
                         setSelectedLead(l);
@@ -497,6 +501,7 @@ export function Intelligence() {
                   Matriz de Tom
                 </label>
                 <button
+                  type="button"
                   id="dropdown-tone"
                   onClick={() => setActiveDropdown(activeDropdown === 'tone' ? null : 'tone')}
                   className="w-full px-3 py-2.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink-2 flex items-center justify-between hover:border-line focus:outline-none"
@@ -538,6 +543,7 @@ export function Intelligence() {
                   Vetor de Objetivo
                 </label>
                 <button
+                  type="button"
                   id="dropdown-objective"
                   onClick={() =>
                     setActiveDropdown(activeDropdown === 'objective' ? null : 'objective')
@@ -582,6 +588,7 @@ export function Intelligence() {
                     Persona Simulada
                   </label>
                   <button
+                    type="button"
                     id="dropdown-persona"
                     onClick={() =>
                       setActiveDropdown(activeDropdown === 'persona' ? null : 'persona')
@@ -637,6 +644,7 @@ export function Intelligence() {
                       : 'Informe o Concorrente'}
                   </span>
                   <button
+                    type="button"
                     onClick={() => {
                       setCompetitorPickerOpen(false);
                       setActiveTool(null);
@@ -650,6 +658,7 @@ export function Intelligence() {
                 <div className="flex flex-wrap gap-2 mb-4">
                   {suggestedCompetitors.map((c) => (
                     <button
+                      type="button"
                       key={c}
                       onClick={() => {
                         setCompetitor(c);
@@ -670,6 +679,7 @@ export function Intelligence() {
                     className="flex-1 p-2.5 bg-surface-2 border border-line rounded-xl text-xs font-medium outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all"
                   />
                   <button
+                    type="button"
                     onClick={() =>
                       customCompetitor.trim() &&
                       handleGenerate('competitor_battlecard', customCompetitor.trim())
@@ -857,6 +867,7 @@ export function Intelligence() {
                       </h3>
                     </div>
                     <button
+                      type="button"
                       onClick={handleCopy}
                       className={`flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer ${
                         copied

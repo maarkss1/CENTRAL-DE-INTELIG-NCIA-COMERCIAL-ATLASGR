@@ -242,8 +242,7 @@ export function HeatmapChart({
       : undefined,
     tooltip: {
       position: 'top' as const,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      formatter: (params: any) =>
+      formatter: (params: { data: (number | string)[] }) =>
         `${WEEKDAYS[params.data[1] as number]} ${HOURS[params.data[0] as number]}: ${params.data[2] as number} atividades`,
     },
     grid: { top: title ? 40 : 10, bottom: 30, left: 40, right: 10 },
@@ -424,8 +423,8 @@ export function LineChart({
         ? {
             areaStyle: {
               color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: ATLAS_COLORS[i % ATLAS_COLORS.length] + '40' },
-                { offset: 1, color: ATLAS_COLORS[i % ATLAS_COLORS.length] + '00' },
+                { offset: 0, color: `${ATLAS_COLORS[i % ATLAS_COLORS.length]}40` },
+                { offset: 1, color: `${ATLAS_COLORS[i % ATLAS_COLORS.length]}00` },
               ]),
             },
           }
