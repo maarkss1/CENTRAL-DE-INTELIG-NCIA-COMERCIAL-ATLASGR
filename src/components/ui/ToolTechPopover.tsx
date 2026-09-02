@@ -43,6 +43,7 @@ export const ToolTechPopover: React.FC<ToolTechPopoverProps> = ({
     // por overlay não-focável é o mesmo endossado pelas ARIA Authoring Practices para diálogos,
     // por isso o disable pontual abaixo (mesmo raciocínio já documentado em CrmBoard.tsx).
     // biome-ignore lint/a11y/noStaticElementInteractions: dismiss por overlay, ver comentário acima
+    // biome-ignore lint/a11y/useKeyWithClickEvents: dismiss por overlay, ver comentário acima
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
       onClick={(event) => {

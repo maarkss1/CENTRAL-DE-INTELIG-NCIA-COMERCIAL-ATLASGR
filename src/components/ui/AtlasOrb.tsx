@@ -7,7 +7,7 @@ import { useBrandAccent } from '../../hooks/useBrandAccent';
 function OrbCore() {
   const { isAtlas } = useBrandAccent();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const materialRef = useRef<any>(null);
+  const materialRef = useRef<unknown>(null);
   // O @media (prefers-reduced-motion) global de globals.css só zera animation/transition CSS —
   // não alcança o loop de render do react-three-fiber (useFrame), que é como Float/Sparkles/
   // MeshDistortMaterial animam. Achado nesta rodada (Onda 8): a esfera girava/distorcia
