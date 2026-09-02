@@ -28,6 +28,15 @@ const SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 // e o "captured a stable screenshot" do Playwright trava num frame qualquer dessa animação,
 // diferente a cada execução. Mesmo tratamento: mascarado via data-testid em vez de tentar
 // sincronizar com o fim da animação.
+//
+// Achado real (investigação de CI do PR #328): mesmo com os três acima mascarados, o
+// RevenueSignalOrb (r3f/three.js, ícone-orbe 3D com rotação contínua enquanto visível — ver
+// `DeferredRevenueSignalOrb.tsx`/`RevenueSignalOrb.tsx`) nunca tinha sido mascarado, então cada
+// tentativa de captura via `toHaveScreenshot` pegava o orbe num ângulo de rotação diferente —
+// diff de dezenas de milhares de pixels que nunca estabilizava mesmo depois de 500ms de espera.
+// Não é regressão de nenhuma mudança recente no orbe (o widget já existia sem máscara antes);
+// só nunca tinha sido pego porque a suíte E2E nunca tinha chegado a rodar de ponta a ponta neste
+// PR (falhava antes, em gates anteriores do mesmo job). Mesmo tratamento dos casos acima.
 const DASHBOARD_SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 
 async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 'dark') {
@@ -51,6 +60,7 @@ test.describe('Regressão visual', () => {
           page.getByTestId('dashboard-greeting'),
           page.getByTestId('clock-calendar-widget'),
           page.getByTestId('dashboard-analytics-chart'),
+          page.getByTestId('revenue-signal-orb'),
         ],
       });
     });
