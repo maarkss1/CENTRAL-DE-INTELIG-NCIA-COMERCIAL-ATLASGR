@@ -85,6 +85,22 @@ _(nenhum no momento — ver Histórico abaixo para o item resolvido em 30/08/202
 
 ## Histórico
 
+- 2026-09-02 — `trivy-fs-pr-gate` (e o scan de imagem em `production.yaml`) bloqueava com
+  `GHSA-rgwj-5xj2-c3m3` (`mysql2`, MEDIUM, decompression-bomb DoS via zlib inflate — mesma cadeia
+  dev-only via `prisma` CLI dos dois waivers acima), sem esse advisory estar listado em nenhum
+  waiver. Causa raiz não era um achado novo a aceitar: os dois jobs Trivy usam `format: sarif` sem
+  `limit-severities-for-sarif: true`, e a `trivy-action` (ver `entrypoint.sh`, bloco "Handle
+  SARIF") faz `unset TRIVY_SEVERITY` nesse caso — ou seja, `severity: HIGH,CRITICAL` configurado
+  em ambos os jobs era ignorado silenciosamente, e o `exit-code: 1` avaliava achados de qualquer
+  severidade (inclusive MEDIUM/LOW/UNKNOWN), contradizendo o nome e os comentários dos dois jobs.
+  Confirmado rodando `trivy fs .` v0.70.0 localmente contra o repositório: com `--severity
+  HIGH,CRITICAL` (comportamento pretendido) o achado não aparece; sem essa flag (comportamento
+  real dos jobs antes desta correção), aparece. Corrigido adicionando
+  `limit-severities-for-sarif: true` em `security-trivy.yml` (job `trivy-fs-pr-gate`) e em
+  `production.yaml` (scan de imagem) — nenhum waiver novo foi necessário, o achado está
+  genuinamente abaixo do gate (MEDIUM < HIGH), como a seção "Débito conhecido" abaixo já previa
+  para esse caso.
+
 - 2026-09-02 — o waiver `GHSA-3f6p-5ww8-9rcr` (registrado em 2026-09-01 nesta seção) nunca tinha
   sido espelhado para `.trivyignore.yaml` nem para `allow-ghsas` em
   `.github/workflows/dependency-review.yml`, apesar da regra no topo deste arquivo — achado porque
