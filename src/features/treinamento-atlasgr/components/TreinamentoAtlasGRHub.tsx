@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, ExternalLink, BookOpen, Award, CheckCircle, Search, Sparkles, Layers, ShieldCheck } from 'lucide-react';
+import { GraduationCap, ExternalLink, BookOpen, Award, CheckCircle, Search, Layers } from 'lucide-react';
 import { ExecutiveHeader } from '../../../components/layout/ExecutiveHeader';
 
 export function TreinamentoAtlasGRHub() {

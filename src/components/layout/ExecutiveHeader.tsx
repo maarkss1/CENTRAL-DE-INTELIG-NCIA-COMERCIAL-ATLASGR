@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Share2, GraduationCap, FileSignature, PieChart, Maximize2, Minimize2, RefreshCw, ShieldCheck } from 'lucide-react';
 
 interface ExecutiveHeaderProps {
