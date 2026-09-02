@@ -16,8 +16,11 @@ export async function mountFrontend(app: Express): Promise<void> {
     // Serve estáticos do /tools antes do Vite, para evitar que o Vite intercepte .html e retorne o SPA fallback
     app.use('/tools', express.static(path.join(process.cwd(), 'public', 'tools')));
     // Treinamento AtlasGR (Next.js export) precisa de /_next na raiz
-    app.use('/_next', express.static(path.join(process.cwd(), 'public', 'tools', 'treinamento-atlasgr', '_next')));
-    
+    app.use(
+      '/_next',
+      express.static(path.join(process.cwd(), 'public', 'tools', 'treinamento-atlasgr', '_next')),
+    );
+
     const vite = await createViteServer({
       server: { middlewareMode: true, host: true, allowedHosts: true },
       appType: 'spa',
@@ -26,7 +29,7 @@ export async function mountFrontend(app: Express): Promise<void> {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    
+
     // Treinamento AtlasGR (Next.js export) precisa de /_next na raiz (em produção fica em dist/tools/...)
     app.use('/_next', express.static(path.join(distPath, 'tools', 'treinamento-atlasgr', '_next')));
 
