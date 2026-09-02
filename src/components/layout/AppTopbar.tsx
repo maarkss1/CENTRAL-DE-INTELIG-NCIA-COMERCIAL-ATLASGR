@@ -100,7 +100,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
       </button>
 
       <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
-        <div className="hidden text-right leading-tight sm:block">
+        <div className="hidden text-right leading-tight sm:block" data-testid="app-topbar-clock">
           <p className="text-[11px] font-medium capitalize text-ink-2">{dateLabel}</p>
           <p className="text-sm font-bold text-ink [font-variant-numeric:tabular-nums]">
             {timeLabel}

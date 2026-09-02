@@ -28,6 +28,14 @@ const SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 // e o "captured a stable screenshot" do Playwright trava num frame qualquer dessa animação,
 // diferente a cada execução. Mesmo tratamento: mascarado via data-testid em vez de tentar
 // sincronizar com o fim da animação.
+//
+// Achado real (merge com origin/main, 2026-09-02): o relógio HH:MM do AppTopbar (visível em toda
+// tela autenticada, não só o dashboard) nunca tinha sido mascarado — só mudava 1-2 dígitos entre a
+// geração do baseline e a verificação em CI (minutos de diferença), pequeno o bastante pra caber
+// no orçamento de 600px por acidente. Ficou visível quando o baseline passou a ser gerado num job
+// `workflow_dispatch` separado do job que roda a suíte (minutos de defasagem real), estourando o
+// orçamento e marcando `dashboard-dark` como flaky. Mascarado via `app-topbar-clock`, aplicado
+// também ao `crm-board` pelo mesmo motivo (mesmo AppTopbar).
 const DASHBOARD_SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 
 async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 'dark') {
@@ -51,6 +59,7 @@ test.describe('Regressão visual', () => {
           page.getByTestId('dashboard-greeting'),
           page.getByTestId('clock-calendar-widget'),
           page.getByTestId('dashboard-analytics-chart'),
+          page.getByTestId('app-topbar-clock'),
         ],
       });
     });
@@ -60,7 +69,10 @@ test.describe('Regressão visual', () => {
       await signUp(page, { email: uniqueTestEmail(`visual-crm-${theme}`) });
       await page.getByRole('button', { name: 'Pipeline CRM' }).click();
       await waitForAppReady(page);
-      await expect(page).toHaveScreenshot(`crm-board-${theme}.png`, SCREENSHOT_OPTIONS);
+      await expect(page).toHaveScreenshot(`crm-board-${theme}.png`, {
+        ...SCREENSHOT_OPTIONS,
+        mask: [page.getByTestId('app-topbar-clock')],
+      });
     });
   }
 
