@@ -89,7 +89,8 @@ describe('MesaTriageService — piso de severidade determinístico', () => {
       vehiclePlate: 'XYZ9Z99',
       clientName: 'Cliente Teste',
       alertType: 'Perda de Sinal em Subsolo Conhecido',
-      telemetryDataSummary: 'Sinal de GPS perdido por 2 minutos em túnel mapeado, sem outras anomalias.',
+      telemetryDataSummary:
+        'Sinal de GPS perdido por 2 minutos em túnel mapeado, sem outras anomalias.',
       riskZoneClassification: 'Zona de Baixo Risco',
     });
 

@@ -91,7 +91,9 @@ export class PrismaCompanyRepository implements CompanyRepository {
       data: {
         ...data,
         organizationId,
-        ...(data.status ? { status: toPrismaCompanyStatus(data.status as unknown as CompanyStatusLabel) } : {}),
+        ...(data.status
+          ? { status: toPrismaCompanyStatus(data.status as unknown as CompanyStatusLabel) }
+          : {}),
       } as Prisma.CompanyCreateInput,
     });
     return serializeCompanyStatus(created) as unknown as Company;
@@ -109,7 +111,9 @@ export class PrismaCompanyRepository implements CompanyRepository {
       where: { id, organizationId },
       data: {
         ...data,
-        ...(data.status ? { status: toPrismaCompanyStatus(data.status as unknown as CompanyStatusLabel) } : {}),
+        ...(data.status
+          ? { status: toPrismaCompanyStatus(data.status as unknown as CompanyStatusLabel) }
+          : {}),
       } as Prisma.CompanyUpdateInput,
     });
     return serializeCompanyStatus(updated) as unknown as Company;
