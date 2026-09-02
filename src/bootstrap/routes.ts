@@ -2,7 +2,7 @@ import type { Express } from 'express';
 import { authenticateToken, type AuthRequest } from '../shared/middlewares/authenticateToken.js';
 import { requireTenant } from '../shared/middlewares/authorization.js';
 import { requireRole } from '../shared/middlewares/requireRole.js';
-import { COMMERCIAL_INTELLIGENCE_ROLES } from '../lib/auth/authorization.js';
+import { COMMERCIAL_INTELLIGENCE_ROLES, COPILOTO_IA_ROLES } from '../lib/auth/authorization.js';
 import { sseService } from '../features/notifications/sse.service.js';
 
 import { intelligenceRoutes } from '../features/intelligence/routes/intelligence.routes.js';
@@ -21,6 +21,7 @@ import { noteRoutes } from '../features/notes/routes/note.routes.js';
 import { analyticsRoutes } from '../features/analytics/routes/analytics.routes.js';
 import { eventsRoutes } from '../features/analytics/routes/events.routes.js';
 import { commercialIntelligenceRoutes } from '../features/commercial-intelligence/routes/commercialIntelligence.routes.js';
+import { copilotoIaRoutes } from '../features/copiloto-ia/routes/copilotoIa.routes.js';
 import { whatsappRoutes } from '../features/integrations/whatsapp/whatsapp.routes.js';
 import { birthVoiceRoutes } from '../features/integrations/birth-voice/birthVoice.routes.js';
 import { googleRoutes } from '../features/integrations/google/google.routes.js';
@@ -88,6 +89,16 @@ export function mountFeatureRoutes(app: Express): void {
     requireTenant,
     requireRole([...COMMERCIAL_INTELLIGENCE_ROLES]),
     commercialIntelligenceRoutes,
+  );
+  // Copiloto Comercial IA (fundação — Onda 1). `requireRole` aqui é defesa em profundidade: o
+  // router em copilotoIa.routes.ts já se protege sozinho (router.use(requireRole(...))), mesmo
+  // desenho do mount de Comercial Inteligente logo acima.
+  app.use(
+    '/api/copiloto-ia',
+    authenticateToken,
+    requireTenant,
+    requireRole([...COPILOTO_IA_ROLES]),
+    copilotoIaRoutes,
   );
   app.use('/api/knowledge', requireTenant, knowledgeRoutes);
   app.use('/api/lgpd', authenticateToken, requireTenant, lgpdRouter);

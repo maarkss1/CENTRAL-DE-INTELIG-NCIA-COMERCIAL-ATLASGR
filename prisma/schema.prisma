@@ -268,6 +268,7 @@ model Company {
   accountRecommendations      AccountRecommendation[]
   sourceEconomicRelationships EconomicRelationship[]        @relation("EconomicRelationshipSource")
   targetEconomicRelationships EconomicRelationship[]        @relation("EconomicRelationshipTarget")
+  copilotoConversations       CopilotoConversation[]
   organizationId              String?
   organization                Organization?                 @relation(fields: [organizationId], references: [id])
   deletedAt                   DateTime?
@@ -499,6 +500,7 @@ model Contact {
   company               Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   leads                 Lead[]
   whatsAppMessages      WhatsAppMessage[]
+  copilotoConversations CopilotoConversation[]
   organizationId        String?
   organization          Organization?     @relation(fields: [organizationId], references: [id])
   decisionMakerProfiles DecisionMaker[]
@@ -641,6 +643,8 @@ model Lead {
   emailMessages         EmailMessage[]
   cadenceCalendarEvents CadenceCalendarEvent[]
   dealClosureEvents     DealClosureEvent[]
+  copilotoConversations       CopilotoConversation[]
+  copilotoDealHealthSnapshots CopilotoDealHealthSnapshot[]
   organizationId        String?
   organization          Organization?           @relation(fields: [organizationId], references: [id])
 
@@ -823,6 +827,12 @@ model Organization {
   accountScores                 AccountScore[]
   accountRecommendations        AccountRecommendation[]
   economicRelationships         EconomicRelationship[]
+  copilotoConversations         CopilotoConversation[]
+  copilotoTranscriptSegments    CopilotoTranscriptSegment[]
+  copilotoInsights              CopilotoInsight[]
+  copilotoCrmFieldSuggestions   CopilotoCrmFieldSuggestion[]
+  copilotoDealHealthSnapshots   CopilotoDealHealthSnapshot[]
+  copilotoConsentRecords        CopilotoConsentRecord[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
   threeCXCallEvents             ThreeCXCallEvent[]
@@ -1854,6 +1864,251 @@ model ConversationSignal {
   createdAt DateTime @default(now())
 
   @@index([organizationId, leadId, createdAt])
+}
+
+// ─── Copiloto Comercial IA (fundação — Onda 1) ─────────────────────────────
+// Fundação de dados do pacote `atlasgr_copiloto_ai_pack` (agents/AGENT_03_MODELO_EVENTOS.md,
+// docs/MODELO_DE_DADOS.md): captura e estrutura sinais de conversas comerciais com fonte de
+// mídia/transcrição real (Google Meet, ligação) e consentimento auditável — não confundir com
+// `ConversationSignal` acima, que lê janelas de `WhatsAppMessage`/e-mail já persistidas e não tem
+// transcrição bruta nem captura de áudio/vídeo. Onda 1 é só a fundação: captura real (extensão
+// Chrome), transcrição, inteligência de conversação e writeback no Bitrix ainda não estão
+// implementados — os models abaixo existem para as ondas seguintes preencherem.
+enum CopilotoConversationSource {
+  MEET
+  CALL
+  WHATSAPP
+  MANUAL
+  OTHER
+}
+
+enum CopilotoConversationStatus {
+  SCHEDULED
+  CAPTURING
+  PROCESSING
+  READY
+  FAILED
+  CANCELLED
+}
+
+/// Base legal desta captura específica — NOT_REQUIRED só se aplica a fontes que não gravam
+/// áudio/vídeo (ex.: MANUAL). Ver `CopilotoConsentRecord` para o registro auditável de como/quando
+/// foi concedido.
+enum CopilotoConsentStatus {
+  PENDING
+  GRANTED
+  DECLINED
+  NOT_REQUIRED
+}
+
+enum CopilotoCrmEntityType {
+  LEAD
+  COMPANY
+  CONTACT
+}
+
+enum CopilotoSuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WRITTEN_BACK
+  FAILED
+}
+
+model CopilotoConversation {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  source CopilotoConversationSource
+  status CopilotoConversationStatus @default(SCHEDULED)
+
+  title String?
+
+  /// Id da conferência/reunião na origem (ex.: Google Meet conference id) — idempotência: a
+  /// extensão pode reenviar o mesmo evento de início de captura após uma reconexão.
+  externalMeetingId String?
+
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  consentStatus CopilotoConsentStatus @default(PENDING)
+
+  /// Quem iniciou a captura (userId) — sem FK dura para User, mesmo padrão de `CommercialGoal.createdBy`.
+  createdBy String?
+
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  transcriptSegments  CopilotoTranscriptSegment[]
+  insights            CopilotoInsight[]
+  crmFieldSuggestions CopilotoCrmFieldSuggestion[]
+  consentRecords      CopilotoConsentRecord[]
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedBy    String?
+  deleteReason String?
+
+  // NULL não colide com NULL em unique index do Postgres — conversas sem meeting id (MANUAL)
+  // continuam livres, sem restrição. Mesmo raciocínio de `Lead.bitrixLeadId`.
+  @@unique([organizationId, externalMeetingId])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+  @@index([leadId])
+  @@index([companyId])
+  @@index([contactId])
+}
+
+model CopilotoTranscriptSegment {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  conversationId String
+  conversation   CopilotoConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// Rótulo do participante capturado na origem (ex.: nome exibido no Meet) — resolução para
+  /// User/Contact fica para uma onda futura, não é inferida aqui.
+  speakerLabel String?
+
+  startMs Int
+  endMs   Int
+  text    String @db.Text
+  /// Confiança do provedor de transcrição (0-1), quando reportada.
+  confidence Float?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([conversationId, startMs])
+}
+
+model CopilotoInsight {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  conversationId String
+  conversation   CopilotoConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// Tipo do insight — conjunto aberto, cresce nas próximas ondas (objecao, concorrente,
+  /// buying_signal, risco, proximo_passo, resumo, ...). Mesmo espírito de `TimelineEvent.type`:
+  /// documentado por comentário, não travado em enum, porque o catálogo real ainda não existe
+  /// (Onda 5 do roadmap do pacote).
+  type String
+
+  valueJson Json
+
+  /// Confiança do modelo que gerou o insight (0-1), quando reportada.
+  confidence Float?
+
+  /// Ids de `CopilotoTranscriptSegment` que evidenciam este insight — rastreabilidade, nunca um
+  /// insight sem evidência apontável quando a fonte é transcrição.
+  evidenceSegmentIds String[]
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([conversationId, type])
+}
+
+model CopilotoCrmFieldSuggestion {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  conversationId String
+  conversation   CopilotoConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// Entidade-alvo da sugestão — par genérico (não FK direta) porque o mapeamento
+  /// semantic_field -> UF_CRM_* (ver docs/BITRIX_FIELD_MAPPING.md do pacote) é resolvido nas ondas
+  /// seguintes e pode alcançar Lead, Company ou Contact.
+  entityType CopilotoCrmEntityType
+  entityId   String
+
+  /// Chave semântica do campo (ex.: "principal_dor", "concorrente") — mapeada para o código real
+  /// UF_CRM_* do portal Bitrix do tenant fora deste módulo (Onda 4/8 do roadmap do pacote).
+  fieldCode String
+
+  previousValue  String? @db.Text
+  suggestedValue String  @db.Text
+  /// Confiança do modelo que gerou a sugestão (0-1).
+  confidence Float?
+
+  status CopilotoSuggestionStatus @default(PENDING)
+
+  /// Quem aprovou/rejeitou (userId) — sem FK dura para User, mesmo padrão de `CommercialGoal.createdBy`.
+  approvedBy  String?
+  approvedAt  DateTime?
+  writebackAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, status])
+  @@index([conversationId])
+  @@index([organizationId, entityType, entityId])
+}
+
+// Append-only, mesmo desenho de `ForecastSnapshot`: nunca sobrescrito, cada corrida insere uma
+// linha nova — histórico de revisões necessário para medir a evolução real do health score de uma
+// oportunidade ao longo do tempo (Onda 6 do roadmap do pacote calcula o score em cima disto).
+model CopilotoDealHealthSnapshot {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  /// 0-100, mesma escala de `healthScore.ts` (commercial-intelligence).
+  score       Int
+  factorsJson Json
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, leadId, createdAt])
+  @@index([leadId])
+}
+
+model CopilotoConsentRecord {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  conversationId String
+  conversation   CopilotoConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// Como o consentimento foi obtido (ex.: "meet_banner", "verbal_notice", "explicit_click") —
+  /// texto livre documentado, mesmo padrão de `ConversationSignal.channel`.
+  method String
+  /// Versão do texto/aviso de consentimento apresentado — auditoria: se o texto legal mudar, um
+  /// registro antigo continua rastreável à versão que a pessoa realmente viu.
+  textVersion String
+
+  /// Quem concedeu/recusou (userId ou identificador do participante externo) — sem FK dura, mesmo
+  /// padrão de `CommercialGoal.createdBy`.
+  actorId String?
+
+  grantedAt  DateTime?
+  declinedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([conversationId])
 }
 
 /// Conexão real de Google Workspace (Gmail + Calendar) de uma organização — antes disso,

@@ -18,6 +18,7 @@ import { PrismaObjectionMatrixRepository } from '../../features/playbook/objecti
 import { PrismaBugReportRepository } from '../../features/bug-reports/infra/PrismaBugReportRepository';
 import { PrismaUsageRepository } from '../../features/billing/infra/PrismaUsageRepository';
 import { PrismaFeatureFlagRepository } from '../../features/feature-flags/infra/PrismaFeatureFlagRepository';
+import { PrismaCopilotoIaRepository } from '../../features/copiloto-ia/infra/PrismaCopilotoIaRepository';
 
 // Use Cases
 import { NoteUseCases } from '../../features/notes/application/NoteUseCases';
@@ -34,6 +35,7 @@ import { ObjectionMatrixUseCases } from '../../features/playbook/objection-matri
 import { BugReportUseCases } from '../../features/bug-reports/application/BugReportUseCases';
 import { UsageUseCases } from '../../features/billing/application/UsageUseCases';
 import { FeatureFlagsUseCases } from '../../features/feature-flags/application/FeatureFlagsUseCases';
+import { CopilotoIaUseCases } from '../../features/copiloto-ia/application/CopilotoIaUseCases';
 
 // Controllers
 import { NoteController } from '../../features/notes/presentation/NoteController';
@@ -50,6 +52,7 @@ import { ObjectionMatrixController } from '../../features/playbook/objection-mat
 import { BugReportController } from '../../features/bug-reports/presentation/BugReportController';
 import { UsageController } from '../../features/billing/presentation/UsageController';
 import { FeatureFlagsController } from '../../features/feature-flags/presentation/FeatureFlagsController';
+import { CopilotoIaController } from '../../features/copiloto-ia/presentation/CopilotoIaController';
 
 export function setupDI() {
   // 1. Shared
@@ -71,6 +74,7 @@ export function setupDI() {
   const bugReportRepository = new PrismaBugReportRepository();
   const usageRepository = new PrismaUsageRepository();
   const featureFlagRepository = new PrismaFeatureFlagRepository();
+  const copilotoIaRepository = new PrismaCopilotoIaRepository();
 
   container.register('NoteRepository', noteRepository);
   container.register('ActivityRepository', activityRepository);
@@ -86,6 +90,7 @@ export function setupDI() {
   container.register('BugReportRepository', bugReportRepository);
   container.register('UsageRepository', usageRepository);
   container.register('FeatureFlagRepository', featureFlagRepository);
+  container.register('CopilotoIaRepository', copilotoIaRepository);
 
   // 3. Use Cases
   const noteUseCases = new NoteUseCases(noteRepository);
@@ -112,6 +117,7 @@ export function setupDI() {
   const bugReportUseCases = new BugReportUseCases(bugReportRepository);
   const usageUseCases = new UsageUseCases(usageRepository);
   const featureFlagsUseCases = new FeatureFlagsUseCases(featureFlagRepository);
+  const copilotoIaUseCases = new CopilotoIaUseCases(copilotoIaRepository);
 
   container.register('NoteUseCases', noteUseCases);
   container.register('ActivityUseCases', activityUseCases);
@@ -127,6 +133,7 @@ export function setupDI() {
   container.register('BugReportUseCases', bugReportUseCases);
   container.register('UsageUseCases', usageUseCases);
   container.register('FeatureFlagsUseCases', featureFlagsUseCases);
+  container.register('CopilotoIaUseCases', copilotoIaUseCases);
 
   // 4. Controllers
   container.register('NoteController', new NoteController(noteUseCases));
@@ -155,4 +162,5 @@ export function setupDI() {
   container.register('BugReportController', new BugReportController(bugReportUseCases));
   container.register('UsageController', new UsageController(usageUseCases));
   container.register('FeatureFlagsController', new FeatureFlagsController(featureFlagsUseCases));
+  container.register('CopilotoIaController', new CopilotoIaController(copilotoIaUseCases));
 }
