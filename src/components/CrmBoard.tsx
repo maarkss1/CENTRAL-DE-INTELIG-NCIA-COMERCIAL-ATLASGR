@@ -344,11 +344,21 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
     if (selectedLeadIds.size === 0 || !newStatus) return;
     setIsBatchUpdating(true);
     try {
-      await api.post('/api/leads/batch-update', {
-        leadIds: Array.from(selectedLeadIds),
-        updates: { status: newStatus },
-      });
-      toast.success(`${selectedLeadIds.size} leads movidos para "${newStatus}"!`);
+      // Usa o resultado real da API (updatedCount/failedCount), não selectedLeadIds.size — o
+      // backend filtra ids inexistentes/de outro tenant e só conta como atualizado quando algo
+      // realmente mudou, então a contagem solicitada podia ser maior que a real sem o usuário
+      // nunca saber (achado de auditoria).
+      const result = await api.post<{ updatedCount: number; total: number; failedCount: number }>(
+        '/api/leads/batch-update',
+        { leadIds: Array.from(selectedLeadIds), updates: { status: newStatus } },
+      );
+      if (result.failedCount > 0) {
+        toast.error(
+          `${result.updatedCount} de ${result.total} leads movidos para "${newStatus}" — ${result.failedCount} falharam.`,
+        );
+      } else {
+        toast.success(`${result.updatedCount} lead(s) movido(s) para "${newStatus}"!`);
+      }
       fetchLeads();
       setSelectedLeadIds(new Set());
     } catch (err) {
@@ -364,11 +374,17 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
     const ownerName = ownerUser?.name || ownerId;
     setIsBatchUpdating(true);
     try {
-      await api.post('/api/leads/batch-update', {
-        leadIds: Array.from(selectedLeadIds),
-        updates: { owner: ownerName },
-      });
-      toast.success(`${selectedLeadIds.size} leads reatribuídos para "${ownerName}"!`);
+      const result = await api.post<{ updatedCount: number; total: number; failedCount: number }>(
+        '/api/leads/batch-update',
+        { leadIds: Array.from(selectedLeadIds), updates: { owner: ownerName } },
+      );
+      if (result.failedCount > 0) {
+        toast.error(
+          `${result.updatedCount} de ${result.total} leads reatribuídos para "${ownerName}" — ${result.failedCount} falharam.`,
+        );
+      } else {
+        toast.success(`${result.updatedCount} lead(s) reatribuído(s) para "${ownerName}"!`);
+      }
       fetchLeads();
       setSelectedLeadIds(new Set());
     } catch (err) {
