@@ -168,17 +168,19 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         type="button"
         onClick={() => selectTab(tab)}
         aria-current={isActive ? 'page' : undefined}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+        className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl font-bold text-sm text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
           isActive
-            ? 'bg-brand-active text-white shadow-md'
+            ? 'bg-brand-active text-white shadow-[var(--shadow-brand-sm)]'
             : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
         }`}
       >
-        <Icon
-          size={20}
-          className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}
-          aria-hidden="true"
-        />
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${
+            isActive ? 'bg-white/15' : 'bg-transparent group-hover:bg-surface'
+          }`}
+        >
+          <Icon size={18} className={isActive ? 'opacity-100' : 'opacity-70'} aria-hidden="true" />
+        </span>
         <span>{meta.label}</span>
       </button>
     );
@@ -206,7 +208,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
           onClick={() => setActiveBrand(isAtlas ? 'totaltrac' : 'atlasgr')}
           aria-label={`Alternar para a operação ${isAtlas ? 'Total Trac' : 'AtlasGR'}`}
         >
-          <div className="flex items-center justify-between p-2 rounded-[var(--radius-nav-item)] border border-line bg-surface-2 hover:bg-brand/10 transition-all">
+          <div className="flex items-center justify-between p-2.5 rounded-[var(--radius-nav-item)] border border-line bg-surface-2 hover:bg-brand/10 hover:border-brand/30 hover:shadow-card transition-all">
             <div className="flex items-center gap-2">
               {isAtlas ? (
                 <Logo variant="symbol" className="h-6 w-6 shrink-0" />
@@ -249,7 +251,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
 
       <div className="p-3 border-t border-line space-y-2">
         {currentUser && (
-          <div className="px-3 py-2 rounded-xl bg-surface-2/60">
+          <div className="px-3 py-2.5 rounded-xl bg-surface-2/60 border border-line/60">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-2 text-xs font-bold text-white shadow-sm">
                 {currentUser.name?.charAt(0).toUpperCase() || 'U'}

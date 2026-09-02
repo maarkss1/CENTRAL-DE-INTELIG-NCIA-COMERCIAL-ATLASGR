@@ -2346,3 +2346,66 @@ entrada nova.
   Piloto 022 (confirmar o diretório/origem de um processo antes de confiar nele): antes de assumir
   que uma falha de teste é culpa da própria mudança, checar `git log`/`git status` do arquivo
   envolvido para descartar edição concorrente.
+
+## Pilot 027 — Casca compartilhada (Sidebar/AppTopbar), Fase 1 de um redesenho pedido pelo usuário
+
+- **Objetivo**: usuário pediu explicitamente para "refazer o design da plataforma" no estilo do
+  Google Stitch (ferramenta sem integração disponível nesta sessão — sem browser/API para operá-la;
+  confirmado com o usuário que o pedido é gerar as telas do zero no código, no padrão de qualidade
+  do Stitch, não importar mockups prontos). Escopo confirmado pelo usuário: "todas as telas" (~30
+  telas de módulo + 3 pré-login). Dado o tamanho real, a sequência definida foi: casca compartilhada
+  primeiro (afeta 100% das telas de uma vez) e depois módulo por módulo, na ordem da própria
+  jornada da Sidebar — este piloto cobre só a Fase 1.
+- **Inventário levantado antes de codificar** (Explore agent, ver seção 2 do `CLAUDE.md`):
+  `MainLayout.tsx`/`Sidebar.tsx`/`AppTopbar.tsx` (casca), ~30 rotas de módulo em 8 grupos de
+  jornada (`src/App.tsx`), 3 telas pré-login, ~35 primitivos em `src/components/ui/`, e o sistema
+  de tokens/marca completo de `globals.css`+`BrandContext.tsx`.
+- **Decisões principais**: manter a estrutura de layout existente (flex, off-canvas mobile em
+  `md:`, `AppTopbar` sticky) — não inventar uma navegação nova para um app de produção sem
+  necessidade. "Padrão Stitch" interpretado como barra de qualidade (hierarquia limpa, ícones em
+  chip arredondado, sombra com propósito, cantos mais suaves), nunca como paleta genérica — regra
+  visual #3 do `CLAUDE.md` (sem gradiente azul/roxo) continua valendo, tudo construído só com
+  tokens já existentes (`--brand`, `--shadow-brand-sm`, `--shadow-card`, `--radius-nav-item`).
+  Mudanças: item de navegação ativo ganhou ícone dentro de um chip (`bg-white/15`) e
+  `shadow-[var(--shadow-brand-sm)]` (reativo à marca) em vez de `shadow-md` fixo; card "Operação
+  Atual" e card de usuário no rodapé ganharam borda/sombra sutil no hover; ícone do módulo ativo no
+  `AppTopbar` passou a ficar dentro de um chip `bg-brand/10` (mesmo princípio da Sidebar,
+  consistência entre os dois); raio dos botões de ação do Topbar unificado em `rounded-xl`. Nenhum
+  token novo criado, nenhum texto/`aria-label`/comportamento alterado.
+- **Preservação de funcionalidade/acessibilidade** (seção 6/10 do `CLAUDE.md`): todo texto visível,
+  `aria-label`, `aria-current` e handler de clique mantidos idênticos — `command-palette.spec.ts`
+  depende do texto exato do botão de busca (`/Buscar empresa, decisor ou comando/`), preservado.
+  Ícone decorativo do título do Topbar ganhou `aria-hidden="true"` (era redundante com o texto
+  visível ao lado, nunca tinha essa marcação — melhoria, não regressão).
+- **Bloqueio de verificação e alternativa usada**: a rota autenticada (`/app`) não pôde ser aberta
+  normalmente (exige Postgres/Redis reais, indisponíveis nesta sessão) nem via mock de rede do
+  `authClient.useSession()` (better-auth tem lógica própria de sessão que não respondeu ao
+  intercept simples de `**/api/auth/get-session*` via Playwright — não investigado a fundo por não
+  ser o caminho mais direto). Alternativa que funcionou: harness de preview descartável (`vite
+  --config` temporário com um plugin `resolveId` interceptando só o import de `AuthContext` —
+  `resolve.alias` com specifier relativo **não** funciona de forma confiável no Vite, achado real
+  desta sessão) montando `Sidebar`+`AppTopbar` reais com `BrandProvider`/`ThemeProvider` reais e
+  `useAuth` mockado. Validado via Playwright em 1440×900 (AtlasGR/Total Trac × claro/escuro) e
+  390×844 (mobile fechado/aberto), mais `axe-core` (`@axe-core/playwright`, já dependência do
+  projeto) contra esse harness. Todos os arquivos do harness (`dev-preview.html`,
+  `src/dev-preview-entry.tsx`, `src/dev-preview-auth-mock.tsx`, `vite.preview-shell.config.ts`,
+  scripts `.scratch-*.mjs`) foram apagados ao final — nunca fizeram parte do commit, mesmo padrão
+  do Piloto 002 pra harness de investigação descartável.
+- **Validações executadas**: `npx tsc --noEmit` (0 erros), `npm run format:check`/`lint` (Biome, 0
+  novos), `npm run build` (limpo), `npx vitest run -c vitest.unit.config.ts` em
+  `Sidebar.test.tsx`/`RequireRole.test.tsx` (6/6, cobre visibilidade de itens por papel), `axe-core`
+  contra o harness de preview (0 violações, todas as tags wcag2a/wcag2aa). Suíte `tests/e2e/*`
+  não pôde rodar pelo mesmo motivo de sempre (sem Postgres/Redis) — não confundido com "passou".
+  `tests/e2e/visual.spec.ts` tem baseline commitada do Dashboard que inclui a Sidebar/Topbar
+  antigos — **baseline precisa de `--update-snapshots` num ambiente com Postgres/Redis reais antes
+  do merge**, mudança visual intencional, não esconder o diff.
+- **Aprendizado incorporado**: (1) `resolve.alias` do Vite com `find` no formato de caminho
+  relativo (ex.: `../../contexts/AuthContext`) não intercepta de forma confiável — um plugin com
+  `resolveId` próprio, `enforce: 'pre'` (senão o resolvedor interno do Vite resolve o relativo
+  antes do plugin rodar), é a forma robusta de mockar um módulo específico num harness de preview
+  sem tocar o código real. (2) Mockar a sessão do better-auth via intercept de rede não é trivial —
+  para próximas fases, ir direto para o harness de `resolveId`/mock de contexto em vez de tentar a
+  rota de rede primeiro. (3) Redesenho pedido como "todas as telas" de uma vez é executado como
+  casca primeiro (Fase 1, este piloto) + módulos subsequentes, nunca todas simultaneamente numa
+  única sessão — trabalho por módulos, conforme preferência já registrada do usuário para projetos
+  grandes.

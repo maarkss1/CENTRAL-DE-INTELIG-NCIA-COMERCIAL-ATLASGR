@@ -61,14 +61,16 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
       <button
         type="button"
         onClick={onOpenMobileNav}
-        className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-surface-2 md:hidden"
+        className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-ink-2 transition-colors hover:bg-surface-2 md:hidden"
         aria-label="Abrir menu de navegação"
       >
         <Menu className="h-5 w-5" />
       </button>
 
       <div className="flex min-w-0 items-center gap-2.5">
-        <Icon className="h-[18px] w-[18px] shrink-0 text-brand" />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/10">
+          <Icon className="h-[18px] w-[18px] shrink-0 text-brand" aria-hidden="true" />
+        </span>
         <h1 className="truncate text-sm font-bold uppercase tracking-wide text-ink">
           {meta.label}
         </h1>
@@ -77,7 +79,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
       <button
         type="button"
         onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_PALETTE_EVENT))}
-        className="ml-2 hidden max-w-sm flex-1 items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink-2 transition-colors hover:border-brand/40 hover:text-ink md:flex"
+        className="ml-2 hidden max-w-sm flex-1 items-center gap-2 rounded-full border border-line bg-surface-2 px-4 py-2 text-ink-2 transition-colors hover:border-brand/40 hover:bg-surface hover:text-ink md:flex"
       >
         <Search className="h-4 w-4 shrink-0" />
         <span className="text-sm">Buscar empresa, decisor ou comando…</span>
@@ -95,7 +97,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
         <button
           type="button"
           onClick={toggleTheme}
-          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-surface-2"
+          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-ink-2 transition-colors hover:bg-surface-2"
           aria-label="Alternar tema"
           title={`Mudar para modo ${theme === 'dark' ? 'claro' : 'escuro'}`}
         >
@@ -105,7 +107,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
         <button
           type="button"
           onClick={() => navigate('/app/notifications')}
-          className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-surface-2"
+          className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-ink-2 transition-colors hover:bg-surface-2"
           aria-label={
             unreadCount > 0
               ? `Notificações — ${unreadCount} não lida${unreadCount === 1 ? '' : 's'}`
@@ -131,7 +133,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
         <button
           type="button"
           onClick={logout}
-          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-rose-500/10 hover:text-rose-500"
+          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-ink-2 transition-colors hover:bg-rose-500/10 hover:text-rose-500"
           aria-label="Sair da conta"
           title="Sair da conta"
         >
