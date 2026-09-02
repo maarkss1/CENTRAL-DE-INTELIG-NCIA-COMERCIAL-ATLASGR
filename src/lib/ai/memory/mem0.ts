@@ -79,14 +79,22 @@ class AgentMemoryClient {
     if (this.initialized) return this.client;
     this.initialized = true;
     try {
-      // mem0ai não tem types — import dinâmico para evitar erros de TS em tempo de build
-      const { MemoryClient } = await import('mem0ai');
+      // mem0ai não tem types — import dinâmico para evitar erros de TS em tempo de build.
+      // `mem0ai` nunca foi adicionado a package.json (dependência real ainda não decidida/
+      // instalada). `/* @vite-ignore */` não é suficiente aqui: o plugin vite:import-analysis
+      // ainda tenta resolver especificadores literais mesmo com o comentário (achado real —
+      // continuava quebrando a suíte inteira em vez de cair no catch abaixo). Um especificador
+      // vindo de variável (não um literal de string) escapa da análise estática do Vite —
+      // fica como import() nativo de verdade, resolvido só em runtime pelo Node: cai no catch
+      // abaixo (comportamento já documentado na classe) quando o pacote não existir.
+      const mem0aiSpecifier = 'mem0ai';
+      const { MemoryClient } = await import(mem0aiSpecifier);
       // Se MEM0_API_KEY estiver definida, usa o serviço cloud mem0
       // Caso contrário, usa o cliente local com Qdrant self-hosted
       if (process.env.MEM0_API_KEY) {
         this.client = new MemoryClient({ apiKey: process.env.MEM0_API_KEY });
       } else {
-        const { Memory } = await import('mem0ai');
+        const { Memory } = await import(mem0aiSpecifier);
         this.client = new Memory(MEM0_CONFIG);
       }
     } catch {
