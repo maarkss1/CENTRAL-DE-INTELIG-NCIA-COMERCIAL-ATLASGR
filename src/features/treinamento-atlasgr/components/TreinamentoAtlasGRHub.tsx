@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, ExternalLink, BookOpen, Award, CheckCircle, Search, Layers } from 'lucide-react';
+import {
+  GraduationCap,
+  ExternalLink,
+  BookOpen,
+  Award,
+  CheckCircle,
+  Search,
+  Layers,
+} from 'lucide-react';
 import { ExecutiveHeader } from '../../../components/layout/ExecutiveHeader';
 
 export function TreinamentoAtlasGRHub() {
-  const [activeSubTab, setActiveSubTab] = useState<'portal' | 'trilha' | 'prova' | 'produtos' | 'ranking'>('portal');
+  const [activeSubTab, setActiveSubTab] = useState<
+    'portal' | 'trilha' | 'prova' | 'produtos' | 'ranking'
+  >('portal');
   const [selectedModule, setSelectedModule] = useState<string>('01-bem-vindo-atlasgr.html');
   const [iframeKey, setIframeKey] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -19,7 +29,10 @@ export function TreinamentoAtlasGRHub() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('@prospector:treinamento_completed_modules', JSON.stringify(completedModules));
+      localStorage.setItem(
+        '@prospector:treinamento_completed_modules',
+        JSON.stringify(completedModules),
+      );
     } catch {
       // ignore
     }
@@ -28,7 +41,7 @@ export function TreinamentoAtlasGRHub() {
   const toggleModuleCompleted = (file: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setCompletedModules((prev) =>
-      prev.includes(file) ? prev.filter((f) => f !== file) : [...prev, file]
+      prev.includes(file) ? prev.filter((f) => f !== file) : [...prev, file],
     );
   };
 
@@ -36,32 +49,100 @@ export function TreinamentoAtlasGRHub() {
     { id: 'portal', label: 'Portal Principal', path: '/tools/treinamento-atlasgr/index.html' },
     { id: 'trilha', label: 'Trilha Comercial (15 Módulos)' },
     { id: 'prova', label: 'Prova Final', path: '/tools/treinamento-atlasgr/prova-final.html' },
-    { id: 'produtos', label: 'Produtos & Glossário', path: '/tools/treinamento-atlasgr/produtos.html' },
-    { id: 'ranking', label: 'Ranking & Certificados', path: '/tools/treinamento-atlasgr/ranking.html' },
+    {
+      id: 'produtos',
+      label: 'Produtos & Glossário',
+      path: '/tools/treinamento-atlasgr/produtos.html',
+    },
+    {
+      id: 'ranking',
+      label: 'Ranking & Certificados',
+      path: '/tools/treinamento-atlasgr/ranking.html',
+    },
   ] as const;
 
   const trilhaModules = [
-    { file: '01-bem-vindo-atlasgr.html', name: '01. Bem-vindo à AtlasGR', desc: 'Introdução e cultura da empresa' },
-    { file: '02-mercado-logistica.html', name: '02. Mercado de Logística & Transportes', desc: 'Panorama geral e dores do setor' },
-    { file: '03-gerenciamento-risco.html', name: '03. Gerenciamento de Risco (GR)', desc: 'Fundamentos e importância estratégica' },
-    { file: '04-produtos-atlasgr.html', name: '04. Portfólio de Produtos AtlasGR', desc: 'Soluções e proposta de valor' },
-    { file: '05-software-logistico.html', name: '05. Softwares & Tecnologias Logísticas', desc: 'Ecossistema de integração' },
-    { file: '06-atlas-profile.html', name: '06. Atlas Profile & Cadastro', desc: 'Análise de perfil de motoristas e ajudantes' },
-    { file: '07-integracoes.html', name: '07. Integrações & Bitrix24', desc: 'Conectividade e automação comercial' },
-    { file: '08-clientes.html', name: '08. Perfil de Cliente Ideal (ICP)', desc: 'Identificação e abordagem direcionada' },
-    { file: '09-processo-comercial.html', name: '09. Processo Comercial Ponta a Ponta', desc: 'Qualificação, apresentação e fechamento' },
-    { file: '10-termos-tecnicos.html', name: '10. Dicionário de Termos Técnicos', desc: 'Vocabulário essencial de GR' },
-    { file: '11-operacao.html', name: '11. Operação & Suporte Comercial', desc: 'Bastidores da entrega de serviços' },
-    { file: '12-compliance.html', name: '12. Compliance, LGPD & Regulatório', desc: 'Normas de proteção de dados' },
-    { file: '13-tecnologia.html', name: '13. Arquitetura e Tecnologia Atlas', desc: 'Infraestrutura da plataforma' },
-    { file: '14-casos-reais.html', name: '14. Casos Reais & Sucesso de Clientes', desc: 'Estudos de caso e depoimentos' },
-    { file: '15-preparacao-final.html', name: '15. Preparação Final & Checkup', desc: 'Revisão geral para a prova final' },
+    {
+      file: '01-bem-vindo-atlasgr.html',
+      name: '01. Bem-vindo à AtlasGR',
+      desc: 'Introdução e cultura da empresa',
+    },
+    {
+      file: '02-mercado-logistica.html',
+      name: '02. Mercado de Logística & Transportes',
+      desc: 'Panorama geral e dores do setor',
+    },
+    {
+      file: '03-gerenciamento-risco.html',
+      name: '03. Gerenciamento de Risco (GR)',
+      desc: 'Fundamentos e importância estratégica',
+    },
+    {
+      file: '04-produtos-atlasgr.html',
+      name: '04. Portfólio de Produtos AtlasGR',
+      desc: 'Soluções e proposta de valor',
+    },
+    {
+      file: '05-software-logistico.html',
+      name: '05. Softwares & Tecnologias Logísticas',
+      desc: 'Ecossistema de integração',
+    },
+    {
+      file: '06-atlas-profile.html',
+      name: '06. Atlas Profile & Cadastro',
+      desc: 'Análise de perfil de motoristas e ajudantes',
+    },
+    {
+      file: '07-integracoes.html',
+      name: '07. Integrações & Bitrix24',
+      desc: 'Conectividade e automação comercial',
+    },
+    {
+      file: '08-clientes.html',
+      name: '08. Perfil de Cliente Ideal (ICP)',
+      desc: 'Identificação e abordagem direcionada',
+    },
+    {
+      file: '09-processo-comercial.html',
+      name: '09. Processo Comercial Ponta a Ponta',
+      desc: 'Qualificação, apresentação e fechamento',
+    },
+    {
+      file: '10-termos-tecnicos.html',
+      name: '10. Dicionário de Termos Técnicos',
+      desc: 'Vocabulário essencial de GR',
+    },
+    {
+      file: '11-operacao.html',
+      name: '11. Operação & Suporte Comercial',
+      desc: 'Bastidores da entrega de serviços',
+    },
+    {
+      file: '12-compliance.html',
+      name: '12. Compliance, LGPD & Regulatório',
+      desc: 'Normas de proteção de dados',
+    },
+    {
+      file: '13-tecnologia.html',
+      name: '13. Arquitetura e Tecnologia Atlas',
+      desc: 'Infraestrutura da plataforma',
+    },
+    {
+      file: '14-casos-reais.html',
+      name: '14. Casos Reais & Sucesso de Clientes',
+      desc: 'Estudos de caso e depoimentos',
+    },
+    {
+      file: '15-preparacao-final.html',
+      name: '15. Preparação Final & Checkup',
+      desc: 'Revisão geral para a prova final',
+    },
   ];
 
   const filteredModules = trilhaModules.filter(
     (m) =>
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.desc.toLowerCase().includes(searchQuery.toLowerCase())
+      m.desc.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const currentTab = subTabs.find((t) => t.id === activeSubTab);
@@ -69,13 +150,15 @@ export function TreinamentoAtlasGRHub() {
     activeSubTab === 'trilha'
       ? `/tools/treinamento-atlasgr/trilha/${selectedModule}`
       : currentTab && 'path' in currentTab
-      ? currentTab.path
-      : '/tools/treinamento-atlasgr/index.html';
+        ? currentTab.path
+        : '/tools/treinamento-atlasgr/index.html';
 
   const progressPercentage = Math.round((completedModules.length / trilhaModules.length) * 100);
 
   return (
-    <div className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}>
+    <div
+      className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}
+    >
       {/* Unified Executive Header */}
       <ExecutiveHeader
         title="Treinamento AtlasGR"
@@ -104,7 +187,9 @@ export function TreinamentoAtlasGRHub() {
             </div>
             <div>
               <div className="text-[11px] font-semibold text-ink-2">Progresso Concluído</div>
-              <div className="text-sm font-bold text-emerald-500">{completedModules.length} de 15 ({progressPercentage}%)</div>
+              <div className="text-sm font-bold text-emerald-500">
+                {completedModules.length} de 15 ({progressPercentage}%)
+              </div>
             </div>
           </div>
           <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
@@ -157,7 +242,9 @@ export function TreinamentoAtlasGRHub() {
       </div>
 
       {/* Main Content Area */}
-      <div className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}>
+      <div
+        className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
+      >
         {activeSubTab === 'trilha' ? (
           <div className="flex flex-col lg:flex-row h-full min-h-[650px]">
             {/* Sidebar list of 15 modules with search & progress checkboxes */}
@@ -207,7 +294,9 @@ export function TreinamentoAtlasGRHub() {
                       <button
                         onClick={(e) => toggleModuleCompleted(m.file, e)}
                         className={`p-1 rounded-md transition-colors ${
-                          isDone ? 'text-emerald-500 hover:bg-emerald-500/10' : 'text-ink-2 hover:bg-soft'
+                          isDone
+                            ? 'text-emerald-500 hover:bg-emerald-500/10'
+                            : 'text-ink-2 hover:bg-soft'
                         }`}
                         title={isDone ? 'Marcar como não concluído' : 'Marcar como concluído'}
                       >

@@ -137,8 +137,14 @@ export function CommercialIntelligenceHub() {
   return (
     <main className="mx-auto w-full max-w-[92rem] flex-1 space-y-5 overflow-y-auto p-4 md:p-8">
       <header className="relative overflow-hidden rounded-[1.7rem] border border-line bg-surface/94 p-5 shadow-[0_30px_72px_-48px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.07)] md:p-6">
-        <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-brand/10 blur-[90px]" aria-hidden="true" />
-        <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-brand/45 to-transparent" aria-hidden="true" />
+        <div
+          className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-brand/10 blur-[90px]"
+          aria-hidden="true"
+        />
+        <div
+          className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-brand/45 to-transparent"
+          aria-hidden="true"
+        />
 
         <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex items-start gap-3">
@@ -153,7 +159,8 @@ export function CommercialIntelligenceHub() {
                 Comercial Inteligente
               </h1>
               <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-2">
-                Previsibilidade, pipeline, forecast e risco. Do volume aberto para o próximo movimento executivo.
+                Previsibilidade, pipeline, forecast e risco. Do volume aberto para o próximo
+                movimento executivo.
               </p>
             </div>
           </div>
@@ -172,11 +179,46 @@ export function CommercialIntelligenceHub() {
               onChange={(e) => setMonth(e.target.value || currentMonth())}
               className="rounded-xl border border-line bg-surface-2/75 px-3 py-2 text-sm font-medium text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-[transform,border-color,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:border-brand/35 hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             />
-            <FilterSelect id="ci-company" label="Empresa" value={company} options={filterOptions.companies} allLabel="Todas as empresas" onChange={(v) => setFilter('company', v)} />
-            <FilterSelect id="ci-owner" label="Responsável" value={owner} options={filterOptions.owners} allLabel="Todos os vendedores" onChange={setOwner} />
-            <FilterSelect id="ci-product" label="Produto" value={product} options={filterOptions.products} allLabel="Todos os produtos" onChange={(v) => setFilter('product', v)} />
-            <FilterSelect id="ci-source" label="Origem" value={source} options={filterOptions.sources} allLabel="Todas as origens" onChange={(v) => setFilter('source', v)} />
-            <FilterSelect id="ci-icp" label="ICP/Segmento" value={icp} options={filterOptions.icps} allLabel="Todos os segmentos" onChange={(v) => setFilter('icp', v)} />
+            <FilterSelect
+              id="ci-company"
+              label="Empresa"
+              value={company}
+              options={filterOptions.companies}
+              allLabel="Todas as empresas"
+              onChange={(v) => setFilter('company', v)}
+            />
+            <FilterSelect
+              id="ci-owner"
+              label="Responsável"
+              value={owner}
+              options={filterOptions.owners}
+              allLabel="Todos os vendedores"
+              onChange={setOwner}
+            />
+            <FilterSelect
+              id="ci-product"
+              label="Produto"
+              value={product}
+              options={filterOptions.products}
+              allLabel="Todos os produtos"
+              onChange={(v) => setFilter('product', v)}
+            />
+            <FilterSelect
+              id="ci-source"
+              label="Origem"
+              value={source}
+              options={filterOptions.sources}
+              allLabel="Todas as origens"
+              onChange={(v) => setFilter('source', v)}
+            />
+            <FilterSelect
+              id="ci-icp"
+              label="ICP/Segmento"
+              value={icp}
+              options={filterOptions.icps}
+              allLabel="Todos os segmentos"
+              onChange={(v) => setFilter('icp', v)}
+            />
           </div>
         </div>
       </header>

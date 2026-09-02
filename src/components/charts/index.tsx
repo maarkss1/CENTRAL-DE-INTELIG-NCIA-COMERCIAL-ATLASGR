@@ -242,8 +242,13 @@ export function HeatmapChart({
       : undefined,
     tooltip: {
       position: 'top' as const,
-      formatter: (params: { data: (number | string)[] }) =>
-        `${WEEKDAYS[params.data[1] as number]} ${HOURS[params.data[0] as number]}: ${params.data[2] as number} atividades`,
+      formatter: (params) => {
+        const data = (Array.isArray(params) ? params[0]?.data : params.data) as
+          | (number | string)[]
+          | undefined;
+        if (!data) return '';
+        return `${WEEKDAYS[data[1] as number]} ${HOURS[data[0] as number]}: ${data[2] as number} atividades`;
+      },
     },
     grid: { top: title ? 40 : 10, bottom: 30, left: 40, right: 10 },
     xAxis: {

@@ -91,7 +91,8 @@ export function RevenueSignalOrb({
           </p>
           <h3 className="mt-1 text-base font-black text-ink">Pressão comercial agora</h3>
           <p className="mt-1 max-w-[18rem] text-xs leading-relaxed text-ink-2">
-            Volume e movimento respondem às métricas reais abaixo. Os valores escritos continuam sendo a fonte exata.
+            Volume e movimento respondem às métricas reais abaixo. Os valores escritos continuam
+            sendo a fonte exata.
           </p>
         </div>
         <span className="rounded-full border border-line bg-surface-2/80 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-ink-2">
@@ -106,8 +107,16 @@ export function RevenueSignalOrb({
           camera={{ position: [0, 0, 5.2], fov: 42 }}
         >
           <ambientLight intensity={0.72} />
-          <pointLight position={[3, 3, 4]} intensity={3.2} color={isAtlas ? '#ffb18f' : '#7dd3fc'} />
-          <pointLight position={[-3, -2, 2]} intensity={1.8} color={isAtlas ? '#ffc500' : '#374898'} />
+          <pointLight
+            position={[3, 3, 4]}
+            intensity={3.2}
+            color={isAtlas ? '#ffb18f' : '#7dd3fc'}
+          />
+          <pointLight
+            position={[-3, -2, 2]}
+            intensity={1.8}
+            color={isAtlas ? '#ffc500' : '#374898'}
+          />
           <SignalScene
             conversionRate={conversionRate}
             pendingActivities={pendingActivities}

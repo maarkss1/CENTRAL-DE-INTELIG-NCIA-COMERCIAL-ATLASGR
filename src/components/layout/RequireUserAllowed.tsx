@@ -15,8 +15,7 @@ interface RequireUserAllowedProps {
 export function RequireUserAllowed({ allowedEmails, children }: RequireUserAllowedProps) {
   const { currentUser } = useAuth();
   const userEmail = currentUser?.email?.toLowerCase().trim();
-  const allowed =
-    !!userEmail && allowedEmails.some((e) => e.toLowerCase().trim() === userEmail);
+  const allowed = !!userEmail && allowedEmails.some((e) => e.toLowerCase().trim() === userEmail);
 
   if (allowed) return <>{children}</>;
 
