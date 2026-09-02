@@ -17,6 +17,8 @@
 import type {
   CommercialIntelligenceFilter,
   CommercialIntelligenceRepository,
+} from '../../domain/CommercialIntelligence';
+import type {
   HandoffPairBreakdown,
   HandoffRow,
   HandoffsSummary,
@@ -27,7 +29,7 @@ import type {
   ReentryRow,
   StageTransitionEdge,
   StageTransitionsSummary,
-} from '../../domain/CommercialIntelligence';
+} from '../../domain/JourneyIntelligence';
 import { FORECAST_RULES } from '../forecastEngine';
 import { isDealOpen } from '../pipelineEligibility';
 import { daysBetween, median, roundMoney } from '../shared/mathUtils';
