@@ -216,10 +216,21 @@ export async function importSelectedBitrixLeads(
   skipped: number;
   skippedConflicts: number;
   skippedNotOwned: number;
+  failed: number;
+  /** IDs (Atlas) dos leads criados nesta chamada — usado pelo painel de importação para aplicar
+   * configurações pós-import (ex.: temperatura inicial) só nos registros realmente novos. */
+  importedLeadIds: string[];
 }> {
   const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
   if (bitrixLeadIds.length === 0)
-    return { imported: 0, skipped: 0, skippedConflicts: 0, skippedNotOwned: 0 };
+    return {
+      imported: 0,
+      skipped: 0,
+      skippedConflicts: 0,
+      skippedNotOwned: 0,
+      failed: 0,
+      importedLeadIds: [],
+    };
   if (bitrixLeadIds.length > 100) throw new AppError('Selecione no máximo 100 leads por vez.', 400);
 
   const [labels, enumMaps, bitrixUsers] = await Promise.all([
@@ -232,133 +243,150 @@ export async function importSelectedBitrixLeads(
   let skipped = 0;
   let skippedConflicts = 0;
   let skippedNotOwned = 0;
+  let failed = 0;
+  const importedLeadIds: string[] = [];
 
   for (const bitrixLeadId of bitrixLeadIds) {
-    const existing = await prisma.lead.findFirst({
-      where: { organizationId, bitrixLeadId },
-      select: { id: true },
-    });
-    if (existing) {
-      skipped++;
-      continue;
-    }
-
-    const { result: raw } = await callBitrix<{ result: BitrixLeadRaw }>(
-      webhookUrl,
-      'crm.lead.get',
-      { id: bitrixLeadId },
-    );
-    if (restrictToAssignedById && raw.ASSIGNED_BY_ID !== restrictToAssignedById) {
-      skippedNotOwned++;
-      continue;
-    }
-    const tradeName =
-      raw.TITLE ||
-      raw.COMPANY_TITLE ||
-      `${raw.NAME || ''} ${raw.LAST_NAME || ''}`.trim() ||
-      `Lead Bitrix #${raw.ID}`;
-    const contactName = [raw.NAME, raw.LAST_NAME].filter(Boolean).join(' ');
-    const phone = raw.PHONE?.[0]?.VALUE || null;
-    const email = raw.EMAIL?.[0]?.VALUE || null;
-    const {
-      qualification,
-      leadFields: rawLeadFields,
-      contactRole,
-    } = applyInboundCustomFields(raw, 'lead', enumMaps);
-    // `source` (mapeado da "Origem" do Bitrix) não pode sobrescrever a tag fixa
-    // 'Bitrix24 (importado)' abaixo — ela marca COMO o registro entrou no Atlas (rastreável em
-    // relatórios de funil), não a origem de marketing original, que já não temos onde guardar
-    // separadamente sem introduzir uma coluna nova fora do escopo desta correção.
-    const { source: _bitrixOrigemIgnorada, ...leadFields } = rawLeadFields;
-    void _bitrixOrigemIgnorada;
-
-    const assigneeEmail = raw.ASSIGNED_BY_ID
-      ? (bitrixUserEmailById.get(raw.ASSIGNED_BY_ID) ?? null)
-      : null;
-    // Lead.owner grava User.id (não o nome) para casar com a convenção de leads criados no
-    // app — ver .agents/handoffs/onda-7/04-para-06-owner-bitrix-nome-nao-id.md.
-    const ownerId = await resolveAtlasUserIdByEmail(organizationId, assigneeEmail);
-
-    const conflict = await findOwnershipConflict(organizationId, { phone, email }, ownerId);
-    if (conflict) {
-      skippedConflicts++;
-      await notifyOwnershipConflict(organizationId, conflict, tradeName);
-      logger.info(
-        { organizationId, bitrixLeadId, conflict },
-        '[bitrix] Import bloqueado — contato já pertence a outro responsável',
-      );
-      continue;
-    }
-
+    // Todo o corpo por item vive dentro deste try/catch externo: antes, uma exceção não-P2002
+    // (ex.: callBitrix esgotando retries, timeout de rede, erro de DB) propagava pra fora do loop
+    // inteiro e derrubava a importação completa, descartando os contadores já coletados — o
+    // frontend (BitrixImportPanel.tsx) mostrava "falha ao importar" mesmo quando N-1 itens já
+    // tinham sido criados de verdade. Agora cada item falho é contado em `failed` e a importação
+    // continua para os demais.
     try {
-      const company = await prisma.company.create({
-        data: {
-          legalName: tradeName,
-          tradeName,
-          phones: phone ? [phone] : [],
-          emails: email ? [email] : [],
-          segment: 'Importado do Bitrix24',
-          observations: raw.COMMENTS || null,
-          organizationId,
-          tags: ['Bitrix24'],
-        },
+      const existing = await prisma.lead.findFirst({
+        where: { organizationId, bitrixLeadId },
+        select: { id: true },
       });
-
-      const contact = contactName
-        ? await prisma.contact.create({
-            data: {
-              name: contactName,
-              phone,
-              email,
-              role: contactRole,
-              companyId: company.id,
-              organizationId,
-            },
-          })
-        : null;
-
-      const lead = await prisma.lead.create({
-        data: {
-          status: LeadStatus.Lead_Recebido,
-          source: 'Bitrix24 (importado)',
-          companyId: company.id,
-          contactId: contact?.id,
-          organizationId,
-          owner: ownerId,
-          bitrixLeadId: raw.ID,
-          bitrixStageLabel: (raw.STATUS_ID && labels.get(raw.STATUS_ID)) || raw.STATUS_ID || null,
-          qualification: Object.keys(qualification).length > 0 ? qualification : undefined,
-          ...leadFields,
-        } as Prisma.LeadCreateInput,
-      });
-      imported++;
-      await AuditService.log({
-        action: 'IMPORT',
-        entity: 'Lead',
-        entityId: lead.id,
-        tenantId: organizationId,
-        afterState: { bitrixLeadId: raw.ID, source: 'crm.lead.get' },
-      });
-    } catch (err) {
-      // P2002 = violação da unique constraint (organizationId, bitrixLeadId) — corrida real
-      // com outra importação do MESMO registro entre o findFirst acima e este create. Não é
-      // um erro de verdade: o resultado (lead existe, vinculado a este bitrixLeadId) é o
-      // mesmo que se este loop tivesse simplesmente perdido a corrida — conta como skipped.
-      if ((err as { code?: string })?.code === 'P2002') {
+      if (existing) {
         skipped++;
-        logger.info(
-          { organizationId, bitrixLeadId },
-          '[bitrix] Import concorrente do mesmo lead detectado (unique constraint) — contado como já importado',
-        );
-      } else {
-        throw err;
+        continue;
       }
+
+      const { result: raw } = await callBitrix<{ result: BitrixLeadRaw }>(
+        webhookUrl,
+        'crm.lead.get',
+        { id: bitrixLeadId },
+      );
+      if (restrictToAssignedById && raw.ASSIGNED_BY_ID !== restrictToAssignedById) {
+        skippedNotOwned++;
+        continue;
+      }
+      const tradeName =
+        raw.TITLE ||
+        raw.COMPANY_TITLE ||
+        `${raw.NAME || ''} ${raw.LAST_NAME || ''}`.trim() ||
+        `Lead Bitrix #${raw.ID}`;
+      const contactName = [raw.NAME, raw.LAST_NAME].filter(Boolean).join(' ');
+      const phone = raw.PHONE?.[0]?.VALUE || null;
+      const email = raw.EMAIL?.[0]?.VALUE || null;
+      const {
+        qualification,
+        leadFields: rawLeadFields,
+        contactRole,
+      } = applyInboundCustomFields(raw, 'lead', enumMaps);
+      // `source` (mapeado da "Origem" do Bitrix) não pode sobrescrever a tag fixa
+      // 'Bitrix24 (importado)' abaixo — ela marca COMO o registro entrou no Atlas (rastreável em
+      // relatórios de funil), não a origem de marketing original, que já não temos onde guardar
+      // separadamente sem introduzir uma coluna nova fora do escopo desta correção.
+      const { source: _bitrixOrigemIgnorada, ...leadFields } = rawLeadFields;
+      void _bitrixOrigemIgnorada;
+
+      const assigneeEmail = raw.ASSIGNED_BY_ID
+        ? (bitrixUserEmailById.get(raw.ASSIGNED_BY_ID) ?? null)
+        : null;
+      // Lead.owner grava User.id (não o nome) para casar com a convenção de leads criados no
+      // app — ver .agents/handoffs/onda-7/04-para-06-owner-bitrix-nome-nao-id.md.
+      const ownerId = await resolveAtlasUserIdByEmail(organizationId, assigneeEmail);
+
+      const conflict = await findOwnershipConflict(organizationId, { phone, email }, ownerId);
+      if (conflict) {
+        skippedConflicts++;
+        await notifyOwnershipConflict(organizationId, conflict, tradeName);
+        logger.info(
+          { organizationId, bitrixLeadId, conflict },
+          '[bitrix] Import bloqueado — contato já pertence a outro responsável',
+        );
+        continue;
+      }
+
+      try {
+        const company = await prisma.company.create({
+          data: {
+            legalName: tradeName,
+            tradeName,
+            phones: phone ? [phone] : [],
+            emails: email ? [email] : [],
+            segment: 'Importado do Bitrix24',
+            observations: raw.COMMENTS || null,
+            organizationId,
+            tags: ['Bitrix24'],
+          },
+        });
+
+        const contact = contactName
+          ? await prisma.contact.create({
+              data: {
+                name: contactName,
+                phone,
+                email,
+                role: contactRole,
+                companyId: company.id,
+                organizationId,
+              },
+            })
+          : null;
+
+        const lead = await prisma.lead.create({
+          data: {
+            status: LeadStatus.Lead_Recebido,
+            source: 'Bitrix24 (importado)',
+            companyId: company.id,
+            contactId: contact?.id,
+            organizationId,
+            owner: ownerId,
+            bitrixLeadId: raw.ID,
+            bitrixStageLabel: (raw.STATUS_ID && labels.get(raw.STATUS_ID)) || raw.STATUS_ID || null,
+            qualification: Object.keys(qualification).length > 0 ? qualification : undefined,
+            ...leadFields,
+          } as Prisma.LeadCreateInput,
+        });
+        imported++;
+        importedLeadIds.push(lead.id);
+        await AuditService.log({
+          action: 'IMPORT',
+          entity: 'Lead',
+          entityId: lead.id,
+          tenantId: organizationId,
+          afterState: { bitrixLeadId: raw.ID, source: 'crm.lead.get' },
+        });
+      } catch (err) {
+        // P2002 = violação da unique constraint (organizationId, bitrixLeadId) — corrida real
+        // com outra importação do MESMO registro entre o findFirst acima e este create. Não é
+        // um erro de verdade: o resultado (lead existe, vinculado a este bitrixLeadId) é o
+        // mesmo que se este loop tivesse simplesmente perdido a corrida — conta como skipped.
+        if ((err as { code?: string })?.code === 'P2002') {
+          skipped++;
+          logger.info(
+            { organizationId, bitrixLeadId },
+            '[bitrix] Import concorrente do mesmo lead detectado (unique constraint) — contado como já importado',
+          );
+        } else {
+          throw err;
+        }
+      }
+    } catch (err) {
+      failed++;
+      logger.error(
+        { err, organizationId, bitrixLeadId },
+        '[bitrix] Falha ao importar item — contabilizado como falha, importação continua para os demais',
+      );
     }
   }
 
   logger.info(
-    { organizationId, imported, skipped, skippedConflicts, skippedNotOwned },
+    { organizationId, imported, skipped, skippedConflicts, skippedNotOwned, failed },
     '[bitrix] Importação seletiva concluída',
   );
-  return { imported, skipped, skippedConflicts, skippedNotOwned };
+  return { imported, skipped, skippedConflicts, skippedNotOwned, failed, importedLeadIds };
 }
