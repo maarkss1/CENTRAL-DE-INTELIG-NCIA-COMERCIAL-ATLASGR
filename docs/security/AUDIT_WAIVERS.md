@@ -33,15 +33,17 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
 
 ## Waivers ativos
 
-### `GHSA-3f6p-5ww8-9rcr` — `mysql2` RCE/Prototype Pollution via `prisma` CLI / `@prisma/engines`
+### `GHSA-3f6p-5ww8-9rcr` / `GHSA-rgwj-5xj2-c3m3` — `mysql2` via `prisma` CLI / `@prisma/engines`
 
-- **Advisory:** https://github.com/advisories/GHSA-3f6p-5ww8-9rcr — `mysql2 <3.16.0` possui vulnerabilidade em parsing transitivo em ferramentas CLI.
-- **Severidade reportada pelo `npm audit`:** high (propaga para `@prisma/engines`, `prisma` e `mysql2`).
+- **Advisories:**
+  - https://github.com/advisories/GHSA-3f6p-5ww8-9rcr — `mysql2 <3.16.0` possui vulnerabilidade em parsing transitivo em ferramentas CLI (Auth Plugin Downgrade, leak de credencial em texto puro).
+  - https://github.com/advisories/GHSA-rgwj-5xj2-c3m3 — `mysql2 <=3.23.0` tem DoS por decompressão ilimitada (zlib inflate) no handler de protocolo MySQL comprimido. Achado em 2026-09-02 (mesmo `node_modules/prisma/node_modules/mysql2`, base de advisories atualizada — o mesmo `package-lock.json` não reportava isso horas antes).
+- **Severidade reportada pelo `npm audit`:** high (propaga para `@prisma/engines`, `prisma` e `mysql2`; `GHSA-rgwj-5xj2-c3m3` em si é moderate, mas o pacote `mysql2` agrega como high pela outra entrada).
 - **Cadeia:** `prisma@7.10.0` → `@prisma/engines@7.10.0` → `mysql2` — transitivo de desenvolvimento/CLI do Prisma.
-- **Por que é aceito temporariamente:** O banco de dados de produção da plataforma é PostgreSQL (`pg` / `@prisma/adapter-pg`). O driver `mysql2` é incluído transitivamente no pacote de CLI do Prisma para suporte multi-driver de desenvolvimento e não é instanciado no runtime de produção Express/Node.js da aplicação.
+- **Por que é aceito temporariamente:** O banco de dados de produção da plataforma é PostgreSQL (`pg` / `@prisma/adapter-pg`). O driver `mysql2` é incluído transitivamente no pacote de CLI do Prisma para suporte multi-driver de desenvolvimento e não é instanciado no runtime de produção Express/Node.js da aplicação — nem o downgrade de auth plugin nem o DoS por decompressão têm superfície de exploração real fora de uma conexão MySQL de verdade, que este processo nunca abre.
 - **Dono:** Agente 15 / Agente 01 — reavaliar quando o Prisma atualizar a dependência interna de `mysql2` no pacote CLI.
-- **Data de registro:** 2026-09-01. **Reavaliar em:** próximo bump de minor do Prisma ou em 30 dias.
-- **Escopo do waiver:** apenas advisory `GHSA-3f6p-5ww8-9rcr`.
+- **Data de registro:** 2026-09-01 (`GHSA-3f6p-5ww8-9rcr`), estendido em 2026-09-02 (`GHSA-rgwj-5xj2-c3m3`). **Reavaliar em:** próximo bump de minor do Prisma ou em 30 dias.
+- **Escopo do waiver:** apenas os dois advisories `GHSA-3f6p-5ww8-9rcr` e `GHSA-rgwj-5xj2-c3m3`, só via esta cadeia de dependência (`prisma` CLI).
 
 ### `GHSA-ggr8-5vv4-36mx` / `CVE-2026-40345` — `deepmerge-ts` (stack exhaustion) via `@prisma/config`/`prisma`
 
