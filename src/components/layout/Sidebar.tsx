@@ -56,9 +56,8 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     'settings',
   ];
 
-<<<<<<< HEAD
   const isMarcelo =
-    !!currentUser && currentUser.email.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
+    !!currentUser && currentUser.email?.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
 
   const executiveRepoItems: TabType[] = [
     'social-selling',
