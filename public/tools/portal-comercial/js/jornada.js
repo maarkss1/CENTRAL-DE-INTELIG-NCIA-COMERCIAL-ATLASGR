@@ -735,14 +735,26 @@ function tabelaEvolucaoForecast(pontos) {
 // isso vivem no mesmo registro do historico.json, sem chamada extra ao
 // Bitrix. Só existem a partir da 1ª execução automática depois desta
 // mudança; registros antigos ficam sem esses campos (tratado como 0/ausente).
+// v28 — "Pontos de atenção" virou 2 achados reais (não decorativos: o tom
+// reflete o número, não fica sempre laranja neutro como no .atencao-mini-card
+// anterior, que não existe mais). Achado > 0 = .gap (vermelho, precisa agir);
+// achado = 0 = .win (verde, sem pendência) — melhora real de semântica, não
+// só de estilo, já que antes "0 vencidos" e "15 vencidos" renderizavam
+// idênticos.
 function pontosAtencaoEvolucaoHtml(pontos) {
   const comDados = [...pontos].reverse().find((p) => p.vencidoCount != null || p.semCloseDateCount != null);
   if (!comDados) {
     return `<p class="rodape-nota">Ainda sem pontos de atenção registrados — aparecem a partir da próxima execução automática do Forecast semanal (toda sexta-feira).</p>`;
   }
-  return `<div class="atencao-mini-grid">
-    <div class="atencao-mini-card"><b>${comDados.vencidoCount ?? 0}</b><span>Negócio(s) com CLOSEDATE vencida ainda aberto(s) — ${moedaRelatorio(comDados.vencidoValor || 0)}</span></div>
-    <div class="atencao-mini-card"><b>${comDados.semCloseDateCount ?? 0}</b><span>Negócio(s) aberto(s) sem CLOSEDATE preenchida — ${moedaRelatorio(comDados.semCloseDateValor || 0)}</span></div>
+  const vencido = comDados.vencidoCount ?? 0;
+  const semData = comDados.semCloseDateCount ?? 0;
+  const achado = (qtd, texto) => `<div class="achado ${qtd > 0 ? "gap" : "win"}">
+    <span class="marker">${qtd > 0 ? "⚠️" : "✅"}</span>
+    <span class="txt"><b>${qtd}</b> ${texto}</span>
+  </div>`;
+  return `<div class="achados">
+    ${achado(vencido, `negócio(s) com CLOSEDATE vencida ainda aberto(s) — ${moedaRelatorio(comDados.vencidoValor || 0)}`)}
+    ${achado(semData, `negócio(s) aberto(s) sem CLOSEDATE preenchida — ${moedaRelatorio(comDados.semCloseDateValor || 0)}`)}
   </div>
   <p class="rodape-nota">Atualizado em ${formatarDataBR(comDados.data)} (fonte: ${comDados.fonte === "automatico" ? "automática, toda sexta-feira" : "local, neste navegador"}).</p>`;
 }

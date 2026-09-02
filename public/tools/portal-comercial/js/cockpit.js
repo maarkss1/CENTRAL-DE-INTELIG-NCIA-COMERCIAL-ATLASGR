@@ -75,6 +75,7 @@ function iniciarCockpitExecutivo() {
   atualizarRelogioCockpit();
   cockpitRenderEstadoVazio();
   cockpitAtualizarTicker();
+  cockpitAtualizarResumoHome();
   cockpitIniciarAutoAtualizacao();
   initDragAndDrop();
 }
@@ -115,6 +116,32 @@ function cockpitAtualizarTicker() {
   track.innerHTML = html + html;
   const label = document.querySelector("#cockpitTicker .cockpit-ticker-label");
   if (label) label.title = cockpitState.ultimaAtualizacao ? `Atualizado às ${cockpitState.ultimaAtualizacao.toLocaleTimeString("pt-BR")}` : "Ainda sem dados nesta sessão";
+}
+
+// Resumo em cards (home.html) dos mesmos números do ticker acima — só existe
+// `#cockpitResumoHome` em home.html/totaltrac-home.html, então é um no-op nas
+// outras páginas (mesmo padrão de guarda de `cockpitEl` usado no resto do
+// arquivo). Reaproveita cockpitKpiCard() (classe `.cockpit-kpi`, já usada no
+// Cockpit completo) em vez de inventar uma segunda linguagem visual de KPI
+// numa página vizinha. Sem drill-down aqui (chaveDrill=null) — o drill-down
+// de verdade já existe nos mesmos números dentro de cockpit.html.
+function cockpitAtualizarResumoHome() {
+  const el = cockpitEl("cockpitResumoHome");
+  if (!el) return;
+  const cache = cockpitState.ultimoCalculo;
+  if (!cache) {
+    el.classList.add("oculto");
+    el.innerHTML = "";
+    return;
+  }
+  const { c } = cache;
+  el.classList.remove("oculto");
+  el.innerHTML = [
+    cockpitKpiCard("Fechado no mês", moedaRelatorio(c.resultadoMes.fechadoMes), null, "", `${cockpitND(c.resultadoMes.pctMeta, (v) => `${v}%`)} da meta`),
+    cockpitKpiCard("Forecast total", moedaRelatorio(c.forecast.forecastTotal), null),
+    cockpitKpiCard("Pipeline elegível", moedaRelatorio(c.saude.pipelineElegivel), null),
+    cockpitKpiCard("Win Rate", cockpitND(c.eficiencia.winRate, (v) => `${v}%`), null),
+  ].join("");
 }
 
 // Atualização automática: só roda sozinha se o usuário já salvou o webhook no
@@ -1229,6 +1256,7 @@ function renderizarCockpit() {
   // Agora" para montar o resumo sem reprocessar nada (nem chamar o Bitrix).
   cockpitState.ultimoCalculo = { c, g, s, q, alertasInfo };
   cockpitAtualizarTicker();
+  cockpitAtualizarResumoHome();
   
   // Customizações (Criação 5 e 10)
   cockpitRenderizarGrafico(c);

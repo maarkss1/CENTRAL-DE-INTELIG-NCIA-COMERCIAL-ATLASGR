@@ -2417,3 +2417,298 @@ entrada nova.
   é descarregada no meio do stream (só em navegação completa, não em unmount de SPA — artefato de
   unload); `/app/dashboard` nunca atinge `networkidle` por causa do stream SSE aberto (esperado);
   Google Fonts bloqueado pela rede do sandbox (não é bug do app).
+
+## Pilot — JoaoReisDiagnosticHub (extrair estilo de um relatório HTML de referência p/ o CRM)
+
+- **Objetivo**: pedido explícito do usuário — extrair o vocabulário visual (cards, gráfico,
+  calendário, fontes) de um relatório HTML standalone (`diagnosticosdrjoaoreisjulago2026.html`,
+  fora do repositório) e aplicá-lo à tela real do CRM que ele espelha
+  (`src/features/commercial-intelligence/components/JoaoReisDiagnosticHub.tsx`), hoje mais simples
+  visualmente. Direção inicial mal-entendida (achei que era o inverso — aplicar tokens da
+  plataforma no HTML) e corrigida via `AskUserQuestion` antes de qualquer edição.
+- **Achado real ao comparar os dois**: o relatório já usa quase exatamente os tokens "warm neutral"
+  do próprio `globals.css` (`--brand:#ff5618` idêntico), mas o **modo claro** da plataforma nunca
+  tinha essa paleta — só o `.dark` já usava `#0d0a09`/`#171211`/`#1f1917`/`#f7f3f1`/`#a2968f`
+  (comentário no próprio arquivo já dizia "Warm neutral design system"). Alinhado `--bg`/
+  `--surface-2`/`--ink`/`--ink-2` do `:root` claro pros mesmos valores do relatório/dark, com
+  contraste recalculado via script Node (fórmula de luminância relativa do WCAG, não estimado):
+  `--ink` 17.2:1 e `--ink-2` 4.77:1 contra `--surface`, ≥4.5:1 também contra `--surface-2` — igual
+  ou melhor que antes (11.99:1 / 5.22:1).
+- **Bug real de token encontrado (mesmo padrão do Piloto 002, `bg-neon-purple`)**: várias classes
+  `text-gold`/`bg-gold` já escritas em `JoaoReisDiagnosticHub.tsx` renderizavam sem cor nenhuma —
+  `gold` nunca foi definido em `globals.css`, só `--warn` (#FFC500, mesmo hex oficial "Amarelo
+  Alerta"). Corrigido com alias (`--color-gold: var(--warn)`), não um token duplicado.
+  `grep` confirmou uso restrito a este único arquivo antes de aliasar.
+- **Dados reais nunca renderizados, agora usados (não fabricados)**: `canalJul`/`canalAgo` (canal
+  de atividade) e `dealsJulDetalhe`/`dealsAgoDetalhe` (negócios rastreados) já existiam no dataset
+  do componente mas nenhuma tela os exibia. Um heatmap de calendário por dia (como o do relatório)
+  **não foi implementado** — o dataset deste componente não tem granularidade diária (só totais
+  mensais), e inventar números diários teria sido fabricar dado de negócio real; registrado aqui em
+  vez de simulado.
+- **IBM Plex Mono para números tabulares**: carregado via `@import` do Google Fonts CSS2 (não
+  self-hosted como o Montserrat) depois de eu mesmo ter inventado hashes de arquivo `.woff2`
+  fictícios na primeira tentativa (URLs que eu não tinha como verificar) — corrigido antes de
+  seguir adiante. `font-mono` já era usado em 28 arquivos do repo sem nenhum `--font-mono`
+  definido (caía no monospace padrão do sistema); definir o token é aditivo pros 28, não alterei
+  nenhum deles diretamente.
+- **Componentes visuais novos ficaram locais ao arquivo** (`KpiStat`, `FunnelBars`, `ChannelDonut`,
+  `DealsGrid`, `CompareBar`, `DeltaPill`) — mesma decisão já tomada no Pilot 003 (`StatTile` local
+  à feature em vez de primitivo global em `src/components/ui/`), por ainda não ter um segundo
+  consumidor real fora desta tela.
+- **Achado de repositório, fora do escopo — reportado, não tocado**: a árvore de trabalho tinha (e
+  continua tendo) um merge em andamento com conflitos reais e não relacionados (`MERGE_HEAD`
+  presente, `merge: claude/api-security-authentication-6vz3g4`, ~15 arquivos `UU`/`AA` incl.
+  `src/lib/auth.ts`, `src/lib/prisma.ts`, controllers de Contact/Lead/Company, testes de
+  `piiFields`/`piiIndex`) — descoberto ao rodar `tsc --noEmit` (104 erros, nenhum nos 2 arquivos
+  desta sessão) e confirmado via `git status`. **Não bloqueia o dev server** (`tsx watch server.ts`
+  sobe normalmente mesmo com o merge pendente — os arquivos conflitados aparentemente não são
+  importados no caminho de boot exercitado), só bloquearia um `tsc -b`/`vite build` estrito; QA
+  visual em navegador real não foi impedida por isso. Não resolvido (fora do escopo pedido, toca
+  auth/RLS/crypto — risco alto pra decidir sem o usuário).
+- **`preview_start({name:...})` deu boot silencioso (mesmo sintoma do Piloto 003/004: processo
+  vivo, só banner do npm, porta nunca abre)** — contorno já documentado aplicado: `npx tsx watch
+  server.ts` via Bash `run_in_background` com as env vars de `.claude/launch.json`
+  (`prospector-dev`) copiadas à mão, `curl` em loop até a porta responder, depois
+  `preview_start({url:...})` na porta já viva. **Achado novo de ambiente**: esta máquina tinha,
+  simultaneamente, múltiplos outros processos `tsx watch server.ts` já rodando contra este MESMO
+  checkout (não um worktree) — de pelo menos uma sessão Codex concorrente (`C:\Users\Marks\
+  Documents\Codex\...`) editando `src/features/copiloto-ia/*` ao vivo — o que causava reinícios em
+  cadeia do meu próprio servidor (arquivo mudou → tsx reinicia) e um `EADDRINUSE` real na minha
+  segunda tentativa de subir o servidor (a primeira nunca tinha de fato morrido, só o processo
+  "pai" do Bash retornou antes do processo real desanexar). Confirmado via `Get-CimInstance
+  Win32_Process`/`Get-NetTCPConnection` que o processo na porta 3005 era mesmo o meu (caminho do
+  checkout principal, não de worktree) antes de confiar na sessão do navegador — o mesmo cuidado já
+  registrado no adendo do Piloto 003.
+- **QA visual real, ponta a ponta, com sessão própria**: usuário de teste criado pelo formulário de
+  cadastro real (`/login?signup=1`, e-mail `@atlasgr.com.br`, mesmo caminho de
+  `tests/e2e/helpers.ts::signUp`) — sem atalho de API/seed. Navegado direto para
+  `/app/sdr-diagnostic-joao` (rota real do `App.tsx`) e conferidas as 5 abas tocadas (Julho, Agosto,
+  Comparativo, Em Cadência, Diagnóstico) em **claro e escuro**: tab-cards com barra de destaque
+  ativa, KPIs com número em mono tabular e chip colorido (`REUNIÕES AGENDADAS` em dourado confirma o
+  fix do alias `--color-gold`), funil proporcional, donut de canal (`conic-gradient`) com lista e
+  legenda, cards de negócio com borda lateral por estágio (ganho/perdido/aberto), barras pareadas de
+  comparativo + pills de variação (`DeltaPill`), resumo de KPI + tabela em Em Cadência, cards de
+  achado com marcador de ícone em Diagnóstico. Nenhum erro de console novo atribuível a esta
+  mudança (os únicos erros vistos — falha de HMR em `LoginScreen.tsx`, WebSocket do Vite fechado —
+  vêm do restart em cadeia causado pela sessão Codex concorrente, não do código desta sessão).
+  Servidor de dev encerrado ao final (`Stop-Process` no PID da porta 3005) para não deixar processo
+  órfão.
+- **Validações executadas**: `npx tsc --noEmit` — 0 erros nos 2 arquivos tocados (104 erros
+  pré-existentes em arquivos não relacionados, todos `TS1185`/`TS1005` de marcador de conflito).
+  `npx biome check` nos 2 arquivos — só débito pré-existente (`noImportantStyles` no bloco
+  `prefers-reduced-motion`, `organizeImports` na ordem de import original, 10 botões sem `type`
+  já existentes fora do trecho tocado); o único warning causado por esta sessão (botão novo da
+  navegação por abas sem `type="button"`) foi corrigido. QA visual real em navegador (acima) —
+  completa, não pendente.
+
+## Pilot 028 — Promoção do vocabulário "relatório comercial" a primitivo compartilhado (CRM) + fundação do mesmo vocabulário no portal-comercial estático
+
+- **Objetivo**: pedido do usuário — colou um bloco de CSS puro (tokens + componentes: letterhead,
+  tab-cards, KPIs, modal de drill-down, funil, donut de canal, deals-grid, heatmap de calendário,
+  tabela comparativa, achados, plano de ação, checklist, confete) pedindo pra "colocar na Central de
+  Inteligência Comercial". `AskUserQuestion` (2 rodadas) esclareceu que não era um recorte pontual:
+  o pedido era refazer **todas as telas**, **nos dois sistemas de UI do repo** (app React/Tailwind
+  em `src/` e o portal estático sem framework em `public/tools/portal-comercial/`, 6 páginas + 6
+  variantes Total Trac, um único `css/styles.css` compartilhado) usando esse CSS como base visual.
+  Dado o escopo (~30 telas do CRM + 12 páginas do portal), entrei em `EnterPlanMode`, rodei 2
+  agentes Explore em paralelo (mapa de telas/primitivos do CRM; mapa do portal) e escrevi um plano
+  faseado, aprovado pelo usuário via `ExitPlanMode` — só a Fase 1 (fundação) e um piloto por sistema
+  foram executados nesta sessão; a Fase 3 (rollout onda a onda pras ~40 telas restantes) fica pra
+  sessões futuras, por design (ver plano em `.claude/PILOTS.md`… na verdade salvo em
+  `C:\Users\Marks\.claude\plans\bright-seeking-tarjan.md`, fora do repo).
+- **Achado que redirecionou a implementação**: o CSS colado é, na prática, a mesma especificação
+  visual do relatório `diagnosticosdrjoaoreisjulago2026.html` já extraído no Pilot anterior
+  (“JoaoReisDiagnosticHub”, entrada logo acima) — mesmos tokens (`--bg/--surface/--ink/--brand/
+  --brand-2/--gold/--ok/--soft`, `--font-mono`), mesmo vocabulário de componente (KPI/funil/canal/
+  negócios/comparativo). Aquele pilot **decidiu deliberadamente manter os 6 componentes
+  (`KpiStat`, `FunnelBars`, `ChannelDonut`, `DealsGrid`, `CompareBar`, `DeltaPill`) locais ao
+  arquivo**, "por ainda não ter um segundo consumidor real fora desta tela" (mesma lógica do Pilot
+  003). O pedido de hoje — reaproveitar esse vocabulário no portal estático E em outras telas do CRM
+  — é exatamente esse segundo consumidor. Decisão: promover os 6 pra `src/components/ui/`
+  (`KpiCard`, `FunnelBars`, `ChannelDonut`, `CompareBar`+`DeltaPill`, `DealsGrid`+`DealCard`),
+  generalizando a API pra tirar regra de negócio do componente base (mapa de estágio Bitrix, canais
+  de cadência) — fica com quem chama, via funções adaptadoras (`toFunnelItems`/`toDealCardData`) que
+  continuam em `JoaoReisDiagnosticHub.tsx` (ver `src/components/ui/AGENTS.md`: "não inserir regra de
+  negócio em componente base"). `JoaoReisDiagnosticHub.tsx` foi refatorado pra consumir os novos
+  primitivos em vez das cópias locais — nenhuma prop de uso visível mudou pro usuário final.
+- **Correção de contraste feita na extração (achado documentado, não novo)**: o Pilot 003 (adendo
+  "Centro de Decisão") já tinha *flagado, sem corrigir*, que `--ok`/`--warn` crus sobre `--surface`
+  clara ficam abaixo de 4.5:1 (mesmo padrão do bug real já corrigido em `--critical`/`--danger` e no
+  `Badge.tsx`, que usa `text-X-active dark:text-X`). Ao promover `KpiCard`/`DealCard`/`DeltaPill`
+  pra primitivo compartilhado, apliquei esse mesmo padrão (`text-ok-active dark:text-ok`,
+  `text-warn-active dark:text-gold`) em vez de herdar a cor crua do componente local original —
+  fecha parte daquele débito já mapeado, sem tocar os outros ~lugares que ainda usam a cor crua fora
+  desses 3 componentes (fora do escopo desta sessão).
+- **6 componentes genuinamente novos**, construídos do zero pro vocabulário que faltava
+  (`FindingsList` "achados", `ActionPlanSteps` "plano/passo" — usa `<ol>/<li>` reais em vez de
+  número decorativo, pra leitor de tela anunciar "item N de M" —, `Checklist`, `CompareTable`,
+  `TabNavCards`, `CalendarHeatmap`). Nenhum foi aplicado a uma tela real ainda (nenhuma tela do CRM
+  hoje tem uma seção de achados/plano/checklist/heatmap pra migrar) — ficam disponíveis em
+  `src/components/ui/` pra quando a Fase 3 chegar nas telas de relatório (Comercial Inteligente,
+  Analytics, Market Intelligence). Forçar um desses componentes em `JoaoReisDiagnosticHub.tsx` só
+  pra "usar a peça nova" teria sido exatamente o enchimento de espaço proibido pela regra #4 — não
+  fiz.
+- **`CalendarHeatmap` não usa o módulo Calendar/Heatmap do ECharts já registrado em
+  `src/components/charts/index.tsx`** (cogitado no plano inicial) — decisão tomada na hora: aquele
+  módulo desenha em canvas e perde a legibilidade de número por célula + navegação/foco nativos que
+  uma grade de `<button>` já dá de graça, pro volume de dados do caso de uso (semanas de um mês, não
+  anos de série temporal). Implementado como grid simples, sem dependência nova. Consistente com o
+  Pilot anterior, que também **não** fabricou dado diário pra um heatmap que o dataset não sustenta.
+- **Portal estático (`public/tools/portal-comercial/css/styles.css`)**: tokens genuinamente ausentes
+  adicionados (`--font-mono`, `--ok-soft`, `--danger-soft`, `--ok-ink`, `--danger-ink`, os 2 últimos
+  com o mesmo padrão de correção de contraste do CRM, `color-mix` só no tema claro). `--brand-soft`
+  do CSS colado **não foi criado** — o token `--soft` já existente cobre exatamente esse papel
+  (evita duplicar, `design-system/SKILL.md`). Todas as classes de componente novas (tab-card, kpi/
+  stat-card, modal/drill-down, funil, canal-donut, deals-grid, heatmap, compare-table, achados,
+  plano/passo, checklist, confete) adicionadas de forma aditiva — nomes de keyframe prefixados
+  `v28*` pra não colidir com nada existente. `--soft` já tinha override por marca
+  (`[data-empresa="totaltrac"]`); os tokens novos são semânticos (ok/danger), não de marca, então
+  não precisam de override — confirmado por não serem usados em nenhuma regra `[data-empresa=...]`.
+- **Colisão de `.letterhead*` resolvida mantendo o existente, não sobrescrevendo com a spec
+  colada** — achado real ao investigar: o cabeçalho atual (borda 3px na cor de marca, logo 126px,
+  `max-width:1240px`, igual aos outros 3 usos desse mesmo max-width no arquivo) já cumpre o mesmo
+  papel estrutural do `.letterhead` da spec colada (borda 1px cinza, logo 96px, `max-width:1120px`)
+  e não tinha nenhum problema real encontrado. Substituir só por "seguir a spec" teria sido troca
+  cosmética sem justificativa nos critérios da seção 5 da Constituição, e arriscava desalinhar o
+  cabeçalho do resto do layout (mesmo `max-width` usado 4x no arquivo) nas 12 páginas que carregam
+  esse CSS. Documentado em comentário no próprio `styles.css`.
+- **`index.html` não é a home** — a exploração inicial (relatada por um agente Explore) descrevia
+  `index.html` como tendo hero + ticker + grid de relatórios; na prática `index.html` é a tela de
+  seleção de empresa (AtlasGR/Total Trac, equivalente ao `WelcomeScreen`/`SelectionScreen` do CRM) e
+  `home.html` é a home real da AtlasGR com o ticker/grid. Corrigido antes de aplicar qualquer
+  componente novo a uma tela errada — nenhuma edição de conteúdo feita no portal nesta sessão, só a
+  fundação em CSS (ver limitação abaixo).
+- **Piloto de conteúdo real no portal — concluído numa continuação da mesma sessão** (usuário pediu
+  pra seguir). Em vez de tocar `js/ui.js`/`cardRelatorioRapidoHTML` (grade densa de ~20 cards de
+  relatório — achado real ao inspecionar: `.tab-cards` é dimensionado pra um punhado de destinos
+  grandes, não pra uma grade densa; aplicar ali teria sido o padrão errado, violaria a regra #4 da
+  Constituição), adicionei em `home.html`/`totaltrac-home.html` uma seção nova "Comece por aqui"
+  (`.tab-cards`, 5 links reais pras outras páginas do portal, descrições tiradas do próprio
+  `PORTAL.md`, não inventadas) e um resumo de KPIs reais do Cockpit acima da grade de relatórios.
+  **Achado que mudou o plano**: `cockpit.html` já tem sua própria linguagem visual de KPI
+  estabelecida e usada ~50x (`cockpitKpiCard()`/`.cockpit-kpi`, com `.valor`/`.rotulo` e drill-down
+  próprio) — introduzir a nova classe `.kpi`/`.kpi-icon` da Fase 1b só nesse resumo da home teria
+  criado uma segunda linguagem de KPI concorrente entre duas páginas vizinhas. Decisão: o resumo da
+  home reaproveita `cockpitKpiCard()` (função nova `cockpitAtualizarResumoHome()` em `js/cockpit.js`,
+  chamada nos 2 mesmos pontos que já atualizam o ticker — `iniciarCockpitExecutivo()` e o fim do
+  cálculo completo — mesmo padrão de guarda `if(!el)return` de todo o arquivo, no-op nas páginas sem
+  `#cockpitResumoHome`); as classes `.kpi`/`.tab-cards` novas ficam reservadas pra Fase 3, quando
+  fizer sentido decidir se substituem ou convivem com `.cockpit-kpi`. Nenhum número fabricado: os 4
+  KPIs (Fechado no mês, Forecast total, Pipeline elegível, Win Rate) usam exatamente os mesmos campos
+  já lidos por `cockpitTickerItens()`, e o container fica `oculto` até existir
+  `cockpitState.ultimoCalculo` (sem webhook configurado, mostra nada — não zeros).
+- **QA real desta parte**: `node --check` em `cockpit.js` (copiado pra fora do repo, mesmo motivo do
+  `"type":"module"` já documentado). Nenhum `id` duplicado em `home.html`/`totaltrac-home.html`
+  (checado via grep). Servidor estático improvisado (`portal-comercial-static`, `http-server`) ficou
+  instável entre navegações nesta sessão (páginas em branco/404 intermitentes, reproduzido mesmo sem
+  nenhuma mudança de código no meio) — contornado servindo os mesmos arquivos estáticos pelo Vite já
+  rodando em `localhost:3005` (Vite expõe `public/*` na raiz, então
+  `localhost:3005/tools/portal-comercial/home.html` é o mesmo arquivo, servido por um processo já
+  estável). QA visual real contra essa origem: `home.html` e `totaltrac-home.html` renderizam a nova
+  seção corretamente, reskin azul da Total Trac aplicado a 100% das classes novas sem nenhuma regra
+  `[data-empresa=...]` adicional (confirma o mecanismo de override já documentado). Simulei
+  `cockpitState.ultimoCalculo` via console pra exercitar `cockpitAtualizarResumoHome()` sem depender
+  de um webhook Bitrix real — os 4 cards renderizam com valores formatados corretamente
+  (`moedaRelatorio`/`cockpitND`), container deixa de ficar oculto. Tema escuro conferido via
+  `getComputedStyle` (`--bg` resolvendo pra `#0d0a09` corretamente) — o screenshot do navegador
+  mostrou um cinza chapado em vez do preto quente esperado nesta sessão (artefato de renderização do
+  preview pane, não reproduzido nos valores computados; não investigado a fundo, fora do que dava pra
+  confirmar via `getComputedStyle`). Foco de teclado no `.tab-card` (agora um `<a>`, não um
+  `<button>` como na spec original colada) verificado via `getComputedStyle` — precisou de uma regra
+  nova (`.tab-card:focus-visible`, ausente na spec porque ela assumia `<button>`) e de
+  `text-decoration:none;color:inherit` (sem isso o link herdava sublinhado azul padrão).
+- **Verificação real, não só sintática, feita nesta sessão**:
+  - CRM: `npx tsc --noEmit` no projeto inteiro — 0 erros. `npm run lint` (Biome) escopado aos
+    12 arquivos tocados — só o débito pré-existente de `useButtonType` já mapeado em
+    `JoaoReisDiagnosticHub.tsx` (linhas nunca tocadas nesta sessão); o único achado novo
+    (`useImportType` em `KpiCard.tsx`) foi corrigido. **QA visual real** contra um servidor de dev já
+    rodando (`localhost:3005`, sessão "QA Design Review" já autenticada) — navegado até
+    `/app/sdr-diagnostic-joao` de verdade, abas Julho/Comparativo conferidas em claro **e escuro**:
+    KPIs com cor/valor corretos, funil proporcional com tom certo por status, donut de canal com
+    legenda e "(genérico)" removido do rótulo, cards de negócio com badge/borda por estágio, barras
+    pareadas + pills de variação (verde/vermelho) — tudo idêntico ao comportamento pré-refactor.
+    Nenhum erro novo no console.
+  - Portal: `css/styles.css` com chaves balanceadas (670/670) verificado por script. Servidor
+    estático novo (`portal-comercial-static`, `npx http-server`, adicionado a `.claude/launch.json`)
+    usado pra confirmar `home.html` renderiza sem regressão visual (letterhead, hero, quick-nav,
+    ticker, card de conexão — todos idênticos ao design já existente) — um screenshot limpo obtido
+    antes da preview pane deste ambiente ficar instável entre navegações (falha de ferramenta, não
+    do código: páginas em branco/404 intermitentes ao reusar a aba depois de `location.reload()`);
+    não bloqueou a verificação porque o CSS já tinha sido confirmado correto antes disso.
+  - Nenhuma das duas suítes de teste automatizado do repo (`tests/e2e/*.spec.ts` do CRM,
+    checagens ad-hoc do `PORTAL.md`) foi executada nesta sessão — nenhuma tela de fluxo coberto por
+    elas foi alterada (só primitivos novos/promovidos e CSS aditivo).
+
+- **Continuação (usuário pediu "pode seguir") — auditoria das 5 páginas restantes do portal**.
+  Em vez de aplicar o vocabulário novo mecanicamente, cada página foi lida antes de qualquer edição
+  (mesmo processo que já tinha se provado certo em `cockpit.html`/`home.html` acima). Resultado: só
+  2 das 6 páginas precisavam de mudança.
+  - **Achado maior**: `js/sdr.js` (`gerarHTMLRelatorioJoao`) e `js/catalogo-relatorios.js`
+    (`MODELO_EXECUTIVO_CSS`) revelam que este produto já tem uma **terceira** implementação do
+    mesmo idioma visual "relatório executivo" (letterhead/hero/`.kpis`/`.kpi`) — usada só pra gerar
+    HTML autocontido baixável/imprimível (o "Modelo visual do relatório"), não a UI interativa do
+    portal. É quase certamente a origem do arquivo de referência
+    `diagnosticosdrjoaoreisjulago2026.html` citado no pilot anterior. Não mexida — é um sistema
+    paralelo intencional (relatório exportável vs. portal ao vivo), fora do escopo de "todas as
+    telas do portal" (que são as páginas interativas).
+  - `cockpit.html`: **sem mudança**. `cockpitRenderAlertas()`/`.cockpit-alerta-*` já é um sistema de
+    achados de 3 níveis (crítico/atenção/positivo, com ação sugerida e clique) — estritamente mais
+    rico que o `.achado` binário (win/gap) novo. Aplicar `.achado` ali seria downgrade, não upgrade.
+  - `sdr.html`/`forecast.html`: **sem mudança**. `kpiCardHtml()`/`.relatorio-especial-kpi` (achado:
+    é a classe de KPI mais usada do portal inteiro, não só destas 2 páginas) já cobre exatamente o
+    mesmo papel do `.kpi` novo, com drill-down (`kpi-clicavel` → rola até a tabela) já funcionando.
+    Nenhuma seção "always-neutral-color" como a de `evolucao.html` foi encontrada aqui.
+  - `extracao.html` (maior página, wizard de 8 passos): **sem mudança**. `.card h2 .num` já é o
+    sistema de passo numerado do wizard inteiro — equivalente direto do `.passo`/`ActionPlanSteps`
+    novo. Forçar o vocabulário novo aqui substituiria a estrutura literal da página sem ganho.
+  - `evolucao.html`/`totaltrac-evolucao.html`: **mudança real** — `pontosAtencaoEvolucaoHtml()`
+    (`js/jornada.js`) renderizava os 2 números de "Pontos de atenção" (negócios com CLOSEDATE
+    vencida / sem CLOSEDATE) sempre na mesma cor neutra (`.atencao-mini-card`, laranja de marca),
+    sem distinguir "0 = ok" de "15 = precisa agir". Migrado pra `.achados`/`.achado.gap|.win`
+    (ícone ⚠️/✅ + cor vermelha/verde reais, tom calculado pela própria contagem — não fabricado).
+    `.atencao-mini-grid`/`.atencao-mini-card` removidas do CSS (confirmado sem outro uso via grep
+    antes de remover). `totaltrac-evolucao.html` herda a correção de graça — mesmo `#evolucaoAtencao`
+    e mesmo `js/jornada.js` compartilhado, zero linha extra tocada (arquitetura já documentada em
+    `PORTAL.md`: "nenhuma lógica JS duplicada").
+  - **QA real**: servidor de dev do CRM (`localhost:3005`) caiu no meio da sessão (matando também o
+    `http-server` improvisado da vez anterior) — reproduziu o "boot silencioso" já documentado no
+    pilot JoaoReisDiagnosticHub (`preview_start({name:'prospector-dev'})` fica preso no banner do
+    npm, porta nunca abre). Contornado com o mesmo workaround já documentado: `npx tsx watch
+    server.ts` direto via Bash `run_in_background` (sem `&`/`disown` — a primeira tentativa com
+    `&`/`disown` fez o harness perder o processo, achado novo desta sessão) + polling até a porta
+    responder, depois `preview_start({url:...})`. `node --check` limpo em `jornada.js`. Simulado
+    `pontosAtencaoEvolucaoHtml([...])` via console com contagens fabricadas só pra teste
+    (vencidoCount:3/semCloseDateCount:0) — `getComputedStyle` confirmou as duas classes de tom
+    (`.achado.gap` → `rgb(214,69,69)`, `.achado.win` → `rgb(15,157,100)`) com o marcador (⚠️/✅)
+    certo em cada uma. Console sem erros novos em `evolucao.html` antes e depois da remoção do CSS
+    morto.
+  - **Não verificado nesta rodada** (não bloqueou porque nenhuma das 4 páginas foi tocada): QA
+    visual ao vivo de `cockpit.html`/`sdr.html`/`forecast.html`/`extracao.html` — a decisão de "sem
+    mudança" veio de leitura de código (CSS/JS já existentes), não de abrir as páginas. Se algo
+    nelas já estava quebrado antes desta sessão, continua igual — nenhuma alteração feita.
+
+- **Continuação — sondagem do lado CRM (Fase 3) e achado que encerrou o rollout mecânico**. Depois
+  do portal, chequei se as telas do CRM (`CommercialIntelligenceHub` + filhos, `Analytics.tsx`,
+  `WinLossAnalysis.tsx`, `SinglePageDashboard.tsx` — as primeiras da lista de prioridade do plano
+  original, por serem "naturalmente KPI/relatório") precisavam dos primitivos novos
+  (`KpiCard`/`FindingsList`/etc., Fase 1a). **Nenhuma precisava**: `KpiTile.tsx` (Pilot 003,
+  já com fix de a11y `nested-interactive` documentado) e `AlertsPanel.tsx` (4 níveis de
+  severidade: critical/warning/info/positive, já com o padrão `-active dark:` correto) já cobrem
+  exatamente o mesmo papel dentro do hub Comercial Inteligente; `Analytics.tsx`/`WinLossAnalysis.tsx`
+  usam `Card variant="stat"` diretamente; `SinglePageDashboard.tsx` tem sua própria grade de 4 KPIs
+  desenhada à mão (glow no hover, stagger de entrada) coerente com o resto da tela-herói. Mesmo
+  padrão já visto 4x no portal (`cockpit.html`, catálogo SDR/Forecast, wizard de extração):
+  **este produto já tem, quase em toda tela "de relatório", uma implementação madura e testada do
+  mesmo vocabulário visual — só com nomes locais diferentes**, não um vazio esperando os primitivos
+  novos.
+  - **Decisão**: parar o rollout mecânico tela-por-tela aqui. Continuar checando as ~20 telas
+    restantes do CRM uma a uma, depois de 4 (portal) + 4 (CRM) confirmações consecutivas do mesmo
+    padrão, teria valor marginal baixo (alta chance de repetir "já existe, sem mudança") pelo custo
+    de investigação por tela. Os primitivos novos (`FindingsList`/`ActionPlanSteps`/`Checklist`/
+    `CompareTable`/`TabNavCards`/`CalendarHeatmap`) continuam disponíveis em `src/components/ui/`
+    pra quando uma tela **genuinamente sem** esse vocabulário aparecer — não foram desperdiçados,
+    só não têm 20 consumidores forçados. Se o usuário apontar uma tela específica que sabe estar
+    sem esse tratamento, essa é a forma certa de continuar, não uma varredura cega.
+  - Servidor de dev (`localhost:3005`, subido manualmente via `npx tsx watch server.ts` +
+    `run_in_background`, contorno do boot silencioso) encerrado ao final via `TaskStop` — nenhum
+    processo órfão deixado.
