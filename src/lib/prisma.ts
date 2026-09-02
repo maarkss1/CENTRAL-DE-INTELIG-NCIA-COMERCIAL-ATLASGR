@@ -238,6 +238,7 @@ export const prisma = basePrisma.$extends({
           // é sempre injetado a partir do tenant da request, nunca aceito do corpo do payload.
           'CommercialGoal',
           'LeadStageHistory',
+          'LeadFieldChange',
         ];
         const auditableModels = [
           'Company',

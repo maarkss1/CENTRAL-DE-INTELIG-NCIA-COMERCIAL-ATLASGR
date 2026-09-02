@@ -4,7 +4,7 @@
   `prisma/migrations/**`, `src/lib/auth/`, `src/shared/` — porque os arquivos a alterar são
   `src/lib/prisma.ts` e `src/lib/crypto/secretFields.ts`, fora dessas quatro pastas)
 - Onda: roadmap-v2-onda-1
-- Status: resolvido
+- Status: aberto
 - Prioridade: alto
 
 ## Problema
@@ -77,6 +77,3 @@ durante a auditoria fail-closed do Agente 01 na Onda 1 do Roadmap v2 (bloqueador
 armazenadas sem proteção adequada" — `/AGENTS.md`); não corrigido diretamente nesta execução porque
 `src/lib/prisma.ts` e `src/lib/crypto/secretFields.ts` estão fora do boundary de arquivos desta
 missão (`prisma/schema.prisma`, `prisma/migrations/**`, `src/lib/auth/`, `src/shared/`).
-
-## Resolução
-Adicionado em src/lib/crypto/piiFields.ts pela Onda 42. Handoff fechado.

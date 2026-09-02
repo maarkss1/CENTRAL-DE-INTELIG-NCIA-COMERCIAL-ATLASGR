@@ -72,3 +72,6 @@ __pycache__/
 
 *storybook.log
 storybook-static
+
+# Scripts temporários locais (já houve credencial de produção commitada por engano em _tmp_*.mjs)
+_tmp_*

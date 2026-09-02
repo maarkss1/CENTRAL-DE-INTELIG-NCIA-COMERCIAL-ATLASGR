@@ -104,7 +104,14 @@ const envSchema = z
     // segunda trava de "isso é infraestrutura compartilhada entre TODAS as organizações, não uma
     // permissão de uma organização". Sem este valor configurado, /admin/queues e /metrics negam
     // acesso por padrão (fail-closed) — ver src/shared/middlewares/requirePlatformOperator.ts.
-    PLATFORM_OPERATOR_TOKEN: z.string().min(16).optional(),
+    // `.env.example` entrega `PLATFORM_OPERATOR_TOKEN=` (vazio) — dotenv carrega isso como string
+    // vazia, que NÃO é `undefined`: sem o preprocess, `z.string().min(16).optional()` rejeitava a
+    // string vazia ("Too small") e copiar o .env.example verbatim impedia o servidor de subir.
+    // Vazio continua significando "não configurado" (fail-closed em /admin/queues e /metrics).
+    PLATFORM_OPERATOR_TOKEN: z.preprocess(
+      (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+      z.string().min(16).optional(),
+    ),
 
     INFISICAL_TOKEN: z.string().optional(),
     VAULT_ADDR: z.string().optional(),

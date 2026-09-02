@@ -633,6 +633,7 @@ model Lead {
   dealItems             CrmDealItem[]
   commercialDocuments   CrmCommercialDocument[]
   stageHistory          LeadStageHistory[]
+  fieldChanges          LeadFieldChange[]
   optOutRecords         OptOutRecord[]
   prospects             Prospect[]
   // Onda 10 (Agente 01A) — ver proposta do Agente 17, itens 2/3/4/5.
@@ -800,6 +801,7 @@ model Organization {
   commercialGoals               CommercialGoal[]
   leadStageHistories            LeadStageHistory[]
   forecastSnapshots             ForecastSnapshot[]
+  leadFieldChanges              LeadFieldChange[]
   featureFlagOverrides          OrganizationFeatureFlag[]
   bugReports                    BugReport[]
   // Onda 10 (Agente 01A) — schema de cadência/agendamento/proposta-assinatura proposto pelo
@@ -927,6 +929,38 @@ model ForecastSnapshot {
 
   @@index([organizationId, period])
   @@index([organizationId, period, snapshotAt])
+}
+
+// Histórico estruturado de mudança de CAMPO de uma oportunidade (não de etapa — isso é
+// LeadStageHistory). Hoje rastreia dois campos que alimentam inteligência executiva e que, antes
+// desta tabela, não tinham NENHUM histórico consultável (TimelineEvent é texto livre):
+//   - `expectedCloseAt` → CLOSEDATE Intelligence (adiamentos/antecipações, dias deslocados,
+//     oportunidades constantemente empurradas — src/features/commercial-intelligence/application/
+//     queries/closeDateIntelligenceReport.ts);
+//   - `owner` → Handoffs/trocas de responsável (queries/journeyReport.ts).
+// Append-only, gravado pelo helper único src/shared/services/leadFieldChangeHistory.service.ts nos mesmos pontos de escrita
+// reais que já alteram esses campos. Histórico anterior à migration não existe e os relatórios
+// tratam isso como "sem histórico" (trackingSince), nunca fabricado.
+model LeadFieldChange {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leadId         String
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// Nome do campo de Lead alterado ("expectedCloseAt" | "owner").
+  field          String
+  /// Valores serializados como texto (ISO 8601 para datas, id/nome para owner). Null = campo estava/ficou vazio.
+  previousValue  String?
+  newValue       String?
+  /// Quem mudou (User.id) quando conhecido; null em escrita por integração/automação.
+  changedBy      String?
+  /// Origem da escrita: "crm" | "crm360" | "batch" | "round_robin" — rastreabilidade, não regra.
+  source         String       @default("crm")
+  changedAt      DateTime     @default(now())
+
+  @@index([organizationId, field, changedAt])
+  @@index([organizationId, leadId, field])
+  @@index([leadId, changedAt])
 }
 
 // ─── LDR / Account Intelligence ────────────────────────────────────────────

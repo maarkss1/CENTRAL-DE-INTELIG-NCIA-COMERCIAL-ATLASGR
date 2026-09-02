@@ -23,6 +23,7 @@ import type {
   CrmProductInput,
 } from '../crm360.schema.js';
 import { recordStageTransition } from '../../commercial-intelligence/infra/stageHistory.js';
+import { recordLeadFieldChanges } from '../../../shared/services/leadFieldChangeHistory.service.js';
 import type { ICrm360Repository } from '../domain/ICrm360Repository.js';
 import type {
   CrmCommercialDocument,
@@ -602,6 +603,15 @@ export class PrismaCrm360Repository implements ICrm360Repository {
 
     if (previousLead.pipelineStageId !== stage.id) {
       await recordStageTransition(organizationId, leadId, stage, stage.pipelineId);
+    }
+    if (expectedCloseDate) {
+      await recordLeadFieldChanges(
+        organizationId,
+        leadId,
+        { expectedCloseAt: previousLead.expectedCloseAt },
+        { expectedCloseAt: expectedCloseDate },
+        { source: 'crm360', changedBy: actorUserId ?? null },
+      );
     }
 
     return { ...updated, status: fromPrismaLeadStatus(updated.status) };

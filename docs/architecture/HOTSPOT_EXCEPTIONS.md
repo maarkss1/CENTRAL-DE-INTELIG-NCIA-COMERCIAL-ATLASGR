@@ -59,15 +59,8 @@ propósito por estar fora de "## Exceções ativas"):
 
 - **Limite excepcional:** 1700 linhas
 - **Dono:** Agente 04 — CRM e BI / Agente 02 — Produto e UX
-- **Motivo:** painel analítico complexo de diagnóstico comercial executivo, combinando visualizações ECharts, formulários de auditoria e cálculo de scores. Saltou de 1154 para 1662 linhas num PR de
-  auditoria (não deste item) que corrigiu uma regressão de contraste (DQA-19) e, na mesma branch,
-  rodou `biome format --write` neste arquivo pela primeira vez desde que o gate `format:check` foi
-  descoberto sem estar sendo validado em CI — o formatter expandiu JSX previamente condensado em
-  linha única para o estilo canônico multi-linha do Biome. Não é crescimento de funcionalidade:
-  `biome lint`/`tsc --noEmit` continuam limpos, o diff é só quebra de linha. Modularizar continua
-  fora do escopo desse PR pontual.
-- **Registrado em:** 2026-09-01. **Atualizado em:** 2026-09-02 (limite anterior de 1300 linhas não
-  cobria mais o tamanho pós-formatação).
+- **Motivo:** painel analítico complexo de diagnóstico comercial executivo, combinando visualizações ECharts, formulários de auditoria e cálculo de scores. Limite elevado de 1300 para 1700 em 2026-09-02 (PR #329) sem nenhuma linha de código nova: o arquivo estava fora do padrão do `biome format` (gate `format:check` do CI) e a formatação obrigatória o levou de 1154 para 1661 linhas — crescimento de formatação, não de lógica; a modularização continua devida.
+- **Registrado em:** 2026-09-01
 - **Reavaliar até:** 2026-11-30
 
 ### `src/features/integrations/components/BitrixImportPanel.tsx`

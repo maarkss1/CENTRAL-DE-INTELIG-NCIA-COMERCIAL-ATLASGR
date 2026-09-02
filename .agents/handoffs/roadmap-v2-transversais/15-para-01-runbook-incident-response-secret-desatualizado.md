@@ -1,7 +1,7 @@
 - De: Agente 15 — Segurança Aplicada e Rotação de Segredos
 - Para: Agente 01 — Plataforma, Segurança e Dados
 - Onda: roadmap-v2-transversais
-- Status: resolvido
+- Status: aberto
 - Prioridade: alto
 
 ## Problema
@@ -70,10 +70,3 @@ Encontrado durante auditoria de `scripts/security/**` + `src/lib/security/` dest
 (roadmap-v2-transversais). Não é o achado conhecido de `backups/prospector-*.dump` (esse
 permanece como decisão humana separada, sem novidade nesta auditoria — confirmei via `git
 ls-files` que nenhum `.dump` está rastreado no worktree atual).
-
-## Resolução (Coordenador, 00)
-Fase 2 (Containment) de `docs/security/runbooks/INCIDENT_RESPONSE.md` reescrita conforme sugerido:
-agora instrui rotacionar `BETTER_AUTH_SECRET` (com referência a `SECRETS_MANAGER_MIGRATION.md`) e,
-separadamente, credenciais de integração via `CREDENTIALS_ENCRYPTION_KEY`. Não toquei nos workflows
-de CI (`JWT_SECRET`/`JWT_REFRESH_SECRET` como env var placeholder) — decisão do dono de Pipelines de
-CI (Agente 08), fora do escopo deste handoff, como o próprio Agente 15 já apontou.

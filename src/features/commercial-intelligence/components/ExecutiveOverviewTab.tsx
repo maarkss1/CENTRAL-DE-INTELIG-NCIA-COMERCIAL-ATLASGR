@@ -15,6 +15,7 @@ import { TrendChartCard } from './TrendChartCard';
 import { MentorPlaybookCard } from './MentorPlaybookCard';
 import { DecisionCenterPanel } from './DecisionCenterPanel';
 import { GoalCountdownOverlay } from './GoalCountdownOverlay';
+import { HealthScoreCard } from './HealthScoreCard';
 import { toast } from '../../../lib/toast';
 import {
   commercialIntelligenceApi,
@@ -66,7 +67,13 @@ function CoverageProtectionTable({
         Pipeline elegível por mês de calendário frente à meta daquele mês — não confundir com
         Pipeline Total.
       </p>
-      <div className="overflow-x-auto">
+      <div
+        className="overflow-x-auto"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: região rolável horizontal precisa ser focável por teclado (axe scrollable-region-focusable), mesmo padrão de CrmBoard.tsx
+        tabIndex={0}
+        role="region"
+        aria-label="Tabela Proteção 90 dias (rolável)"
+      >
         <table className="w-full text-xs min-w-[560px]">
           <thead>
             <tr className="text-ink-2 border-b border-line">
@@ -314,6 +321,8 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
       </div>
 
       <ForecastRangeCard overview={overview} trends={trends} />
+
+      <HealthScoreCard filter={filter} />
 
       <TrendChartCard trends={trends} />
 

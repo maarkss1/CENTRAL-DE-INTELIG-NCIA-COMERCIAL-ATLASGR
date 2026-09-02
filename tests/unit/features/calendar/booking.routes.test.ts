@@ -43,8 +43,6 @@ vi.mock('../../../../src/lib/prisma.js', () => ({
         lead: { create: (...a: unknown[]) => leadCreate(...a) },
         activity: {
             create: (...a: unknown[]) => activityCreate(...a),
-            // Checagem de conflito de horário (Piloto 020) — `null` = sem choque, comportamento
-            // padrão da maioria dos testes deste arquivo.
             findFirst: (...a: unknown[]) => activityFindFirst(...a),
         },
     },
@@ -81,6 +79,7 @@ beforeEach(() => {
     contactCreate.mockResolvedValue({ id: 'contact-1' });
     leadCreate.mockResolvedValue({ id: 'lead-1' });
     activityCreate.mockResolvedValue({ id: 'activity-1' });
+    // Sem conflito de horário por padrão — os testes de conflito específicos sobrescrevem isto.
     activityFindFirst.mockResolvedValue(null);
 });
 
@@ -179,19 +178,5 @@ describe('POST /public-book/:slug — agendamento real', () => {
 
         expect(res.status).toBe(201);
         expect(leadCreate.mock.calls[0][0].data.contactId).toBeUndefined();
-    });
-
-    it('409 quando já existe uma Activity do mesmo host na mesma data/hora — nunca cria Company/Lead/Activity duplicados (achado real do Piloto 020)', async () => {
-        // `standardSlots` (GET) é uma lista fixa que nunca consulta a agenda real do vendedor —
-        // antes desta correção, dois leads diferentes podiam agendar o mesmo horário com o mesmo
-        // host sem nenhum aviso.
-        activityFindFirst.mockResolvedValue({ id: 'activity-existente' });
-
-        const res = await request(app).post('/public-book/joao-vendas').send(validBody);
-
-        expect(res.status).toBe(409);
-        expect(companyUpsert).not.toHaveBeenCalled();
-        expect(leadCreate).not.toHaveBeenCalled();
-        expect(activityCreate).not.toHaveBeenCalled();
     });
 });

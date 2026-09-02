@@ -4,6 +4,10 @@ import { Card } from '../../../components/ui/Card';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { KpiTile } from './KpiTile';
+import { MetricInfo } from './MetricInfo';
+import { CloseDateIntelligenceCard } from './CloseDateIntelligenceCard';
+import { ForecastAccuracyCard } from './ForecastAccuracyCard';
+import { DealDrillDownDrawer, type DrillDownQuery } from './DealDrillDownDrawer';
 import {
   commercialIntelligenceApi,
   formatCurrency,
@@ -53,6 +57,7 @@ export function PipelineForecastTab({ filter }: { filter: CommercialFilter }) {
   const [data, setData] = useState<PipelineCreation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [drillDown, setDrillDown] = useState<DrillDownQuery | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,12 +89,62 @@ export function PipelineForecastTab({ filter }: { filter: CommercialFilter }) {
     );
   if (!data) return null;
 
+  const carryover = data.carryover;
+  const carryoverBlock = (
+    <Card padding="sm">
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="text-sm font-bold text-ink">Pipeline Carryover</h3>
+        <MetricInfo metricKey="carryover" />
+      </div>
+      <p className="text-[11px] text-ink-2 mb-3">
+        O que já estava aberto no primeiro dia de {data.period}, vindo de meses anteriores —
+        separado do que foi criado no mês.
+      </p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiTile
+          label="Carryover"
+          value={formatCurrency(carryover.amount)}
+          hint={`${carryover.count} negócio(s) abertos no início do mês`}
+        />
+        <KpiTile
+          label="Participação no pipeline do mês"
+          value={formatPercent(carryover.shareOfPeriodPipeline)}
+          hint="Carryover / (Carryover + Criado)"
+        />
+        <KpiTile
+          label="Ainda abertos"
+          value={formatCurrency(carryover.stillOpenAmount)}
+          hint={`${carryover.stillOpenCount} negócio(s)`}
+          tone={
+            carryover.stillOpenCount > 0 &&
+            carryover.count > 0 &&
+            carryover.stillOpenCount === carryover.count
+              ? 'critical'
+              : 'neutral'
+          }
+        />
+        <KpiTile
+          label="Fechados no mês"
+          value={`${carryover.closedInPeriodCount}`}
+          hint={`Ganho ${formatCurrency(carryover.wonInPeriodAmount)} · Perdido ${formatCurrency(carryover.lostInPeriodAmount)}`}
+          tone={carryover.wonInPeriodAmount > 0 ? 'good' : 'neutral'}
+        />
+      </div>
+    </Card>
+  );
+
   if (data.count === 0) {
     return (
-      <EmptyState
-        title="Nenhum negócio criado neste período"
-        description="Pipeline Criado só conta negócios do funil Negócio efetivamente CRIADOS no mês selecionado — não os apenas movimentados."
-      />
+      <div className="space-y-6">
+        <EmptyState
+          title="Nenhum negócio criado neste período"
+          description="Pipeline Criado só conta negócios do funil Negócio efetivamente CRIADOS no mês selecionado — não os apenas movimentados."
+        />
+        {carryoverBlock}
+        <CloseDateIntelligenceCard filter={filter} onOpenDrillDown={setDrillDown} />
+        <ForecastAccuracyCard />
+        <DealDrillDownDrawer filter={filter} query={drillDown} onClose={() => setDrillDown(null)} />
+      </div>
     );
   }
 
@@ -157,6 +212,10 @@ export function PipelineForecastTab({ filter }: { filter: CommercialFilter }) {
         <BreakdownTable title="Por origem" rows={data.bySource} />
         <BreakdownTable title="Por responsável" rows={data.byOwner} />
       </div>
+      {carryoverBlock}
+      <CloseDateIntelligenceCard filter={filter} onOpenDrillDown={setDrillDown} />
+      <ForecastAccuracyCard />
+      <DealDrillDownDrawer filter={filter} query={drillDown} onClose={() => setDrillDown(null)} />
     </div>
   );
 }
