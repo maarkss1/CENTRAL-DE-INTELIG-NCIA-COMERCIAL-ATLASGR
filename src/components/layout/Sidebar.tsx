@@ -1,9 +1,11 @@
 import { ChevronRight, LogOut } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { hasRequiredRole, MESA_TRATAMENTO_ROLES } from '../../lib/auth/authorization';
 import { SoundFX } from '../../lib/soundEffects';
+import { staggerContainer, staggerItem } from '../../lib/motion';
 import { Logo } from '../Logo';
 import { TotalTrackLogo } from '../TotalTrackLogo';
 import { TAB_META, type TabType } from './tabMeta';
@@ -172,10 +174,10 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         type="button"
         onClick={() => selectTab(tab)}
         aria-current={isActive ? 'page' : undefined}
-        className={`group relative w-full overflow-hidden rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition-[transform,background-color,border-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+        className={`group relative w-full overflow-hidden rounded-2xl border px-2.5 py-2 text-left text-sm font-bold transition-[transform,background-color,border-color,color,box-shadow] duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
           isActive
             ? 'translate-x-1 border-brand/20 bg-brand-active text-white shadow-[0_14px_28px_-20px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)]'
-            : 'border-transparent text-ink-2 hover:translate-x-0.5 hover:border-line hover:bg-surface-2 hover:text-ink'
+            : 'border-transparent text-ink-2 hover:translate-x-1 hover:border-brand/15 hover:bg-brand/8 hover:text-ink hover:shadow-card'
         }`}
       >
         {isActive && (
@@ -186,10 +188,10 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         )}
         <span className="relative z-10 flex items-center gap-2.5">
           <span
-            className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-[transform,background-color,border-color] duration-200 group-hover:scale-105 ${
+            className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl border transition-[transform,background-color,border-color] duration-300 ease-out group-hover:scale-110 group-hover:rotate-3 ${
               isActive
                 ? 'border-white/15 bg-white/10'
-                : 'border-line/80 bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
+                : 'border-line/80 bg-brand/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] group-hover:border-brand/20 group-hover:bg-brand/15'
             }`}
           >
             <Icon size={17} aria-hidden="true" />
@@ -229,23 +231,16 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
           }}
           aria-label={`Alternar para a operação ${isAtlas ? 'Total Trac' : 'AtlasGR'}`}
         >
-          <div className="flex items-center justify-between rounded-[var(--radius-nav-item)] border border-line bg-surface-2/80 p-2.5 shadow-[0_12px_28px_-24px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[transform,border-color,background-color,box-shadow] duration-200 group-hover:-translate-y-0.5 group-hover:border-brand/25 group-hover:bg-brand/8 group-hover:shadow-card">
-            <div className="flex items-center gap-2">
-              {isAtlas ? (
-                <Logo variant="symbol" className="h-7 w-7 shrink-0" />
-              ) : (
-                <TotalTrackLogo variant="symbol" className="h-7 w-7 shrink-0" />
-              )}
-              <div className="flex flex-col">
-                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-brand-active dark:text-brand-2">
-                  Operação Atual
-                </span>
-                <span className="text-sm font-black text-ink">
-                  {isAtlas ? 'AtlasGR' : 'Total Trac'}
-                </span>
-              </div>
+          <div className="flex items-center justify-between rounded-card border border-line bg-gradient-to-r from-brand/10 via-surface-2/80 to-surface-2/80 p-2.5 shadow-[0_12px_28px_-24px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[transform,border-color,background-color,box-shadow] duration-200 group-hover:-translate-y-0.5 group-hover:border-brand/25 group-hover:bg-brand/8 group-hover:shadow-card">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-brand-active dark:text-brand-2">
+                Operação Atual
+              </span>
+              <span className="text-sm font-black text-ink">
+                {isAtlas ? 'AtlasGR' : 'Total Trac'}
+              </span>
             </div>
-            <div className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-surface text-ink-2 shadow-sm">
+            <div className="grid h-7 w-7 place-items-center rounded-full border border-line bg-surface text-ink-2 shadow-sm">
               <ChevronRight
                 size={14}
                 className="transition-transform duration-200 group-hover:rotate-90"
@@ -256,12 +251,20 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         </button>
       </div>
 
-      <nav
+      <motion.nav
         aria-label="Navegação principal"
         className="custom-scrollbar flex-1 space-y-6 overflow-y-auto px-3 py-4"
+        variants={staggerContainer(0.05)}
+        initial="hidden"
+        animate="show"
       >
         {navGroups.map((group) => (
-          <section key={group.title} className="space-y-1" aria-label={group.title}>
+          <motion.section
+            key={group.title}
+            className="space-y-1"
+            aria-label={group.title}
+            variants={staggerItem}
+          >
             <div className="mb-2 flex items-center gap-2 px-3">
               <p className="text-[9px] font-black uppercase tracking-[0.18em] text-ink-2">
                 {group.title}
@@ -272,13 +275,13 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
               />
             </div>
             {group.items.map(renderNavItem)}
-          </section>
+          </motion.section>
         ))}
-      </nav>
+      </motion.nav>
 
       <div className="space-y-2 border-t border-line p-3">
         {currentUser && (
-          <div className="rounded-xl border border-line bg-surface-2/70 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <div className="rounded-card border border-line bg-gradient-to-br from-surface-2/80 to-brand/5 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <div className="flex min-w-0 items-center gap-2.5">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-2 text-xs font-bold text-white shadow-card ring-1 ring-white/10">
                 {currentUser.name?.charAt(0).toUpperCase() || 'U'}
@@ -298,7 +301,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         <button
           type="button"
           onClick={logout}
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-bold text-critical transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-critical/15 hover:bg-critical/10 active:translate-y-0"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-transparent px-3 py-2.5 text-left text-sm font-bold text-critical transition-[transform,background-color,border-color] duration-300 ease-out hover:-translate-y-0.5 hover:border-critical/15 hover:bg-critical/10 active:translate-y-0"
           title="Encerrar sessão e sair da conta"
         >
           <LogOut size={20} className="shrink-0 opacity-80" />
