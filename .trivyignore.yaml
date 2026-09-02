@@ -39,3 +39,13 @@ vulnerabilities:
       desenvolvimento) — não instanciado no runtime da aplicação, cujo banco é PostgreSQL. Ver
       docs/security/AUDIT_WAIVERS.md para o detalhamento completo e o dono do waiver.
     expired_at: 2026-10-01
+  # Mesma cadeia do waiver acima (mysql2 via prisma CLI), advisory diferente: DoS por
+  # decompressão ilimitada (zlib inflate) no handler de protocolo comprimido — achado em
+  # 2026-09-02 (npm audit passou a reportar depois de `npm install` regenerar o lockfile). Mesma
+  # justificativa: mysql2 nunca é instanciado no runtime real (Postgres via @prisma/adapter-pg).
+  - id: GHSA-rgwj-5xj2-c3m3
+    statement: >-
+      mysql2 <=3.23.0 via prisma@7.10.0 (pin exato do CLI do Prisma) — DoS por decompressão
+      ilimitada, não instanciado no runtime da aplicação. Ver docs/security/AUDIT_WAIVERS.md para
+      o detalhamento completo e o dono do waiver.
+    expired_at: 2026-10-01
