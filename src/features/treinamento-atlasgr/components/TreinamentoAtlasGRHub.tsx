@@ -190,7 +190,10 @@ export function TreinamentoAtlasGRHub() {
                   return (
                     <div
                       key={m.file}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedModule(m.file)}
+                      onKeyDown={(e) => e.key === 'Enter' && setSelectedModule(m.file)}
                       className={`w-full text-left p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-2 ${
                         isSelected
                           ? 'bg-brand/10 border-brand/40 text-brand font-bold shadow-sm'
