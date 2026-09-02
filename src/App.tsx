@@ -31,9 +31,11 @@ const PropostaComercialHub = lazy(() =>
   })),
 );
 const HubInteligenciaMarketingHub = lazy(() =>
-  import('./features/hub-inteligencia-marketing/components/HubInteligenciaMarketingHub').then((m) => ({
-    default: m.HubInteligenciaMarketingHub,
-  })),
+  import('./features/hub-inteligencia-marketing/components/HubInteligenciaMarketingHub').then(
+    (m) => ({
+      default: m.HubInteligenciaMarketingHub,
+    }),
+  ),
 );
 const SinglePageDashboard = lazy(() =>
   import('./features/dashboard/components/SinglePageDashboard').then((m) => ({

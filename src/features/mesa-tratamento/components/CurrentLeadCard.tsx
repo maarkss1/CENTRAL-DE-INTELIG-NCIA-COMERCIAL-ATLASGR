@@ -186,7 +186,9 @@ export function CurrentLeadCard({ lead, leadStatuses, onRegistered }: CurrentLea
               )}
               {q?.temaProximaReuniao && (
                 <div className="col-span-2">
-                  <span className="text-ink-2 block text-xs">Tema combinado pra próxima reunião</span>
+                  <span className="text-ink-2 block text-xs">
+                    Tema combinado pra próxima reunião
+                  </span>
                   <span className="text-ink">{q.temaProximaReuniao}</span>
                 </div>
               )}

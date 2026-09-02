@@ -25,7 +25,11 @@ export class PrismaCadenceSequenceRepository implements CadenceSequenceRepositor
    * em `deactivateCadenceSequence`. `organizationId` não pode compor `where` de um `update` sem
    * um índice único composto que inclua os dois campos, e não existe um aqui.
    */
-  async setActive(_organizationId: string, id: string, active: boolean): Promise<CadenceSequenceRow> {
+  async setActive(
+    _organizationId: string,
+    id: string,
+    active: boolean,
+  ): Promise<CadenceSequenceRow> {
     return prisma.cadenceSequence.update({
       where: { id },
       data: { active },
