@@ -664,18 +664,19 @@ Data: 01/09/2026 | BDR ID: 392
 
               <div className="space-y-3">
                 {dailyTasks.map((task) => (
-                  <div
+                  <button
+                    type="button"
                     key={task.id}
                     onClick={() => toggleTask(task.id)}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 ${
+                    className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 ${
                       task.completed
                         ? 'bg-ok/5 border-ok/30 text-ink opacity-85'
                         : 'bg-surface-2/60 border-line hover:border-brand/40'
                     }`}
                   >
-                    <button type="button" className={`mt-1 shrink-0 ${task.completed ? 'text-ok' : 'text-ink-2'}`}>
+                    <span className={`mt-1 shrink-0 ${task.completed ? 'text-ok' : 'text-ink-2'}`}>
                       {task.completed ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6" />}
-                    </button>
+                    </span>
 
                     <div className="flex-1 space-y-1">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-1">
@@ -695,7 +696,7 @@ Data: 01/09/2026 | BDR ID: 392
 
                       <p className="text-xs text-ink-2 leading-relaxed">{task.description}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

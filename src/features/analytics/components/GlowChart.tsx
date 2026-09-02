@@ -95,7 +95,7 @@ export function GlowChart({ data, error }: GlowChartProps) {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2" aria-label="Séries exibidas no gráfico">
+          <div role="group" aria-label="Séries exibidas no gráfico" className="flex flex-wrap gap-2">
             {SERIES.map((series) => {
               const active = visible[series.key];
               return (
