@@ -19,6 +19,7 @@ import { PrismaBugReportRepository } from '../../features/bug-reports/infra/Pris
 import { PrismaUsageRepository } from '../../features/billing/infra/PrismaUsageRepository';
 import { PrismaFeatureFlagRepository } from '../../features/feature-flags/infra/PrismaFeatureFlagRepository';
 import { PrismaCopilotoIaRepository } from '../../features/copiloto-ia/infra/PrismaCopilotoIaRepository';
+import { BitrixLeadWritebackAdapter } from '../../features/integrations/bitrix/infra/BitrixLeadWritebackAdapter';
 
 // Use Cases
 import { NoteUseCases } from '../../features/notes/application/NoteUseCases';
@@ -36,6 +37,7 @@ import { BugReportUseCases } from '../../features/bug-reports/application/BugRep
 import { UsageUseCases } from '../../features/billing/application/UsageUseCases';
 import { FeatureFlagsUseCases } from '../../features/feature-flags/application/FeatureFlagsUseCases';
 import { CopilotoIaUseCases } from '../../features/copiloto-ia/application/CopilotoIaUseCases';
+import { CopilotoBitrixWritebackUseCases } from '../../features/copiloto-ia/application/CopilotoBitrixWritebackUseCases';
 
 // Controllers
 import { NoteController } from '../../features/notes/presentation/NoteController';
@@ -75,6 +77,10 @@ export function setupDI() {
   const usageRepository = new PrismaUsageRepository();
   const featureFlagRepository = new PrismaFeatureFlagRepository();
   const copilotoIaRepository = new PrismaCopilotoIaRepository();
+  // Porta de composição entre features (copiloto-ia -> integrations/bitrix), ver
+  // src/shared/contracts/bitrixWriteback.contract.ts — este arquivo é a única "raiz de composição"
+  // com licença de conhecer as duas features ao mesmo tempo.
+  const bitrixLeadWritebackAdapter = new BitrixLeadWritebackAdapter();
 
   container.register('NoteRepository', noteRepository);
   container.register('ActivityRepository', activityRepository);
@@ -118,6 +124,10 @@ export function setupDI() {
   const usageUseCases = new UsageUseCases(usageRepository);
   const featureFlagsUseCases = new FeatureFlagsUseCases(featureFlagRepository);
   const copilotoIaUseCases = new CopilotoIaUseCases(copilotoIaRepository);
+  const copilotoBitrixWritebackUseCases = new CopilotoBitrixWritebackUseCases(
+    copilotoIaRepository,
+    bitrixLeadWritebackAdapter,
+  );
 
   container.register('NoteUseCases', noteUseCases);
   container.register('ActivityUseCases', activityUseCases);
@@ -134,6 +144,7 @@ export function setupDI() {
   container.register('UsageUseCases', usageUseCases);
   container.register('FeatureFlagsUseCases', featureFlagsUseCases);
   container.register('CopilotoIaUseCases', copilotoIaUseCases);
+  container.register('CopilotoBitrixWritebackUseCases', copilotoBitrixWritebackUseCases);
 
   // 4. Controllers
   container.register('NoteController', new NoteController(noteUseCases));
@@ -162,5 +173,8 @@ export function setupDI() {
   container.register('BugReportController', new BugReportController(bugReportUseCases));
   container.register('UsageController', new UsageController(usageUseCases));
   container.register('FeatureFlagsController', new FeatureFlagsController(featureFlagsUseCases));
-  container.register('CopilotoIaController', new CopilotoIaController(copilotoIaUseCases));
+  container.register(
+    'CopilotoIaController',
+    new CopilotoIaController(copilotoIaUseCases, copilotoBitrixWritebackUseCases),
+  );
 }

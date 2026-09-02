@@ -108,3 +108,16 @@ export const COPILOTO_IA_ROLES: readonly Role[] = ['ADMIN', 'GESTOR', 'CLOSER', 
 export function canAccessCopilotoIa(role: string): boolean {
   return hasRequiredRole(role, COPILOTO_IA_ROLES);
 }
+
+/**
+ * Subconjunto restrito de `COPILOTO_IA_ROLES` — configurar o mapeamento `semantic_field ->
+ * UF_CRM_*` e executar o writeback real no Bitrix24 (Onda 4) são decisões administrativas com
+ * efeito colateral externo, mesmo nível de restrição de `managementRoles` em `bitrix.routes.ts`
+ * (conectar/desconectar/testar webhook) — CLOSER/SDR aprovam a sugestão (`COPILOTO_IA_ROLES`), mas
+ * não configuram o destino nem disparam a escrita no Bitrix.
+ */
+export const COPILOTO_IA_MANAGEMENT_ROLES: readonly Role[] = ['ADMIN', 'GESTOR'];
+
+export function canManageCopilotoIaBitrixMapping(role: string): boolean {
+  return hasRequiredRole(role, COPILOTO_IA_MANAGEMENT_ROLES);
+}
