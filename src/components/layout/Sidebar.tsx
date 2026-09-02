@@ -31,8 +31,8 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
 
   const isJoaoReisOrAdmin =
     !!currentUser &&
-    (currentUser.email.toLowerCase().includes('joao.reis') ||
-      currentUser.name.toLowerCase().includes('joão reis') ||
+    (currentUser.email?.toLowerCase().includes('joao.reis') ||
+      currentUser.name?.toLowerCase().includes('joão reis') ||
       canManageOperations);
 
   const selectTab = (tab: TabType) => {
