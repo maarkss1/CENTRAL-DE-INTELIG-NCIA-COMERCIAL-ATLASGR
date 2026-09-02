@@ -8,6 +8,16 @@
 # na mesma alteração. `expired_at` vencido faz o Trivy voltar a reportar o achado normalmente
 # (fail-closed automático, não depende de revisão manual notar a data vencida).
 vulnerabilities:
+  - id: GHSA-3f6p-5ww8-9rcr
+    statement: >-
+      mysql2 <3.22.0 via prisma (mysql2 é incluído transitivamente no pacote de CLI do Prisma para
+      suporte multi-driver de desenvolvimento; o banco de dados de produção desta plataforma é
+      PostgreSQL — mysql2 nunca é instanciado no runtime Express/Node.js da aplicação). Waiver já
+      registrado em docs/security/AUDIT_WAIVERS.md em 2026-09-01, mas nunca espelhado para este
+      arquivo — achado ao investigar o gate `trivy-fs-pr-gate` falhando (npm audit já reportava o
+      mesmo achado como aceito). Ver docs/security/AUDIT_WAIVERS.md para o detalhamento completo e
+      o dono do waiver.
+    expired_at: 2026-10-01
   - id: GHSA-ggr8-5vv4-36mx
     statement: >-
       deepmerge-ts <8.0.0 via prisma/@prisma/config (carregamento de prisma.config.ts, ferramenta
