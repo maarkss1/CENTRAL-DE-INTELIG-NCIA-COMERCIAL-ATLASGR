@@ -146,27 +146,30 @@ export class OpsAgent {
     const sid = sessionId || `session-ops-${Date.now()}`;
     const organizationId = getTenantId();
 
-    // Só verifica base legal quando há um leadId real: é o caso em que get_lead_context pode
-    // trazer o Contact real do lead para dentro do loop de tool-calling com o provedor de IA
-    // externo. Sem leadId, a instrução é texto livre sem titular associado — ver
-    // guardrails.service.ts:assertPiiExternalConsent.
-    if (leadId) {
-      try {
-        assertPiiExternalConsent(organizationId);
-      } catch (error) {
-        const message = (error as Error).message;
-        logger.warn(
-          { err: error, leadId, organizationId },
-          'Ops Agent bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.',
-        );
-        await recordAgentFailure({
-          sessionId: sid,
-          agentType: 'OPS',
-          organizationId,
-          errorMessage: message,
-        });
-        return { success: false, error: message };
-      }
+    // SEC-013c: verifica base legal LGPD sempre, mesmo sem leadId — diferente dos demais
+    // agentes do enxame, o Ops também tem acesso a `search_leads` (ver DIRETRIZES DE EXECUÇÃO
+    // #2 no prompt abaixo), que localiza lead(s) por nome de empresa/contato SEM precisar de um
+    // ID pronto. Uma missão como "notifique o time sobre a empresa X" nunca chega com leadId,
+    // mas ainda assim aciona search_leads/get_lead_context e traz contato(s) reais para dentro
+    // do loop de tool-calling com o provedor de IA externo (Groq/OpenAI) — mesmo mascarado via
+    // minimizePii, ainda é tratamento de dado pessoal e exige base legal registrada (ver o
+    // comentário sobre minimizePii vs. o gate em guardrails.service.ts). Restringir a checagem a
+    // `if (leadId)` deixava esse caminho sem nenhuma verificação.
+    try {
+      assertPiiExternalConsent(organizationId);
+    } catch (error) {
+      const message = (error as Error).message;
+      logger.warn(
+        { err: error, leadId, organizationId },
+        'Ops Agent bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.',
+      );
+      await recordAgentFailure({
+        sessionId: sid,
+        agentType: 'OPS',
+        organizationId,
+        errorMessage: message,
+      });
+      return { success: false, error: message };
     }
 
     const humanContent = leadId
