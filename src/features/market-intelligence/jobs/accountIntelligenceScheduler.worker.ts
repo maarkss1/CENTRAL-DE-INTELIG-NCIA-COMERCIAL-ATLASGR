@@ -41,54 +41,54 @@ export function createAccountIntelligenceSchedulerWorker() {
   return new Worker<SchedulerJobData>(
     accountIntelligenceSchedulerQueueName,
     async (job: Job<SchedulerJobData>) => {
-    return requestContext.run({}, async () => {
-      logger.info('Iniciando job Account Intelligence Scheduler...');
-      const batchSize = job.data.batchSize || 10;
+      return requestContext.run({}, async () => {
+        logger.info('Iniciando job Account Intelligence Scheduler...');
+        const batchSize = job.data.batchSize || 10;
 
-      const expiredSnapshots = await prisma.accountIntelligenceSnapshot.findMany({
-        where: {
-          expiresAt: { lt: new Date() },
-        },
-        select: { companyId: true, organizationId: true },
-        take: Math.floor(batchSize / 2),
-      });
+        const expiredSnapshots = await prisma.accountIntelligenceSnapshot.findMany({
+          where: {
+            expiresAt: { lt: new Date() },
+          },
+          select: { companyId: true, organizationId: true },
+          take: Math.floor(batchSize / 2),
+        });
 
-      const noSnapshotCompanies = await prisma.company.findMany({
-        where: {
-          status: 'Ativo',
-          intelligenceSnapshots: { none: {} },
-        },
-        select: { id: true, organizationId: true },
-        take: Math.floor(batchSize / 2),
-      });
+        const noSnapshotCompanies = await prisma.company.findMany({
+          where: {
+            status: 'Ativo',
+            intelligenceSnapshots: { none: {} },
+          },
+          select: { id: true, organizationId: true },
+          take: Math.floor(batchSize / 2),
+        });
 
-      const targets = [
-        ...expiredSnapshots.map((s) => ({ id: s.companyId, orgId: s.organizationId })),
-        ...noSnapshotCompanies.map((c) => ({ id: c.id, orgId: c.organizationId })),
-      ].filter((t) => t.orgId !== null) as { id: string; orgId: string }[];
+        const targets = [
+          ...expiredSnapshots.map((s) => ({ id: s.companyId, orgId: s.organizationId })),
+          ...noSnapshotCompanies.map((c) => ({ id: c.id, orgId: c.organizationId })),
+        ].filter((t) => t.orgId !== null) as { id: string; orgId: string }[];
 
-      const uniqueTargets = Array.from(new Map(targets.map((t) => [t.id, t])).values());
+        const uniqueTargets = Array.from(new Map(targets.map((t) => [t.id, t])).values());
 
-      let refreshed = 0;
-      for (const target of uniqueTargets) {
-        try {
-          await withRlsContext(async (tx) => {
-            const service = new AccountIntelligenceService(tx as any, target.orgId);
-            await service.refresh(target.id);
-          });
-          refreshed++;
-        } catch (error) {
-          logger.error(
-            { error, companyId: target.id },
-            'Falha ao atualizar a inteligencia no scheduler LDR',
-          );
+        let refreshed = 0;
+        for (const target of uniqueTargets) {
+          try {
+            await withRlsContext(async (tx) => {
+              const service = new AccountIntelligenceService(tx as any, target.orgId);
+              await service.refresh(target.id);
+            });
+            refreshed++;
+          } catch (error) {
+            logger.error(
+              { error, companyId: target.id },
+              'Falha ao atualizar a inteligencia no scheduler LDR',
+            );
+          }
         }
-      }
 
-      logger.info('Scheduler atualizou ' + refreshed + ' contas (LDR Fase 5).');
-      return { success: true, processed: refreshed };
-    });
-  },
+        logger.info('Scheduler atualizou ' + refreshed + ' contas (LDR Fase 5).');
+        return { success: true, processed: refreshed };
+      });
+    },
     { connection },
   );
 }

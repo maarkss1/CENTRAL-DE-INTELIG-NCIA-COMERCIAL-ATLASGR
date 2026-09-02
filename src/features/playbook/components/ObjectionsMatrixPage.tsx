@@ -130,8 +130,8 @@ export function ObjectionsMatrixPage() {
               <Shield className="text-brand" size={32} /> Matriz de Objeções
             </h1>
             <p className="text-ink-2 text-sm font-medium">
-              {meta?.total ?? items.length} objeç{(meta?.total ?? items.length) !== 1 ? 'ões' : 'ão'}{' '}
-              mapeada
+              {meta?.total ?? items.length} objeç
+              {(meta?.total ?? items.length) !== 1 ? 'ões' : 'ão'} mapeada
               {(meta?.total ?? items.length) !== 1 ? 's' : ''} para {brandInfo.name} com script de
               contorno recomendado e diferencial-chave.
             </p>
