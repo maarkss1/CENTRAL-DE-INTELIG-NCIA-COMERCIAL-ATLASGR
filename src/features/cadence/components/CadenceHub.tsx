@@ -875,7 +875,12 @@ function SequencesSection({ canManage }: { canManage: boolean }) {
       </div>
 
       {loading ? (
-        <div className="space-y-2" role="status" aria-live="polite" aria-label="Carregando sequências">
+        <div
+          className="space-y-2"
+          role="status"
+          aria-live="polite"
+          aria-label="Carregando sequências"
+        >
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-full" />
         </div>
@@ -918,10 +923,7 @@ function SequencesSection({ canManage }: { canManage: boolean }) {
                   <td className="py-1.5 pr-3">
                     <div className="font-semibold text-ink">{sequence.name}</div>
                     {sequence.description && (
-                      <div
-                        className="text-ink-2 max-w-sm truncate"
-                        title={sequence.description}
-                      >
+                      <div className="text-ink-2 max-w-sm truncate" title={sequence.description}>
                         {sequence.description}
                       </div>
                     )}
@@ -1496,9 +1498,12 @@ function JourneyTemplatesDialog({
                         Roteiro de Toques da Jornada:
                       </span>
                       <div className="space-y-1.5">
-                        {tpl.touches.map((t) => (
+                        {tpl.touches.map((t, touchIndex) => (
                           <div
-                            key={t.order}
+                            // `order` não é único em todo template (achado real: dois toques com
+                            // order 0 no mesmo roteiro geravam "two children with the same key");
+                            // o índice desempata sem esconder o dado.
+                            key={`${t.order}-${touchIndex}`}
                             className="p-2.5 rounded-xl bg-surface border border-line text-xs space-y-1"
                           >
                             <div className="flex items-center justify-between">
