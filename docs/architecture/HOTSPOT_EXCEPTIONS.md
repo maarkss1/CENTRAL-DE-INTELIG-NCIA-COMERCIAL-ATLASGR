@@ -57,9 +57,9 @@ propósito por estar fora de "## Exceções ativas"):
 
 ### `src/features/commercial-intelligence/components/JoaoReisDiagnosticHub.tsx`
 
-- **Limite excepcional:** 1300 linhas
+- **Limite excepcional:** 1700 linhas
 - **Dono:** Agente 04 — CRM e BI / Agente 02 — Produto e UX
-- **Motivo:** painel analítico complexo de diagnóstico comercial executivo, combinando visualizações ECharts, formulários de auditoria e cálculo de scores.
+- **Motivo:** painel analítico complexo de diagnóstico comercial executivo, combinando visualizações ECharts, formulários de auditoria e cálculo de scores. Limite elevado de 1300 para 1700 em 2026-09-02 (PR #329) sem nenhuma linha de código nova: o arquivo estava fora do padrão do `biome format` (gate `format:check` do CI) e a formatação obrigatória o levou de 1154 para 1661 linhas — crescimento de formatação, não de lógica; a modularização continua devida.
 - **Registrado em:** 2026-09-01
 - **Reavaliar até:** 2026-11-30
 

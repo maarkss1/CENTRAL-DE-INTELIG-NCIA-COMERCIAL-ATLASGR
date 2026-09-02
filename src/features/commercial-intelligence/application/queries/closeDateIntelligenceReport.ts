@@ -10,12 +10,14 @@
  */
 
 import type {
-  CloseDateBreakdown,
-  CloseDateDealRow,
-  CloseDateIntelligenceReport,
   CommercialIntelligenceFilter,
   CommercialIntelligenceRepository,
 } from '../../domain/CommercialIntelligence';
+import type {
+  CloseDateBreakdown,
+  CloseDateDealRow,
+  CloseDateIntelligenceReport,
+} from '../../domain/JourneyIntelligence';
 import { FORECAST_RULES, FORECAST_RULES_VERSION } from '../forecastEngine';
 import { isDealOpen } from '../pipelineEligibility';
 import { daysBetween, mean, roundMoney } from '../shared/mathUtils';

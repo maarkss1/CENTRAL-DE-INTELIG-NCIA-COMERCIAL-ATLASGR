@@ -43,9 +43,8 @@ import type {
   ForecastAccuracySummary,
   HealthScoreResult,
   ForecastSnapshotStore,
-  CloseDateIntelligenceReport,
-  JourneyReport,
 } from '../domain/CommercialIntelligence';
+import type { CloseDateIntelligenceReport, JourneyReport } from '../domain/JourneyIntelligence';
 import { getGoal as getGoalCommand, setGoal as setGoalCommand } from './goalCommands';
 import { buildExecutiveOverview } from './queries/executiveOverviewReport';
 import { buildPipelineCreation } from './queries/pipelineCreationReport';
