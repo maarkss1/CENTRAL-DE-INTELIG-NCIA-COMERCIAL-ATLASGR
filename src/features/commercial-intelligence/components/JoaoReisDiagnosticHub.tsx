@@ -8,8 +8,6 @@ import {
   UserPlus,
   Users,
   CheckCircle,
-  Activity,
-  Clock,
   AlertTriangle,
   X,
   Sparkles,
@@ -18,7 +16,6 @@ import {
   RotateCcw,
   BookOpen,
   ShieldCheck,
-  PhoneCall,
   Target,
   FileText,
   Zap,
@@ -28,11 +25,6 @@ import {
   Printer,
   Copy,
   Check,
-  ExternalLink,
-  MessageSquare,
-  Phone,
-  Mail,
-  Linkedin,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 

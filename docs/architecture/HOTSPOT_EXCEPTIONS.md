@@ -55,6 +55,14 @@ propósito por estar fora de "## Exceções ativas"):
 - **Registrado em:** 2026-08-29
 - **Reavaliar até:** 2026-11-30 (mesmo checkpoint do `KNOWN_VIOLATIONS.md`)
 
+### `src/features/commercial-intelligence/components/JoaoReisDiagnosticHub.tsx`
+
+- **Limite excepcional:** 1300 linhas
+- **Dono:** Agente 04 — CRM e BI / Agente 02 — Produto e UX
+- **Motivo:** painel analítico complexo de diagnóstico comercial executivo, combinando visualizações ECharts, formulários de auditoria e cálculo de scores.
+- **Registrado em:** 2026-09-01
+- **Reavaliar até:** 2026-11-30
+
 ### `src/features/integrations/components/BitrixImportPanel.tsx`
 
 - **Limite excepcional:** 1300 linhas
