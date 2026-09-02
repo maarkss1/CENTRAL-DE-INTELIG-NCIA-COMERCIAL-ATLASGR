@@ -27,10 +27,16 @@ const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || '';
 // — quebrava busca/leitura por e-mail/telefone contra Postgres real; ver
 // .agents/handoffs/onda-39/01-para-00-pii-contact-revertida-quebra-integration.md).
 
-// Production-ready connection pool configuration
+// Production-ready connection pool configuration.
+// `max` precisa ficar abaixo do pool_size do pooler do Supabase em modo "Session" (hoje 15) —
+// setado em 20 antes, o pool deste único processo sozinho já estourava o limite do pooler assim
+// que ~15 requisições concorrentes precisavam de conexão ao mesmo tempo, derrubando em cascata
+// toda query (incluindo o Better Auth, que reusa este mesmo `prisma`/pool — ver `prismaAdapter`
+// em src/lib/auth.ts): "(EMAXCONNSESSION) max clients reached in session mode - max clients are
+// limited to pool_size: 15" e "Failed to get session" em toda rota autenticada.
 const pool = new Pool({
   connectionString,
-  max: 20, // Max number of clients in the pool
+  max: 10, // Máximo de clients no pool — mantém margem abaixo do pool_size:15 do pooler Supabase
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
   connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
   allowExitOnIdle: true,
@@ -64,7 +70,7 @@ export const dbPoolIdleConnections = new client.Gauge({
 
 export const dbPoolWaitingRequests = new client.Gauge({
   name: 'pg_pool_waiting_requests',
-  help: 'Requisições aguardando um client livre do pool pg deste processo — > 0 sustentado indica pool saturado (max: 20).',
+  help: 'Requisições aguardando um client livre do pool pg deste processo — > 0 sustentado indica pool saturado (max: 10).',
   collect() {
     this.set(pool.waitingCount);
   },
