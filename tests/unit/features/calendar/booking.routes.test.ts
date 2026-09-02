@@ -31,6 +31,7 @@ const companyUpsert = vi.fn();
 const contactCreate = vi.fn();
 const leadCreate = vi.fn();
 const activityCreate = vi.fn();
+const activityFindFirst = vi.fn();
 
 vi.mock('../../../../src/lib/prisma.js', () => ({
     prisma: {
@@ -40,7 +41,10 @@ vi.mock('../../../../src/lib/prisma.js', () => ({
         company: { upsert: (...a: unknown[]) => companyUpsert(...a) },
         contact: { create: (...a: unknown[]) => contactCreate(...a) },
         lead: { create: (...a: unknown[]) => leadCreate(...a) },
-        activity: { create: (...a: unknown[]) => activityCreate(...a) },
+        activity: {
+            create: (...a: unknown[]) => activityCreate(...a),
+            findFirst: (...a: unknown[]) => activityFindFirst(...a),
+        },
     },
 }));
 
@@ -74,6 +78,8 @@ beforeEach(() => {
     companyUpsert.mockResolvedValue({ id: 'company-1' });
     contactCreate.mockResolvedValue({ id: 'contact-1' });
     leadCreate.mockResolvedValue({ id: 'lead-1' });
+    // Sem conflito de horário por padrão (Onda 2 — checagem real antes de criar a Activity).
+    activityFindFirst.mockResolvedValue(null);
     activityCreate.mockResolvedValue({ id: 'activity-1' });
 });
 
