@@ -1945,6 +1945,24 @@ model CopilotoConversation {
   startedAt DateTime?
   endedAt   DateTime?
 
+  // ─── Mídia de áudio (Onda 3) ────────────────────────────────────────────
+  // Preenchidos pela extensão Chrome depois que o upload direto pro storage S3-compatível
+  // (`src/lib/storage/index.ts`, presigned PUT) termina — ver
+  // POST .../audio/upload-url e .../audio/complete. `audioObjectKey` é a chave do objeto no bucket
+  // (nunca a URL assinada, que expira em 1h); o download pro worker de transcrição usa
+  // `getDownloadUrl(audioObjectKey)` de novo, gerando uma URL assinada nova a cada tentativa.
+  audioObjectKey   String?
+  audioMimeType    String?
+  audioSizeBytes   Int?
+  audioDurationMs  Int?
+  /// Preenchidos pelo worker de transcrição (`jobs/transcribeConversation.worker.ts`) — nulos
+  /// enquanto a transcrição não foi tentada. `transcriptionError` preserva a última falha mesmo
+  /// depois de um retry bem-sucedido zerar `status` para READY (auditoria: "funcionou, mas na
+  /// 2ª tentativa" é uma informação real, não é apagada).
+  transcriptionStartedAt   DateTime?
+  transcriptionCompletedAt DateTime?
+  transcriptionError       String?   @db.Text
+
   transcriptSegments  CopilotoTranscriptSegment[]
   insights            CopilotoInsight[]
   crmFieldSuggestions CopilotoCrmFieldSuggestion[]

@@ -3,8 +3,7 @@
   "name": "Copiloto Comercial IA — Atlas GR",
   "version": "0.2.0",
   "description": "Copiloto Comercial IA da Central Atlas GR: detecta o Google Meet, captura consentimento e vincula a reunião a um Lead do CRM via backend próprio (nunca fala com o Bitrix24 diretamente).",
-  "default_locale": "pt_BR",
-  "permissions": ["storage", "activeTab", "scripting", "sidePanel"],
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabCapture", "offscreen"],
   "host_permissions": [
     "https://meet.google.com/*",
     "http://localhost:3005/*",

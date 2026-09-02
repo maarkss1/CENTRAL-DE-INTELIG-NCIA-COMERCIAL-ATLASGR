@@ -87,6 +87,16 @@ export const copilotoApi = {
   startCapture: (id) => request(`/api/copiloto-ia/conversations/${id}/start`, { method: 'POST' }),
   stopCapture: (id) => request(`/api/copiloto-ia/conversations/${id}/stop`, { method: 'POST' }),
   cancelConversation: (id) => request(`/api/copiloto-ia/conversations/${id}/cancel`, { method: 'POST' }),
+  requestAudioUploadUrl: (id, mimeType) =>
+    request(`/api/copiloto-ia/conversations/${id}/audio/upload-url`, {
+      method: 'POST',
+      body: JSON.stringify({ mimeType }),
+    }),
+  completeAudioUpload: (id, payload) =>
+    request(`/api/copiloto-ia/conversations/${id}/audio/complete`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
 
 export { ApiError };

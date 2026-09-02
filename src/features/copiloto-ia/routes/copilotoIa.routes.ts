@@ -26,6 +26,12 @@ router.post('/conversations/:id/cancel', (req, res, next) => resolve().cancel(re
 router.post('/conversations/:id/consent', (req, res, next) =>
   resolve().recordConsent(req, res, next),
 );
+router.post('/conversations/:id/audio/upload-url', (req, res, next) =>
+  resolve().requestAudioUploadUrl(req, res, next),
+);
+router.post('/conversations/:id/audio/complete', (req, res, next) =>
+  resolve().completeAudioUpload(req, res, next),
+);
 router.post('/conversations/:id/transcript-segments', (req, res, next) =>
   resolve().addTranscriptSegments(req, res, next),
 );

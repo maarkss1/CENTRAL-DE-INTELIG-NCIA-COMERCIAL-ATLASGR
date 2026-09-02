@@ -185,13 +185,35 @@ registerConsentEl.addEventListener('click', () =>
 toggleCaptureEl.addEventListener('click', () =>
   withErrorHandling(async () => {
     if (!conversation) return;
+
     if (conversation.status === 'CAPTURING') {
+      toggleCaptureEl.disabled = true;
+      toggleCaptureEl.textContent = 'Enviando gravação...';
+      // Para a gravação local e sobe o áudio ANTES de fechar a sessão no backend — se o upload
+      // falhar, o usuário vê o erro com a conversa ainda em CAPTURING, em vez de já ter avançado
+      // pra PROCESSING sem áudio nenhum associado.
+      const stopResult = await chrome.runtime.sendMessage({ type: 'ATLAS_STOP_RECORDING' });
+      if (!stopResult?.ok) {
+        throw new Error(stopResult?.error || 'Falha ao enviar a gravação para o backend.');
+      }
       const updated = await copilotoApi.stopCapture(conversation.id);
       conversation.status = updated.status;
       notifyCaptureState(false);
     } else {
       const updated = await copilotoApi.startCapture(conversation.id);
       conversation.status = updated.status;
+      const startResult = await chrome.runtime.sendMessage({
+        type: 'ATLAS_START_RECORDING',
+        tabId: activeTabId,
+        conversationId: conversation.id,
+      });
+      if (!startResult?.ok) {
+        // Sem gravação real rodando, a conversa não deveria continuar "CAPTURING" no backend —
+        // reverte pra PROCESSING (o worker de transcrição pula sozinho, sem áudio associado).
+        await copilotoApi.stopCapture(conversation.id).catch(() => {});
+        conversation.status = 'PROCESSING';
+        throw new Error(startResult?.error || 'Falha ao iniciar a gravação de áudio da aba.');
+      }
       notifyCaptureState(true);
     }
     await saveConversationForTab();

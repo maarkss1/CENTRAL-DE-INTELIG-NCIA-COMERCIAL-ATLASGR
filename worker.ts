@@ -53,6 +53,7 @@ import { createBitrixExtractionPurgeWorker, scheduleBitrixExtractionPurgeJob } f
 import { createNewsMonitorWorker, scheduleGlobalNewsScan } from './src/lib/queue/newsMonitor.worker.js';
 import { createAccountIntelligenceInsightsWorker, scheduleAccountIntelligenceInsightsJob } from './src/features/market-intelligence/jobs/accountIntelligenceInsights.worker.js';
 import { createForecastSnapshotWorker, scheduleForecastSnapshotJob } from './src/features/commercial-intelligence/jobs/forecastSnapshotWeekly.worker.js';
+import { createCopilotoTranscriptionWorker } from './src/features/copiloto-ia/jobs/transcribeConversation.worker.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -93,6 +94,7 @@ async function startWorkerProcess() {
     const newsMonitorWorker = createNewsMonitorWorker();
     const accountIntelligenceInsightsWorker = createAccountIntelligenceInsightsWorker();
     const forecastSnapshotWorker = createForecastSnapshotWorker();
+    const copilotoTranscriptionWorker = createCopilotoTranscriptionWorker();
 
     await Promise.all([
         scheduleBitrixSync(),
@@ -157,6 +159,7 @@ async function startWorkerProcess() {
         { name: 'news-monitor', worker: newsMonitorWorker },
         { name: 'account-intelligence-insights', worker: accountIntelligenceInsightsWorker },
         { name: 'forecast-snapshot-weekly-queue', worker: forecastSnapshotWorker },
+        { name: 'copiloto-ia-transcription-queue', worker: copilotoTranscriptionWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {

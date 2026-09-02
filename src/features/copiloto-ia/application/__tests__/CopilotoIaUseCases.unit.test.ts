@@ -30,6 +30,13 @@ function baseConversation(
     createdBy: null,
     startedAt: null,
     endedAt: null,
+    audioObjectKey: null,
+    audioMimeType: null,
+    audioSizeBytes: null,
+    audioDurationMs: null,
+    transcriptionStartedAt: null,
+    transcriptionCompletedAt: null,
+    transcriptionError: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -76,7 +83,13 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
   ): Promise<ConversationStateDTO | null> {
     const conversation = this.conversations.get(id);
     if (!conversation) return null;
-    return { status: conversation.status, consentStatus: conversation.consentStatus };
+    return {
+      status: conversation.status,
+      consentStatus: conversation.consentStatus,
+      title: conversation.title,
+      audioObjectKey: conversation.audioObjectKey,
+      audioMimeType: conversation.audioMimeType,
+    };
   }
 
   async getConversationById(): Promise<CopilotoConversationDetailDTO | null> {
@@ -107,6 +120,40 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
     const conversation = this.conversations.get(id);
     if (!conversation) throw new Error('not found');
     const updated = { ...conversation, consentStatus };
+    this.conversations.set(id, updated);
+    return updated;
+  }
+
+  async updateConversationAudio(
+    _organizationId: string,
+    id: string,
+    data: { objectKey: string; mimeType: string; sizeBytes: number; durationMs?: number },
+  ): Promise<CopilotoConversationDTO> {
+    const conversation = this.conversations.get(id);
+    if (!conversation) throw new Error('not found');
+    const updated = {
+      ...conversation,
+      audioObjectKey: data.objectKey,
+      audioMimeType: data.mimeType,
+      audioSizeBytes: data.sizeBytes,
+      audioDurationMs: data.durationMs ?? null,
+    };
+    this.conversations.set(id, updated);
+    return updated;
+  }
+
+  async updateTranscriptionStatus(
+    _organizationId: string,
+    id: string,
+    data: {
+      transcriptionStartedAt?: Date;
+      transcriptionCompletedAt?: Date;
+      transcriptionError?: string | null;
+    },
+  ): Promise<CopilotoConversationDTO> {
+    const conversation = this.conversations.get(id);
+    if (!conversation) throw new Error('not found');
+    const updated = { ...conversation, ...data };
     this.conversations.set(id, updated);
     return updated;
   }
@@ -388,6 +435,46 @@ describe('CopilotoIaUseCases', () => {
       const conversation = await grantedConversation();
       const cancelled = await useCases.cancel(ORG_ID, conversation.id);
       expect(cancelled.status).toBe('CANCELLED');
+    });
+  });
+
+  describe('completeAudioUpload — Onda 3', () => {
+    it('rejeita upload de áudio fora de CAPTURING/PROCESSING', async () => {
+      const conversation = await useCases.createConversation(
+        ORG_ID,
+        { source: 'MEET', leadId: 'lead-1' },
+        'user-1',
+      );
+      await expect(
+        useCases.completeAudioUpload(ORG_ID, conversation.id, {
+          objectKey: 'copiloto-ia/org-1/conv-1/audio.webm',
+          mimeType: 'audio/webm',
+          sizeBytes: 1024,
+        }),
+      ).rejects.toThrow('Só é possível anexar áudio');
+    });
+
+    it('aceita upload de áudio durante CAPTURING e persiste os metadados', async () => {
+      const conversation = await useCases.createConversation(
+        ORG_ID,
+        { source: 'MEET', leadId: 'lead-1' },
+        'user-1',
+      );
+      await useCases.recordConsent(ORG_ID, conversation.id, {
+        method: 'meet_banner',
+        textVersion: 'v1',
+        granted: true,
+      });
+      await useCases.startCapture(ORG_ID, conversation.id);
+
+      const updated = await useCases.completeAudioUpload(ORG_ID, conversation.id, {
+        objectKey: 'copiloto-ia/org-1/conv-1/audio.webm',
+        mimeType: 'audio/webm',
+        sizeBytes: 2048,
+        durationMs: 60_000,
+      });
+      expect(updated.audioObjectKey).toBe('copiloto-ia/org-1/conv-1/audio.webm');
+      expect(updated.audioDurationMs).toBe(60_000);
     });
   });
 
