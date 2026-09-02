@@ -54,7 +54,7 @@ export function LoginScreen() {
   // src/lib/auth.ts), acessível via ?signup=1 para os testes e2e (tests/e2e/helpers.ts::signUp)
   // exercitarem o fluxo real de criação de conta sem depender de um link que não deve mais
   // aparecer para usuários reais.
-  const [isSignUp, setIsSignUp] = useState(
+  const [isSignUp] = useState(
     () => new URLSearchParams(window.location.search).get('signup') === '1',
   );
   const [name, setName] = useState('');
