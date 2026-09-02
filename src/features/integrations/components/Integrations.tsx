@@ -516,7 +516,7 @@ export function Integrations() {
                     webhook de entrada opcional para atualizar registros já importados.
                   </p>
                 </div>
-                <div className="w-12 h-12 bg-orange-50 dark:bg-orange-500/10 rounded-full flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 bg-soft dark:bg-brand/10 rounded-full flex items-center justify-center shrink-0">
                   <span className="text-2xl">🔗</span>
                 </div>
               </div>
@@ -609,14 +609,14 @@ export function Integrations() {
                       value={bitrixLabelInput}
                       onChange={(e) => setBitrixLabelInput(e.target.value)}
                       placeholder="Nome pra identificar (ex.: AtlasGR, Total Trac)"
-                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
                     />
                     <input
                       type="url"
                       value={bitrixWebhookInput}
                       onChange={(e) => setBitrixWebhookInput(e.target.value)}
                       placeholder="https://seudominio.bitrix24.com.br/rest/1/xxxxxxxx/"
-                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
                     />
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -627,7 +627,7 @@ export function Integrations() {
                     onClick={handleBitrixConnect}
                     disabled={bitrixLoading || !canManage}
                     title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
-                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors"
+                    className="w-full py-2.5 bg-brand-active hover:brightness-105 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors"
                   >
                     {bitrixLoading ? 'Validando webhook...' : 'Conectar'}
                   </button>
@@ -644,7 +644,7 @@ export function Integrations() {
                         <div className="p-5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 space-y-3">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                              <KeyRound className="w-4 h-4 text-orange-500" /> Webhook de entrada
+                              <KeyRound className="w-4 h-4 text-brand" /> Webhook de entrada
                               (Bitrix24 → Atlas)
                             </p>
                             <label
@@ -665,7 +665,7 @@ export function Integrations() {
                                 }
                                 className="sr-only peer"
                               />
-                              <div className="w-9 h-5 bg-gray-200 dark:bg-white/10 rounded-full peer-checked:bg-orange-600 transition-colors peer-disabled:opacity-40" />
+                              <div className="w-9 h-5 bg-gray-200 dark:bg-white/10 rounded-full peer-checked:bg-brand-active transition-colors peer-disabled:opacity-40" />
                               <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
                             </label>
                           </div>
@@ -705,7 +705,7 @@ export function Integrations() {
                                   ? undefined
                                   : 'Requer permissão de Gestor ou Administrador'
                               }
-                              className="px-3 py-2 text-xs font-bold bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300 hover:bg-orange-100 rounded-lg transition-colors border border-orange-100 dark:border-orange-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                              className="px-3 py-2 text-xs font-bold bg-soft dark:bg-brand/10 text-brand-active dark:text-brand-2 hover:bg-brand/15 rounded-lg transition-colors border border-brand/15 dark:border-brand/20 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               {conn.hasWebhookSecret ? 'Gerar novo segredo' : 'Gerar segredo'}
                             </button>

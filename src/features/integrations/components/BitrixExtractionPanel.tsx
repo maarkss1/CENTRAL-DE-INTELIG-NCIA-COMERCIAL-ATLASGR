@@ -149,7 +149,7 @@ function triggerDownload(url: string) {
 }
 
 const selectClass =
-  'h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-3 disabled:opacity-40 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none cursor-pointer';
+  'h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-3 disabled:opacity-40 focus:bg-white focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none cursor-pointer';
 
 interface BitrixExtractionPanelProps {
   connectionId: string;
@@ -289,7 +289,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
     <div className="mt-8 pt-8 border-t border-gray-100 dark:border-white/10 space-y-4">
       <div>
         <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <Database className="w-5 h-5 text-orange-500" /> Extrações
+          <Database className="w-5 h-5 text-brand" /> Extrações
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
           Exporte um recorte completo do portal (Leads, Negócios, Empresas, Contatos, Atividades,
@@ -307,7 +307,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
                 type="button"
                 onClick={() => toggleEntity(opt.value)}
                 aria-pressed={active}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? 'bg-orange-600 border-orange-600 text-white' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:border-orange-300'}`}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? 'bg-brand-active border-brand-active text-white' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:border-brand/40'}`}
               >
                 {opt.label}
               </button>
@@ -383,13 +383,13 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Ex.: Transportadora"
-              className="h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-3 placeholder:text-gray-400 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none"
+              className="h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-3 placeholder:text-gray-400 focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none"
             />
           </div>
           <button
             onClick={startExtraction}
             disabled={submitting}
-            className="h-9 flex items-center gap-2 px-4 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
+            className="h-9 flex items-center gap-2 px-4 bg-brand-active hover:brightness-105 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
           >
             {submitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
