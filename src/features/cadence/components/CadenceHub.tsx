@@ -641,7 +641,7 @@ function CadenceRunRow({
   );
 }
 
-function CadenceRunsSection() {
+function CadenceRunsSection({ refreshToken }: { refreshToken: number }) {
   const [data, setData] = useState<CadenceRunDTO[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -664,7 +664,14 @@ function CadenceRunsSection() {
     };
   }, [statusFilter]);
 
-  useEffect(() => load(), [load]);
+  // `refreshToken` (incrementado pelo pai ao criar sequência/iniciar run) só entra como dependência
+  // do efeito — nunca como `key` do componente. Usar `key` para forçar refetch remonta a árvore
+  // inteira a cada incremento; achado real (PR #326): isso produzia 3 instâncias visíveis
+  // simultaneamente desta seção no DOM (uma por valor de key já usado) contra o servidor de
+  // desenvolvimento do Vite (`mountFrontend`, NODE_ENV=test nos testes E2E) — StrictMode + Vite
+  // dev server não garantem que o unmount da instância antiga complete antes do commit da nova.
+  // Sem remount, não há como existir mais de uma instância desta seção ao mesmo tempo.
+  useEffect(() => load(), [load, refreshToken]);
 
   const toggleStatus = (status: CadenceRunStatus) => {
     setStatusFilter((prev) => {
@@ -806,7 +813,13 @@ function CadenceRunsSection() {
  * desta lista na próxima busca — não existe um estado "Encerrada" pra badge aqui, diferente do
  * status de um run (`CadenceRunStatus`), que é uma máquina de estados com histórico visível.
  */
-function SequencesSection({ canManage }: { canManage: boolean }) {
+function SequencesSection({
+  canManage,
+  refreshToken,
+}: {
+  canManage: boolean;
+  refreshToken: number;
+}) {
   const [data, setData] = useState<CadenceSequenceDTO[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -827,7 +840,9 @@ function SequencesSection({ canManage }: { canManage: boolean }) {
     };
   }, []);
 
-  useEffect(() => load(), [load]);
+  // Ver comentário equivalente em CadenceRunsSection — `refreshToken` só como dependência do
+  // efeito, nunca como `key` do componente.
+  useEffect(() => load(), [load, refreshToken]);
 
   const handleDeactivate = async (sequence: CadenceSequenceDTO) => {
     if (
@@ -1580,8 +1595,8 @@ export function CadenceHub() {
           </div>
         </header>
 
-        <CadenceRunsSection key={runsKey} />
-        <SequencesSection key={sequencesKey} canManage={canManage} />
+        <CadenceRunsSection refreshToken={runsKey} />
+        <SequencesSection refreshToken={sequencesKey} canManage={canManage} />
         <OptOutsSection />
       </div>
 
