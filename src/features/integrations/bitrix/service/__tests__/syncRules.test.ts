@@ -100,6 +100,8 @@ describe('runBitrixSyncTick — bloqueador #11 (sincronização não pode falhar
       skipped: 0,
       skippedConflicts: 0,
       skippedNotOwned: 0,
+      failed: 0,
+      importedLeadIds: ['lead-1'],
     });
 
     prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-1' }]);
@@ -156,6 +158,8 @@ describe('runBitrixSyncTick — bloqueador #11 (sincronização não pode falhar
       skipped: 0,
       skippedConflicts: 0,
       skippedNotOwned: 0,
+      failed: 0,
+      importedLeadIds: ['lead-1'],
     });
 
     prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-1' }]);

@@ -33,6 +33,15 @@ vi.mock('../../../../src/features/cadence/infra/PrismaOptOutRepository.js', () =
     prismaOptOutRepository: {},
 }));
 
+// resolveEmailStatus (achado de auditoria: gate de entregabilidade antes do envio, ver
+// src/features/prospecting/services/__tests__/cold-email.service.test.ts para os testes
+// dedicados a esse comportamento) faz uma verificação de MX real — mockado aqui só pra manter
+// estes testes de comportamento pré-existente isolados de rede/DNS, sempre "verified" por padrão.
+const resolveEmailStatusMock = vi.fn();
+vi.mock('../../../../src/features/prospecting/services/enrichment/domainGuess.js', () => ({
+    resolveEmailStatus: (...args: unknown[]) => resolveEmailStatusMock(...args),
+}));
+
 const { sendColdEmail } = await import('../../../../src/features/prospecting/services/cold-email.service');
 
 const validCampaign = {
@@ -49,6 +58,7 @@ const validCampaign = {
 beforeEach(() => {
     vi.clearAllMocks();
     isOptedOutMock.mockResolvedValue(false);
+    resolveEmailStatusMock.mockResolvedValue('verified');
 });
 
 describe('Cold Email Service', () => {
