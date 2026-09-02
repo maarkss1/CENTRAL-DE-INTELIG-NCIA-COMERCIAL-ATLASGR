@@ -72,7 +72,9 @@ export const leadQualificationGraph = new StateGraph(LeadQualificationState)
     });
 
     try {
-      const result = cleanAndParseJson<{ score?: number; summary?: string }>(response.content as string);
+      const result = cleanAndParseJson<{ score?: number; summary?: string }>(
+        response.content as string,
+      );
       const score =
         typeof result.score === 'number' ? Math.max(0, Math.min(100, result.score)) : 50;
       return {
