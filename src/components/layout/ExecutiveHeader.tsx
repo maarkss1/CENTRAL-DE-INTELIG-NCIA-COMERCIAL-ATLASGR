@@ -1,5 +1,14 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Share2, GraduationCap, FileSignature, PieChart, Maximize2, Minimize2, RefreshCw, ShieldCheck } from 'lucide-react';
+import {
+  Share2,
+  GraduationCap,
+  FileSignature,
+  PieChart,
+  Maximize2,
+  Minimize2,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react';
 
 interface ExecutiveHeaderProps {
   title: string;
@@ -23,9 +32,24 @@ export function ExecutiveHeader({
 
   const hubs = [
     { id: 'social-selling', label: 'Social Selling', path: '/app/social-selling', icon: Share2 },
-    { id: 'treinamento-atlasgr', label: 'Treinamento AtlasGR', path: '/app/treinamento-atlasgr', icon: GraduationCap },
-    { id: 'proposta-comercial', label: 'Proposta Comercial', path: '/app/proposta-comercial', icon: FileSignature },
-    { id: 'hub-inteligencia-marketing', label: 'Hub Inteligência & Mkt', path: '/app/hub-inteligencia-marketing', icon: PieChart },
+    {
+      id: 'treinamento-atlasgr',
+      label: 'Treinamento AtlasGR',
+      path: '/app/treinamento-atlasgr',
+      icon: GraduationCap,
+    },
+    {
+      id: 'proposta-comercial',
+      label: 'Proposta Comercial',
+      path: '/app/proposta-comercial',
+      icon: FileSignature,
+    },
+    {
+      id: 'hub-inteligencia-marketing',
+      label: 'Hub Inteligência & Mkt',
+      path: '/app/hub-inteligencia-marketing',
+      icon: PieChart,
+    },
   ];
 
   return (
@@ -98,7 +122,11 @@ export function ExecutiveHeader({
             }`}
             title={isFullscreen ? 'Sair do Modo Tela Cheia' : 'Modo Tela Cheia Imersivo'}
           >
-            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            {isFullscreen ? (
+              <Minimize2 className="w-3.5 h-3.5" />
+            ) : (
+              <Maximize2 className="w-3.5 h-3.5" />
+            )}
             {isFullscreen ? 'Sair Tela Cheia' : 'Tela Cheia'}
           </button>
         </div>

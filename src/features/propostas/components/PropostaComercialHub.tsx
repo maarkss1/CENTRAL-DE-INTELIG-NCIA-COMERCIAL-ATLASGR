@@ -3,40 +3,81 @@ import { FileSignature, ExternalLink, Search, Sparkles, Layers, Gauge } from 'lu
 import { ExecutiveHeader } from '../../../components/layout/ExecutiveHeader';
 
 export function PropostaComercialHub() {
-  const [activeTab, setActiveTab] = useState<'selecao' | 'modelos' | 'cockpit-atlas' | 'cockpit-totaltrac'>('selecao');
-  const [selectedProposal, setSelectedProposal] = useState<string>('Modelo_Proposta_Completa_FINAL_REVISADO.html');
+  const [activeTab, setActiveTab] = useState<
+    'selecao' | 'modelos' | 'cockpit-atlas' | 'cockpit-totaltrac'
+  >('selecao');
+  const [selectedProposal, setSelectedProposal] = useState<string>(
+    'Modelo_Proposta_Completa_FINAL_REVISADO.html',
+  );
   const [iframeKey, setIframeKey] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const proposalsList = [
-    { file: 'Modelo_Proposta_Completa_FINAL_REVISADO.html', name: 'Proposta Comercial Completa Atlas GR', desc: 'Solução integral de GR, Profile e Conectividade', tag: 'Completa' },
-    { file: 'Modelo_Proposta_GR_FINAL_REVISADO.html', name: 'Proposta Gerenciamento de Risco (GR)', desc: 'Serviços especializados em mitigação de riscos', tag: 'GR' },
-    { file: 'Modelo_Proposta_Profile_Cadastro_Consulta_FINAL_REVISADO.html', name: 'Atlas Profile — Cadastro & Consulta', desc: 'Análise cadastral e histórico de profissionais', tag: 'Profile' },
-    { file: 'Modelo_Proposta_Profile_GR_Avulso_FINAL_REVISADO.html', name: 'Atlas Profile — GR Avulso', desc: 'Consultas sob demanda por viagem ou operação', tag: 'Profile Avulso' },
-    { file: 'Modelo_Proposta_Profile_RH_FINAL_REVISADO.html', name: 'Atlas Profile — Recursos Humanos', desc: 'Validação de equipe própria e contratados', tag: 'RH' },
-    { file: 'Modelo_Proposta_Torre_Logistica_Connect_FINAL_REVISADO.html', name: 'Torre de Controle Logística & Connect', desc: 'Monitoramento em tempo real e integração', tag: 'Torre' },
-    { file: 'Proposta_Transpacheco_corrigida.html', name: 'Proposta Especial — Transpacheco', desc: 'Modelo dedicado com personalizações operacionais', tag: 'Custom' },
+    {
+      file: 'Modelo_Proposta_Completa_FINAL_REVISADO.html',
+      name: 'Proposta Comercial Completa Atlas GR',
+      desc: 'Solução integral de GR, Profile e Conectividade',
+      tag: 'Completa',
+    },
+    {
+      file: 'Modelo_Proposta_GR_FINAL_REVISADO.html',
+      name: 'Proposta Gerenciamento de Risco (GR)',
+      desc: 'Serviços especializados em mitigação de riscos',
+      tag: 'GR',
+    },
+    {
+      file: 'Modelo_Proposta_Profile_Cadastro_Consulta_FINAL_REVISADO.html',
+      name: 'Atlas Profile — Cadastro & Consulta',
+      desc: 'Análise cadastral e histórico de profissionais',
+      tag: 'Profile',
+    },
+    {
+      file: 'Modelo_Proposta_Profile_GR_Avulso_FINAL_REVISADO.html',
+      name: 'Atlas Profile — GR Avulso',
+      desc: 'Consultas sob demanda por viagem ou operação',
+      tag: 'Profile Avulso',
+    },
+    {
+      file: 'Modelo_Proposta_Profile_RH_FINAL_REVISADO.html',
+      name: 'Atlas Profile — Recursos Humanos',
+      desc: 'Validação de equipe própria e contratados',
+      tag: 'RH',
+    },
+    {
+      file: 'Modelo_Proposta_Torre_Logistica_Connect_FINAL_REVISADO.html',
+      name: 'Torre de Controle Logística & Connect',
+      desc: 'Monitoramento em tempo real e integração',
+      tag: 'Torre',
+    },
+    {
+      file: 'Proposta_Transpacheco_corrigida.html',
+      name: 'Proposta Especial — Transpacheco',
+      desc: 'Modelo dedicado com personalizações operacionais',
+      tag: 'Custom',
+    },
   ];
 
   const filteredProposals = proposalsList.filter(
     (p) =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.tag.toLowerCase().includes(searchQuery.toLowerCase())
+      p.tag.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const currentPath =
     activeTab === 'selecao'
       ? '/tools/propostas/Selecionar_Proposta_Atlas.html'
       : activeTab === 'modelos'
-      ? `/tools/propostas/${selectedProposal}`
-      : activeTab === 'cockpit-atlas'
-      ? '/tools/portal-comercial/cockpit.html'
-      : '/tools/portal-comercial/totaltrac-cockpit.html';
+        ? `/tools/propostas/${selectedProposal}`
+        : activeTab === 'cockpit-atlas'
+          ? '/tools/portal-comercial/cockpit.html'
+          : '/tools/portal-comercial/totaltrac-cockpit.html';
 
   return (
-    <div className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}>
+    <div
+      className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}
+    >
       {/* Unified Executive Header */}
       <ExecutiveHeader
         title="Proposta Comercial & Cockpit AtlasGR / Total Trac"
@@ -145,7 +186,9 @@ export function PropostaComercialHub() {
       </div>
 
       {/* Main Container */}
-      <div className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}>
+      <div
+        className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
+      >
         {activeTab === 'modelos' ? (
           <div className="flex flex-col lg:flex-row h-full min-h-[650px]">
             {/* Sidebar list of proposal models with search */}

@@ -57,7 +57,8 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
   ];
 
   const isMarcelo =
-    !!currentUser && currentUser.email?.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
+    !!currentUser &&
+    currentUser.email?.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
 
   const executiveRepoItems: TabType[] = [
     'social-selling',
@@ -207,9 +208,16 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
       aria-label="Navegação principal por jornada comercial"
     >
       <div className="relative border-b border-line p-4">
-        <div className="pointer-events-none absolute -left-14 -top-20 h-40 w-40 rounded-full bg-brand/8 blur-[60px]" aria-hidden="true" />
+        <div
+          className="pointer-events-none absolute -left-14 -top-20 h-40 w-40 rounded-full bg-brand/8 blur-[60px]"
+          aria-hidden="true"
+        />
         <div className="relative z-10 mb-3 flex items-center gap-2">
-          {isAtlas ? <Logo className="h-8 text-ink" /> : <TotalTrackLogo className="h-8 text-ink" />}
+          {isAtlas ? (
+            <Logo className="h-8 text-ink" />
+          ) : (
+            <TotalTrackLogo className="h-8 text-ink" />
+          )}
         </div>
 
         <button
@@ -232,7 +240,9 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                 <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-brand-active dark:text-brand-2">
                   Operação Atual
                 </span>
-                <span className="text-sm font-black text-ink">{isAtlas ? 'AtlasGR' : 'Total Trac'}</span>
+                <span className="text-sm font-black text-ink">
+                  {isAtlas ? 'AtlasGR' : 'Total Trac'}
+                </span>
               </div>
             </div>
             <div className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-surface text-ink-2 shadow-sm">
@@ -256,7 +266,10 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
               <p className="text-[9px] font-black uppercase tracking-[0.18em] text-ink-2">
                 {group.title}
               </p>
-              <span className="h-px flex-1 bg-gradient-to-r from-line to-transparent" aria-hidden="true" />
+              <span
+                className="h-px flex-1 bg-gradient-to-r from-line to-transparent"
+                aria-hidden="true"
+              />
             </div>
             {group.items.map(renderNavItem)}
           </section>
@@ -271,7 +284,9 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                 {currentUser.name?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold leading-tight text-ink">{currentUser.name}</p>
+                <p className="truncate text-xs font-bold leading-tight text-ink">
+                  {currentUser.name}
+                </p>
                 <p className="truncate text-[10px] font-medium leading-tight text-ink-2">
                   {currentUser.roleTitle || currentUser.role}
                 </p>
