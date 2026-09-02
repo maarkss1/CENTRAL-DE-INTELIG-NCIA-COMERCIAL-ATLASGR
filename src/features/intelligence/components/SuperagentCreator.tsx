@@ -705,7 +705,7 @@ $status | ConvertTo-Json -Depth 3
         {error && (
           <div
             role="alert"
-            className="relative z-10 mx-auto mt-5 flex max-w-3xl flex-col gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200 sm:flex-row sm:items-center sm:justify-between"
+            className="relative z-10 mx-auto mt-5 flex max-w-3xl flex-col gap-3 rounded-2xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger-active dark:text-danger sm:flex-row sm:items-center sm:justify-between"
           >
             <span className="flex items-start gap-2">
               <AlertCircle size={18} className="mt-0.5 shrink-0" />
@@ -714,7 +714,7 @@ $status | ConvertTo-Json -Depth 3
             <button
               type="button"
               onClick={handleCreateOffline}
-              className="shrink-0 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-white/15"
+              className="shrink-0 rounded-xl border border-line bg-surface px-4 py-2 text-xs font-bold text-ink transition-colors hover:bg-surface-2"
             >
               Usar modelo local
             </button>
@@ -794,7 +794,7 @@ $status | ConvertTo-Json -Depth 3
                 onClick={() => setActiveTabOutput('json')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
                   activeTabOutput === 'json'
-                    ? 'bg-slate-600 text-white shadow-lg'
+                    ? `${accent.solidBg} text-white shadow-lg`
                     : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                 }`}
               >
@@ -804,7 +804,7 @@ $status | ConvertTo-Json -Depth 3
                 onClick={() => setActiveTabOutput('python')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
                   activeTabOutput === 'python'
-                    ? 'bg-sky-600 text-white shadow-lg'
+                    ? `${accent.solidBg} text-white shadow-lg`
                     : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                 }`}
               >
@@ -814,7 +814,7 @@ $status | ConvertTo-Json -Depth 3
                 onClick={() => setActiveTabOutput('powershell')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
                   activeTabOutput === 'powershell'
-                    ? 'bg-blue-600 text-white shadow-lg'
+                    ? `${accent.solidBg} text-white shadow-lg`
                     : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                 }`}
               >

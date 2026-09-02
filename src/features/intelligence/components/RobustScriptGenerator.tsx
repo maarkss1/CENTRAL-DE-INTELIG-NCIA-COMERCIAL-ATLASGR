@@ -444,7 +444,7 @@ export function RobustScriptGenerator() {
         {error && (
           <div
             role="alert"
-            className="relative z-10 mx-auto mt-5 flex max-w-3xl flex-col gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200 sm:flex-row sm:items-center sm:justify-between"
+            className="relative z-10 mx-auto mt-5 flex max-w-3xl flex-col gap-3 rounded-2xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger-active dark:text-danger sm:flex-row sm:items-center sm:justify-between"
           >
             <span className="flex items-start gap-2">
               <AlertCircle size={18} className="mt-0.5 shrink-0" />

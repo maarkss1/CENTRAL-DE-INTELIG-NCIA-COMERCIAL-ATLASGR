@@ -646,7 +646,7 @@ if __name__ == "__main__":
         {error && (
           <div
             role="alert"
-            className="relative z-10 mx-auto mt-5 flex max-w-3xl flex-col gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200 sm:flex-row sm:items-center sm:justify-between"
+            className="relative z-10 mx-auto mt-5 flex max-w-3xl flex-col gap-3 rounded-2xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger-active dark:text-danger sm:flex-row sm:items-center sm:justify-between"
           >
             <span className="flex items-start gap-2">
               <AlertCircle size={18} className="mt-0.5 shrink-0" />
@@ -655,7 +655,7 @@ if __name__ == "__main__":
             <button
               type="button"
               onClick={handleGenerateOffline}
-              className="shrink-0 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-white/15"
+              className="shrink-0 rounded-xl border border-line bg-surface px-4 py-2 text-xs font-bold text-ink transition-colors hover:bg-surface-2"
             >
               Usar blueprint local
             </button>
@@ -678,7 +678,7 @@ if __name__ == "__main__":
                 <Zap size={16} />
                 Arquitetura Gerada para {selectedToolObj.title}
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[9px] font-black ${resultSource === 'ai' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}`}
+                  className={`rounded-full px-2 py-0.5 text-[9px] font-black ${resultSource === 'ai' ? 'bg-success/15 text-success-active dark:text-success' : 'bg-warning/15 text-warning-active dark:text-warning'}`}
                 >
                   {resultSource === 'ai' ? 'GERADO POR IA' : 'MODELO LOCAL'}
                 </span>
@@ -688,7 +688,7 @@ if __name__ == "__main__":
                   onClick={handleCopy}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
                     copied
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      ? 'bg-success/20 text-success-active dark:text-success border border-success/30'
                       : 'bg-surface-2 text-ink-2 hover:bg-line border border-line'
                   }`}
                 >
@@ -727,7 +727,7 @@ if __name__ == "__main__":
                 onClick={() => setActiveTabOutput('json')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   activeTabOutput === 'json'
-                    ? 'bg-slate-600 text-white shadow-lg'
+                    ? `${accent.solidBg} text-white shadow-lg`
                     : 'bg-surface-2 text-ink-2 hover:bg-line'
                 }`}
               >
@@ -737,7 +737,7 @@ if __name__ == "__main__":
                 onClick={() => setActiveTabOutput('code')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   activeTabOutput === 'code'
-                    ? 'bg-sky-600 text-white shadow-lg'
+                    ? `${accent.solidBg} text-white shadow-lg`
                     : 'bg-surface-2 text-ink-2 hover:bg-line'
                 }`}
               >
