@@ -6,6 +6,8 @@ import type {
   StageDefinition,
   CommercialGoalDTO,
   GoalMetric,
+  LeadFieldChangeRow,
+  TrackedLeadField,
 } from '../domain/CommercialIntelligence';
 
 /**
@@ -165,10 +167,32 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
         enteredAt: true,
         exitedAt: true,
         createdAt: true,
+        isWon: true,
+        isLost: true,
       },
       orderBy: { enteredAt: 'asc' },
     });
     return rows;
+  }
+
+  async findFieldChanges(
+    organizationId: string,
+    field?: TrackedLeadField,
+  ): Promise<LeadFieldChangeRow[]> {
+    const rows = await prisma.leadFieldChange.findMany({
+      where: { organizationId, ...(field ? { field } : {}) },
+      select: {
+        leadId: true,
+        field: true,
+        previousValue: true,
+        newValue: true,
+        changedBy: true,
+        source: true,
+        changedAt: true,
+      },
+      orderBy: { changedAt: 'asc' },
+    });
+    return rows.map((row) => ({ ...row, field: row.field as TrackedLeadField }));
   }
 
   async countDuplicateCompanyGroupsAmongOpenDeals(organizationId: string): Promise<number> {

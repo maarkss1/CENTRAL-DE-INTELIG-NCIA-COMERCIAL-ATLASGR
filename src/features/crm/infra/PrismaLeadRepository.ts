@@ -1,5 +1,6 @@
 import type { Lead, LeadRepository } from '../domain/Lead';
 import { prisma } from '../../../lib/prisma';
+import { recordLeadFieldChanges } from '../../../shared/services/leadFieldChangeHistory.service.js';
 import type { LeadFunnel, Prisma } from '@prisma/client';
 import type { LeadStatus } from '../../../lib/zod';
 import {
@@ -147,6 +148,17 @@ export class PrismaLeadRepository implements LeadRepository {
     const expectedCloseAt = data.expectedCloseAt
       ? new Date(data.expectedCloseAt as unknown as string | Date)
       : data.expectedCloseAt;
+    // CLOSEDATE Intelligence / Handoffs: só quando o payload toca um campo rastreado, lê o valor
+    // anterior (uma query leve, 2 colunas) para registrar a mudança real em LeadFieldChange.
+    // Sem isso, nenhum adiamento de data prevista nem troca de responsável feito por esta rota
+    // (PUT /api/leads/:id, único caminho da UI para os dois campos) deixaria histórico.
+    const tracksField = data.expectedCloseAt !== undefined || data.owner !== undefined;
+    const previousTracked = tracksField
+      ? await prisma.lead.findFirst({
+          where: { id, organizationId },
+          select: { expectedCloseAt: true, owner: true },
+        })
+      : null;
     const lead = await prisma.lead.update({
       where: { id, organizationId },
       data: {
@@ -175,6 +187,15 @@ export class PrismaLeadRepository implements LeadRepository {
         },
       } as Prisma.LeadUpdateInput,
     });
+    if (previousTracked) {
+      await recordLeadFieldChanges(
+        organizationId,
+        id,
+        previousTracked,
+        { expectedCloseAt: expectedCloseAt as Date | null | undefined, owner: data.owner },
+        { source: 'crm' },
+      );
+    }
     return serializeLead(lead) as unknown as Lead;
   }
 

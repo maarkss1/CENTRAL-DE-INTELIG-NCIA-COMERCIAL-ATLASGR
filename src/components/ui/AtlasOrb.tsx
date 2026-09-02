@@ -1,3 +1,4 @@
+import { useRef, type ComponentRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Float, Sparkles, Sphere, MeshDistortMaterial } from '@react-three/drei';
 import { useReducedMotion } from 'framer-motion';
@@ -5,6 +6,7 @@ import { useBrandAccent } from '../../hooks/useBrandAccent';
 
 function OrbCore() {
   const { isAtlas } = useBrandAccent();
+  const materialRef = useRef<ComponentRef<typeof MeshDistortMaterial>>(null);
   // O @media (prefers-reduced-motion) global de globals.css só zera animation/transition CSS —
   // não alcança o loop de render do react-three-fiber (useFrame), que é como Float/Sparkles/
   // MeshDistortMaterial animam. Achado nesta rodada (Onda 8): a esfera girava/distorcia
@@ -23,6 +25,7 @@ function OrbCore() {
     >
       <Sphere args={[1, 64, 64]} scale={1.2}>
         <MeshDistortMaterial
+          ref={materialRef}
           color={color}
           emissive={emissive}
           emissiveIntensity={1}

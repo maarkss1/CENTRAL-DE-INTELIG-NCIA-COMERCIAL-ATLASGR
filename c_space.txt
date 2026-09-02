@@ -1,5 +1,0 @@
-
-DriveLetter FriendlyName FileSystemType DriveType HealthStatus OperationalStatus SizeRemaining      Size
------------ ------------ -------------- --------- ------------ ----------------- -------------      ----
-C           Novo volume  NTFS           Fixed     Healthy      OK                      24.7 GB 214.84 GB
-

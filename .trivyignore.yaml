@@ -37,3 +37,15 @@ vulnerabilities:
       só sob o ID que o Trivy usa para ela. Ver docs/security/AUDIT_WAIVERS.md para o
       detalhamento completo e o dono do waiver.
     expired_at: 2026-09-16
+  # Espelho do waiver ativo de docs/security/AUDIT_WAIVERS.md ("GHSA-3f6p-5ww8-9rcr — mysql2 via
+  # prisma CLI", registrado em 2026-09-01, reavaliar em 30 dias). O npm audit já era coberto pelo
+  # waiver documentado; o Trivy passou a reportar o mesmo advisory em package-lock.json em
+  # 2026-09-02 (base de vulnerabilidades atualizada — o mesmo lockfile passava horas antes), e casa
+  # por ID exato, então precisa da entrada própria aqui. mysql2@3.15.3 é pin exato de prisma@7.10.0
+  # e nunca é instanciado no runtime (banco de produção é PostgreSQL via @prisma/adapter-pg).
+  - id: GHSA-3f6p-5ww8-9rcr
+    statement: >-
+      mysql2 <3.22.0 via prisma@7.10.0 (pin exato do CLI do Prisma para suporte multi-driver de
+      desenvolvimento) — não instanciado no runtime da aplicação, cujo banco é PostgreSQL. Ver
+      docs/security/AUDIT_WAIVERS.md para o detalhamento completo e o dono do waiver.
+    expired_at: 2026-10-01

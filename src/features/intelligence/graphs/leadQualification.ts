@@ -1,6 +1,6 @@
 import { StateGraph, START, END, Annotation } from '@langchain/langgraph';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
-import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
+import { getAiModel, logAiUsage, cleanAndParseJson } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
 
 // Define the state for the graph
@@ -72,11 +72,9 @@ export const leadQualificationGraph = new StateGraph(LeadQualificationState)
     });
 
     try {
-      const jsonText = (response.content as string)
-        .replace(/```json/g, '')
-        .replace(/```/g, '')
-        .trim();
-      const result = JSON.parse(jsonText);
+      const result = cleanAndParseJson<{ score?: number; summary?: string }>(
+        response.content as string,
+      );
       const score =
         typeof result.score === 'number' ? Math.max(0, Math.min(100, result.score)) : 50;
       return {

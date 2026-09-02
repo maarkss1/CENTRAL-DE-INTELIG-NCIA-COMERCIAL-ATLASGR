@@ -11,6 +11,7 @@ import { PrismaAutomationRepository } from '../../features/automations/infra/Pri
 import { PrismaAnalyticsRepository } from '../../features/analytics/infra/PrismaAnalyticsRepository';
 import { PrismaCommercialIntelligenceRepository } from '../../features/commercial-intelligence/infra/PrismaCommercialIntelligenceRepository';
 import { CommercialIntelligenceAiService } from '../../features/commercial-intelligence/infra/CommercialIntelligenceAiService';
+import { PrismaForecastSnapshotStore } from '../../features/commercial-intelligence/infra/PrismaForecastSnapshotStore';
 import { PrismaCrm360Repository } from '../../features/crm360/infra/PrismaCrm360Repository';
 import { PrismaQualificationMatrixRepository } from '../../features/playbook/qualification-matrix/infra/PrismaQualificationMatrixRepository';
 import { PrismaObjectionMatrixRepository } from '../../features/playbook/objection-matrix/infra/PrismaObjectionMatrixRepository';
@@ -94,8 +95,11 @@ export function setupDI() {
   const leadUseCases = new LeadUseCases(leadRepository);
   const automationUseCases = new AutomationUseCases(automationRepository);
   const analyticsUseCases = new AnalyticsUseCases(analyticsRepository);
+  // Store real de snapshots (model ForecastSnapshot) — sem ele, o erro histórico do Forecast e o
+  // pilar "Confiabilidade de Forecast" do Health Score nunca teriam dado em produção.
   const commercialIntelligenceUseCases = new CommercialIntelligenceUseCases(
     commercialIntelligenceRepository,
+    new PrismaForecastSnapshotStore(),
   );
   const commercialIntelligenceAiService = new CommercialIntelligenceAiService(
     commercialIntelligenceUseCases,

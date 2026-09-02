@@ -58,6 +58,14 @@ router.get('/metrics-dictionary', (req, res) => resolve().getMetricsDictionary(r
 router.get('/export', (req, res, next) => resolve().getExport(req, res, next));
 router.get('/filter-options', (req, res, next) => resolve().getFilterOptions(req, res, next));
 router.get('/trends', (req, res, next) => resolve().getHistoricalTrends(req, res, next));
+// Health Score composto + erro histórico do Forecast (snapshots reais), CLOSEDATE Intelligence e
+// Jornada — leitura pura de banco como as demais rotas GET acima (sem limitador de IA).
+router.get('/health-score', (req, res, next) => resolve().getHealthScore(req, res, next));
+router.get('/forecast-accuracy', (req, res, next) => resolve().getForecastAccuracy(req, res, next));
+router.get('/close-date-intelligence', (req, res, next) =>
+  resolve().getCloseDateIntelligence(req, res, next),
+);
+router.get('/journey', (req, res, next) => resolve().getJourney(req, res, next));
 router.get('/goals', (req, res, next) => resolve().getGoal(req, res, next));
 // PUT (não POST) de propósito: idempotente por (organizationId, period, metric) — upsert, não
 // criação de um novo registro a cada chamada. Só ADMIN/GESTOR (mesmo requireRole do router

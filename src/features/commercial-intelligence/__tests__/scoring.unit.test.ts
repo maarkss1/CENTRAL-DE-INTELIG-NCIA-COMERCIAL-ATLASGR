@@ -67,6 +67,7 @@ function scoredDeal(
     forecast: { probability, weightedValue: 0, tier, positiveFactors: [], negativeFactors: [] },
     daysInCurrentStage: null,
     agingDays: 0,
+    closeDateSlips: null,
   };
 }
 

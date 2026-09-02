@@ -15,6 +15,7 @@ import { LeadingIndicatorsTab } from './LeadingIndicatorsTab';
 import { AgingTab } from './AgingTab';
 import { LossesTab } from './LossesTab';
 import { CrmQualityTab } from './CrmQualityTab';
+import { JourneyTab } from './JourneyTab';
 
 const TABS = [
   { id: 'overview', label: 'Visão Executiva' },
@@ -23,6 +24,7 @@ const TABS = [
   { id: 'leading', label: 'Leading Indicators' },
   { id: 'aging', label: 'Aging' },
   { id: 'losses', label: 'Perdas' },
+  { id: 'journey', label: 'Jornada' },
   { id: 'quality', label: 'Qualidade do CRM' },
 ] as const;
 
@@ -254,6 +256,7 @@ export function CommercialIntelligenceHub() {
         {tab === 'leading' && <LeadingIndicatorsTab />}
         {tab === 'aging' && <AgingTab filter={filter} />}
         {tab === 'losses' && <LossesTab filter={filter} />}
+        {tab === 'journey' && <JourneyTab filter={filter} />}
         {tab === 'quality' && <CrmQualityTab filter={filter} />}
       </div>
     </main>
