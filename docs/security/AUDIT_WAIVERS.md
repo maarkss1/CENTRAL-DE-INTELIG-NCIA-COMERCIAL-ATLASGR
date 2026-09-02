@@ -40,7 +40,8 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
 - **Cadeia:** `prisma@7.10.0` → `@prisma/engines@7.10.0` → `mysql2` — transitivo de desenvolvimento/CLI do Prisma.
 - **Por que é aceito temporariamente:** O banco de dados de produção da plataforma é PostgreSQL (`pg` / `@prisma/adapter-pg`). O driver `mysql2` é incluído transitivamente no pacote de CLI do Prisma para suporte multi-driver de desenvolvimento e não é instanciado no runtime de produção Express/Node.js da aplicação.
 - **Dono:** Agente 15 / Agente 01 — reavaliar quando o Prisma atualizar a dependência interna de `mysql2` no pacote CLI.
-- **Data de registro:** 2026-09-01. **Reavaliar em:** próximo bump de minor do Prisma ou em 30 dias.
+- **Data de registro:** 2026-09-01. **Reavaliar em:** próximo bump de minor do Prisma ou em 30 dias
+  (`expired_at: 2026-10-01` em `.trivyignore.yaml`).
 - **Escopo do waiver:** apenas advisory `GHSA-3f6p-5ww8-9rcr`.
 
 ### `GHSA-ggr8-5vv4-36mx` / `CVE-2026-40345` — `deepmerge-ts` (stack exhaustion) via `@prisma/config`/`prisma`
@@ -83,6 +84,14 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
 _(nenhum no momento — ver Histórico abaixo para o item resolvido em 30/08/2026)_
 
 ## Histórico
+
+- 2026-09-02 — o waiver `GHSA-3f6p-5ww8-9rcr` (registrado em 2026-09-01 nesta seção) nunca tinha
+  sido espelhado para `.trivyignore.yaml` nem para `allow-ghsas` em
+  `.github/workflows/dependency-review.yml`, apesar da regra no topo deste arquivo — achado porque
+  o job `trivy-fs-pr-gate` (bloqueante) começou a falhar em PRs sem nenhuma dependência nova
+  (`npm audit`/Dependency Review já aceitavam o achado, só o Trivy não). Sincronizado nos dois
+  arquivos, com `expired_at: 2026-10-01` (30 dias a partir do registro original) para
+  `.trivyignore.yaml`, igual ao prazo já descrito acima.
 
 - 2026-08-30 (Onda 43) — `uuid` (via `exceljs`, dependência direta) — `GHSA-w5hq-g745-h8pq`,
   severidade moderate, listada aqui desde 2026-08-25 como débito rastreado (fix só disponível via
