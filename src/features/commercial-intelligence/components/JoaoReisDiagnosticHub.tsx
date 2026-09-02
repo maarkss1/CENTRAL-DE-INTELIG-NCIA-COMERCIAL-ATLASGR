@@ -413,7 +413,7 @@ Data: 01/09/2026 | BDR ID: 392
             </p>
           </div>
           {isJoaoReis && (
-            <div className="px-4 py-2 rounded-2xl bg-brand text-white text-xs font-black shadow-md flex items-center gap-2">
+            <div className="px-4 py-2 rounded-2xl bg-brand-active text-white text-xs font-black shadow-md flex items-center gap-2">
               <ShieldCheck className="w-4 h-4" />
               Sessão Exclusiva — João Reis
             </div>
@@ -426,7 +426,7 @@ Data: 01/09/2026 | BDR ID: 392
             onClick={() => setActiveTab('daily')}
             className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
               activeTab === 'daily'
-                ? 'bg-brand text-white border-brand shadow-lg scale-[1.02]'
+                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
                 : 'bg-surface border-line text-ink hover:bg-surface-2'
             }`}
           >
@@ -441,7 +441,7 @@ Data: 01/09/2026 | BDR ID: 392
             onClick={() => setActiveTab('iacoach')}
             className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
               activeTab === 'iacoach'
-                ? 'bg-brand text-white border-brand shadow-lg scale-[1.02]'
+                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
                 : 'bg-surface border-line text-ink hover:bg-surface-2'
             }`}
           >
@@ -456,7 +456,7 @@ Data: 01/09/2026 | BDR ID: 392
             onClick={() => setActiveTab('pauta1to1')}
             className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
               activeTab === 'pauta1to1'
-                ? 'bg-brand text-white border-brand shadow-lg scale-[1.02]'
+                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
                 : 'bg-surface border-line text-ink hover:bg-surface-2'
             }`}
           >
@@ -471,7 +471,7 @@ Data: 01/09/2026 | BDR ID: 392
             onClick={() => setActiveTab('julho')}
             className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
               activeTab === 'julho'
-                ? 'bg-brand text-white border-brand shadow-lg scale-[1.02]'
+                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
                 : 'bg-surface border-line text-ink hover:bg-surface-2'
             }`}
           >
@@ -486,7 +486,7 @@ Data: 01/09/2026 | BDR ID: 392
             onClick={() => setActiveTab('agosto')}
             className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
               activeTab === 'agosto'
-                ? 'bg-brand text-white border-brand shadow-lg scale-[1.02]'
+                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
                 : 'bg-surface border-line text-ink hover:bg-surface-2'
             }`}
           >
@@ -501,7 +501,7 @@ Data: 01/09/2026 | BDR ID: 392
             onClick={() => setActiveTab('comparativo')}
             className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
               activeTab === 'comparativo'
-                ? 'bg-brand text-white border-brand shadow-lg scale-[1.02]'
+                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
                 : 'bg-surface border-line text-ink hover:bg-surface-2'
             }`}
           >
@@ -516,7 +516,7 @@ Data: 01/09/2026 | BDR ID: 392
             onClick={() => setActiveTab('emcadencia')}
             className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
               activeTab === 'emcadencia'
-                ? 'bg-brand text-white border-brand shadow-lg scale-[1.02]'
+                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
                 : 'bg-surface border-line text-ink hover:bg-surface-2'
             }`}
           >
@@ -531,7 +531,7 @@ Data: 01/09/2026 | BDR ID: 392
             onClick={() => setActiveTab('diagnostico')}
             className={`p-3.5 rounded-2xl border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
               activeTab === 'diagnostico'
-                ? 'bg-brand text-white border-brand shadow-lg scale-[1.02]'
+                ? 'bg-brand-active text-white border-brand shadow-lg scale-[1.02]'
                 : 'bg-surface border-line text-ink hover:bg-surface-2'
             }`}
           >
@@ -607,7 +607,7 @@ Data: 01/09/2026 | BDR ID: 392
                       key={tag}
                       onClick={() => setChannelTag(tag)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        channelTag === tag ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'
+                        channelTag === tag ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'
                       }`}
                     >
                       {tag}
@@ -632,7 +632,7 @@ Data: 01/09/2026 | BDR ID: 392
                       setTodayActivitiesCount((p) => p + 1);
                       setSprintLeadIndex((prev) => (prev + 1) % DIAGNOSTIC_DATA.emCadencia.topLeads.length);
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-brand text-white font-bold text-xs shadow-md hover:brightness-105 transition-all cursor-pointer flex items-center gap-2"
+                    className="px-4 py-2.5 rounded-xl bg-brand-active text-white font-bold text-xs shadow-md hover:brightness-105 transition-all cursor-pointer flex items-center gap-2"
                   >
                     <Send className="w-4 h-4" />
                     Salvar toque como {channelTag}
@@ -736,7 +736,7 @@ Data: 01/09/2026 | BDR ID: 392
                       key={seg}
                       onClick={() => setSelectedSegment(seg)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
-                        selectedSegment === seg ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'
+                        selectedSegment === seg ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'
                       }`}
                     >
                       {seg}
@@ -776,7 +776,7 @@ Data: 01/09/2026 | BDR ID: 392
 
                 <button
                   onClick={analyzeTranscript}
-                  className="px-5 py-2.5 rounded-xl bg-brand text-white font-bold text-xs shadow-md hover:brightness-105 transition-all cursor-pointer flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl bg-brand-active text-white font-bold text-xs shadow-md hover:brightness-105 transition-all cursor-pointer flex items-center gap-2"
                 >
                   <Sparkles className="w-4 h-4" />
                   Analisar Qualidade da Call com IA
@@ -864,7 +864,7 @@ Data: 01/09/2026 | BDR ID: 392
                 <div className="flex items-center gap-2">
                   <button
                     onClick={copyPautaToClipboard}
-                    className="px-4 py-2.5 rounded-xl bg-brand text-white font-bold text-xs shadow-md hover:brightness-105 transition-all cursor-pointer flex items-center gap-2"
+                    className="px-4 py-2.5 rounded-xl bg-brand-active text-white font-bold text-xs shadow-md hover:brightness-105 transition-all cursor-pointer flex items-center gap-2"
                   >
                     {copiedPauta ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     {copiedPauta ? 'Copiado!' : 'Copiar Pauta (Markdown)'}

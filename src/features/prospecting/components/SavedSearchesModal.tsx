@@ -213,7 +213,7 @@ export function SavedSearchesModal({
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-4 py-1.5 rounded-xl bg-brand text-white text-xs font-bold hover:brightness-110 flex items-center gap-1.5"
+                  className="px-4 py-1.5 rounded-xl bg-brand-active text-white text-xs font-bold hover:brightness-110 flex items-center gap-1.5"
                 >
                   {creating ? (
                     <Loader2 size={14} className="animate-spin" />

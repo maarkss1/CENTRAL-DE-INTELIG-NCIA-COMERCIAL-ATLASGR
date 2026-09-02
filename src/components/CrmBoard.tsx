@@ -648,7 +648,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
       {selectedLeadIds.size > 0 && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 bg-surface/95 backdrop-blur-xl border border-line shadow-2xl rounded-3xl p-3 px-5 flex flex-wrap items-center gap-3 animate-in slide-in-from-bottom-5 duration-300">
           <div className="flex items-center gap-2 pr-3 border-r border-line">
-            <span className="w-6 h-6 rounded-full bg-brand text-white text-xs font-black flex items-center justify-center">
+            <span className="w-6 h-6 rounded-full bg-brand-active text-white text-xs font-black flex items-center justify-center">
               {selectedLeadIds.size}
             </span>
             <span className="text-xs font-bold text-ink">selecionado(s)</span>
