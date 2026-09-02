@@ -5,7 +5,11 @@ import { enrichOrganizationWithContacts, enrichOrganizationByDomain } from './ap
 import { findEmailViaHunter, findPeopleViaDomainSearch } from './hunter.service.js';
 import { searchGooglePlaceDetailed } from './places.service.js';
 import { fetchCnpjData } from './enrichment/cnpjLookup.js';
-import { extractDomainFromWebsite, guessDomainAndEmails } from './enrichment/domainGuess.js';
+import {
+  extractDomainFromWebsite,
+  guessDomainAndEmails,
+  resolveEmailStatus,
+} from './enrichment/domainGuess.js';
 import { filterNewContacts } from '../utils/contactDedupe.js';
 
 export interface CascadeEnrichmentOptions {
@@ -280,6 +284,11 @@ export async function runEnrichmentCascade(
 
     const newContacts = filterNewContacts(collectedContacts, existingContacts);
     for (const nc of newContacts) {
+      // Sem isto, todo contato criado pela cascata tinha emailStatus sempre null, perdendo o
+      // sinal "verified/guessed/invalid" que enrichment.service.ts (o path mais antigo) já
+      // calcula via checkEmailDeliverability (MX-check) — e nada downstream (cold-email.service.ts
+      // incluso) consegue distinguir um e-mail sintaticamente válido mas sem domínio real de um
+      // verificado de verdade.
       await prisma.contact.create({
         data: {
           companyId,
@@ -287,6 +296,7 @@ export async function runEnrichmentCascade(
           name: nc.name,
           role: nc.title,
           email: nc.email,
+          emailStatus: await resolveEmailStatus(nc.email ?? null),
           phone: nc.phone,
           whatsapp: nc.phone,
           linkedin: nc.linkedinUrl,
