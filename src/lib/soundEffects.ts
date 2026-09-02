@@ -46,7 +46,10 @@ class SoundEngine {
 
     oscillator.type = type;
     oscillator.frequency.setValueAtTime(frequency, startAt);
-    oscillator.frequency.exponentialRampToValueAtTime(Math.max(endFrequency, 1), startAt + duration);
+    oscillator.frequency.exponentialRampToValueAtTime(
+      Math.max(endFrequency, 1),
+      startAt + duration,
+    );
 
     gainNode.gain.setValueAtTime(0.0001, startAt);
     gainNode.gain.exponentialRampToValueAtTime(gain, startAt + 0.008);
@@ -88,17 +91,35 @@ class SoundEngine {
           break;
         case 'confirm':
           this.tone({ frequency: 520, endFrequency: 680, duration: 0.07, gain: 0.02 });
-          this.tone({ frequency: 680, endFrequency: 760, duration: 0.06, gain: 0.016, delay: 0.045 });
+          this.tone({
+            frequency: 680,
+            endFrequency: 760,
+            duration: 0.06,
+            gain: 0.016,
+            delay: 0.045,
+          });
           break;
         case 'success':
           this.tone({ frequency: 520, endFrequency: 650, duration: 0.08, gain: 0.022 });
           this.tone({ frequency: 650, endFrequency: 880, duration: 0.1, gain: 0.018, delay: 0.06 });
           break;
         case 'warning':
-          this.tone({ frequency: 420, endFrequency: 360, duration: 0.09, gain: 0.02, type: 'triangle' });
+          this.tone({
+            frequency: 420,
+            endFrequency: 360,
+            duration: 0.09,
+            gain: 0.02,
+            type: 'triangle',
+          });
           break;
         case 'error':
-          this.tone({ frequency: 260, endFrequency: 180, duration: 0.11, gain: 0.022, type: 'triangle' });
+          this.tone({
+            frequency: 260,
+            endFrequency: 180,
+            duration: 0.11,
+            gain: 0.022,
+            type: 'triangle',
+          });
           break;
       }
     } catch {

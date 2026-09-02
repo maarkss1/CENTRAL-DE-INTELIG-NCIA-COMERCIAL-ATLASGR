@@ -36,7 +36,9 @@ async function handleWebhook(req: Request, res: Response): Promise<void> {
   const signatureHeader = req.header('x-chatwoot-signature');
   const timestampHeader = req.header('x-chatwoot-timestamp');
   if (!isValidChatwootSignature({ rawBody, signatureHeader, timestampHeader, secret })) {
-    logger.warn('Webhook do Chatwoot com assinatura inválida ou timestamp fora da janela — descartado.');
+    logger.warn(
+      'Webhook do Chatwoot com assinatura inválida ou timestamp fora da janela — descartado.',
+    );
     res.status(401).json({ success: false, error: 'Assinatura inválida.' });
     return;
   }

@@ -875,7 +875,12 @@ function SequencesSection({ canManage }: { canManage: boolean }) {
       </div>
 
       {loading ? (
-        <div className="space-y-2" role="status" aria-live="polite" aria-label="Carregando sequências">
+        <div
+          className="space-y-2"
+          role="status"
+          aria-live="polite"
+          aria-label="Carregando sequências"
+        >
           <Skeleton className="h-9 w-full" />
           <Skeleton className="h-9 w-full" />
         </div>
@@ -918,10 +923,7 @@ function SequencesSection({ canManage }: { canManage: boolean }) {
                   <td className="py-1.5 pr-3">
                     <div className="font-semibold text-ink">{sequence.name}</div>
                     {sequence.description && (
-                      <div
-                        className="text-ink-2 max-w-sm truncate"
-                        title={sequence.description}
-                      >
+                      <div className="text-ink-2 max-w-sm truncate" title={sequence.description}>
                         {sequence.description}
                       </div>
                     )}
