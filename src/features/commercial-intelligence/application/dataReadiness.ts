@@ -154,3 +154,36 @@ export function computeDataReadiness(
   );
   return { overallScore, classification: classifyCompleteness(overallScore), fields: allFields };
 }
+
+/**
+ * "Confiabilidade dos Dados" (seção 5) — completude PONDERADA por impacto no forecast, com
+ * classificação saudável/atenção/crítico por campo (mesmos limiares 80/50 já usados na UI de
+ * Qualidade do CRM). "Motivo da perda" é avaliado sobre negócios perdidos (todo o histórico, não
+ * só o período do filtro — mesma natureza "instantânea" do restante desta função), os demais
+ * campos sobre negócios abertos.
+ */
+export function computeDataReadiness(open: DealRow[], lost: DealRow[], historyLeadIds: Set<string>): DataReadinessScore {
+    const openFields: DataReadinessField[] = DATA_READINESS_OPEN_FIELD_WEIGHTS.map((w) => {
+        const test = w.field === 'stageHistory' ? (d: DealRow) => historyLeadIds.has(d.id) : DEAL_FIELD_TESTS[w.field];
+        const filled = open.filter(test).length;
+        const completeness = open.length > 0 ? roundMoney((filled / open.length) * 100) : null;
+        return { field: w.field, label: w.label, filled, total: open.length, completeness, weight: w.weight, forecastImpact: w.forecastImpact, classification: classifyCompleteness(completeness) };
+    });
+
+    const lossFilled = lost.filter(DEAL_FIELD_TESTS.lossReason).length;
+    const lossCompleteness = lost.length > 0 ? roundMoney((lossFilled / lost.length) * 100) : null;
+    const lossField: DataReadinessField = {
+        field: DATA_READINESS_LOSS_FIELD_WEIGHT.field,
+        label: DATA_READINESS_LOSS_FIELD_WEIGHT.label,
+        filled: lossFilled,
+        total: lost.length,
+        completeness: lossCompleteness,
+        weight: DATA_READINESS_LOSS_FIELD_WEIGHT.weight,
+        forecastImpact: DATA_READINESS_LOSS_FIELD_WEIGHT.forecastImpact,
+        classification: classifyCompleteness(lossCompleteness),
+    };
+
+    const allFields = [...openFields, lossField];
+    const overallScore = weightedCompletenessScore(allFields.map((f) => ({ weight: f.weight, completeness: f.completeness })));
+    return { overallScore, classification: classifyCompleteness(overallScore), fields: allFields };
+}
