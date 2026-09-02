@@ -17,6 +17,26 @@ export function WhatsAppChatPanel({
   const [status, setStatus] = useState<ConnectionStatus>('checking');
   const [text, setText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  // Escape fecha; foco vai pro botão "Fechar conversa" ao abrir e volta pro controle que abriu
+  // ao fechar — mesmo padrão já usado em ToolTechPopover.tsx. Este componente (diferente daquele)
+  // já é montado/desmontado pelo pai conforme abre/fecha (LeadDetailDrawer.tsx), então o efeito
+  // roda uma vez no mount e limpa no unmount, sem precisar reagir a uma prop de abertura.
+  useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,9 +90,12 @@ export function WhatsAppChatPanel({
       {/* onClick aqui só interrompe a propagação pro backdrop (impede que um clique dentro do
           painel feche o modal) — não é uma interação em si, então não há ação nova pra dar
           suporte a teclado; o conteúdo interativo real (mensagens, input, botões) já é acessível
-          normalmente dentro deste painel. */}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: só interrompe propagação, ver comentário acima */}
+          normalmente dentro deste painel. role="dialog" abaixo também já satisfaz o linter sem
+          precisar de biome-ignore aqui (diferente de antes desta correção). */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="whatsapp-chat-panel-title"
         className="bg-surface border border-line rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -80,11 +103,15 @@ export function WhatsAppChatPanel({
           <div className="flex items-center gap-2 min-w-0">
             <MessageCircle className="text-emerald-400 shrink-0" size={20} />
             <div className="min-w-0">
-              <h3 className="font-bold text-ink text-sm truncate">{contactName || 'WhatsApp'}</h3>
+              <h3 id="whatsapp-chat-panel-title" className="font-bold text-ink text-sm truncate">
+                {contactName || 'WhatsApp'}
+              </h3>
               <p className="text-[11px] text-ink-2 truncate">{phone}</p>
             </div>
           </div>
           <button
+            type="button"
+            ref={closeButtonRef}
             onClick={onClose}
             aria-label="Fechar conversa"
             className="text-ink-2 hover:text-ink p-1 shrink-0"
