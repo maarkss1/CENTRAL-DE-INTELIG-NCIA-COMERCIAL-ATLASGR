@@ -1513,9 +1513,12 @@ function JourneyTemplatesDialog({
                         Roteiro de Toques da Jornada:
                       </span>
                       <div className="space-y-1.5">
-                        {tpl.touches.map((t) => (
+                        {tpl.touches.map((t, touchIndex) => (
                           <div
-                            key={t.order}
+                            // `order` não é único em todo template (achado real: dois toques com
+                            // order 0 no mesmo roteiro geravam "two children with the same key");
+                            // o índice desempata sem esconder o dado.
+                            key={`${t.order}-${touchIndex}`}
                             className="p-2.5 rounded-xl bg-surface border border-line text-xs space-y-1"
                           >
                             <div className="flex items-center justify-between">

@@ -584,6 +584,19 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
           where: { id: lead.id },
           data: dataToUpdate,
         });
+        if (dataToUpdate.owner !== undefined) {
+          // Handoffs (Jornada): troca de responsável em lote também é uma troca real.
+          const { recordLeadFieldChanges } = await import(
+            '../../../shared/services/leadFieldChangeHistory.service.js'
+          );
+          await recordLeadFieldChanges(
+            organizationId,
+            lead.id,
+            { owner: lead.owner },
+            { owner: dataToUpdate.owner as string | null },
+            { source: 'batch', changedBy: actorUserId ?? null },
+          );
+        }
         if (dataToUpdate.status) {
           await prisma.leadStageHistory
             .create({

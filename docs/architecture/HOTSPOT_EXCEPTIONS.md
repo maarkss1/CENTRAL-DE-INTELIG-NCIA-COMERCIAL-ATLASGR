@@ -83,15 +83,18 @@ propósito por estar fora de "## Exceções ativas"):
 - **Limite excepcional:** 1800 linhas
 - **Dono:** Agente 04 — CRM e BI / Agente 02 — Produto e UX
 - **Motivo:** painel analítico complexo de diagnóstico comercial executivo, combinando visualizações ECharts, formulários de auditoria e cálculo de scores.
-- **Atualização em 2026-09-02:** mesmo padrão de mascaramento já registrado acima para
-  `CadenceHub.tsx`/`BitrixImportPanel.tsx` — o limite de 1300 foi registrado em 2026-09-01, mas
-  commits normais de feature na própria `origin/main` (incluindo um fix de acessibilidade,
-  `a3122a3`) levaram o arquivo a 1662 linhas antes que `check:hotspots` rodasse até o fim de novo
-  para notar (mascarado pelas mesmas etapas anteriores do `test:architecture`/CI descritas nas
-  atualizações do `CadenceHub.tsx`). Não é uma regressão introduzida pela mesclagem desta PR com
-  `origin/main` — o arquivo já estava nesse tamanho em `origin/main` antes do merge. Limite elevado
-  para 1800 (margem sobre as 1662 atuais); o arquivo em si não foi editado por conteúdo nesta
-  atualização. Modularização continua fora do escopo desta correção pontual de merge.
+- **Atualização em 2026-09-02 (PR #329):** limite elevado de 1300 para 1700 sem nenhuma linha de
+  código nova — o arquivo estava fora do padrão do `biome format` (gate `format:check` do CI) e a
+  formatação obrigatória o levou de 1154 para 1661 linhas, crescimento de formatação, não de
+  lógica; a modularização continua devida.
+- **Atualização em 2026-09-02 (PR #326, merge com `origin/main`):** mesmo padrão de mascaramento já
+  registrado acima para `CadenceHub.tsx`/`BitrixImportPanel.tsx` — commits normais de feature na
+  própria `origin/main` (incluindo o fix de acessibilidade `a3122a3` e a atualização do #329 acima)
+  levaram o arquivo a 1661-1662 linhas antes que `check:hotspots` rodasse até o fim de novo para
+  notar. Não é uma regressão introduzida pela mesclagem desta PR com `origin/main` — o arquivo já
+  estava nesse tamanho em `origin/main` antes do merge. Limite elevado para 1800 (margem sobre as
+  ~1662 atuais); o arquivo em si não foi editado por conteúdo nesta atualização. Modularização
+  continua fora do escopo desta correção pontual de merge.
 - **Registrado em:** 2026-09-01
 - **Reavaliar até:** 2026-11-30
 

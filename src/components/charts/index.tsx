@@ -240,6 +240,9 @@ export function HeatmapChart({
           },
         }
       : undefined,
+    // A tipagem de `formatter` do ECharts é uma união ampla de callbacks (TooltipOption); o
+    // parâmetro de um heatmap chega como `{ data: [x, y, valor] }` — o cast do objeto inteiro
+    // mantém o contrato real sem afrouxar para `any`.
     tooltip: {
       position: 'top' as const,
       formatter: (params) => {

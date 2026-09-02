@@ -29,6 +29,16 @@ nem `crm360` — lê os mesmos dados, nunca duplica a fonte de verdade.
 - Escrita em `LeadStageHistory` acontece FORA desta pasta, em `crm360.service.ts`
   (`moveRecord`/`createDeal`/`convertLead`), via `infra/stageHistory.ts` — esse é o único ponto de
   escrita real de mudança de etapa; não duplicar em outro lugar.
+- Escrita em `LeadFieldChange` (CLOSEDATE Intelligence / Handoffs) segue o mesmo desenho, via
+  `src/shared/services/leadFieldChangeHistory.service.ts`, chamada nos pontos reais que já alteram `expectedCloseAt`/`owner`:
+  `PrismaLeadRepository.update` (PUT /api/leads/:id), `PrismaCrm360Repository.updateLeadStage`,
+  `LeadUseCases.batchUpdateLeads` e `assignment.service.ts` (round-robin). Um caminho novo de
+  escrita desses dois campos precisa registrar a mudança pelo mesmo helper — sem isso, o histórico
+  fica silenciosamente incompleto (nunca fabricado).
+- O snapshot semanal do Forecast (`jobs/forecastSnapshotWeekly.worker.ts`) roda no processo
+  `worker.ts` e, opcionalmente, embutido no servidor (`ENABLE_EMBEDDED_WORKERS`). Sem ele rodando
+  em produção, `GET /forecast-accuracy` e o pilar "Confiabilidade de Forecast" respondem "sem
+  histórico suficiente" — isso é o comportamento correto, não um bug a esconder com dado fabricado.
 
 ## Definição de pronto local
 - fórmulas documentadas em `metricsDictionary.ts`, dados rastreáveis a `Lead`/`CrmPipelineStage`/

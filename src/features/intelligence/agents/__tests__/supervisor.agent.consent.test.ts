@@ -16,20 +16,7 @@ const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS
 vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
 
 vi.mock('../../../../lib/logger.js', () => ({
-  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
-}));
-
-// mem0.ts faz `await import('mem0ai')` de propósito (lazy, mem0ai não é dependência real do
-// projeto — ver comentário em mem0.ts) e trata a ausência do pacote em runtime real via
-// try/catch. Vite/Vitest, porém, tentam resolver o import dinâmico em tempo de transform mesmo
-// assim, o que quebra a suíte antes do try/catch entrar em ação — mockado para não depender do
-// pacote estar instalado neste ambiente de teste.
-vi.mock('../../../../lib/ai/memory/mem0.js', () => ({
-  agentMemory: {
-    search: vi.fn().mockResolvedValue([]),
-    formatForPrompt: vi.fn().mockReturnValue(''),
-    add: vi.fn().mockResolvedValue(undefined),
-  },
+    logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const { requestContext } = await import('../../../../lib/async-context');
@@ -38,40 +25,38 @@ const { PiiConsentRequiredError } = await import('../../services/guardrails.serv
 const checkpointerModule = await import('../../../../lib/ai/checkpointer.js');
 
 afterEach(() => {
-  mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
-  vi.restoreAllMocks();
+    mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
+    vi.restoreAllMocks();
 });
 
 describe('SwarmOrchestrator — trava de consentimento LGPD', () => {
-  it('executeMission rejeita sem base legal registrada, sem preparar o checkpointer', async () => {
-    const ensureSpy = vi.spyOn(checkpointerModule, 'ensureCheckpointerReady');
-    const orchestrator = new SwarmOrchestrator();
+    it('executeMission rejeita sem base legal registrada, sem preparar o checkpointer', async () => {
+        const ensureSpy = vi.spyOn(checkpointerModule, 'ensureCheckpointerReady');
+        const orchestrator = new SwarmOrchestrator();
 
-    await expect(
-      requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
-        orchestrator.executeMission('Qualifique o lead da Transportadora ABC.'),
-      ),
-    ).rejects.toThrow(new PiiConsentRequiredError('org-sem-consentimento').message);
+        await expect(
+            requestContext.run(
+                { tenantId: 'org-sem-consentimento' },
+                () => orchestrator.executeMission('Qualifique o lead da Transportadora ABC.'),
+            ),
+        ).rejects.toThrow(new PiiConsentRequiredError('org-sem-consentimento').message);
 
-    expect(ensureSpy).not.toHaveBeenCalled();
-  });
+        expect(ensureSpy).not.toHaveBeenCalled();
+    });
 
-  it('executeMissionStream rejeita sem base legal registrada, sem emitir nenhum evento', async () => {
-    const ensureSpy = vi.spyOn(checkpointerModule, 'ensureCheckpointerReady');
-    const orchestrator = new SwarmOrchestrator();
-    const onChunk = vi.fn();
+    it('executeMissionStream rejeita sem base legal registrada, sem emitir nenhum evento', async () => {
+        const ensureSpy = vi.spyOn(checkpointerModule, 'ensureCheckpointerReady');
+        const orchestrator = new SwarmOrchestrator();
+        const onChunk = vi.fn();
 
-    await expect(
-      requestContext.run({ tenantId: 'org-sem-consentimento' }, () =>
-        orchestrator.executeMissionStream(
-          'Qualifique o lead da Transportadora ABC.',
-          'session-x',
-          onChunk,
-        ),
-      ),
-    ).rejects.toThrow(new PiiConsentRequiredError('org-sem-consentimento').message);
+        await expect(
+            requestContext.run(
+                { tenantId: 'org-sem-consentimento' },
+                () => orchestrator.executeMissionStream('Qualifique o lead da Transportadora ABC.', 'session-x', onChunk),
+            ),
+        ).rejects.toThrow(new PiiConsentRequiredError('org-sem-consentimento').message);
 
-    expect(ensureSpy).not.toHaveBeenCalled();
-    expect(onChunk).not.toHaveBeenCalled();
-  });
+        expect(ensureSpy).not.toHaveBeenCalled();
+        expect(onChunk).not.toHaveBeenCalled();
+    });
 });

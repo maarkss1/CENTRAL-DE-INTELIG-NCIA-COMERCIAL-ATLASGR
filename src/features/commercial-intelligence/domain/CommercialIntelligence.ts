@@ -167,6 +167,27 @@ export interface PipelineCreation {
   pacePercent: number | null;
   /** `paceExpectedAmount` − `amount`. Positivo = atrás do ritmo; negativo = à frente. `null` sem `paceExpectedAmount`. */
   paceGapAmount: number | null;
+  /**
+   * Pipeline Carryover — negócios que JÁ estavam abertos no primeiro instante do mês (criados
+   * antes dele e ainda não fechados naquele momento), em oposição ao Pipeline Criado (novos no
+   * mês). Ver `carryover` no dicionário de métricas.
+   */
+  carryover: PipelineCarryover;
+}
+
+export interface PipelineCarryover {
+  /** Abertos no início do mês (createdAt < início E (closedAt nulo OU closedAt ≥ início)). */
+  count: number;
+  amount: number;
+  /** Subconjunto do carryover que continua aberto AGORA. */
+  stillOpenCount: number;
+  stillOpenAmount: number;
+  /** Subconjunto do carryover fechado DENTRO do mês (ganho ou perdido). */
+  closedInPeriodCount: number;
+  wonInPeriodAmount: number;
+  lostInPeriodAmount: number;
+  /** Carryover / (Carryover + Pipeline Criado) em valor — quanto do pipeline do mês veio de meses anteriores. `null` sem pipeline. */
+  shareOfPeriodPipeline: number | null;
 }
 
 // ─── Eficiência (Fase 4) ─────────────────────────────────────────────────────
@@ -769,6 +790,26 @@ export interface StageHistoryEntryInput {
   isLost: boolean;
 }
 
+// ─── Histórico de mudança de campo (LeadFieldChange) ────────────────────────
+
+export type TrackedLeadField = 'expectedCloseAt' | 'owner';
+
+export interface LeadFieldChangeRow {
+  leadId: string;
+  field: TrackedLeadField;
+  /** Serializado como texto (ISO 8601 para datas; id/nome para owner). `null` = vazio. */
+  previousValue: string | null;
+  newValue: string | null;
+  changedBy: string | null;
+  source: string;
+  changedAt: Date;
+}
+
+// Tipos de CLOSEDATE Intelligence e Jornada (handoffs/reentradas/sem interação/transições) moram
+// em `domain/JourneyIntelligence.ts` — extraídos para manter este arquivo abaixo do limite de
+// hotspot (docs/architecture/HOTSPOT_EXCEPTIONS.md); importam `ForecastTier`/`PeriodMonth`/
+// `ForecastRulesVersion` daqui, e este arquivo não depende deles (sem ciclo).
+
 export interface CommercialIntelligenceRepository {
   /** Todos os negócios (funil "Negócio", não excluídos) da organização — usado como base de quase todo cálculo do módulo. */
   findDeals(organizationId: string): Promise<DealRow[]>;
@@ -807,8 +848,17 @@ export interface CommercialIntelligenceRepository {
       stageName: string;
       enteredAt: Date;
       exitedAt: Date | null;
+      /** Flags terminais desnormalizadas no momento da transição (ver schema) — usadas pelas Reentradas da Jornada. Opcionais para compatibilidade com repositórios/fakes que não as expõem. */
+      isWon?: boolean;
+      isLost?: boolean;
     }>
   >;
+  /**
+   * Histórico de mudança de campo (`LeadFieldChange`) da organização, opcionalmente restrito a um
+   * campo — base da CLOSEDATE Intelligence (`expectedCloseAt`) e dos Handoffs (`owner`). Ordenado
+   * por `changedAt` ascendente.
+   */
+  findFieldChanges(organizationId: string, field?: TrackedLeadField): Promise<LeadFieldChangeRow[]>;
   /** Grupos de negócios abertos (funil Negócio) que compartilham a mesma empresa — heurística de duplicidade suspeita (seção 27), não determinística de identidade. */
   countDuplicateCompanyGroupsAmongOpenDeals(organizationId: string): Promise<number>;
   /** `true` quando a organização tem ao menos uma conexão Bitrix24 ativa — usado por `bitrixSync` para distinguir "0 vinculado porque não tem Bitrix" de "0 vinculado apesar de ter Bitrix". */

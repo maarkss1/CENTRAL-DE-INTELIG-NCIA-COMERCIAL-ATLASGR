@@ -3952,6 +3952,34 @@ paths:
             application/json: { schema: { type: string } }
             text/html: { schema: { type: string } }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/health-score:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Health Score composto (6 pilares explicáveis; Confiabilidade de Forecast lê snapshots reais) — somente ADMIN/GESTOR
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/forecast-accuracy:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Erro histórico do Forecast (snapshot mais antigo de cada mês encerrado vs. realizado) — somente ADMIN/GESTOR
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/close-date-intelligence:
+    get:
+      tags: [Comercial Inteligente]
+      summary: CLOSEDATE Intelligence — adiamentos/antecipações da data prevista por negócio, vendedor, produto e etapa — somente ADMIN/GESTOR
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/journey:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Jornada — handoffs, reentradas (recuperados/reativados), clientes sem interação e mapa de transições — somente ADMIN/GESTOR
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /commercial-intelligence/goals:
     get:
       tags: [Comercial Inteligente]

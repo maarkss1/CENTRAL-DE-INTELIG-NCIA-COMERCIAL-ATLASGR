@@ -1,7 +1,7 @@
 - De: 14 — Ambiente de Execução e Test Harness
 - Para: 00 — Coordenador (edição de `package.json` exige aprovação explícita, ver `/AGENTS.md` → "Propriedade exclusiva de arquivos")
 - Onda: roadmap-v2-transversais
-- Status: resolvido
+- Status: aberto
 - Prioridade: normal
 
 ## Problema
@@ -65,8 +65,3 @@ npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts --
 usam `--passWithNoTests` — só os dois scripts citados acima têm a flag, o que sugere que ela não é
 uma convenção deliberada do projeto, e sim um artefato que sobrou de algum momento em que os globs
 de `include` ainda não existiam/estavam instáveis.
-
-## Resolução (Coordenador, 00)
-Removida a flag `--passWithNoTests` de `test:unit` e `test:integration` em `package.json`, exatamente
-como pedido. Nenhum caminho legítimo dependia dela (confirmado nesta rodada: ambos os comandos
-continuam coletando centenas de arquivos normalmente).

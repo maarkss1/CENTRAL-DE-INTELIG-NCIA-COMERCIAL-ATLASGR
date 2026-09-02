@@ -37,12 +37,16 @@ const SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 // orçamento e marcando `dashboard-dark` como flaky. Mascarado via `app-topbar-clock`, aplicado
 // também ao `crm-board` pelo mesmo motivo (mesmo AppTopbar).
 //
-// Achado real (merge com origin/main, 2026-09-02): o card "Signal Core 3D" que substituiu a grade
-// de KPIs simples (`DeferredRevenueSignalOrb.tsx` → `RevenueSignalOrb.tsx`, `@react-three/fiber`
-// com `useFrame`) anima continuamente (órbita 3D) e nunca estabiliza — Playwright nunca conseguia
-// "capturar dois screenshots consecutivos estáveis" (timeout de 5s, dezenas de milhares de pixels
-// de diferença entre frames). Mesmo tratamento das outras animações desta lista: mascarado via
-// `dashboard-signal-orb` em vez de tentar sincronizar com uma animação que não tem fim.
+// Achado real (investigação de CI do PR #328, confirmado de novo no merge com origin/main de
+// 2026-09-02): o card "Signal Core 3D" que substituiu a grade de KPIs simples
+// (`DeferredRevenueSignalOrb.tsx` → `RevenueSignalOrb.tsx`, r3f/three.js com `useFrame`, órbita 3D
+// com rotação contínua) anima continuamente e nunca estabiliza — cada tentativa de captura via
+// `toHaveScreenshot` pegava o orbe num ângulo de rotação diferente, diff de dezenas de milhares de
+// pixels que nunca estabilizava mesmo depois de 500ms de espera. Não é regressão de nenhuma
+// mudança recente no orbe (o widget já existia sem máscara antes); só nunca tinha sido pego porque
+// a suíte E2E nunca tinha chegado a rodar de ponta a ponta nesses PRs (falhava antes, em gates
+// anteriores do mesmo job). Mesmo tratamento das outras animações desta lista: mascarado via
+// `revenue-signal-orb`.
 const DASHBOARD_SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 
 async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 'dark') {
@@ -67,7 +71,7 @@ test.describe('Regressão visual', () => {
           page.getByTestId('clock-calendar-widget'),
           page.getByTestId('dashboard-analytics-chart'),
           page.getByTestId('app-topbar-clock'),
-          page.getByTestId('dashboard-signal-orb'),
+          page.getByTestId('revenue-signal-orb'),
         ],
       });
     });
