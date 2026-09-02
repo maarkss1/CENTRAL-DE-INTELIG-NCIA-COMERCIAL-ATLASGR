@@ -4,6 +4,7 @@ import { MotionConfig } from 'framer-motion';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { RequireRole } from './components/layout/RequireRole';
+import { RequireUserAllowed } from './components/layout/RequireUserAllowed';
 import { COMMERCIAL_INTELLIGENCE_ROLES, MESA_TRATAMENTO_ROLES } from './lib/auth/authorization';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -14,6 +15,26 @@ import { Skeleton } from './components/ui/Skeleton';
 import { ClickSpark } from './components/ui/ClickSpark';
 
 // Lazy loaded feature modules
+const SocialSellingHub = lazy(() =>
+  import('./features/social-selling/components/SocialSellingHub').then((m) => ({
+    default: m.SocialSellingHub,
+  })),
+);
+const TreinamentoAtlasGRHub = lazy(() =>
+  import('./features/treinamento-atlasgr/components/TreinamentoAtlasGRHub').then((m) => ({
+    default: m.TreinamentoAtlasGRHub,
+  })),
+);
+const PropostaComercialHub = lazy(() =>
+  import('./features/propostas/components/PropostaComercialHub').then((m) => ({
+    default: m.PropostaComercialHub,
+  })),
+);
+const HubInteligenciaMarketingHub = lazy(() =>
+  import('./features/hub-inteligencia-marketing/components/HubInteligenciaMarketingHub').then((m) => ({
+    default: m.HubInteligenciaMarketingHub,
+  })),
+);
 const SinglePageDashboard = lazy(() =>
   import('./features/dashboard/components/SinglePageDashboard').then((m) => ({
     default: m.SinglePageDashboard,
@@ -103,6 +124,11 @@ const WinLossAnalysis = lazy(() =>
 const CommercialIntelligenceHub = lazy(() =>
   import('./features/commercial-intelligence/components/CommercialIntelligenceHub').then((m) => ({
     default: m.CommercialIntelligenceHub,
+  })),
+);
+const JoaoReisDiagnosticHub = lazy(() =>
+  import('./features/commercial-intelligence/components/JoaoReisDiagnosticHub').then((m) => ({
+    default: m.JoaoReisDiagnosticHub,
   })),
 );
 const Calendar = lazy(() =>
@@ -269,6 +295,39 @@ function AppLayout() {
               <RequireRole allowedRoles={[...COMMERCIAL_INTELLIGENCE_ROLES]}>
                 <CommercialIntelligenceHub />
               </RequireRole>
+            }
+          />
+          <Route path="sdr-diagnostic-joao" element={<JoaoReisDiagnosticHub />} />
+          <Route
+            path="social-selling"
+            element={
+              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+                <SocialSellingHub />
+              </RequireUserAllowed>
+            }
+          />
+          <Route
+            path="treinamento-atlasgr"
+            element={
+              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+                <TreinamentoAtlasGRHub />
+              </RequireUserAllowed>
+            }
+          />
+          <Route
+            path="proposta-comercial"
+            element={
+              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+                <PropostaComercialHub />
+              </RequireUserAllowed>
+            }
+          />
+          <Route
+            path="hub-inteligencia-marketing"
+            element={
+              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+                <HubInteligenciaMarketingHub />
+              </RequireUserAllowed>
             }
           />
           <Route path="calendar" element={<Calendar />} />

@@ -199,14 +199,20 @@ body.sidebar-expanded{padding-left:250px;}
   color:#fff;
   border:none;
   border-radius:0 8px 8px 0;
-  width:30px;
   height:44px;
+  padding:0 14px 0 8px;
+  display:flex;
+  align-items:center;
+  gap:6px;
   cursor:pointer;
-  font-size:16px;
-  line-height:1;
+  font-family:'Montserrat',Arial,sans-serif;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
   box-shadow:2px 2px 10px rgba(0,0,0,.2);
   flex-shrink:0;
 }
+.sidebar-toggle-icon{font-size:16px;line-height:1;}
 .sidebar-panel{
   display:flex;
   flex-direction:column;
@@ -220,6 +226,28 @@ body.sidebar-expanded{padding-left:250px;}
   overflow-y:auto;
 }
 .sidebar-panel.collapsed{display:none;}
+@media (max-width:640px){
+  body{padding-left:0 !important;}
+  body.sidebar-expanded{padding-left:0 !important;}
+  .app-sidebar{
+    top:auto;
+    bottom:14px;
+    left:10px;
+    transform:none;
+  }
+  .sidebar-toggle{
+    padding:0;
+    width:46px;
+    height:46px;
+    justify-content:center;
+    border-radius:50%;
+  }
+  .sidebar-toggle-label{display:none;}
+  .sidebar-panel{
+    width:min(190px, calc(100vw - 24px));
+    max-height:60vh;
+  }
+}
 .sidebar-title{
   font-family:'Montserrat',Arial,sans-serif;
   font-size:11px;
@@ -296,12 +324,15 @@ body.sidebar-expanded{padding-left:250px;}
   .voice-cmd-status{display:none !important;}
   .app-sidebar{display:none !important;}
   .editable-field{border-bottom:none !important;background:transparent !important;padding:0 !important;}
+  .editable-cell{background:transparent !important;}
   .valor-input,.qtde-input{border-bottom:none !important;background:transparent !important;}
   .line-total-cell{background:transparent !important;}
   .sig-field .rule,.fone-seg,.sig-date .u{border-bottom:1.6px solid #161616 !important;background:transparent !important;}
   .sig-pad{display:none !important;}
   .sig-pad-print-img{display:block !important;width:420px;height:120px;margin:0 auto;}
   .sig-clear-btn{display:none !important;}
+  .incl-cell{display:none !important;}
+  tr.pricing-row.row-excluded{display:none !important;}
   .add-range-btn{display:none !important;}
   .remove-range-btn{display:none !important;}
   .row-range-select{display:none !important;}
@@ -369,6 +400,9 @@ body.sidebar-expanded{padding-left:250px;}
 }
 .editable-field:hover{background:#fff4ee;}
 .editable-field:focus{border-bottom:1.4px solid var(--atlas-orange);background:#fff4ee;}
+.editable-cell{outline:none;cursor:text;border-radius:2px;}
+.editable-cell:hover{background:#fff4ee;}
+.editable-cell:focus{outline:1.4px dashed var(--atlas-orange);background:#fff4ee;}
 
 .cover-mid{
   position:relative;z-index:1;
@@ -521,6 +555,9 @@ p.body-text{
 .item-picker-opt{display:flex;align-items:flex-start;gap:6px;font-size:11.5px;color:#333;margin-bottom:6px;cursor:pointer;line-height:1.35;}
 .item-picker-opt input{margin-top:2px;flex-shrink:0;cursor:pointer;}
 .item-picker-opt:last-child{margin-bottom:0;}
+.incl-cell{width:6%;}
+.incl-cell input{width:16px;height:16px;cursor:pointer;}
+tr.pricing-row.row-excluded td:not(.incl-cell){opacity:.4;text-decoration:line-through;}
 table.pricing{width:100%;border-collapse:collapse;margin-bottom:6px;font-size:11.5px;}
 table.pricing th{
   background:var(--atlas-orange);color:#fff;font-weight:700;
@@ -613,9 +650,17 @@ table.pricing td.svc-repeat{font-weight:600;font-style:italic;color:#999;text-al
 </head>
 <body>
 <div class="app-sidebar" id="appSidebar">
-<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Mostrar/ocultar ferramentas">&#9776;</button>
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Mostrar/ocultar ferramentas"><span class="sidebar-toggle-icon">&#9776;</span><span class="sidebar-toggle-label">Imprimir / Salvar</span></button>
 <div class="sidebar-panel collapsed" id="sidebarPanel">
-<div class="sidebar-title">Ferramentas</div>
+<div class="sidebar-title">Ferramentas
+<div style="background:#fff7f2; border:1px solid #ffd8c2; padding:10px; border-radius:8px; margin-top:6px; font-size:11px;">
+  <b style="color:var(--atlas-orange); display:block; margin-bottom:4px;">🔍 Buscar no Bitrix24:</b>
+  <input type="text" id="bxSideSearch" placeholder="Nome do cliente..." style="width:100%; border:1px solid #ccc; padding:4px 6px; border-radius:4px; font-size:11px; font-family:'Montserrat',Arial,sans-serif; margin-bottom:4px;">
+  <button type="button" onclick="buscarBitrixSidebar()" style="width:100%; background:var(--atlas-orange); color:#fff; border:none; padding:4px 8px; border-radius:4px; font-weight:700; cursor:pointer; font-size:11px; font-family:'Montserrat',Arial,sans-serif;">Buscar Cliente</button>
+  <select id="bxSideResults" style="display:none; width:100%; border:1px solid #ccc; padding:4px; border-radius:4px; font-size:11px; margin-top:4px; font-family:'Montserrat',Arial,sans-serif;" onchange="selecionarBitrixSidebar()"></select>
+  <button type="button" id="bxCopyBtn" onclick="copiarBitrixSidebar()" style="display:none; width:100%; background:#fff; color:var(--atlas-orange); border:1px solid var(--atlas-orange); padding:4px 8px; border-radius:4px; font-weight:700; cursor:pointer; font-size:11px; font-family:'Montserrat',Arial,sans-serif; margin-top:4px;">Copiar Dados</button>
+</div>
+</div>
 <button class="print-btn" onclick="window.print()" title="Imprimir ou salvar como PDF">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
   Imprimir
@@ -673,7 +718,7 @@ table.pricing td.svc-repeat{font-weight:600;font-style:italic;color:#999;text-al
     <h3>PROPÓSITO ATLAS</h3>
     <p>Conectamos pessoas e tecnologia, proporcionando segurança e inovação.</p>
   </div>
-</div><div class="page"><div class="inner"><div class="inner-diagonal"></div><div class="inner-diagonal-2"></div><div class="inner-content"><h2 class="sect">NOSSOS PRODUTOS</h2><h3 class="sub">Gerenciamento de Risco</h3><p class="body-text">Nosso produto de referência que tem como objetivo reduzir os altos índices de roubos, resultando em uma minimização de perdas financeiras para o setor de transportes. Toda Gestão de Riscos é desenvolvida através de medidas preventivas, com suporte de recursos tecnológicos de ponta e equipe especializada atendendo 24/7.</p><h3 class="sub">Software Logístico</h3><p class="body-text">O New Connect é nosso Software Logístico com um conjunto de soluções capaz de gerenciar todos os procedimentos de viagem através de alertas e eventos programados. Através do Atlas Analytics (B.I), você terá relatórios completos, proporcionando a otimização de recursos e redução de custos da sua operação.</p><p class="body-text">Com o Gestão à Vista trazemos indicadores de visualização da frota em Real Time, acompanhamento de viagens, controle de velocidade, mapa de viagem, indicador de tempo em pátio, progresso de viagem e controle de tempo de coletas e entregas.</p><h3 class="sub">Perfil Securitário</h3><p class="body-text">Nosso serviço de Cadastro e Consulta é um sistema 100% digital, responsável por toda análise de perfil de profissionais. Com atendimento 24 horas, garantimos agilidade e segurança máxima para otimizar a sua operação de contratação e verificação de antecedentes.</p><p class="body-text">Contamos com nossa Inteligência Artificial (IA), que realiza varreduras em bancos de dados oficiais, analisando todos os dados do consultado, como dados de pessoa física, processos trabalhistas, criminais ou penais e dados do veículo.</p></div></div></div><div class="page"><div class="inner"><div class="inner-diagonal"></div><div class="inner-diagonal-2"></div><div class="inner-content"><div class="plans-title" style="margin-top:6px;">VALORES E CONDIÇÕES</div><div class="item-picker"><div class="item-picker-title">O que esta proposta vai incluir? Selecione os itens:</div><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r0"> Pesquisa por Objeto (Frota e Agregados) — Atlas PROFILE</label><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r1"> Pesquisa Integrada (autônomos) — Atlas PROFILE</label><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r2"> Consulta de CNH — Atlas PROFILE</label><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r3"> Consulta — Atlas PROFILE</label><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r4"> Erro de parâmetro — Atlas PROFILE</label><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r5"> Pesquisa avançada/RDO (combo 6 estados) — Atlas PROFILE</label><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r6"> Face ID (objeto) — Atlas PROFILE</label><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r7"> Face ID (integrada) — Atlas PROFILE</label><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r8"> Consulta financeira — Atlas PROFILE</label><label class="item-picker-opt"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r9"> Vitimologia — Atlas PROFILE</label></div><table class="pricing" id="pricing-pcc"><thead><tr><th style="width:14%;">SERVIÇO</th><th style="width:11%;">VALOR</th><th style="width:7%;">QTDE</th><th style="width:12%;">VALOR TOTAL</th><th style="width:21%;">PLANO</th><th>DETALHAMENTO</th></tr></thead><tbody><tr class="pricing-row" data-row="pricing-pcc-r0" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r0"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r0" data-range-col="objeto" inputmode="decimal" value="23,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r0" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r0" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r0">0,00</span></td><td>Por objeto pesquisado (para Frota e Agregados)</td><td class="detail">Cadastro e Consulta dos profissionais, conforme exigência de apólice. Valor por objeto pesquisado e por demanda.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r1" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r1"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r1" data-range-col="integrada" inputmode="decimal" value="31,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r1" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r1" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r1">0,00</span></td><td>Por pesquisa integrada, para autônomos)</td><td class="detail">Cadastro e Consulta dos profissionais, conforme exigência de apólice. Valor por objeto pesquisado e por demanda.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r2" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r2"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r2" data-range-col="cnh" inputmode="decimal" value="9,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r2" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r2" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r2">0,00</span></td><td>Por CNH pesquisada</td><td class="detail"></td></tr><tr class="pricing-row" data-row="pricing-pcc-r3" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r3"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r3" data-range-col="consulta" inputmode="decimal" value="4,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r3" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r3" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r3">0,00</span></td><td>Por Consulta</td><td class="detail"></td></tr><tr class="pricing-row" data-row="pricing-pcc-r4" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r4"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r4" data-range-col="consulta" inputmode="decimal" value="4,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r4" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r4" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r4">0,00</span></td><td>Por erro de parâmetro</td><td class="detail"></td></tr><tr class="pricing-row" data-row="pricing-pcc-r5" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r5" inputmode="decimal" value="4,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r5" inputmode="numeric" value="01" size="2"></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r5">0,00</span></td><td>Por pesquisa avançada/RDO</td><td class="detail">Combo contemplando 6 Estados</td></tr><tr class="pricing-row" data-row="pricing-pcc-r6" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r6"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r6" data-range-col="faceObjeto" inputmode="decimal" value="30,50" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r6" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r6" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r6">0,00</span></td><td>Por verificação Face ID (objeto)</td><td class="detail">Reconhecimento facial para validação de identidade do pesquisado, por objeto.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r7" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r7"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r7" data-range-col="faceIntegrada" inputmode="decimal" value="41,50" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r7" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r7" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r7">0,00</span></td><td>Por verificação Face ID (integrada)</td><td class="detail">Reconhecimento facial para validação de identidade, pesquisa integrada.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r8" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r8"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r8" data-range-col="financeira" inputmode="decimal" value="9,20" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r8" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r8" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r8">0,00</span></td><td>Por consulta financeira</td><td class="detail">Verificação de histórico e restrições financeiras do pesquisado.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r9" style="display:none;"><td class="svc">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r9"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc" data-row="pricing-pcc-r9" data-range-col="vitimologia" inputmode="decimal" value="69,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc" data-row="pricing-pcc-r9" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r9" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc" data-row="pricing-pcc-r9">0,00</span></td><td>Por pesquisa de vitimologia</td><td class="detail">Análise de histórico de ocorrências e vitimização associadas ao pesquisado.</td></tr></tbody></table><div class="total-bar"><span>VALOR TOTAL GERAL (soma de valor × qtde)</span><span class="tval"><span class="currency-prefix" style="color:#fff;">R$</span><span id="total-pricing-pcc">0,00</span></span></div><div class="obs-row"><span>OBS: Faturamento Mínimo Mensal</span><span class="val"><span class="currency-prefix">R$</span> <span class="editable-field" contenteditable="true" spellcheck="false">59,90</span></span></div><h2 class="sect">SEGURANÇA E PRIVACIDADE</h2><ul class="dot-list"><li>Proteção de Dados: Dados de usuários, motoristas e veículos são protegidos por criptografia e políticas de acesso restrito por usuário.</li><li>Backup: Backups automáticos diários, com redundância em nuvem, para garantir a continuidade das operações.</li><li>Prevenção de Violações: Medidas avançadas de segurança em datacenters especializados e monitoramento constante garantem a integridade dos dados.</li></ul></div></div></div><div class="page"><div class="inner"><div class="inner-diagonal"></div><div class="inner-diagonal-2"></div><div class="inner-content"><h2 class="sect">CONFIDENCIALIDADE</h2><p class="body-text">As informações contidas neste documento, sobre produtos e serviços são de propriedade da ATLAS, sendo sua duplicação permitida apenas para uso interno do cliente, essas informações não poderão ser utilizadas como fonte de informações a terceiros. Todas as informações fornecidas sobre a ATLAS não deverão ser divulgadas, salvo em caso de autorização por escrito de ambas as partes.</p><h2 class="sect">CONSIDERAÇÕES GERAIS</h2><ul class="dot-list"><li>Os valores acima podem variar de acordo com a quantidade de perfis cadastrados e consultados, assim como personalizações e integrações solicitadas.</li><li>O contrato está sob reajuste contratual seguindo a variação dos últimos 12 meses do dissídio salarial da categoria, tendo como base o sindicato de Ribeirão Preto, SP;</li><li>O contrato possui um faturamento mínimo de R$<span class="editable-field" contenteditable="true" spellcheck="false">59,90</span></li></ul></div></div></div><div class="page"><div class="inner"><div class="inner-diagonal"></div><div class="inner-diagonal-2"></div><div class="inner-content">
+</div><div class="page"><div class="inner"><div class="inner-diagonal"></div><div class="inner-diagonal-2"></div><div class="inner-content"><h2 class="sect">NOSSOS PRODUTOS</h2><h3 class="sub">Gerenciamento de Risco</h3><p class="body-text">Nosso produto de referência que tem como objetivo reduzir os altos índices de roubos, resultando em uma minimização de perdas financeiras para o setor de transportes. Toda Gestão de Riscos é desenvolvida através de medidas preventivas, com suporte de recursos tecnológicos de ponta e equipe especializada atendendo 24/7.</p><h3 class="sub">Software Logístico</h3><p class="body-text">O New Connect é nosso Software Logístico com um conjunto de soluções capaz de gerenciar todos os procedimentos de viagem através de alertas e eventos programados. Através do Atlas Analytics (B.I), você terá relatórios completos, proporcionando a otimização de recursos e redução de custos da sua operação.</p><p class="body-text">Com o Gestão à Vista trazemos indicadores de visualização da frota em Real Time, acompanhamento de viagens, controle de velocidade, mapa de viagem, indicador de tempo em pátio, progresso de viagem e controle de tempo de coletas e entregas.</p><h3 class="sub">Perfil Securitário</h3><p class="body-text">Nosso serviço de Cadastro e Consulta é um sistema 100% digital, responsável por toda análise de perfil de profissionais. Com atendimento 24 horas, garantimos agilidade e segurança máxima para otimizar a sua operação de contratação e verificação de antecedentes.</p><p class="body-text">Contamos com nossa Inteligência Artificial (IA), que realiza varreduras em bancos de dados oficiais, analisando todos os dados do consultado, como dados de pessoa física, processos trabalhistas, criminais ou penais e dados do veículo.</p></div></div></div><div class="page"><div class="inner"><div class="inner-diagonal"></div><div class="inner-diagonal-2"></div><div class="inner-content"><div class="plans-title" style="margin-top:6px;">VALORES E CONDIÇÕES</div><h3 class="sub">Atlas PROFILE - Perfil Securitário</h3><table class="pricing" id="pricing-pcc-profile"><thead><tr><th class="incl-cell" style="width:6%;">INCLUIR</th><th style="width:14%;">SERVIÇO</th><th style="width:11%;">VALOR</th><th style="width:7%;">QTDE</th><th style="width:12%;">VALOR TOTAL</th><th style="width:19%;">PLANO</th><th>DETALHAMENTO</th></tr></thead><tbody><tr class="pricing-row" data-row="pricing-pcc-r0"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r0" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r0"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r0" data-range-col="objeto" inputmode="decimal" value="23,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r0" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r0" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r0">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por objeto pesquisado (para Frota e Agregados)</td><td class="detail editable-cell" contenteditable="true" spellcheck="false">Cadastro e Consulta dos profissionais, conforme exigência de apólice. Valor por objeto pesquisado e por demanda.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r1"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r1" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r1"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r1" data-range-col="integrada" inputmode="decimal" value="31,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r1" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r1" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r1">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por pesquisa integrada, para autônomos)</td><td class="detail editable-cell" contenteditable="true" spellcheck="false">Cadastro e Consulta dos profissionais, conforme exigência de apólice. Valor por objeto pesquisado e por demanda.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r2"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r2" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r2"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r2" data-range-col="cnh" inputmode="decimal" value="9,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r2" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r2" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r2">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por CNH pesquisada</td><td class="detail editable-cell" contenteditable="true" spellcheck="false"></td></tr><tr class="pricing-row" data-row="pricing-pcc-r3"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r3" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r3"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r3" data-range-col="consulta" inputmode="decimal" value="4,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r3" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r3" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r3">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por Consulta</td><td class="detail editable-cell" contenteditable="true" spellcheck="false"></td></tr><tr class="pricing-row" data-row="pricing-pcc-r4"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r4" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r4"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r4" data-range-col="consulta" inputmode="decimal" value="4,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r4" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r4" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r4">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por erro de parâmetro</td><td class="detail editable-cell" contenteditable="true" spellcheck="false"></td></tr><tr class="pricing-row" data-row="pricing-pcc-r5"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r5" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r5" inputmode="decimal" value="4,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r5" inputmode="numeric" value="01" size="2"></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r5">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por pesquisa avançada/RDO</td><td class="detail editable-cell" contenteditable="true" spellcheck="false">Combo contemplando 6 Estados</td></tr><tr class="pricing-row" data-row="pricing-pcc-r6"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r6" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r6"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r6" data-range-col="faceObjeto" inputmode="decimal" value="30,50" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r6" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r6" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r6">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por verificação Face ID (objeto)</td><td class="detail editable-cell" contenteditable="true" spellcheck="false">Reconhecimento facial para validação de identidade do pesquisado, por objeto.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r7"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r7" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r7"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r7" data-range-col="faceIntegrada" inputmode="decimal" value="41,50" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r7" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r7" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r7">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por verificação Face ID (integrada)</td><td class="detail editable-cell" contenteditable="true" spellcheck="false">Reconhecimento facial para validação de identidade, pesquisa integrada.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r8"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r8" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r8"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r8" data-range-col="financeira" inputmode="decimal" value="9,20" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r8" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r8" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r8">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por consulta financeira</td><td class="detail editable-cell" contenteditable="true" spellcheck="false">Verificação de histórico e restrições financeiras do pesquisado.</td></tr><tr class="pricing-row" data-row="pricing-pcc-r9"><td class="center incl-cell"><input type="checkbox" class="row-toggle" data-row="pricing-pcc-r9" checked title="Desmarque para não incluir este item na proposta"></td><td class="svc editable-cell" contenteditable="true" spellcheck="false">Atlas PROFILE - Perfil Securitário</td><td class="center"><select class="row-range-select" data-row="pricing-pcc-r9"><option value="" selected disabled>Faixa</option><option value="100">Até 100</option><option value="250">101-250</option><option value="400">251-400</option><option value="500">401-500</option><option value="1000">501-1.000</option><option value="1500">1.001-1.500</option><option value="2000">Acima de 2.000</option></select><span class="currency-prefix">R$</span><input type="text" class="valor-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r9" data-range-col="vitimologia" inputmode="decimal" value="69,90" size="6"></td><td class="center"><input type="text" class="qtde-input" data-table="pricing-pcc-profile" data-row="pricing-pcc-r9" inputmode="numeric" value="01" size="2"><button type="button" class="add-range-btn" data-row="pricing-pcc-r9" title="Adicionar esta linha em outra faixa de volume">+</button></td><td class="center line-total-cell"><span class="currency-prefix">R$</span><span class="line-total" data-table="pricing-pcc-profile" data-row="pricing-pcc-r9">0,00</span></td><td class="editable-cell" contenteditable="true" spellcheck="false">Por pesquisa de vitimologia</td><td class="detail editable-cell" contenteditable="true" spellcheck="false">Análise de histórico de ocorrências e vitimização associadas ao pesquisado.</td></tr></tbody></table><div class="obs-row"><span>OBS: Faturamento Mínimo Mensal — Atlas PROFILE - Perfil Securitário</span><span class="val"><span class="currency-prefix">R$</span> <span class="editable-field" contenteditable="true" spellcheck="false">XX,XX</span></span></div></div></div></div><div class="page"><div class="inner"><div class="inner-diagonal"></div><div class="inner-diagonal-2"></div><div class="inner-content"><h2 class="sect">CONFIDENCIALIDADE</h2><p class="body-text">As informações contidas neste documento, sobre produtos e serviços são de propriedade da ATLAS, sendo sua duplicação permitida apenas para uso interno do cliente, essas informações não poderão ser utilizadas como fonte de informações a terceiros. Todas as informações fornecidas sobre a ATLAS não deverão ser divulgadas, salvo em caso de autorização por escrito de ambas as partes.</p><h2 class="sect">CONSIDERAÇÕES GERAIS</h2><ul class="dot-list"><li>Os valores acima podem variar de acordo com a quantidade de perfis cadastrados e consultados, assim como personalizações e integrações solicitadas.</li><li>O contrato está sob reajuste contratual seguindo a variação dos últimos 12 meses do dissídio salarial da categoria, tendo como base o sindicato de Ribeirão Preto, SP;</li><li>O contrato possui um faturamento mínimo de R$<span class="editable-field" contenteditable="true" spellcheck="false">59,90</span></li></ul></div></div></div><div class="page"><div class="inner"><div class="inner-diagonal"></div><div class="inner-diagonal-2"></div><div class="inner-content">
 <h2 class="sect">ASSINATURA</h2>
 <p class="body-text">Declaro que li e concordo plenamente com a cobrança da ATLAS contra a minha empresa, referente ao conteúdo desta proposta.</p>
 <p class="body-text">Esta proposta estará vinculada ao contrato de prestação de serviços a ser firmado entre as partes, bem como aos demais termos de condições específicas de serviço, conforme contratação, além do termo de licença de uso de software.</p>
@@ -687,8 +732,8 @@ table.pricing td.svc-repeat{font-weight:600;font-style:italic;color:#999;text-al
 <div class="fone-line">Fone: ( <span class="fone-seg fone-ddd" contenteditable="true" spellcheck="false">&nbsp;</span> ) <span class="fone-seg" contenteditable="true" spellcheck="false">&nbsp;</span> - <span class="fone-seg" contenteditable="true" spellcheck="false">&nbsp;</span></div>
 <div class="sig-date"><span class="u" contenteditable="true" spellcheck="false">22</span> de <span class="u month" contenteditable="true" spellcheck="false">Julho</span> de <span class="u" contenteditable="true" spellcheck="false">2026</span>.</div>
 <div class="sig-pad-label">Assinatura do cliente</div><div class="sig-pad-wrap"><canvas id="sigPad" class="sig-pad" width="420" height="120"></canvas><img id="sigPadPrintImg" class="sig-pad-print-img" alt=""></div><div class="sig-line"></div><button type="button" class="sig-clear-btn" id="sigClearBtn">Limpar assinatura</button>
-<div class="sig-name" id="sig-name-field">[NOME DO CLIENTE]</div>
-<div class="sig-cnpj" id="sig-cnpj-field">06.982.332/0001-03</div>
+<div class="sig-name editable-field-dark" id="sig-name-field" contenteditable="true" spellcheck="false">[NOME DO CLIENTE]</div>
+<div class="sig-cnpj editable-field-dark" id="sig-cnpj-field" contenteditable="true" spellcheck="false">06.982.332/0001-03</div>
 </div></div></div>
 </div>
 
@@ -755,7 +800,7 @@ document.addEventListener('DOMContentLoaded', function(){
   var tables = new Set();
   document.querySelectorAll('.valor-input, .qtde-input').forEach(function(el){
     tables.add(el.dataset.table);
-    el.addEventListener('input', function(){ recalcTable(el.dataset.table); });
+    el.addEventListener('input', function(){ el.setAttribute('value', el.value); recalcTable(el.dataset.table); });
   });
   tables.forEach(recalcTable);
 
@@ -841,6 +886,8 @@ var ATLAS_PROFILE_RANGE_BOUNDS = {
 };
 function wireRangeSelect(sel){
   sel.addEventListener('change', function(){
+    Array.prototype.forEach.call(sel.options, function(opt){ opt.removeAttribute('selected'); });
+    if(sel.selectedIndex >= 0) sel.options[sel.selectedIndex].setAttribute('selected', '');
     var row = sel.dataset.row;
     var input = document.querySelector('.valor-input[data-row="'+row+'"]');
     var qtyInput = document.querySelector('.qtde-input[data-row="'+row+'"]');
@@ -876,7 +923,7 @@ function wireQtyClamp(q){
   });
 }
 function wireRecalcInput(el){
-  el.addEventListener('input', function(){ recalcTable(el.dataset.table); });
+  el.addEventListener('input', function(){ el.setAttribute('value', el.value); recalcTable(el.dataset.table); });
 }
 document.querySelectorAll('.row-range-select').forEach(wireRangeSelect);
 document.querySelectorAll('.qtde-input').forEach(wireQtyClamp);
@@ -911,6 +958,7 @@ function wireAddRangeBtn(btn){
     var newTr = document.createElement('tr');
     newTr.className = 'added-range-row';
     newTr.innerHTML =
+      '<td class="incl-cell"></td>' +
       '<td class="svc-repeat">' + svcText + '</td>' +
       '<td class="center"><select class="row-range-select" data-row="' + newId + '">' + optionsHtml + '</select>' +
       '<span class="currency-prefix">R$</span>' +
@@ -945,10 +993,13 @@ document.querySelectorAll('.add-range-btn').forEach(wireAddRangeBtn);
   var cnpjSource = document.getElementById('cover-cnpj-field');
   var nameTarget = document.getElementById('sig-name-field');
   var cnpjTarget = document.getElementById('sig-cnpj-field');
-  function syncName(){ if(nameTarget && nameSource) nameTarget.textContent = nameSource.textContent; }
-  function syncCnpj(){ if(cnpjTarget && cnpjSource) cnpjTarget.textContent = cnpjSource.textContent; }
+  var nameTouched = false, cnpjTouched = false;
+  function syncName(){ if(nameTarget && nameSource && !nameTouched) nameTarget.textContent = nameSource.textContent; }
+  function syncCnpj(){ if(cnpjTarget && cnpjSource && !cnpjTouched) cnpjTarget.textContent = cnpjSource.textContent; }
   if(nameSource){ nameSource.addEventListener('input', syncName); }
   if(cnpjSource){ cnpjSource.addEventListener('input', syncCnpj); }
+  if(nameTarget){ nameTarget.addEventListener('input', function(){ nameTouched = true; }); }
+  if(cnpjTarget){ cnpjTarget.addEventListener('input', function(){ cnpjTouched = true; }); }
   syncName();
   syncCnpj();
 })();
@@ -980,6 +1031,11 @@ function baixarPropostaPreenchida(){
     if(cb.checked) checkedRows[cb.dataset.row] = true;
   });
 
+  if(Object.keys(checkedRows).length === 0){
+    alert('Nenhum servico foi selecionado em "O que esta proposta vai incluir?". Marque ao menos um item antes de baixar, ou a tabela de valores ficara vazia no documento final.');
+    return;
+  }
+
   var liveCanvas = document.getElementById('sigPad');
   var sigDataUrl = null;
   if(liveCanvas){
@@ -998,11 +1054,20 @@ function baixarPropostaPreenchida(){
   clone.querySelectorAll('tr.pricing-row').forEach(function(tr){
     if(!checkedRows[tr.dataset.row]) tr.remove();
   });
+  clone.querySelectorAll('.incl-cell').forEach(function(el){ el.remove(); });
   clone.querySelectorAll('.add-range-btn, .remove-range-btn').forEach(function(el){ el.remove(); });
+  var sidebarClone = clone.querySelector('#appSidebar');
+  if(sidebarClone) sidebarClone.remove();
+  var bodyClone = clone.querySelector('body');
+  if(bodyClone){ bodyClone.style.paddingLeft = '0'; bodyClone.classList.remove('sidebar-expanded'); }
   var bitrixBtnClone = clone.querySelector('.bitrix-btn');
   if(bitrixBtnClone) bitrixBtnClone.remove();
   var bitrixModalClone = clone.querySelector('.bitrix-modal-overlay');
   if(bitrixModalClone) bitrixModalClone.remove();
+  var bitrixSyncScriptClone = clone.querySelector('#bitrixSyncScript');
+  if(bitrixSyncScriptClone) bitrixSyncScriptClone.remove();
+  var bitrixSearchScriptClone = clone.querySelector('#bitrixSearchScript');
+  if(bitrixSearchScriptClone) bitrixSearchScriptClone.remove();
 
   clone.querySelectorAll('.valor-input, .qtde-input').forEach(function(el){
     el.setAttribute('readonly', '');
@@ -1012,18 +1077,20 @@ function baixarPropostaPreenchida(){
     el.classList.add('pw-locked');
   });
   var planPickerClone = clone.querySelector('#plan-picker');
-  if(planPickerClone && planPickerClone.value){
+  if(planPickerClone){
     planPickerClone.classList.add('pw-locked');
   }
   clone.querySelectorAll('[contenteditable="true"]').forEach(function(el){
-    if(!isBlankLockField(el)){
-      el.setAttribute('contenteditable', 'false');
-      el.classList.add('pw-locked');
+    var isSigLine = el.matches('.sig-field .rule, .fone-seg, .sig-date .u');
+    if(!isSigLine && isBlankLockField(el)){
+      el.textContent = '';
     }
+    el.setAttribute('contenteditable', 'false');
+    el.classList.add('pw-locked');
   });
 
   var lockStyle = document.createElement('style');
-  lockStyle.textContent = '.pw-locked{cursor:not-allowed !important;}input.pw-locked,select.pw-locked{background:#f4f4f4 !important;color:#888 !important;}';
+  lockStyle.textContent = '.pw-locked{cursor:not-allowed !important;}.editable-field{border-bottom:none !important;background:transparent !important;padding:0 !important;}.editable-cell{background:transparent !important;}.valor-input,.qtde-input{border-bottom:none !important;background:transparent !important;}.sig-field .rule,.fone-seg,.sig-date .u{border-bottom:1.6px solid #161616 !important;background:transparent !important;}.doc{zoom:1.08;}';
   clone.querySelector('head').appendChild(lockStyle);
 
   var lockScript = document.createElement('script');
@@ -1081,9 +1148,10 @@ function baixarPropostaPreenchida(){
 <script>
 document.querySelectorAll('.row-toggle').forEach(function(cb){
   function applyToggle(){
+    if(cb.checked) cb.setAttribute('checked', ''); else cb.removeAttribute('checked');
     var tr = document.querySelector('tr.pricing-row[data-row="'+cb.dataset.row+'"]');
     if(tr){
-      tr.style.display = cb.checked ? '' : 'none';
+      tr.classList.toggle('row-excluded', !cb.checked);
       var table = tr.closest('table');
       if(table) recalcTable(table.id);
     }
@@ -1103,7 +1171,7 @@ document.querySelectorAll('.row-toggle').forEach(function(cb){
 <div class="bitrix-status" id="bitrixStatus"></div>
 </div>
 </div>
-<script>
+<script id="bitrixSyncScript">
 var BITRIX_WEBHOOK_URL = 'https://atlasgr.bitrix24.com.br/rest/450/xa4srbrft9jpe880/';
 
 function extrairCampoPorRotulo(rotulo){
@@ -1556,6 +1624,181 @@ function toggleSidebar(){
   var panel = document.getElementById('sidebarPanel');
   panel.classList.toggle('collapsed');
   document.body.classList.toggle('sidebar-expanded');
+}
+</script>
+<script id="bitrixSearchScript">
+var atlasBxWebhook = "https://atlasgr.bitrix24.com.br/rest/450/gr94fas79p1nizci/";
+
+function buscarBitrixSidebar() {
+  var input = document.getElementById('bxSideSearch');
+  var term = input ? input.value.trim() : '';
+  if(!term) return;
+  
+  var btn = event ? event.target : null;
+  if(btn) btn.textContent = '...';
+
+  var pCompany = fetch(atlasBxWebhook + "crm.company.list.json", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filter: { "%TITLE": term }, select: ["ID", "TITLE"] })
+  }).then(function(r){ return r.json(); }).catch(function(){ return {result:[]}; });
+
+  var pLead = fetch(atlasBxWebhook + "crm.lead.list.json", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filter: { "%TITLE": term }, select: ["ID", "TITLE", "COMPANY_TITLE"] })
+  }).then(function(r){ return r.json(); }).catch(function(){ return {result:[]}; });
+
+  var pDeal = fetch(atlasBxWebhook + "crm.deal.list.json", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filter: { "%TITLE": term }, select: ["ID", "TITLE", "COMPANY_ID"] })
+  }).then(function(r){ return r.json(); }).catch(function(){ return {result:[]}; });
+
+  var pContact = fetch(atlasBxWebhook + "crm.contact.list.json", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filter: { "%NAME": term }, select: ["ID", "NAME", "LAST_NAME"] })
+  }).then(function(r){ return r.json(); }).catch(function(){ return {result:[]}; });
+
+  Promise.all([pCompany, pLead, pDeal, pContact]).then(function(results){
+    if(btn) btn.textContent = 'Buscar Cliente';
+    var sel = document.getElementById('bxSideResults');
+    sel.innerHTML = '<option value="">Selecione o cliente...</option>';
+    var count = 0;
+
+    // 1. Companies
+    if(results[0] && results[0].result && results[0].result.length > 0){
+      results[0].result.forEach(function(c){
+        count++;
+        var opt = document.createElement('option');
+        opt.value = c.ID;
+        opt.textContent = '[Empresa] ' + c.TITLE;
+        opt.dataset.type = 'company';
+        opt.dataset.title = c.TITLE;
+        sel.appendChild(opt);
+      });
+    }
+
+    // 2. Leads
+    if(results[1] && results[1].result && results[1].result.length > 0){
+      results[1].result.forEach(function(l){
+        count++;
+        var opt = document.createElement('option');
+        opt.value = l.ID;
+        var t = l.TITLE || l.COMPANY_TITLE || 'Lead #' + l.ID;
+        opt.textContent = '[Lead] ' + t;
+        opt.dataset.type = 'lead';
+        opt.dataset.title = t;
+        sel.appendChild(opt);
+      });
+    }
+
+    // 3. Deals
+    if(results[2] && results[2].result && results[2].result.length > 0){
+      results[2].result.forEach(function(d){
+        count++;
+        var opt = document.createElement('option');
+        opt.value = d.ID;
+        opt.textContent = '[Negócio] ' + d.TITLE;
+        opt.dataset.type = 'deal';
+        opt.dataset.title = d.TITLE;
+        opt.dataset.companyId = d.COMPANY_ID || '';
+        sel.appendChild(opt);
+      });
+    }
+
+    // 4. Contacts
+    if(results[3] && results[3].result && results[3].result.length > 0){
+      results[3].result.forEach(function(ct){
+        count++;
+        var opt = document.createElement('option');
+        opt.value = ct.ID;
+        var n = ((ct.NAME || '') + ' ' + (ct.LAST_NAME || '')).trim() || 'Contato #' + ct.ID;
+        opt.textContent = '[Contato] ' + n;
+        opt.dataset.type = 'contact';
+        opt.dataset.title = n;
+        sel.appendChild(opt);
+      });
+    }
+
+    if(count > 0){
+      sel.style.display = 'block';
+    } else {
+      sel.style.display = 'none';
+      alert("Nenhum cliente encontrado no Bitrix24 da Atlas GR.");
+    }
+  }).catch(function(err){
+    if(btn) btn.textContent = 'Buscar Cliente';
+    alert("Erro ao buscar no Bitrix24.");
+    console.error(err);
+  });
+}
+
+function selecionarBitrixSidebar() {
+  var sel = document.getElementById('bxSideResults');
+  var id = sel.value;
+  if(!id) return;
+  var opt = sel.options[sel.selectedIndex];
+  var title = opt.dataset.title || opt.text;
+
+  var copyBtn = document.getElementById('bxCopyBtn');
+  if(copyBtn) copyBtn.style.display = 'block';
+
+  var elNome = document.getElementById('cover-client-field');
+  if(elNome) {
+    elNome.textContent = title;
+    elNome.dispatchEvent(new Event('input', {bubbles:true}));
+  }
+
+  var entityTypeMap = { 'lead': 1, 'deal': 2, 'contact': 3, 'company': 4 };
+  var typeId = entityTypeMap[opt.dataset.type] || 4;
+
+  var reqUrl = atlasBxWebhook + "crm.requisite.list.json";
+  fetch(reqUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filter: { "ENTITY_ID": id, "ENTITY_TYPE_ID": typeId }, select: ["RQ_CNPJ"] })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(reqData){
+    var finalCnpj = null;
+    if(reqData.result && reqData.result.length > 0){
+      for(var i=0; i<reqData.result.length; i++){
+        if(reqData.result[i].RQ_CNPJ) {
+          finalCnpj = reqData.result[i].RQ_CNPJ;
+          break;
+        }
+      }
+    }
+    if(finalCnpj) {
+      var elCnpj = document.getElementById('cover-cnpj-field');
+      if(elCnpj) {
+        elCnpj.textContent = finalCnpj;
+        elCnpj.dispatchEvent(new Event('input', {bubbles:true}));
+      }
+    }
+  }).catch(function(){});
+}
+
+function copiarBitrixSidebar() {
+  var nomeEl = document.getElementById('cover-client-field');
+  var cnpjEl = document.getElementById('cover-cnpj-field');
+  var nome = nomeEl ? nomeEl.textContent.replace(/\u00a0/g, '').trim() : '';
+  var cnpj = cnpjEl ? cnpjEl.textContent.replace(/\u00a0/g, '').trim() : '';
+  var texto = 'Cliente: ' + nome + (cnpj ? ('\nCNPJ: ' + cnpj) : '');
+  var btn = document.getElementById('bxCopyBtn');
+  function done(ok){
+    if(!btn) return;
+    var original = 'Copiar Dados';
+    btn.textContent = ok ? 'Copiado!' : 'Erro ao copiar';
+    setTimeout(function(){ btn.textContent = original; }, 1500);
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(function(){ done(true); }).catch(function(){ done(false); });
+  } else {
+    done(false);
+  }
 }
 </script>
 </body>

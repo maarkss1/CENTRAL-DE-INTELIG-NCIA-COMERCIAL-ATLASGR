@@ -16,6 +16,7 @@ import type { TabType } from '../layout/tabMeta';
 import { TAB_META } from '../layout/tabMeta';
 import { api } from '../../lib/api';
 import type { Company, Contact, PaginatedResponse } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   OPEN_COMMAND_PALETTE_EVENT,
   OPEN_AI_CHAT_EVENT,
@@ -45,6 +46,13 @@ function normalize(value: string): string {
   return value.normalize('NFD').replace(DIACRITICS_PATTERN, '').toLowerCase();
 }
 
+const EXECUTIVE_TABS: TabType[] = [
+  'social-selling',
+  'treinamento-atlasgr',
+  'proposta-comercial',
+  'hub-inteligencia-marketing',
+];
+
 const MODULE_ORDER: TabType[] = [
   'dashboard',
   'prospect',
@@ -60,21 +68,29 @@ const MODULE_ORDER: TabType[] = [
   'qualification_matrix',
   'objections_matrix',
   'topic_training',
-  'analytics',
+  'bitrix',
   'reports',
+  'integrations',
+  'knowledge',
+  'analytics',
+  'winloss',
+  'sdr-diagnostic-joao',
+  'commercial_intelligence',
+  'social-selling',
+  'treinamento-atlasgr',
+  'proposta-comercial',
+  'hub-inteligencia-marketing',
   'notifications',
   'automations',
-  'integrations',
-  'bitrix',
-  'knowledge',
-  'editor',
   'usage',
+  'editor',
   'team',
   'settings',
 ];
 
 export function CommandPalette() {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -257,15 +273,21 @@ export function CommandPalette() {
     ];
     result.push(...quickActions.filter((a) => !q || normalize(a.label).includes(q)));
 
-    const moduleItems: ResultItem[] = MODULE_ORDER.filter(
-      (tab) => !q || normalize(TAB_META[tab].label).includes(q),
-    ).map((tab) => ({
-      id: `mod-${tab}`,
-      group: 'Navegar',
-      label: TAB_META[tab].label,
-      icon: TAB_META[tab].icon,
-      onSelect: () => navigateAndClose(tab),
-    }));
+    const isMarcelo =
+      !!currentUser && currentUser.email.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
+    const visibleModuleOrder = isMarcelo
+      ? MODULE_ORDER
+      : MODULE_ORDER.filter((t) => !EXECUTIVE_TABS.includes(t));
+
+    const moduleItems: ResultItem[] = visibleModuleOrder
+      .filter((tab) => !q || normalize(TAB_META[tab].label).includes(q))
+      .map((tab) => ({
+        id: `mod-${tab}`,
+        group: 'Navegar',
+        label: TAB_META[tab].label,
+        icon: TAB_META[tab].icon,
+        onSelect: () => navigateAndClose(tab),
+      }));
     result.push(...(q ? moduleItems : moduleItems.slice(0, 8)));
 
     if (q.length >= 2) {

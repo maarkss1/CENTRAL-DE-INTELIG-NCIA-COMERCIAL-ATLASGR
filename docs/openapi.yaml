@@ -922,6 +922,27 @@ paths:
         required: true
         schema:
           type: string
+    patch:
+      tags: [Activities]
+      summary: Ativa ou desativa um link de agendamento existente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active: { type: boolean }
+      responses:
+        '200':
+          description: Link atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Link não encontrado ou sem permissão
     delete:
       tags: [Activities]
       summary: Desativa ou remove um link de agendamento
@@ -2994,6 +3015,27 @@ paths:
                 $ref: '#/components/schemas/DataEnvelope'
         '404':
           description: Modelo de jornada não encontrado
+
+  /cadence/sequences/{id}/deactivate:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Cadence]
+      summary: >-
+        Desativa uma sequência de cadência da organização autenticada. Restrito a
+        ADMIN/GESTOR/CLOSER/SDR.
+      responses:
+        '200':
+          description: Sequência desativada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Sequência não encontrada nesta organização
 
   /cadence/runs:
     get:
