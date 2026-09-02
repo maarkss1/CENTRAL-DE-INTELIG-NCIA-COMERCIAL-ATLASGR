@@ -15,7 +15,7 @@ test.describe('Autenticação', () => {
     await page.goto('/login');
     await page.getByLabel('E-mail:').fill('alguem@gmail.com');
     await page.getByPlaceholder('••••••••').fill(E2E_PASSWORD);
-    await page.getByRole('button', { name: /Entrar na Plataforma/ }).click();
+    await page.getByRole('button', { name: /^Entrar$/ }).click();
     await expect(page.getByText(/Acesso restrito/)).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
   });
@@ -29,7 +29,7 @@ test.describe('Autenticação', () => {
     await page.goto('/login');
     await page.getByLabel('E-mail:').fill(email);
     await page.getByPlaceholder('••••••••').fill(E2E_PASSWORD);
-    await page.getByRole('button', { name: /Entrar na Plataforma/ }).click();
+    await page.getByRole('button', { name: /^Entrar$/ }).click();
     await expect(page).toHaveURL(/\/app/, { timeout: 15_000 });
   });
 
@@ -41,13 +41,13 @@ test.describe('Autenticação', () => {
     await page.goto('/login');
     await page.getByLabel('E-mail:').fill(email);
     await page.getByPlaceholder('••••••••').fill('SenhaErradaDeProposito!');
-    await page.getByRole('button', { name: /Entrar na Plataforma/ }).click();
+    await page.getByRole('button', { name: /^Entrar$/ }).click();
 
     // LoginScreen só renderiza um único <p> dentro do <form>: a mensagem de erro devolvida pelo
     // servidor (result.error.message do better-auth) quando a autenticação falha.
     await expect(page.locator('form p')).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByRole('button', { name: /Entrar na Plataforma/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Entrar$/ })).toBeVisible();
   });
 
   test('acessar /app sem sessão válida redireciona para /login (ProtectedRoute)', async ({ page, context }) => {
