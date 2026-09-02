@@ -382,6 +382,7 @@ export function Intelligence() {
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setPickerOpen(true)}
                     className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-ink-2 hover:bg-brand-active hover:text-white transition-colors shrink-0"
                     title="Trocar Lead"

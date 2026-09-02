@@ -3,39 +3,40 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
-const cardVariants = cva('relative overflow-hidden rounded-card text-ink', {
-  variants: {
-    variant: {
-      // shadow-card/shadow-card-hover (não rgba cru) — a sombra anterior era calibrada só pro
-      // tema claro (praticamente invisível sobre --surface escura, o tema padrão do produto por
-      // CREATIVE_SYSTEM_01.md seção C) e usava border-gray-200, que não reage a tema nenhum.
-      default:
-        'bg-surface border border-line shadow-card transition-shadow hover:shadow-card-hover',
-      // Gradiente sutil (não decorativo à toa: distingue KPI/métrica de conteúdo comum, os 3
-      // consumidores reais são todos tiles de indicador — KpiTile, Analytics, Billing) trocado
-      // de from-gray-50/to-white (fixo, só funcionava no tema claro) pros próprios tokens de
-      // superfície, que já reagem a tema.
-      stat: 'bg-gradient-to-br from-surface to-surface-2 border border-line shadow-card transition-shadow hover:shadow-card-hover',
-      outline: 'border border-line bg-transparent',
-      accent: 'bg-surface border border-brand/30 shadow-glow-brand',
+const cardVariants = cva(
+  'relative overflow-hidden rounded-card text-ink transform-gpu [transform-style:preserve-3d]',
+  {
+    variants: {
+      variant: {
+        default:
+          'bg-surface border border-line shadow-card transition-[box-shadow,border-color] duration-300 hover:border-brand/15 hover:shadow-card-hover',
+        stat: 'bg-gradient-to-br from-surface to-surface-2 border border-line shadow-card transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-card-hover',
+        outline: 'border border-line bg-transparent',
+        accent:
+          'bg-surface border border-brand/30 shadow-glow-brand transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5',
+        elevated:
+          'bg-surface/96 border border-line shadow-[0_28px_65px_-42px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.06)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-[0_34px_72px_-40px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.08)]',
+        interactive:
+          'group bg-surface border border-line shadow-card cursor-pointer transition-[transform,box-shadow,border-color,background-color] duration-200 hover:-translate-y-1 hover:border-brand/25 hover:bg-surface-2/75 hover:shadow-card-hover active:translate-y-0 active:scale-[0.995]',
+      },
+      padding: {
+        default: 'p-6',
+        sm: 'p-4',
+        lg: 'p-8',
+        none: 'p-0',
+      },
     },
-    padding: {
-      default: 'p-6',
-      sm: 'p-4',
-      lg: 'p-8',
-      none: 'p-0',
+    defaultVariants: {
+      variant: 'default',
+      padding: 'default',
     },
   },
-  defaultVariants: {
-    variant: 'default',
-    padding: 'default',
-  },
-});
+);
 
 export interface CardProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof cardVariants> {
-  /** Faixa de destaque laranja→branco no topo do card — assinatura visual da marca Atlas. */
+  /** Faixa de destaque no topo do card — reage à marca ativa pelos tokens runtime. */
   accentBar?: boolean;
 }
 
@@ -43,7 +44,10 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant, padding, accentBar, children, ...props }, ref) => (
     <div ref={ref} className={cn(cardVariants({ variant, padding, className }))} {...props}>
       {accentBar && (
-        <span className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand via-brand-2 to-white" />
+        <>
+          <span className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-brand to-transparent" />
+          <span className="pointer-events-none absolute -right-12 -top-16 h-28 w-28 rounded-full bg-brand/10 blur-[38px]" />
+        </>
       )}
       {children}
     </div>

@@ -1,4 +1,5 @@
 import { Card } from '../../../components/ui/Card';
+import { SoundFX } from '../../../lib/soundEffects';
 import { MetricInfo } from './MetricInfo';
 
 interface KpiTileProps {
@@ -10,12 +11,6 @@ interface KpiTileProps {
   onClick?: () => void;
 }
 
-/**
- * Tile de KPI do módulo — mesma composição visual de `StatTile` em `features/analytics/components/
- * Analytics.tsx` (Card variant="stat", figura em destaque, tom semântico), reaproveitada aqui em
- * vez de reinventada (ver `design-system/SKILL.md`: cor representa estado, não decoração — regra
- * visual #3/#4 da constituição). `onClick` opcional habilita drill-down (seção 29).
- */
 export function KpiTile({
   label,
   value,
@@ -30,35 +25,44 @@ export function KpiTile({
       : tone === 'critical'
         ? 'text-critical'
         : 'text-ink';
+
   const body = (
     <>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] uppercase tracking-wide text-ink-2 font-semibold">{label}</p>
+        <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink-2">{label}</p>
         {metricKey && <MetricInfo metricKey={metricKey} />}
       </div>
-      <p className={`text-2xl font-black mt-1 [font-variant-numeric:tabular-nums] ${toneClass}`}>
+      <p
+        className={`mt-1.5 text-2xl font-black tracking-tight [font-variant-numeric:tabular-nums] ${toneClass}`}
+      >
         {value}
       </p>
-      {hint && <p className="text-[11px] text-ink-2 mt-0.5">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] leading-relaxed text-ink-2">{hint}</p>}
     </>
   );
 
   if (!onClick) {
     return (
-      <Card variant="stat" padding="sm">
+      <Card variant="stat" padding="sm" accentBar>
         {body}
       </Card>
     );
   }
 
   return (
-    <Card variant="stat" padding="sm">
+    <Card variant="interactive" padding="sm" accentBar>
       <button
         type="button"
-        onClick={onClick}
-        className="w-full text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded-lg"
+        onClick={() => {
+          SoundFX.play('focus');
+          onClick();
+        }}
+        className="w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
       >
         {body}
+        <span className="mt-2 block text-[10px] font-bold uppercase tracking-wide text-brand-active opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:text-brand-2">
+          Abrir detalhe
+        </span>
       </button>
     </Card>
   );

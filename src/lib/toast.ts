@@ -1,3 +1,5 @@
+import { SoundFX } from './soundEffects';
+
 // Barramento de eventos minimalista para toasts globais — evita prop-drilling e
 // dependências novas. Qualquer módulo chama toast.success/error/info; o componente
 // <Toaster /> (montado uma vez no MainLayout) escuta e renderiza.
@@ -17,6 +19,11 @@ const listeners = new Set<Listener>();
 
 function emit(kind: ToastKind, text: string) {
   const message: ToastMessage = { id: nextId++, kind, text };
+
+  if (kind === 'success') SoundFX.play('success');
+  else if (kind === 'error') SoundFX.play('error');
+  else SoundFX.play('focus');
+
   listeners.forEach((l) => {
     l(message);
   });

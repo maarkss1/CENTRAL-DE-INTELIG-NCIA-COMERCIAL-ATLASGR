@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { hasRequiredRole, MESA_TRATAMENTO_ROLES } from '../../lib/auth/authorization';
+import { SoundFX } from '../../lib/soundEffects';
 import { Logo } from '../Logo';
 import { TotalTrackLogo } from '../TotalTrackLogo';
 import { TAB_META, type TabType } from './tabMeta';
@@ -23,22 +24,8 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
   const { currentUser, isAdmin, canAccessCommercialIntelligence, logout } = useAuth();
   const isAtlas = activeBrand === 'atlasgr';
   const navigate = useNavigate();
-  // Automações e Integrações: o backend trata ambas como configuração administrativa liberada a
-  // ADMIN e GESTOR (ver automation.routes.ts `managementRoles` e o `canManage` espelhado em
-  // Integrations.tsx), não só a ADMIN. Antes desta correção, a Sidebar só revelava os dois itens
-  // para isAdmin — um GESTOR com permissão real de gerenciar (criar/editar/excluir automação,
-  // conectar/desconectar integração) não tinha nenhum caminho de navegação até essas telas
-  // (achado real desta auditoria: promessa de RBAC do backend sem rota de descoberta no
-  // frontend). 'team' continua ADMIN-only porque o backend também é ADMIN-only ali
-  // (team.routes.ts). 'usage' permanece ADMIN-only aqui pelo mesmo motivo — GET /api/usage já
-  // exige ADMIN no backend (bootstrap/routes.ts); a rota de frontend correspondente não tinha o
-  // mesmo gate (RequireRole), corrigido no Piloto 022 (ver App.tsx).
   const canManageOperations =
     !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
-  // Mesa de Tratamento (fila SDR) exige ADMIN/GESTOR/CLOSER/SDR no backend
-  // (mesaTratamento.routes.ts) — só VISUALIZADOR fica de fora. Antes desta correção o item era
-  // incondicional no grupo "Qualificar" (achado do Piloto 026: VISUALIZADOR via o item, navegava
-  // até a rota e só recebia um 403 dentro da tela real).
   const canAccessMesaTratamento =
     !!currentUser && hasRequiredRole(currentUser.role, MESA_TRATAMENTO_ROLES);
 
@@ -49,6 +36,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
       canManageOperations);
 
   const selectTab = (tab: TabType) => {
+    if (tab !== activeTab) SoundFX.play('navigate');
     navigate(`/app/${tab}`);
     onCloseMobile?.();
   };
@@ -68,6 +56,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     'settings',
   ];
 
+<<<<<<< HEAD
   const isMarcelo =
     !!currentUser && currentUser.email.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
 
@@ -107,9 +96,6 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     { title: 'Fechar', items: ['crm', 'crm360', 'propostas'] },
     { title: 'Analisar', items: analyzeItems },
     {
-      // Guia Bitrix24 saiu daqui: é referência estática de mapeamento de campos, não gera
-      // nada com IA — morava aqui só por associação de nome com o resto do grupo. Agora fica
-      // em Administração, ao lado de Integrações, onde a função real dele pertence.
       title: 'IA & Capacitação',
       items: [
         'intelligence',
@@ -124,14 +110,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     { title: 'Administração', items: administrationItems },
   ];
 
-  // Reordena os MESMOS grupos (nenhum item some, nenhum some por papel — RBAC continua só nos
-  // itens condicionais acima) pra abrir a Sidebar já no trecho da jornada comercial que aquele
-  // papel usa no dia a dia. Papel ausente/desconhecido e SDR (início do funil: captar→qualificar)
-  // caem na ordem padrão da jornada, que já é a ordem natural pra quem prospecta. Ver seção 5 da
-  // Constituição (`CLAUDE.md`) — exceção justificada por papel/fluxo real de uso, não estética.
   const GROUP_ORDER_BY_ROLE: Partial<Record<string, string[]>> = {
-    // Closer trabalha negócios já qualificados: acompanhamento e fechamento vêm antes de
-    // prospecção, que não é responsabilidade dele.
     CLOSER: [
       'Visão Geral',
       'Relacionar',
@@ -142,7 +121,6 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
       'IA & Capacitação',
       'Administração',
     ],
-    // Gestor/Admin abrem o app pra decidir, não pra prospectar — visão executiva primeiro.
     GESTOR: [
       'Visão Geral',
       'Analisar',
@@ -163,8 +141,6 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
       'Administração',
       'IA & Capacitação',
     ],
-    // Visualizador só acompanha (sem create/edit em massa) — mesma prioridade de leitura do
-    // Gestor, sem a Administração em destaque (não tem os itens extras que só ADMIN ganha).
     VISUALIZADOR: [
       'Visão Geral',
       'Analisar',
@@ -189,70 +165,81 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     if (!meta) return null;
     const Icon = meta.icon;
     const isActive = activeTab === tab;
+
     return (
       <button
         key={tab}
         type="button"
         onClick={() => selectTab(tab)}
         aria-current={isActive ? 'page' : undefined}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+        className={`group relative w-full overflow-hidden rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition-[transform,background-color,border-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
           isActive
-            ? 'bg-brand-active text-white shadow-md'
-            : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
+            ? 'translate-x-1 border-brand/20 bg-brand-active text-white shadow-[0_14px_28px_-20px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)]'
+            : 'border-transparent text-ink-2 hover:translate-x-0.5 hover:border-line hover:bg-surface-2 hover:text-ink'
         }`}
       >
-        <Icon
-          size={20}
-          className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}
-          aria-hidden="true"
-        />
-        <span>{meta.label}</span>
+        {isActive && (
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-white/80 shadow-[0_0_12px_rgba(255,255,255,0.45)]"
+          />
+        )}
+        <span className="relative z-10 flex items-center gap-2.5">
+          <span
+            className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-[transform,background-color,border-color] duration-200 group-hover:scale-105 ${
+              isActive
+                ? 'border-white/15 bg-white/10'
+                : 'border-line/80 bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
+            }`}
+          >
+            <Icon size={17} aria-hidden="true" />
+          </span>
+          <span className="truncate">{meta.label}</span>
+        </span>
       </button>
     );
   };
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 h-full w-[min(21rem,calc(100vw-2rem))] flex flex-col transition-transform duration-300 bg-surface/95 border-r border-line shadow-[var(--shadow-nav)] backdrop-blur-xl md:static md:w-72 md:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-40 flex h-full w-[min(21rem,calc(100vw-2rem))] flex-col border-r border-line bg-surface/96 shadow-[18px_0_48px_-36px_rgba(0,0,0,0.9),inset_-1px_0_0_rgba(255,255,255,0.025)] backdrop-blur-xl transition-transform duration-300 md:static md:w-72 md:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
       aria-label="Navegação principal por jornada comercial"
     >
-      <div className="p-4 border-b border-line">
-        <div className="flex items-center gap-2 mb-3">
-          {isAtlas ? (
-            <Logo className="h-8 text-ink" />
-          ) : (
-            <TotalTrackLogo className="h-8 text-ink" />
-          )}
+      <div className="relative border-b border-line p-4">
+        <div className="pointer-events-none absolute -left-14 -top-20 h-40 w-40 rounded-full bg-brand/8 blur-[60px]" aria-hidden="true" />
+        <div className="relative z-10 mb-3 flex items-center gap-2">
+          {isAtlas ? <Logo className="h-8 text-ink" /> : <TotalTrackLogo className="h-8 text-ink" />}
         </div>
 
         <button
           type="button"
-          className="relative group cursor-pointer w-full text-left"
-          onClick={() => setActiveBrand(isAtlas ? 'totaltrac' : 'atlasgr')}
+          className="group relative w-full cursor-pointer text-left"
+          onClick={() => {
+            SoundFX.play('confirm');
+            setActiveBrand(isAtlas ? 'totaltrac' : 'atlasgr');
+          }}
           aria-label={`Alternar para a operação ${isAtlas ? 'Total Trac' : 'AtlasGR'}`}
         >
-          <div className="flex items-center justify-between p-2 rounded-[var(--radius-nav-item)] border border-line bg-surface-2 hover:bg-brand/10 transition-all">
+          <div className="flex items-center justify-between rounded-[var(--radius-nav-item)] border border-line bg-surface-2/80 p-2.5 shadow-[0_12px_28px_-24px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[transform,border-color,background-color,box-shadow] duration-200 group-hover:-translate-y-0.5 group-hover:border-brand/25 group-hover:bg-brand/8 group-hover:shadow-card">
             <div className="flex items-center gap-2">
               {isAtlas ? (
-                <Logo variant="symbol" className="h-6 w-6 shrink-0" />
+                <Logo variant="symbol" className="h-7 w-7 shrink-0" />
               ) : (
-                <TotalTrackLogo variant="symbol" className="h-6 w-6 shrink-0" />
+                <TotalTrackLogo variant="symbol" className="h-7 w-7 shrink-0" />
               )}
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-active dark:text-brand-2">
+                <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-brand-active dark:text-brand-2">
                   Operação Atual
                 </span>
-                <span className="text-sm font-black text-ink">
-                  {isAtlas ? 'AtlasGR' : 'Total Trac'}
-                </span>
+                <span className="text-sm font-black text-ink">{isAtlas ? 'AtlasGR' : 'Total Trac'}</span>
               </div>
             </div>
-            <div className="w-6 h-6 rounded-md flex items-center justify-center bg-surface shadow-sm text-ink-2">
+            <div className="grid h-7 w-7 place-items-center rounded-lg border border-line bg-surface text-ink-2 shadow-sm">
               <ChevronRight
                 size={14}
-                className="group-hover:rotate-90 transition-transform"
+                className="transition-transform duration-200 group-hover:rotate-90"
                 aria-hidden="true"
               />
             </div>
@@ -262,30 +249,31 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
 
       <nav
         aria-label="Navegação principal"
-        className="flex-1 overflow-y-auto py-4 px-3 space-y-6 custom-scrollbar"
+        className="custom-scrollbar flex-1 space-y-6 overflow-y-auto px-3 py-4"
       >
         {navGroups.map((group) => (
           <section key={group.title} className="space-y-1" aria-label={group.title}>
-            <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
-              {group.title}
-            </p>
+            <div className="mb-2 flex items-center gap-2 px-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-ink-2">
+                {group.title}
+              </p>
+              <span className="h-px flex-1 bg-gradient-to-r from-line to-transparent" aria-hidden="true" />
+            </div>
             {group.items.map(renderNavItem)}
           </section>
         ))}
       </nav>
 
-      <div className="p-3 border-t border-line space-y-2">
+      <div className="space-y-2 border-t border-line p-3">
         {currentUser && (
-          <div className="px-3 py-2 rounded-xl bg-surface-2/60">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-2 text-xs font-bold text-white shadow-sm">
+          <div className="rounded-xl border border-line bg-surface-2/70 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-2 text-xs font-bold text-white shadow-card ring-1 ring-white/10">
                 {currentUser.name?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-ink truncate leading-tight">
-                  {currentUser.name}
-                </p>
-                <p className="text-[10px] text-ink-2 truncate leading-tight font-medium">
+                <p className="truncate text-xs font-bold leading-tight text-ink">{currentUser.name}</p>
+                <p className="truncate text-[10px] font-medium leading-tight text-ink-2">
                   {currentUser.roleTitle || currentUser.role}
                 </p>
               </div>
@@ -296,7 +284,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         <button
           type="button"
           onClick={logout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left text-critical hover:bg-critical/10 transition-all cursor-pointer"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-sm font-bold text-critical transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-critical/15 hover:bg-critical/10 active:translate-y-0"
           title="Encerrar sessão e sair da conta"
         >
           <LogOut size={20} className="shrink-0 opacity-80" />
