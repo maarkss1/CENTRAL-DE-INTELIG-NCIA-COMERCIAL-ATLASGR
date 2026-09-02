@@ -89,9 +89,17 @@ export async function resolveCompanyIdentity(
       }
     }
 
+    // Diferente do path de CNPJ acima (que inclui empresas soft-deletadas de propósito
+    // documentado, para nunca colidir com o CNPJ de uma empresa apagada), o fallback por nome é
+    // best-effort e não tem essa mesma justificativa: reabrir/reanexar uma empresa
+    // soft-deletada só por coincidência de nome fantasia faz `promoteToCrm` criar um Lead novo
+    // apontando pra um companyId que enrichmentCascade.service.ts (filtra deletedAt: null) trata
+    // como inexistente — o lead fica órfão, sem conseguir ser enriquecido, e a empresa some de
+    // qualquer tela que já filtra deletados mesmo tendo um Lead ativo pendurado nela.
     const company = await prisma.company.findFirst({
       where: {
         organizationId: input.organizationId,
+        deletedAt: null,
         OR: [
           { tradeName: { equals: input.tradeName, mode: 'insensitive' } },
           { legalName: { equals: input.legalName || input.tradeName, mode: 'insensitive' } },
