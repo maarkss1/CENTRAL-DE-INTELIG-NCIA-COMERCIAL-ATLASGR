@@ -47,6 +47,7 @@
     "security:audit-waivers": "tsx scripts/security/check-audit-waivers.ts",
     "security:sbom": "cyclonedx-npm --output-format JSON --output-reproducible --output-file sbom.cdx.json",
     "security:dependency-inventory": "tsx scripts/security/dependency-inventory.ts",
+    "security:backfill-contact-pii": "tsx scripts/security/backfill-contact-pii.ts",
     "lint:architecture": "depcruise --config .dependency-cruiser.cjs --ignore-known .dependency-cruiser-known-violations.json --output-type err src server.ts worker.ts",
     "lint:architecture:baseline": "node scripts/architecture/generate-known-violations-baseline.mjs",
     "check:hotspots": "tsx scripts/architecture/check-hotspots.ts",
