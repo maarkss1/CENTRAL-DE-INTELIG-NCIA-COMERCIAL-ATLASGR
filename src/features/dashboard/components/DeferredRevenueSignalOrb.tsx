@@ -38,7 +38,7 @@ export function DeferredRevenueSignalOrb(props: DeferredRevenueSignalOrbProps) {
   }, []);
 
   return (
-    <div ref={hostRef} className="min-h-[20rem]">
+    <div ref={hostRef} className="min-h-[20rem]" data-testid="revenue-signal-orb">
       {shouldLoad ? (
         <Suspense
           fallback={
