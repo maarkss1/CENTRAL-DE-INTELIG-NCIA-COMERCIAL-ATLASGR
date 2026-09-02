@@ -137,7 +137,7 @@ export function LiveStatsWidget() {
                 onClick={load}
                 title="Tentar reconectar"
                 aria-label="Tentar reconectar ao banco de dados"
-                className="p-1.5 rounded-lg bg-slate-100 border border-slate-200 hover:border-brand text-slate-500 hover:text-brand transition-all cursor-pointer"
+                className="p-1.5 rounded-lg bg-surface-2 border border-line hover:border-brand text-ink-2 hover:text-brand transition-all cursor-pointer"
               >
                 <RotateCw className="w-3.5 h-3.5" />
               </button>
