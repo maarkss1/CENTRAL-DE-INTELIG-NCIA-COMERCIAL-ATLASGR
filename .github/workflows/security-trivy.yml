@@ -56,6 +56,12 @@ jobs:
           format: sarif
           output: trivy-fs-results.sarif
           trivyignores: .trivyignore.yaml
+          # Sem isto, com `format: sarif` a action ignora `severity` ("Building SARIF report with
+          # all severities") e o `exit-code: 1` dispara em QUALQUER achado — reproduzido em
+          # 2026-09-02 (PR #329): o gate, nomeado "HIGH/CRITICAL, bloqueante", ficou vermelho por
+          # um advisory MEDIUM (GHSA-rgwj-5xj2-c3m3, mysql2 transitivo do CLI do Prisma). Com a
+          # opção ligada, o SARIF e o exit code respeitam a mesma política de severidade do nome.
+          limit-severities-for-sarif: true
 
       - name: Upload SARIF para a aba Security
         if: always()
