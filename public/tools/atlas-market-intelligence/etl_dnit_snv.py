@@ -26,13 +26,16 @@ def mock_dnit_snv():
 
 def main():
     logger.info("Iniciando ingestão DNIT SNV...")
-    raw_path = "data/raw/dnit_snv.csv"
+    # Fonte bruta e mock de saida vivem em data/market-intelligence/ (nunca em public/), pois nem
+    # o CSV bruto nem este mock sao buscados pelo navegador em nenhuma pagina do tool estatico —
+    # ver data/market-intelligence/README.md.
+    raw_path = "../../../data/market-intelligence/atlas-market-intelligence-pipeline/raw/dnit_snv.csv"
     data = get_real_data(raw_path)
-    
+
     if not data:
         data = mock_dnit_snv()
-        
-    out_path = "data/dnit_snv_mock.json"
+
+    out_path = "../../../data/market-intelligence/atlas-market-intelligence-pipeline/dnit_snv_mock.json"
     save_json(data, out_path)
     logger.info("Ingestão DNIT finalizada.")
 

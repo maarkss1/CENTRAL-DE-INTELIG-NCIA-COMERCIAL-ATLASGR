@@ -373,7 +373,12 @@ def main() -> int:
     parser.add_argument("--metadata", type=Path)
     args = parser.parse_args()
 
-    output = args.output or (args.data_dir / "municipios_scored.json")
+    # municipios_scored.json e o agregado final do pipeline: nenhuma pagina do tool estatico o
+    # busca via fetch() e nenhum outro script desta pasta o le de volta como input -- por isso vive
+    # em data/market-intelligence/ (nunca em public/), nao em args.data_dir (que continua apontando
+    # para public/tools/atlas-market-intelligence/data/, de onde todos os INPUTS abaixo sao lidos).
+    default_output_dir = Path("data/market-intelligence/atlas-market-intelligence-pipeline")
+    output = args.output or (default_output_dir / "municipios_scored.json")
     metadata_path = args.metadata or output.with_suffix(".metadata.json")
 
     municipios = load_json(args.data_dir / "municipios.json")

@@ -11,6 +11,24 @@
  * pegar cedo uma futura reincidencia: tanto um total anormal (o caso real, varios arquivos medios)
  * quanto um arquivo individual grande demais.
  *
+ * Reincidencia real em 2026-09-02: municipios_scored.json (~11.6MB, agregado final do pipeline
+ * Python de public/tools/atlas-market-intelligence/) e outros ~19 arquivos de
+ * public/tools/atlas-market-intelligence/data/ (raw CSVs de ETL, mocks intermediarios, CSVs de
+ * concorrencia e outros artefatos de pesquisa) nunca eram buscados por nenhuma pagina HTML do tool
+ * estatico (confirmado por auditoria de todo `fetch(` em index.html/dashboard_oportunidade_gr.html/
+ * lacuna-gr-hub.html) nem lidos de volta por nenhum outro script do pipeline como input — so
+ * escritos e nunca consumidos, ou usados apenas entre scripts Python offline. Movidos para
+ * data/market-intelligence/atlas-market-intelligence-pipeline/ (ver
+ * data/market-intelligence/README.md); etl_anac_aerodromos.py, etl_dnit_snv.py, etl_ibge_regic.py e
+ * etl_municipal_aggregate.py foram atualizados para ler/escrever no novo caminho. Os datasets
+ * genuinamente buscados pelo navegador (municipios.json, icp_municipios.json, rntrc_municipios.json
+ * etc.) permanecem em public/ — so o que nunca sai do pipeline offline foi realocado.
+ *
+ * Baseline em 2026-09-02 (pos-remocao dos ~19.85MB acima): public/ ~30.9MB, maior arquivo
+ * (contas_alvo_nacional.json) ~4.4MB. Os limites abaixo dao margem para crescimento organico dos
+ * datasets municipais legitimos do Market Intelligence sem permitir a reintroducao silenciosa de
+ * um dataset bruto/pesado.
+ *
  * Uso: node scripts/ci/check-public-budget.mjs
  * Sobrescrever os limites (bytes) via env quando uma expansao legitima de dataset for aprovada:
  *   PUBLIC_BUDGET_MAX_TOTAL_BYTES, PUBLIC_BUDGET_MAX_FILE_BYTES
@@ -22,10 +40,6 @@ import process from 'node:process';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 
-// Baseline em 2026-08-25 (pos-remocao do seed empresarial): public/ ~21.6MB, maior arquivo
-// (municipios_scored.json) ~11.6MB. Os limites abaixo dao margem para crescimento organico dos
-// datasets municipais legitimos do Market Intelligence sem permitir a reintroducao silenciosa de
-// um dataset bruto/pesado.
 const MAX_TOTAL_BYTES = Number(process.env.PUBLIC_BUDGET_MAX_TOTAL_BYTES ?? 40 * 1024 * 1024);
 const MAX_FILE_BYTES = Number(process.env.PUBLIC_BUDGET_MAX_FILE_BYTES ?? 16 * 1024 * 1024);
 

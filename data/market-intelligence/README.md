@@ -40,6 +40,35 @@ transporte HTTP da aplicação para eles.
   sobrescrevem o diretório padrão em `load-company-seed.mjs`, útil para apontar para um snapshot
   diferente sem mexer no código.
 
+## atlas-market-intelligence-pipeline/
+
+- **O que é:** artefatos internos do pipeline Python de geração do tool estático
+  `public/tools/atlas-market-intelligence/` — CSVs brutos de ETL (`raw/`), mocks intermediários
+  (`*_mock.json`), o agregado final `municipios_scored.json` e artefatos de pesquisa/censo
+  (`concorrentes_gr_*.csv`, `competicao_municipios_completo.json`, `maps_search_results.json`,
+  `econodata_search_results.json`, `hub_suitability_sources.json`, `validacao_campo_feedback.csv`
+  etc.).
+- **Como é consumido:** só pelos próprios scripts do pipeline
+  (`etl_anac_aerodromos.py`, `etl_dnit_snv.py`, `etl_ibge_regic.py`, `etl_municipal_aggregate.py`,
+  em `public/tools/atlas-market-intelligence/`), executados manualmente/offline — nunca via HTTP,
+  nunca por uma rota Express nem componente React da aplicação viva (mesma natureza documentada em
+  `src/shared/services/rntrcTerritorialRisk.service.ts`).
+- **Por que não fica em `public/`:** reincidência real em 2026-09-02 do mesmo problema do
+  `company-seed-ribeirao/` acima — auditoria de todo `fetch(` em
+  `index.html`/`dashboard_oportunidade_gr.html`/`lacuna-gr-hub.html` (os 3 únicos HTMLs do tool)
+  confirmou que nenhum desses ~19 arquivos (nem `municipios_scored.json`, apesar de citado como
+  "canônico" em documentação desatualizada) é buscado pelo navegador; nenhum outro script do
+  pipeline os lê de volta como input a partir de outro dataset. Eram só escritos e nunca
+  consumidos fora do próprio pipeline offline, inflando `public/` (e todo `npm run build`) sem
+  necessidade. Ver `scripts/ci/check-public-budget.mjs` para o histórico completo do budget.
+- **O que continua em `public/tools/atlas-market-intelligence/data/`:** todo dataset genuinamente
+  buscado pelo navegador (`municipios.json`, `icp_municipios.json`, `rntrc_municipios.json`,
+  `concorrentes_por_municipio.json`, `whitespace_municipios.json`, `contas_alvo_nacional.json`,
+  `site_mdfe.json`, `site_competicao.json`) — inclusive os que também são lidos pelo pipeline
+  Python (`municipios.json`, `icp_municipios.json`, `rntrc_municipios.json`) ou pelo backend
+  (`rntrc_municipios.json`/`.metadata.json`, via `rntrcTerritorialRisk.service.ts`). Mover esses
+  quebraria o `fetch()` do tool ao vivo — só o que nenhum consumidor real usa foi realocado.
+
 ## Budget de tamanho em `public/`
 
 `scripts/ci/check-public-budget.mjs` (rodado por `.github/workflows/public-assets-budget.yml`)

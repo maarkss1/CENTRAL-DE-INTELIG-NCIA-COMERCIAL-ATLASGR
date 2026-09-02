@@ -105,22 +105,30 @@ Entrada:
 
 `public/tools/atlas-market-intelligence/data/manifest.json`
 
-Derivados atuais:
+Datasets que o navegador realmente busca via `fetch()` nas páginas deste tool (`index.html`,
+`dashboard_oportunidade_gr.html`) — confirmado por auditoria de todo `fetch(` nesses arquivos em
+2026-09-02, correção da lista anterior que citava vários arquivos nunca buscados:
 
 ```text
 municipios.json
-municipios_scored.json
-icp_municipios.json
+concorrentes_por_municipio.json
+whitespace_municipios.json
 rntrc_municipios.json
-senatran_frota_municipios.json
-mdfe_origens_municipios.json
-mdfe_destinos_municipios.json
-mdfe_corredores.json
-risco_uf.json
-territorios.json
+icp_municipios.json
+site_mdfe.json
+site_competicao.json
+contas_alvo_nacional.json
 ```
 
 Bases brutas CNPJ/RNTRC/fluxo nunca entram no bundle web.
+
+Artefatos internos do pipeline Python (raw CSVs de ETL, mocks intermediários,
+`municipios_scored.json`, `senatran_frota_municipios.json`, `mdfe_origens/destinos/corredores`,
+`risco_uf.json`, `territorios.json`, CSVs de concorrência/censo e outros arquivos de pesquisa) não
+são buscados pelo navegador — só lidos/escritos entre os scripts deste pipeline, offline. Vivem em
+`data/market-intelligence/atlas-market-intelligence-pipeline/`, fora de `public/`, desde 2026-09-02
+(reincidência do mesmo problema do `company-seed-ribeirao` abaixo). Ver
+`data/market-intelligence/README.md` para o detalhamento completo de cada arquivo movido.
 
 O recorte empresarial sanitizado de Ribeirão Preto (`company-seed-ribeirao`) também não entra no
 bundle web — ele é consumido só pelo backend no deploy (`fs`, nunca `fetch`) e vive em

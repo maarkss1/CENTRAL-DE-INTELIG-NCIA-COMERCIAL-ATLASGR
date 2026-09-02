@@ -26,13 +26,16 @@ def mock_anac_aerodromos():
 
 def main():
     logger.info("Iniciando ingestão ANAC Aeródromos...")
-    raw_path = "data/raw/anac_aerodromos.csv"
+    # Fonte bruta e mock de saida vivem em data/market-intelligence/ (nunca em public/), pois nem
+    # o CSV bruto nem este mock sao buscados pelo navegador em nenhuma pagina do tool estatico —
+    # ver data/market-intelligence/README.md.
+    raw_path = "../../../data/market-intelligence/atlas-market-intelligence-pipeline/raw/anac_aerodromos.csv"
     data = get_real_data(raw_path)
-    
+
     if not data:
         data = mock_anac_aerodromos()
-        
-    out_path = "data/anac_aerodromos_mock.json"
+
+    out_path = "../../../data/market-intelligence/atlas-market-intelligence-pipeline/anac_aerodromos_mock.json"
     save_json(data, out_path)
     logger.info("Ingestão ANAC finalizada.")
 

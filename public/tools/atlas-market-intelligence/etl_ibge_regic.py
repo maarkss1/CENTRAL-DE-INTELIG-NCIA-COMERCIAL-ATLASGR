@@ -30,13 +30,16 @@ def mock_ibge_regic():
 def main():
     logger.info("Iniciando ingestão REGIC...")
     
-    raw_path = "data/raw/ibge_regic.csv"
+    # Fonte bruta e mock de saida vivem em data/market-intelligence/ (nunca em public/), pois nem
+    # o CSV bruto nem este mock sao buscados pelo navegador em nenhuma pagina do tool estatico —
+    # ver data/market-intelligence/README.md.
+    raw_path = "../../../data/market-intelligence/atlas-market-intelligence-pipeline/raw/ibge_regic.csv"
     data = get_real_data(raw_path)
-    
+
     if not data:
         data = mock_ibge_regic()
-        
-    out_path = "data/ibge_regic_mock.json"
+
+    out_path = "../../../data/market-intelligence/atlas-market-intelligence-pipeline/ibge_regic_mock.json"
     save_json(data, out_path)
     logger.info("Ingestão REGIC finalizada.")
 
