@@ -50,11 +50,8 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
     };
   }, []);
 
-  const dateLabel = now.toLocaleDateString('pt-BR', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'short',
-  });
+  const weekdayLabel = now.toLocaleDateString('pt-BR', { weekday: 'long' });
+  const dateLabel = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   const timeLabel = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const userInitial = currentUser?.name?.charAt(0).toUpperCase() || 'U';
 
@@ -101,6 +98,9 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
 
       <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
         <div className="hidden text-right leading-tight sm:block">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-ink-2 capitalize">
+            {weekdayLabel}
+          </p>
           <p className="text-[11px] font-medium capitalize text-ink-2">{dateLabel}</p>
           <p className="text-sm font-bold text-ink [font-variant-numeric:tabular-nums]">
             {timeLabel}

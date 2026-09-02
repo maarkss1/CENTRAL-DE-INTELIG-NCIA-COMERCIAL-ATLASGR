@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Bot, Sparkles } from 'lucide-react';
+import { MessageSquare, Sparkles } from 'lucide-react';
 import { useBrand } from '../../contexts/BrandContext';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
 import { OPEN_AI_CHAT_EVENT } from '../../lib/paletteIntent';
@@ -32,7 +32,7 @@ export function AtlasChatbotTrigger() {
           aria-label={`Abrir copiloto comercial da ${brandInfo.name}`}
           className={`group relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${accent.gradient} text-white ${accent.glow} hover:scale-110 active:scale-95 transition-all duration-300 border border-line cursor-pointer`}
         >
-          <Bot className="w-7 h-7 group-hover:rotate-12 transition-transform duration-300" />
+          <MessageSquare className="w-7 h-7 group-hover:rotate-12 transition-transform duration-300" />
 
           {/* Indicador de disponibilidade do copiloto */}
           <span className="absolute -top-1 -right-1 flex h-4 w-4">
