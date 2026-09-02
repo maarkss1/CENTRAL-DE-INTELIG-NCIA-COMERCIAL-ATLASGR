@@ -392,6 +392,7 @@ export function Intelligence() {
               </motion.div>
             ) : (
               <button
+                type="button"
                 onClick={() => setPickerOpen(true)}
                 className="w-full p-5 rounded-2xl border-2 border-dashed border-line hover:border-brand/60 hover:bg-orange-50/50 text-ink-2 hover:text-brand transition-all flex flex-col items-center justify-center gap-3 group"
               >
@@ -425,6 +426,7 @@ export function Intelligence() {
                     <Fingerprint size={12} /> Selecionar Alvo
                   </span>
                   <button
+                    type="button"
                     onClick={() => setPickerOpen(false)}
                     aria-label="Fechar"
                     className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-2 text-ink-2"
@@ -455,6 +457,7 @@ export function Intelligence() {
                   )}
                   {filteredLeads.map((l) => (
                     <button
+                      type="button"
                       key={l.id}
                       onClick={() => {
                         setSelectedLead(l);
