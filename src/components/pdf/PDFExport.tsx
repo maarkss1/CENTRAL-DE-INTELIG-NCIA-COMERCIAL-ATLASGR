@@ -271,7 +271,7 @@ export function PDFDownloadButton({
     <PDFDownloadLink
       document={doc}
       fileName={fileName}
-      className={`inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${className}`}
+      className={`inline-flex items-center gap-2 rounded-xl bg-brand-active px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${className}`}
     >
       {({ loading }) =>
         loading ? (

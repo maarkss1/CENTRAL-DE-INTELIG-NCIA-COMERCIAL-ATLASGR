@@ -243,7 +243,7 @@ export function Settings() {
                             </div>
                           </div>
                           {activeBrand === brand && (
-                            <div className="w-5 h-5 rounded-full bg-brand text-white flex items-center justify-center">
+                            <div className="w-5 h-5 rounded-full bg-brand-active text-white flex items-center justify-center">
                               <Check size={12} />
                             </div>
                           )}
