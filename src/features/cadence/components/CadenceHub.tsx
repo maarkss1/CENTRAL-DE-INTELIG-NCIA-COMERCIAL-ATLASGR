@@ -1583,8 +1583,15 @@ export function CadenceHub() {
           </div>
         </header>
 
-        <CadenceRunsSection key={runsKey} />
-        <SequencesSection key={sequencesKey} canManage={canManage} />
+        {/*
+          Chaves com prefixo de propósito: as duas seções são irmãs e os dois contadores começam
+          em 0 (e voltam a coincidir sempre que só um deles é incrementado) — `key={runsKey}` e
+          `key={sequencesKey}` puros colidiam ("Encountered two children with the same key"), e o
+          React deixava cópias antigas de CadenceRunsSection no DOM a cada remontagem (achado real
+          reproduzido pelo cadence.spec.ts: três filtros "Encerrada" na mesma página).
+        */}
+        <CadenceRunsSection key={`runs-${runsKey}`} />
+        <SequencesSection key={`sequences-${sequencesKey}`} canManage={canManage} />
         <OptOutsSection />
       </div>
 
