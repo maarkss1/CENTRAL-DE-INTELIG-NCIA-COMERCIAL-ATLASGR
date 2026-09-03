@@ -5,6 +5,7 @@ import { AuditService } from '../../../lib/audit/audit.service';
 import { getUploadUrl } from '../../../lib/storage/index.js';
 import { enqueueTranscribeConversationJob } from '../jobs/transcribeConversation.worker.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import { routeParam } from '../../../shared/http/routeParams';
 import type { CopilotoIaUseCases } from '../application/CopilotoIaUseCases';
 import type { CopilotoBitrixWritebackUseCases } from '../application/CopilotoBitrixWritebackUseCases';
 import type {
@@ -100,7 +101,7 @@ export class CopilotoIaController {
   getConversation = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.getConversation(organizationId, req.params.id);
+      const conversation = await this.useCases.getConversation(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -110,7 +111,7 @@ export class CopilotoIaController {
   startCapture = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.startCapture(organizationId, req.params.id);
+      const conversation = await this.useCases.startCapture(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -120,7 +121,7 @@ export class CopilotoIaController {
   stopCapture = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.stopCapture(organizationId, req.params.id);
+      const conversation = await this.useCases.stopCapture(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -130,7 +131,7 @@ export class CopilotoIaController {
   markReady = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.markReady(organizationId, req.params.id);
+      const conversation = await this.useCases.markReady(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -140,7 +141,7 @@ export class CopilotoIaController {
   markFailed = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.markFailed(organizationId, req.params.id);
+      const conversation = await this.useCases.markFailed(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -150,7 +151,7 @@ export class CopilotoIaController {
   cancel = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.cancel(organizationId, req.params.id);
+      const conversation = await this.useCases.cancel(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -165,7 +166,8 @@ export class CopilotoIaController {
       const method = requireString(body, 'method');
       const textVersion = requireString(body, 'textVersion');
       const actorId = optionalString(body, 'actorId') ?? userId;
-      const record = await this.useCases.recordConsent(organizationId, req.params.id, {
+      const conversationId = routeParam(req.params.id, 'id');
+      const record = await this.useCases.recordConsent(organizationId, conversationId, {
         method,
         textVersion,
         actorId,
@@ -178,7 +180,7 @@ export class CopilotoIaController {
       await AuditService.log({
         action: 'UPDATE',
         entity: 'COPILOTO_IA_CONSENT',
-        entityId: req.params.id,
+        entityId: conversationId,
         actorId,
         tenantId: organizationId,
         ipAddress: req.ip,
@@ -193,7 +195,7 @@ export class CopilotoIaController {
   requestAudioUploadUrl = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversationId = req.params.id;
+      const conversationId = routeParam(req.params.id, 'id');
       await this.useCases.assertCanUploadAudio(organizationId, conversationId);
 
       const body = req.body as Record<string, unknown>;
@@ -214,7 +216,7 @@ export class CopilotoIaController {
   completeAudioUpload = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversationId = req.params.id;
+      const conversationId = routeParam(req.params.id, 'id');
       const body = req.body as Record<string, unknown>;
 
       const conversation = await this.useCases.completeAudioUpload(organizationId, conversationId, {
@@ -252,7 +254,7 @@ export class CopilotoIaController {
       });
       const created = await this.useCases.addTranscriptSegments(
         organizationId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         segments,
       );
       res.status(201).json({ success: true, data: created });
@@ -265,7 +267,7 @@ export class CopilotoIaController {
     try {
       const { organizationId } = (req as AuthRequest).user;
       const body = req.body as Record<string, unknown>;
-      const insight = await this.useCases.createInsight(organizationId, req.params.id, {
+      const insight = await this.useCases.createInsight(organizationId, routeParam(req.params.id, 'id'), {
         type: requireString(body, 'type'),
         valueJson: body.valueJson ?? {},
         confidence: typeof body.confidence === 'number' ? body.confidence : undefined,
@@ -282,7 +284,7 @@ export class CopilotoIaController {
   listInsights = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const insights = await this.useCases.listInsights(organizationId, req.params.id);
+      const insights = await this.useCases.listInsights(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: insights });
     } catch (error) {
       next(error);
@@ -302,7 +304,7 @@ export class CopilotoIaController {
       }
       const suggestion = await this.useCases.createCrmFieldSuggestion(
         organizationId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         {
           entityType,
           entityId: requireString(body, 'entityId'),
@@ -321,9 +323,10 @@ export class CopilotoIaController {
   approveCrmFieldSuggestion = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;
+      const suggestionId = routeParam(req.params.id, 'id');
       const suggestion = await this.useCases.approveCrmFieldSuggestion(
         organizationId,
-        req.params.id,
+        suggestionId,
         userId,
       );
       // Aprovação é uma decisão humana sobre gravar um valor no CRM (mesmo antes do writeback
@@ -331,7 +334,7 @@ export class CopilotoIaController {
       await AuditService.log({
         action: 'UPDATE',
         entity: 'COPILOTO_IA_CRM_FIELD_SUGGESTION',
-        entityId: req.params.id,
+        entityId: suggestionId,
         actorId: userId,
         tenantId: organizationId,
         ipAddress: req.ip,
@@ -347,15 +350,16 @@ export class CopilotoIaController {
   rejectCrmFieldSuggestion = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;
+      const suggestionId = routeParam(req.params.id, 'id');
       const suggestion = await this.useCases.rejectCrmFieldSuggestion(
         organizationId,
-        req.params.id,
+        suggestionId,
         userId,
       );
       await AuditService.log({
         action: 'UPDATE',
         entity: 'COPILOTO_IA_CRM_FIELD_SUGGESTION',
-        entityId: req.params.id,
+        entityId: suggestionId,
         actorId: userId,
         tenantId: organizationId,
         ipAddress: req.ip,
@@ -373,7 +377,7 @@ export class CopilotoIaController {
       const { organizationId } = (req as AuthRequest).user;
       const body = req.body as Record<string, unknown>;
       const snapshot = await this.useCases.recordDealHealthSnapshot(organizationId, {
-        leadId: req.params.leadId,
+        leadId: routeParam(req.params.leadId, 'leadId'),
         score: requireNumber(body, 'score'),
         factorsJson: body.factorsJson ?? {},
       });
@@ -388,7 +392,7 @@ export class CopilotoIaController {
       const { organizationId } = (req as AuthRequest).user;
       const snapshots = await this.useCases.listDealHealthSnapshots(
         organizationId,
-        req.params.leadId,
+        routeParam(req.params.leadId, 'leadId'),
       );
       res.json({ success: true, data: snapshots });
     } catch (error) {
@@ -444,11 +448,12 @@ export class CopilotoIaController {
   deleteBitrixFieldMapping = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;
-      await this.writebackUseCases.deleteFieldMapping(organizationId, req.params.id);
+      const mappingId = routeParam(req.params.id, 'id');
+      await this.writebackUseCases.deleteFieldMapping(organizationId, mappingId);
       await AuditService.log({
         action: 'DELETE',
         entity: 'COPILOTO_IA_BITRIX_FIELD_MAPPING',
-        entityId: req.params.id,
+        entityId: mappingId,
         actorId: userId,
         tenantId: organizationId,
         ipAddress: req.ip,
@@ -464,7 +469,7 @@ export class CopilotoIaController {
       const { organizationId, id: userId } = (req as AuthRequest).user;
       const suggestion = await this.writebackUseCases.writebackSuggestion(
         organizationId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
       );
       // EXPORT é a mesma ação usada por exportLeadToBitrixNow (outboundSync.ts) para escrita
       // real no Bitrix — mantém o mesmo vocabulário de auditoria em toda a plataforma.
@@ -488,7 +493,10 @@ export class CopilotoIaController {
   getCoachingEvaluation = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const evaluation = await this.useCases.getCoachingEvaluation(organizationId, req.params.id);
+      const evaluation = await this.useCases.getCoachingEvaluation(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: evaluation });
     } catch (error) {
       next(error);
@@ -498,7 +506,7 @@ export class CopilotoIaController {
   getHandoffSummary = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const handoff = await this.useCases.getHandoffSummary(organizationId, req.params.id);
+      const handoff = await this.useCases.getHandoffSummary(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: handoff });
     } catch (error) {
       next(error);
@@ -512,7 +520,7 @@ export class CopilotoIaController {
       const { organizationId } = (req as AuthRequest).user;
       const stats = await this.useCases.getWhatsAppResponseTimeStats(
         organizationId,
-        req.params.leadId,
+        routeParam(req.params.leadId, 'leadId'),
       );
       res.json({ success: true, data: stats });
     } catch (error) {

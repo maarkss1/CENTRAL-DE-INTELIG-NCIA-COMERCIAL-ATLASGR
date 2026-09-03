@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { Crm360UseCases } from '../application/Crm360UseCases.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 
 export class Crm360Controller {
   constructor(private crm360UseCases: Crm360UseCases) {}
@@ -42,7 +43,7 @@ export class Crm360Controller {
       const { stageId, expectedCloseDate } = req.body;
       const data = await this.crm360UseCases.updateLeadStage(
         orgId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         stageId,
         expectedCloseDate ? new Date(expectedCloseDate) : undefined,
         actorUserId,
@@ -56,7 +57,7 @@ export class Crm360Controller {
   convertLead = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orgId = (req as AuthRequest).user.organizationId;
-      const data = await this.crm360UseCases.convertLead(orgId, req.params.id);
+      const data = await this.crm360UseCases.convertLead(orgId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -87,7 +88,7 @@ export class Crm360Controller {
   getDealItems = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orgId = (req as AuthRequest).user.organizationId;
-      const data = await this.crm360UseCases.getDealItems(orgId, req.params.leadId);
+      const data = await this.crm360UseCases.getDealItems(orgId, routeParam(req.params.leadId, 'leadId'));
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -97,7 +98,11 @@ export class Crm360Controller {
   addDealItem = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orgId = (req as AuthRequest).user.organizationId;
-      const data = await this.crm360UseCases.addDealItem(orgId, req.params.leadId, req.body);
+      const data = await this.crm360UseCases.addDealItem(
+        orgId,
+        routeParam(req.params.leadId, 'leadId'),
+        req.body,
+      );
       res.status(201).json({ success: true, data });
     } catch (error) {
       next(error);
@@ -107,7 +112,11 @@ export class Crm360Controller {
   removeDealItem = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orgId = (req as AuthRequest).user.organizationId;
-      await this.crm360UseCases.removeDealItem(orgId, req.params.leadId, req.params.id);
+      await this.crm360UseCases.removeDealItem(
+        orgId,
+        routeParam(req.params.leadId, 'leadId'),
+        routeParam(req.params.id, 'id'),
+      );
       res.status(204).send();
     } catch (error) {
       next(error);
@@ -140,7 +149,7 @@ export class Crm360Controller {
       const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
       const data = await this.crm360UseCases.updateDocumentContent(
         orgId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         req.body,
         actorUserId,
       );
@@ -153,7 +162,7 @@ export class Crm360Controller {
   listDocumentVersions = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orgId = (req as AuthRequest).user.organizationId;
-      const data = await this.crm360UseCases.listDocumentVersions(orgId, req.params.id);
+      const data = await this.crm360UseCases.listDocumentVersions(orgId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -164,7 +173,11 @@ export class Crm360Controller {
     try {
       const orgId = (req as AuthRequest).user.organizationId;
       const { status } = req.body;
-      const data = await this.crm360UseCases.updateDocumentStatus(orgId, req.params.id, status);
+      const data = await this.crm360UseCases.updateDocumentStatus(
+        orgId,
+        routeParam(req.params.id, 'id'),
+        status,
+      );
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -174,7 +187,7 @@ export class Crm360Controller {
   /** Rota pública (sem `authenticateToken`) — ver `crm360Public.routes.ts`. */
   viewPublicDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await this.crm360UseCases.recordDocumentView(req.params.token);
+      const data = await this.crm360UseCases.recordDocumentView(routeParam(req.params.token, 'token'));
       if (!data) {
         res.status(404).json({ success: false, error: 'Proposta não encontrada.' });
         return;
@@ -190,7 +203,7 @@ export class Crm360Controller {
       const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
       const data = await this.crm360UseCases.requestDocumentSignature(
         orgId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         actorUserId,
         req.body,
       );

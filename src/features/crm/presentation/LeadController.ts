@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { LeadUseCases } from '../application/LeadUseCases';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import { routeParam } from '../../../shared/http/routeParams';
 import { automationEngine } from '../../automations/automation.engine';
 import { logger } from '../../../lib/logger';
 import type { LeadFunnel } from '@prisma/client';
@@ -46,7 +47,7 @@ export class LeadController {
   getLeadById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const lead = await this.leadUseCases.findLeadById(orgId, req.params.id);
+      const lead = await this.leadUseCases.findLeadById(orgId, routeParam(req.params.id, 'id'));
       if (!lead) {
         res.status(404).json({ success: false, error: 'Lead not found' });
         return;
@@ -77,7 +78,7 @@ export class LeadController {
   updateLead = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
-      const leadId = req.params.id;
+      const leadId = routeParam(req.params.id, 'id');
       let lead:
         | Awaited<ReturnType<typeof this.leadUseCases.updateLeadStatus>>
         | Awaited<ReturnType<typeof this.leadUseCases.updateLead>>;
@@ -114,7 +115,7 @@ export class LeadController {
   deleteLead = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      await this.leadUseCases.deleteLead(orgId, req.params.id);
+      await this.leadUseCases.deleteLead(orgId, routeParam(req.params.id, 'id'));
       res.status(204).send();
     } catch (error) {
       next(error);
@@ -124,7 +125,7 @@ export class LeadController {
   enrichLead = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const result = await this.leadUseCases.enrichLead(orgId, req.params.id);
+      const result = await this.leadUseCases.enrichLead(orgId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);

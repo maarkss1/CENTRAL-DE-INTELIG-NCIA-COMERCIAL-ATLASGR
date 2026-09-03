@@ -10,6 +10,7 @@ import {
 import { requireTenant } from '../../../shared/middlewares/authorization.js';
 import { hasRequiredRole } from '../../../lib/auth/authorization.js';
 import { z } from 'zod';
+import { routeParam } from '../../../shared/http/routeParams.js';
 
 // Schema para criação/atualização de link de agendamento
 const bookingLinkSchema = z.object({
@@ -137,7 +138,7 @@ privateBookingRouter.patch(
     try {
       const { organizationId, id: userId, role } = (req as AuthRequest).user;
       const { active } = bookingLinkActiveSchema.parse(req.body);
-      const link = await setBookingLinkActive(organizationId, userId, role, req.params.id, active);
+      const link = await setBookingLinkActive(organizationId, userId, role, routeParam(req.params.id, 'id'), active);
       res.json({ success: true, data: link });
     } catch (err) {
       next(err);
@@ -152,7 +153,7 @@ privateBookingRouter.delete(
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;
       await prisma.publicBookingLink.deleteMany({
-        where: { id: req.params.id, organizationId, userId },
+        where: { id: routeParam(req.params.id, 'id'), organizationId, userId },
       });
       res.status(204).send();
     } catch (err) {
@@ -201,7 +202,7 @@ publicBookingRouter.get(
   '/:slug',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const link = await prisma.publicBookingLink.findUnique({ where: { slug: req.params.slug } });
+      const link = await prisma.publicBookingLink.findUnique({ where: { slug: routeParam(req.params.slug, 'slug') } });
 
       if (!link || !link.active) {
         res
@@ -213,7 +214,7 @@ publicBookingRouter.get(
       const { user, organization } = await loadBookingHost(link.userId, link.organizationId);
       if (!user || !organization) {
         logger.error(
-          { slug: req.params.slug, linkId: link.id },
+          { slug: routeParam(req.params.slug, 'slug'), linkId: link.id },
           'Link de agendamento aponta para usuário/organização inexistente',
         );
         res
@@ -266,7 +267,7 @@ publicBookingRouter.post(
   '/:slug',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const link = await prisma.publicBookingLink.findUnique({ where: { slug: req.params.slug } });
+      const link = await prisma.publicBookingLink.findUnique({ where: { slug: routeParam(req.params.slug, 'slug') } });
 
       if (!link || !link.active) {
         res
@@ -278,7 +279,7 @@ publicBookingRouter.post(
       const { user: hostUser } = await loadBookingHost(link.userId, link.organizationId);
       if (!hostUser) {
         logger.error(
-          { slug: req.params.slug, linkId: link.id },
+          { slug: routeParam(req.params.slug, 'slug'), linkId: link.id },
           'Link de agendamento aponta para usuário inexistente',
         );
         res
@@ -367,7 +368,7 @@ publicBookingRouter.post(
             })
             .catch((err) => {
               logger.error(
-                { err, slug: req.params.slug },
+                { err, slug: routeParam(req.params.slug, 'slug') },
                 'Falha ao criar contato via agendamento público',
               );
               return null;

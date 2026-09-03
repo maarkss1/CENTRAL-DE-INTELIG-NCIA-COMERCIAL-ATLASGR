@@ -12,6 +12,7 @@ import { checkApolloConnection } from '../services/apollo.service.js';
 import { fetchCnpjData } from '../services/enrichment.service.js';
 import { rntrcRiskByUf } from '../../../shared/services/rntrcTerritorialRisk.service.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 import {
   extractTextFromImage,
   structureOcrCandidate,
@@ -245,7 +246,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const { id: companyId } = req.params;
+      const companyId = routeParam(req.params.id, 'id');
       const { async: isAsync, ...options } = req.body || {};
 
       if (isAsync && enrichmentCascadeQueue) {
@@ -326,7 +327,7 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const { id } = req.params;
+      const id = routeParam(req.params.id, 'id');
 
       await prisma.savedSearch.deleteMany({
         where: { id, organizationId },
@@ -344,7 +345,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const { id } = req.params;
+      const id = routeParam(req.params.id, 'id');
 
       const savedSearch = await prisma.savedSearch.findFirst({
         where: { id, organizationId },
@@ -398,7 +399,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const { searchId } = req.params;
+      const searchId = routeParam(req.params.searchId, 'searchId');
       const execution = await findSearchExecution(searchId, organizationId);
       if (!execution) {
         res.status(404).json({ success: false, error: 'Execução de busca não encontrada' });
