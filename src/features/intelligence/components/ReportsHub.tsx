@@ -168,7 +168,11 @@ export function ReportsHub() {
             </CardDescription>
           </div>
         </div>
-        <Button onClick={handleGenerate} disabled={generating || loadingMetrics || !metrics}>
+        <Button
+          type="button"
+          onClick={handleGenerate}
+          disabled={generating || loadingMetrics || !metrics}
+        >
           {generating ? (
             <Loader2 size={16} className="animate-spin" />
           ) : report ? (
@@ -250,6 +254,24 @@ export function ReportsHub() {
                 <span className="text-ink-2 block">Pendentes</span>
                 <span className="font-black text-danger-active dark:text-danger">
                   {metrics.pendingActivities}
+                </span>
+              </div>
+              <div>
+                <span className="text-ink-2 block">Atrasadas</span>
+                <span className="font-black text-danger-active dark:text-danger">
+                  {metrics.overdueActivities}
+                </span>
+              </div>
+              <div>
+                <span className="text-ink-2 block">Perdidos no Mês</span>
+                <span className="font-black text-ink">{metrics.lostThisMonth}</span>
+              </div>
+              {/* averageScore pode ser null (sem leads pontuados ainda) — mesmo tratamento de "—"
+                  já usado acima para pipelineValue, em vez de "0", que seria lido como score real. */}
+              <div>
+                <span className="text-ink-2 block">Score Médio</span>
+                <span className="font-black text-brand">
+                  {metrics.averageScore == null ? '—' : metrics.averageScore}
                 </span>
               </div>
             </div>

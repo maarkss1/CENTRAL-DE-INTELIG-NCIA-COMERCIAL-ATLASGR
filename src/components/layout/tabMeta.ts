@@ -33,6 +33,7 @@ import {
   Share2,
   GraduationCap,
   PieChart,
+  Mic,
 } from 'lucide-react';
 
 /**
@@ -81,6 +82,7 @@ export type TabType =
   | 'settings'
   | 'sdr-diagnostic-joao'
   | 'commercial_intelligence'
+  | 'copiloto_ia'
   | 'social-selling'
   | 'treinamento-atlasgr'
   | 'proposta-comercial'
@@ -90,6 +92,7 @@ export type TabType =
 export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
   dashboard: { label: 'Painel Central', icon: Home },
   commercial_intelligence: { label: 'Comercial Inteligente', icon: LineChart },
+  copiloto_ia: { label: 'Copiloto IA', icon: Mic },
   'sdr-diagnostic-joao': { label: 'Diagnóstico & Plano SDR', icon: ClipboardCheck },
   prospect: { label: 'Prospecção', icon: Search },
   crm: { label: 'Pipeline CRM', icon: LayoutTemplate },

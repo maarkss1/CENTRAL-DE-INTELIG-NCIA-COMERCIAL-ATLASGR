@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { hasRequiredRole, MESA_TRATAMENTO_ROLES } from '../../lib/auth/authorization';
+import { EXECUTIVE_HUB_ALLOWED_EMAIL } from '../../config/access-policy';
 import { SoundFX } from '../../lib/soundEffects';
 import { Logo } from '../Logo';
 import { TotalTrackLogo } from '../TotalTrackLogo';
@@ -21,7 +22,8 @@ interface NavGroupDefinition {
 
 export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: SidebarProps) {
   const { activeBrand, setActiveBrand } = useBrand();
-  const { currentUser, isAdmin, canAccessCommercialIntelligence, logout } = useAuth();
+  const { currentUser, isAdmin, canAccessCommercialIntelligence, canAccessCopilotoIa, logout } =
+    useAuth();
   const isAtlas = activeBrand === 'atlasgr';
   const navigate = useNavigate();
   const canManageOperations =
@@ -57,8 +59,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
   ];
 
   const isMarcelo =
-    !!currentUser &&
-    currentUser.email?.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
+    !!currentUser && currentUser.email?.toLowerCase().trim() === EXECUTIVE_HUB_ALLOWED_EMAIL;
 
   const executiveRepoItems: TabType[] = [
     'social-selling',
@@ -98,6 +99,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     {
       title: 'IA & Capacitação',
       items: [
+        ...(canAccessCopilotoIa ? (['copiloto_ia'] as TabType[]) : []),
         'intelligence',
         'chatbook',
         'roleplay',

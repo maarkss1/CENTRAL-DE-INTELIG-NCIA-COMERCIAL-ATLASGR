@@ -5,7 +5,12 @@ import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { RequireRole } from './components/layout/RequireRole';
 import { RequireUserAllowed } from './components/layout/RequireUserAllowed';
-import { COMMERCIAL_INTELLIGENCE_ROLES, MESA_TRATAMENTO_ROLES } from './lib/auth/authorization';
+import {
+  COMMERCIAL_INTELLIGENCE_ROLES,
+  MESA_TRATAMENTO_ROLES,
+  COPILOTO_IA_ROLES,
+} from './lib/auth/authorization';
+import { EXECUTIVE_HUB_ALLOWED_EMAIL } from './config/access-policy';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -126,6 +131,11 @@ const WinLossAnalysis = lazy(() =>
 const CommercialIntelligenceHub = lazy(() =>
   import('./features/commercial-intelligence/components/CommercialIntelligenceHub').then((m) => ({
     default: m.CommercialIntelligenceHub,
+  })),
+);
+const CopilotoIaHub = lazy(() =>
+  import('./features/copiloto-ia/components/CopilotoIaHub').then((m) => ({
+    default: m.CopilotoIaHub,
   })),
 );
 const JoaoReisDiagnosticHub = lazy(() =>
@@ -299,11 +309,22 @@ function AppLayout() {
               </RequireRole>
             }
           />
+          {/* Copiloto Comercial IA — RequireRole bloqueia acesso direto por URL, mesmo padrão de
+              commercial_intelligence acima. Autorização real está em requireRole no backend
+              (copilotoIa.routes.ts). */}
+          <Route
+            path="copiloto_ia"
+            element={
+              <RequireRole allowedRoles={[...COPILOTO_IA_ROLES]}>
+                <CopilotoIaHub />
+              </RequireRole>
+            }
+          />
           <Route path="sdr-diagnostic-joao" element={<JoaoReisDiagnosticHub />} />
           <Route
             path="social-selling"
             element={
-              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+              <RequireUserAllowed allowedEmails={[EXECUTIVE_HUB_ALLOWED_EMAIL]}>
                 <SocialSellingHub />
               </RequireUserAllowed>
             }
@@ -311,7 +332,7 @@ function AppLayout() {
           <Route
             path="treinamento-atlasgr"
             element={
-              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+              <RequireUserAllowed allowedEmails={[EXECUTIVE_HUB_ALLOWED_EMAIL]}>
                 <TreinamentoAtlasGRHub />
               </RequireUserAllowed>
             }
@@ -319,7 +340,7 @@ function AppLayout() {
           <Route
             path="proposta-comercial"
             element={
-              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+              <RequireUserAllowed allowedEmails={[EXECUTIVE_HUB_ALLOWED_EMAIL]}>
                 <PropostaComercialHub />
               </RequireUserAllowed>
             }
@@ -327,7 +348,7 @@ function AppLayout() {
           <Route
             path="hub-inteligencia-marketing"
             element={
-              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+              <RequireUserAllowed allowedEmails={[EXECUTIVE_HUB_ALLOWED_EMAIL]}>
                 <HubInteligenciaMarketingHub />
               </RequireUserAllowed>
             }

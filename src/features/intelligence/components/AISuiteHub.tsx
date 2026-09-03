@@ -94,11 +94,18 @@ const CAPABILITIES: AICapability[] = [
     title: 'Resumos Executivos Diários',
     category: 'intelligence',
     icon: Activity,
-    endpoint: '/api/intelligence/win-loss-analysis',
+    // Bug real corrigido aqui: apontava pra '/win-loss-analysis' (a mesma rota do card #12,
+    // "Análise Win-Loss"), com título/descrição que não batem com o que aquele endpoint faz —
+    // "Resumos Executivos Diários" é, na verdade, o relatório em Markdown de ReportsHub.tsx
+    // (POST /report, ver intelligence.routes.ts), não a análise de ganhos/perdas.
+    endpoint: '/api/intelligence/report',
     description:
-      'Worker que sintetiza o funil de vendas, métricas de conversão e gargalos operacionais.',
+      'Relatório executivo em Markdown a partir das métricas já calculadas (o mesmo endpoint usado por ReportsHub.tsx, sem streaming).',
     modelDefault: 'llama3.1:8b',
-    samplePayload: {},
+    samplePayload: {
+      metrics: { totalLeads: 42, closedThisMonth: 6, pipelineValue: 350000 },
+      brandId: 'atlasgr',
+    },
   },
   {
     id: 5,
