@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDealHealthScore } from '../dealHealthScoring';
+import { computeDealHealthScore, computeChurnRiskScore } from '../dealHealthScoring';
 
 describe('computeDealHealthScore', () => {
   it('usa 50 como base neutra quando sentimento é desconhecido, sem sinal nenhum', () => {
@@ -76,5 +76,56 @@ describe('computeDealHealthScore', () => {
       competitorMentionsCount: 1, // -5
     });
     expect(result.score).toBe(70 - 8 + 10 - 5);
+  });
+});
+
+describe('computeChurnRiskScore', () => {
+  it('sem sinal nenhum e sentimento desconhecido fica na base neutra (50)', () => {
+    const result = computeChurnRiskScore({
+      sentimentScore: null,
+      complaintsCount: 0,
+      highSeverityComplaintsCount: 0,
+      blockersCount: 0,
+    });
+    expect(result.score).toBe(50);
+  });
+
+  it('reclamação de severidade alta penaliza mais que uma reclamação comum', () => {
+    const commonComplaint = computeChurnRiskScore({
+      sentimentScore: 'Positivo',
+      complaintsCount: 1,
+      highSeverityComplaintsCount: 0,
+      blockersCount: 0,
+    });
+    const severeComplaint = computeChurnRiskScore({
+      sentimentScore: 'Positivo',
+      complaintsCount: 1,
+      highSeverityComplaintsCount: 1,
+      blockersCount: 0,
+    });
+    expect(severeComplaint.score).toBeLessThan(commonComplaint.score);
+  });
+
+  it('respeita os tetos de penalidade mesmo com muitos sinais', () => {
+    const result = computeChurnRiskScore({
+      sentimentScore: 'Positivo',
+      complaintsCount: 999,
+      highSeverityComplaintsCount: 999,
+      blockersCount: 999,
+    });
+    expect(result.score).toBe(0);
+    expect(result.factors.complaintPenalty).toBe(20);
+    expect(result.factors.highSeverityComplaintPenalty).toBe(30);
+    expect(result.factors.blockerPenalty).toBe(25);
+  });
+
+  it('bloqueio identificado penaliza mesmo sem reclamação nenhuma', () => {
+    const result = computeChurnRiskScore({
+      sentimentScore: 'Neutro / Cauteloso',
+      complaintsCount: 0,
+      highSeverityComplaintsCount: 0,
+      blockersCount: 1,
+    });
+    expect(result.score).toBe(50 - 10);
   });
 });
