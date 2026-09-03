@@ -105,7 +105,7 @@ async function syncLeadToBitrix(
       lead.company?.observations,
       `Etapa no Atlas: ${statusLabel}`,
       lead.temperature ? `Temperatura: ${lead.temperature}` : null,
-      lead.score ? `Fit Score: ${lead.score}` : null,
+      lead.score != null ? `Fit Score: ${lead.score}` : null,
       lead.pic ? `Perfil (PIC): ${lead.pic}` : null,
     ]
       .filter(Boolean)
@@ -237,7 +237,7 @@ async function syncLeadToBitrix(
         fields: {
           ENTITY_ID: newId,
           ENTITY_TYPE: 'lead',
-          COMMENT: `Lead criado pelo AtlasGR Prospector.\nEtapa: ${statusLabel}${lead.score ? `\nFit Score: ${lead.score}` : ''}`,
+          COMMENT: `Lead criado pelo AtlasGR Prospector.\nEtapa: ${statusLabel}${lead.score != null ? `\nFit Score: ${lead.score}` : ''}`,
         },
       },
       { correlationId },
