@@ -91,6 +91,7 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
       title: conversation.title,
       audioObjectKey: conversation.audioObjectKey,
       audioMimeType: conversation.audioMimeType,
+      leadId: conversation.leadId,
     };
   }
 

@@ -5,6 +5,12 @@
 // status/consentimento do resto do módulo, não duplicada aqui) e gera um resumo executivo
 // reaproveitando `MeetingSynthesisService` (já existe em `src/features/chatbook/`).
 //
+// Onda 5 ("Intelligence"): também extrai objeções/concorrentes/buying signals
+// (`conversationIntelligence.service.ts`, dono deste módulo — não cruza feature) e, se a conversa
+// tem um Lead vinculado, calcula e grava um `CopilotoDealHealthSnapshot` com fórmula determinística
+// (`dealHealthScoring.ts` — só a EXTRAÇÃO dos sinais usa IA, combinar em score é aritmética
+// documentada e reproduzível).
+//
 // A dependência de síntese é injetada via `MeetingSynthesisPort` (`src/shared/contracts/
 // meetingSynthesis.contract.ts`), nunca importada diretamente — `no-cross-feature-imports`
 // (.dependency-cruiser.cjs) proíbe `copiloto-ia` importar internals de `chatbook`. Quem monta a
@@ -23,6 +29,8 @@ import {
   isWhisperConfigured,
   WHISPER_USD_PER_MINUTE,
 } from '../infra/whisperTranscription.service.js';
+import { extractConversationIntelligence } from '../infra/conversationIntelligence.service.js';
+import { computeDealHealthScore, type SentimentScore } from '../application/dealHealthScoring.js';
 import { CopilotoIaUseCases } from '../application/CopilotoIaUseCases.js';
 import { PrismaCopilotoIaRepository } from '../infra/PrismaCopilotoIaRepository.js';
 import type { MeetingSynthesisPort } from '../../../shared/contracts/meetingSynthesis.contract.js';
@@ -123,6 +131,11 @@ export async function runTranscribeConversationJob(
         await useCases.addTranscriptSegments(organizationId, conversationId, segments);
       }
 
+      let sentimentScore: SentimentScore | null = null;
+      let unresolvedObjectionsCount = 0;
+      let buyingSignalsCount = 0;
+      let competitorMentionsCount = 0;
+
       if (whisperResult.text.trim()) {
         const synthesis = await deps.meetingSynthesisPort.synthesizeMeeting({
           meetingTitle: state.title || 'Reunião comercial',
@@ -132,6 +145,47 @@ export async function runTranscribeConversationJob(
         await useCases.createInsight(organizationId, conversationId, {
           type: 'resumo',
           valueJson: synthesis,
+        });
+        sentimentScore = synthesis.sentimentScore ?? null;
+
+        // Onda 5 — extração de objeções/concorrentes/buying signals, cada um como um
+        // `CopilotoInsight` PRÓPRIO (não só aninhado dentro do resumo) para consumo futuro
+        // (ex.: sugestão automática de campo de CRM a partir de uma objeção detectada).
+        const intelligence = await extractConversationIntelligence(whisperResult.text);
+        for (const objection of intelligence.objections) {
+          await useCases.createInsight(organizationId, conversationId, {
+            type: 'objecao',
+            valueJson: objection,
+          });
+        }
+        for (const competitor of intelligence.competitors) {
+          await useCases.createInsight(organizationId, conversationId, {
+            type: 'concorrente',
+            valueJson: competitor,
+          });
+        }
+        for (const signal of intelligence.buyingSignals) {
+          await useCases.createInsight(organizationId, conversationId, {
+            type: 'buying_signal',
+            valueJson: signal,
+          });
+        }
+        unresolvedObjectionsCount = intelligence.objections.filter((o) => !o.resolved).length;
+        buyingSignalsCount = intelligence.buyingSignals.length;
+        competitorMentionsCount = intelligence.competitors.length;
+      }
+
+      if (state.leadId) {
+        const { score, factors } = computeDealHealthScore({
+          sentimentScore,
+          unresolvedObjectionsCount,
+          buyingSignalsCount,
+          competitorMentionsCount,
+        });
+        await useCases.recordDealHealthSnapshot(organizationId, {
+          leadId: state.leadId,
+          score,
+          factorsJson: { ...factors, conversationId, sentimentScore },
         });
       }
 
