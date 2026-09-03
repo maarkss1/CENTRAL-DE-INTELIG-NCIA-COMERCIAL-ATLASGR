@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { notificationService } from './notification.service.js';
 import { hasRequiredRole } from '../../lib/auth/authorization.js';
 import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
+import { routeParam } from '../../shared/http/routeParams.js';
 
 const router = Router();
 
@@ -24,12 +25,13 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/:id/read', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { organizationId, id: userId } = (req as AuthRequest).user;
-    const ok = await notificationService.markRead(organizationId, req.params.id, userId);
+    const notificationId = routeParam(req.params.id, 'id');
+    const ok = await notificationService.markRead(organizationId, notificationId, userId);
     if (!ok) {
       res.status(404).json({ success: false, error: 'Notificação não encontrada ou já lida.' });
       return;
     }
-    res.json({ success: true, data: { id: req.params.id } });
+    res.json({ success: true, data: { id: notificationId } });
   } catch (error) {
     next(error);
   }
@@ -52,7 +54,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     const canManageBroadcast = hasRequiredRole(role, ['ADMIN', 'GESTOR']);
     const ok = await notificationService.remove(
       organizationId,
-      req.params.id,
+      routeParam(req.params.id, 'id'),
       userId,
       canManageBroadcast,
     );

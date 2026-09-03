@@ -107,6 +107,12 @@ tags:
     description: Conexão, sincronização e extração de dados com o Bitrix24 (CRM externo)
   - name: 3CX
     description: Integração com o PABX 3CX (discagem e eventos de chamada)
+  - name: Copiloto IA
+    description: >-
+      Copiloto de IA em tempo real para ligações/reuniões comerciais — captura de áudio,
+      transcrição, insights, sugestões de campo de CRM (com writeback opcional ao Bitrix), deal
+      health score e avaliação de coaching pós-conversa — restrito a ADMIN/GESTOR/CLOSER/SDR
+      (config. de mapeamento e writeback restritos a ADMIN/GESTOR)
   - name: Mesa de Tratamento
     description: Fila de tratamento de leads do Bitrix24 com ranqueamento por prioridade e temperatura
   - name: Playbook
@@ -118,11 +124,6 @@ tags:
       Endpoints de entrada de provedores externos, montados ANTES do `express.json()` global —
       corpo cru, autenticidade provada por HMAC ou segredo comparado em tempo constante, nunca por
       sessão de usuário
-  - name: Copiloto IA
-    description: >-
-      Copiloto de IA em tempo real para ligações/reuniões comerciais — captura de áudio,
-      transcrição, insights, sugestões de campo de CRM (com writeback opcional ao Bitrix), deal
-      health score e avaliação de coaching pós-conversa
 
 security:
   - sessionCookie: []
@@ -4608,6 +4609,402 @@ paths:
         '200': { description: Ligação iniciada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  # ───────────────────────────── Copiloto IA ─────────────────────────────
+  # Assistente de reunião com captura de áudio, transcrição (Whisper), extração de insights/
+  # objeções/concorrentes, sugestões de campo de CRM e writeback real no Bitrix24. Restrito a
+  # ADMIN/GESTOR/CLOSER/SDR (`COPILOTO_IA_ROLES`); configurar mapeamento de campo e disparar
+  # writeback são restritos a ADMIN/GESTOR (`COPILOTO_IA_MANAGEMENT_ROLES`) — ver
+  # copilotoIa.routes.ts.
+  /copiloto-ia/conversations:
+    post:
+      tags: [Copiloto IA]
+      summary: Cria uma nova conversa (reunião/ligação) para captura e análise
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source]
+              properties:
+                source: { type: string, enum: [MEET, CALL, WHATSAPP, MANUAL, OTHER] }
+                title: { type: string }
+                externalMeetingId: { type: string }
+                leadId: { type: string }
+                companyId: { type: string }
+                contactId: { type: string }
+      responses:
+        '201': { description: Conversa criada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    get:
+      tags: [Copiloto IA]
+      summary: Lista conversas do tenant, filtráveis por status/lead/empresa/contato
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [SCHEDULED, CAPTURING, PROCESSING, READY, FAILED, CANCELLED] } }
+        - { name: leadId, in: query, schema: { type: string } }
+        - { name: companyId, in: query, schema: { type: string } }
+        - { name: contactId, in: query, schema: { type: string } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
+  /copiloto-ia/conversations/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Copiloto IA]
+      summary: Detalhe de uma conversa
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/start:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: Marca o início da captura de áudio da conversa (SCHEDULED → CAPTURING)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/stop:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: Encerra a captura de áudio (CAPTURING → PROCESSING)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/ready:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: Marca a conversa como pronta (transcrição/análise concluídas — PROCESSING → READY)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/fail:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: Marca a conversa como falha (ex. erro de transcrição — qualquer estado → FAILED)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: Cancela a conversa (qualquer estado → CANCELLED)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/consent:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: >-
+        Registra a base legal (consentimento) para a captura desta conversa — auditado
+        explicitamente (AuditService), mesmo padrão de src/features/lgpd/lgpd.routes.ts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [granted, method, textVersion]
+              properties:
+                granted: { type: boolean }
+                method: { type: string, description: 'Ex.: verbal, checkbox, e-mail' }
+                textVersion: { type: string, description: 'Versão do texto de consentimento apresentado' }
+                actorId: { type: string, description: 'Default: usuário autenticado' }
+      responses:
+        '201': { description: Consentimento registrado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/audio/upload-url:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: Solicita uma URL assinada para upload direto do áudio capturado ao storage de objetos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mimeType: { type: string, default: audio/webm }
+      responses:
+        '200':
+          description: URL assinada, chave de objeto e mimeType para o upload
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/audio/complete:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: >-
+        Confirma que o upload do áudio terminou e enfileira o job de transcrição (Whisper) —
+        ver transcribeConversation.worker.ts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [objectKey, mimeType, sizeBytes]
+              properties:
+                objectKey: { type: string }
+                mimeType: { type: string }
+                sizeBytes: { type: number }
+                durationMs: { type: number }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/transcript-segments:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: Adiciona um ou mais segmentos de transcrição à conversa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: 'Aceita um segmento único (campos no corpo) ou {segments: [...]}'
+              properties:
+                segments:
+                  type: array
+                  items:
+                    type: object
+                    required: [startMs, endMs, text]
+                    properties:
+                      speakerLabel: { type: string }
+                      startMs: { type: number }
+                      endMs: { type: number }
+                      text: { type: string }
+                      confidence: { type: number }
+      responses:
+        '201': { description: Segmentos criados, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/insights:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: >-
+        Registra um insight extraído da conversa (objeção, concorrente citado, buying signal
+        etc. — ver conversationIntelligence.service.ts)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type: { type: string }
+                valueJson: { type: object }
+                confidence: { type: number }
+                evidenceSegmentIds: { type: array, items: { type: string } }
+      responses:
+        '201': { description: Insight criado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      tags: [Copiloto IA]
+      summary: Lista os insights extraídos desta conversa
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/crm-field-suggestions:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: Cria uma sugestão de atualização de campo de CRM a partir da conversa (fica PENDING)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entityType, entityId, fieldCode, suggestedValue]
+              properties:
+                entityType: { type: string, enum: [LEAD, COMPANY, CONTACT] }
+                entityId: { type: string }
+                fieldCode: { type: string }
+                previousValue: { type: string }
+                suggestedValue: { type: string }
+                confidence: { type: number }
+      responses:
+        '201': { description: Sugestão criada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/crm-field-suggestions/{id}/approve:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    patch:
+      tags: [Copiloto IA]
+      summary: Aprova uma sugestão de campo de CRM (PENDING → APPROVED) — auditado explicitamente
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/crm-field-suggestions/{id}/reject:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    patch:
+      tags: [Copiloto IA]
+      summary: Rejeita uma sugestão de campo de CRM (PENDING → REJECTED) — auditado explicitamente
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/leads/{leadId}/deal-health:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Copiloto IA]
+      summary: Histórico de snapshots de Deal Health Score do lead
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+    post:
+      tags: [Copiloto IA]
+      summary: Registra um novo snapshot de Deal Health Score do lead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [score]
+              properties:
+                score: { type: number }
+                factorsJson: { type: object }
+      responses:
+        '201': { description: Snapshot criado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  # ─── Onda 6 — Coaching + Handoff ────────────────────────────────────
+  /copiloto-ia/conversations/{id}/coaching:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Copiloto IA]
+      summary: >-
+        Avaliação de coaching da conversa (rubrica + score geral), quando já calculada —
+        `data` vem `null` se ainda não houver avaliação registrada
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/handoff:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Copiloto IA]
+      summary: >-
+        Vista agregada de handoff da conversa (resumo, objeções, concorrentes, buying signals,
+        reclamações, promessas, bloqueios, último Deal Health e coaching) — só composição do que
+        já foi extraído, sem chamada de IA nova. `isComplete`/`missingParts` sinalizam handoff
+        incompleto de forma objetiva.
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ─── Onda 4 — mapeamento de campo Bitrix + writeback (ADMIN/GESTOR) ───
+  /copiloto-ia/bitrix-field-mappings:
+    get:
+      tags: [Copiloto IA]
+      summary: Lista o mapeamento semantic_field → campo Bitrix configurado para o tenant
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Copiloto IA]
+      summary: Cria/atualiza um mapeamento de campo (upsert) — auditado explicitamente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entityType, semanticField, bitrixFieldCode]
+              properties:
+                entityType: { type: string, enum: [LEAD, COMPANY, CONTACT] }
+                semanticField: { type: string }
+                bitrixFieldCode: { type: string }
+      responses:
+        '201': { description: Mapeamento salvo, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /copiloto-ia/bitrix-field-mappings/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    delete:
+      tags: [Copiloto IA]
+      summary: Remove um mapeamento de campo — auditado explicitamente
+      responses:
+        '204': { description: Removido }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/crm-field-suggestions/{id}/writeback:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Copiloto IA]
+      summary: >-
+        Dispara a escrita real da sugestão aprovada no Bitrix24 (mesmo vocabulário de auditoria
+        `EXPORT` usado por exportLeadToBitrixNow) — exige mapeamento de campo configurado
+      responses:
+        '200': { description: OK (ver status/writebackError no corpo), content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/leads/{leadId}/whatsapp-response-time:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Copiloto IA]
+      summary: >-
+        SLA/tempo de resposta no WhatsApp do lead (Onda 7) — primeira resposta, média e mediana
+        por rajada de mensagens inbound consecutivas (ver computeWhatsAppResponseTimeStats)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ───────────────────────────── Webhooks (corpo cru) ─────────────────────────────
   # Montados em server.ts ANTES do express.json() global — corpo não é JSON parseado pelo
   # middleware padrão, e a autenticidade não vem de sessão de usuário. Ver env vars citadas em
@@ -4969,235 +5366,6 @@ paths:
     get:
       tags: [Google]
       summary: Próximos eventos do Google Calendar conectado
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  # ───────────────────────────── Copiloto IA ─────────────────────────────
-  # Achado da auditoria (PR #336, débito herdado do main): estas rotas foram montadas em
-  # /api/copiloto-ia (src/bootstrap/routes.ts) por commits concorrentes de outra sessão sem nunca
-  # ganhar entrada aqui — o gate verify:openapi-drift (scripts/verify-openapi-drift.ts) bloqueava
-  # `npm run test:unit` para QUALQUER PR deste repositório, não só o que introduziu a lacuna.
-  # Documentação estrutural (path + método, mesmo nível de detalhe de outros endpoints deste
-  # arquivo que só usam DataEnvelope) — ver `src/features/copiloto-ia/routes/copilotoIa.routes.ts`
-  # e `src/features/copiloto-ia/presentation/CopilotoIaController.ts` para o contrato completo de
-  # cada corpo de requisição/resposta.
-  /copiloto-ia/conversations:
-    post:
-      tags: [Copiloto IA]
-      summary: Cria uma conversa (sessão de captura) do Copiloto IA para um lead
-      responses:
-        '201': { description: Criado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-    get:
-      tags: [Copiloto IA]
-      summary: Lista as conversas do Copiloto IA do tenant
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}:
-    get:
-      tags: [Copiloto IA]
-      summary: Detalhe de uma conversa do Copiloto IA
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/start:
-    post:
-      tags: [Copiloto IA]
-      summary: Inicia a captura de áudio/transcrição da conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/stop:
-    post:
-      tags: [Copiloto IA]
-      summary: Encerra a captura de áudio/transcrição da conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/ready:
-    post:
-      tags: [Copiloto IA]
-      summary: Marca a conversa como pronta (áudio/transcrição processados, insights podem ser gerados)
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/fail:
-    post:
-      tags: [Copiloto IA]
-      summary: Marca a conversa como falha (erro no pipeline de captura/transcrição)
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/cancel:
-    post:
-      tags: [Copiloto IA]
-      summary: Cancela a conversa antes da conclusão
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/consent:
-    post:
-      tags: [Copiloto IA]
-      summary: Registra o consentimento (base legal LGPD) para gravar/processar esta conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/audio/upload-url:
-    post:
-      tags: [Copiloto IA]
-      summary: Solicita uma URL assinada para upload do áudio da conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/audio/complete:
-    post:
-      tags: [Copiloto IA]
-      summary: Confirma que o upload do áudio da conversa foi concluído
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/transcript-segments:
-    post:
-      tags: [Copiloto IA]
-      summary: Adiciona segmentos de transcrição à conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '201': { description: Criado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/insights:
-    post:
-      tags: [Copiloto IA]
-      summary: Gera insights (resumo, objeções, sinais de compra) a partir da transcrição da conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '201': { description: Criado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-    get:
-      tags: [Copiloto IA]
-      summary: Lista os insights já gerados para a conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/crm-field-suggestions:
-    post:
-      tags: [Copiloto IA]
-      summary: Gera sugestões de campo de CRM (candidatas a writeback) a partir da conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '201': { description: Criado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/crm-field-suggestions/{id}/approve:
-    patch:
-      tags: [Copiloto IA]
-      summary: Aprova uma sugestão de campo de CRM gerada pelo Copiloto
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/crm-field-suggestions/{id}/reject:
-    patch:
-      tags: [Copiloto IA]
-      summary: Rejeita uma sugestão de campo de CRM gerada pelo Copiloto
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/crm-field-suggestions/{id}/writeback:
-    post:
-      tags: [Copiloto IA]
-      summary: >-
-        Grava de verdade uma sugestão de campo de CRM aprovada no Bitrix (ADMIN/GESTOR — camada de
-        autorização extra, além do resto do módulo)
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/leads/{leadId}/deal-health:
-    get:
-      tags: [Copiloto IA]
-      summary: Lista os snapshots de Deal Health Score já calculados para o lead
-      parameters:
-        - { name: leadId, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-    post:
-      tags: [Copiloto IA]
-      summary: Calcula e grava um novo snapshot de Deal Health Score para o lead
-      parameters:
-        - { name: leadId, in: path, required: true, schema: { type: string } }
-      responses:
-        '201': { description: Criado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/coaching:
-    get:
-      tags: [Copiloto IA]
-      summary: Avaliação de coaching (rubrica de qualidade da ligação/reunião) da conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/conversations/{id}/handoff:
-    get:
-      tags: [Copiloto IA]
-      summary: Resumo de handoff (repasse entre vendedores/times) gerado a partir da conversa
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/bitrix-field-mappings:
-    get:
-      tags: [Copiloto IA]
-      summary: Lista o mapeamento de campos do Copiloto IA para custom fields do Bitrix (ADMIN/GESTOR)
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-    post:
-      tags: [Copiloto IA]
-      summary: Cria/atualiza um mapeamento de campo do Copiloto IA para um custom field do Bitrix (ADMIN/GESTOR)
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/leads/{leadId}/whatsapp-response-time:
-    get:
-      tags: [Copiloto IA]
-      summary: SLA/tempo de resposta no WhatsApp para o lead (Onda 7)
-      parameters:
-        - { name: leadId, in: path, required: true, schema: { type: string } }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-
-  /copiloto-ia/bitrix-field-mappings/{id}:
-    delete:
-      tags: [Copiloto IA]
-      summary: Remove um mapeamento de campo do Copiloto IA para o Bitrix (ADMIN/GESTOR)
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
 

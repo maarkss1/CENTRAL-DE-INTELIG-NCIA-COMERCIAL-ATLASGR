@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { QualificationMatrixUseCases } from '../application/QualificationMatrixUseCases';
 import type { AuthRequest } from '../../../../shared/middlewares/authenticateToken';
+import { routeParam } from '../../../../shared/http/routeParams';
 
 export class QualificationMatrixController {
   constructor(private useCases: QualificationMatrixUseCases) {}
@@ -31,7 +32,7 @@ export class QualificationMatrixController {
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const item = await this.useCases.updateItem(orgId, req.params.id, req.body);
+      const item = await this.useCases.updateItem(orgId, routeParam(req.params.id, 'id'), req.body);
       res.json({ success: true, data: item });
     } catch (error) {
       next(error);
@@ -41,7 +42,7 @@ export class QualificationMatrixController {
   remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      await this.useCases.deleteItem(orgId, req.params.id);
+      await this.useCases.deleteItem(orgId, routeParam(req.params.id, 'id'));
       res.status(204).send();
     } catch (error) {
       next(error);

@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { z } from 'zod';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { prisma } from '../../../lib/prisma.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 import {
   callLead,
   BirthVoiceNotConfiguredError,
@@ -55,7 +56,11 @@ router.post(
     try {
       const { organizationId } = (req as AuthRequest).user;
       const agentType = req.body.agentType || 'sdr';
-      const result = await callLead(organizationId, req.params.leadId, agentType);
+      const result = await callLead(
+        organizationId,
+        routeParam(req.params.leadId, 'leadId'),
+        agentType,
+      );
       res.status(202).json({ success: true, data: result });
     } catch (error) {
       // Mesmo status/formato usado em intelligence.routes.ts para o mesmo erro — ver

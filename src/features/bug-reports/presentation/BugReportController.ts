@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { BugReportUseCases } from '../application/BugReportUseCases.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 
 export class BugReportController {
   constructor(private bugReportUseCases: BugReportUseCases) {}
@@ -70,7 +71,7 @@ export class BugReportController {
 
       const updated = await this.bugReportUseCases.updateBugReportStatus(
         organizationId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         status,
       );
       res.json({ success: true, data: updated });

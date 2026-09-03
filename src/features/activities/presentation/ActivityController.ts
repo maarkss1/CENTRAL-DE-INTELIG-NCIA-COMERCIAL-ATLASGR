@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { ActivityUseCases } from '../application/ActivityUseCases';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import type { ActivityStatus, ActivityType } from '../../../lib/zod';
+import { routeParam } from '../../../shared/http/routeParams';
 
 export class ActivityController {
   constructor(private activityUseCases: ActivityUseCases) {}
@@ -57,7 +58,11 @@ export class ActivityController {
   updateActivity = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const activity = await this.activityUseCases.updateActivity(orgId, req.params.id, req.body);
+      const activity = await this.activityUseCases.updateActivity(
+        orgId,
+        routeParam(req.params.id, 'id'),
+        req.body,
+      );
       res.json({ success: true, data: activity });
     } catch (error) {
       next(error);
@@ -67,7 +72,7 @@ export class ActivityController {
   deleteActivity = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      await this.activityUseCases.deleteActivity(orgId, req.params.id);
+      await this.activityUseCases.deleteActivity(orgId, routeParam(req.params.id, 'id'));
       res.status(204).send();
     } catch (error) {
       next(error);
@@ -80,7 +85,7 @@ export class ActivityController {
       const { duration } = req.body as { duration: '2h' | 'tomorrow' | 'next_week' };
       const activity = await this.activityUseCases.snoozeActivity(
         orgId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         duration || 'tomorrow',
       );
       res.json({ success: true, data: activity });
