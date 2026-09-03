@@ -6,6 +6,8 @@ import {
   buildObservations,
   pickCallablePhone,
   detectOptOut,
+  detectRecordingConsent,
+  detectRecordingConsentFromRawTranscript,
   classifyCallOutcome,
   callResultedInConversation,
 } from '../birthVoice.helpers';
@@ -233,6 +235,101 @@ describe('callResultedInConversation', () => {
     expect(callResultedInConversation('invalid-number')).toBe(false);
     expect(callResultedInConversation('timeout')).toBe(false);
     expect(callResultedInConversation('unknown')).toBe(false);
+  });
+});
+
+describe('detectRecordingConsent', () => {
+  it('concede quando a IA fez a divulgação obrigatória e o lead não recusou', () => {
+    const result = detectRecordingConsent({
+      transcript: [
+        {
+          role: 'assistant',
+          content:
+            'Oi! Aqui é a Gessica, uma assistente de inteligência artificial da Atlas GR. Essa ligação pode ser gravada para fins de qualidade e treinamento, tudo bem?',
+        },
+        { role: 'user', content: 'Pode sim, pode falar.' },
+      ],
+    });
+
+    expect(result.status).toBe('GRANTED');
+  });
+
+  it('fica PENDING quando a divulgação da IA não aparece na transcrição (nunca fabrica concessão por omissão)', () => {
+    const result = detectRecordingConsent({
+      transcript: [
+        { role: 'assistant', content: 'Oi, tudo bem? Posso falar rapidinho sobre a Atlas GR?' },
+        { role: 'user', content: 'Pode sim.' },
+      ],
+    });
+
+    expect(result.status).toBe('PENDING');
+  });
+
+  it('recusa quando o lead pede explicitamente para não ser gravado, mesmo após a divulgação', () => {
+    const result = detectRecordingConsent({
+      transcript: [
+        {
+          role: 'assistant',
+          content:
+            'Aqui é a Gessica, uma assistente de inteligência artificial da Atlas GR. Essa ligação pode ser gravada, tudo bem?',
+        },
+        { role: 'user', content: 'Não, eu não quero ser gravado, pode desligar.' },
+      ],
+    });
+
+    expect(result.status).toBe('DECLINED');
+    expect(result.evidence).toBe('nao quero ser gravado');
+  });
+
+  it('recusa mesmo sem a divulgação prévia ter sido detectada — recusar já basta', () => {
+    const result = detectRecordingConsent({
+      transcript: [{ role: 'user', content: 'Para de gravar essa ligação agora.' }],
+    });
+
+    expect(result.status).toBe('DECLINED');
+  });
+
+  it('só examina a fala da IA para a divulgação e a do lead para a recusa (mesmo raciocínio de detectOptOut)', () => {
+    // A IA "ecoa" a frase de recusa ao confirmar o pedido — não pode contar como se o LEAD tivesse
+    // recusado, senão toda ligação em que o assunto aparece seria classificada como recusa.
+    const result = detectRecordingConsent({
+      transcript: [
+        {
+          role: 'assistant',
+          content:
+            'Aqui é a Gessica, uma assistente de inteligência artificial da Atlas GR. Essa ligação pode ser gravada, tudo bem? Ah, entendi, não quero ser gravado nenhum problema.',
+        },
+        { role: 'user', content: 'Isso, pode seguir.' },
+      ],
+    });
+
+    expect(result.status).toBe('GRANTED');
+  });
+
+  it('não quebra numa ligação sem transcrição', () => {
+    expect(detectRecordingConsent({}).status).toBe('PENDING');
+  });
+});
+
+describe('detectRecordingConsentFromRawTranscript', () => {
+  it('concede quando o texto bruto contém as duas divulgações e nenhuma recusa', () => {
+    const result = detectRecordingConsentFromRawTranscript(
+      'Oi, aqui é a Gessica, uma assistente de inteligência artificial da Atlas GR. Essa ligação pode ser gravada para fins de qualidade e treinamento. Cliente: pode falar.',
+    );
+    expect(result.status).toBe('GRANTED');
+  });
+
+  it('fica PENDING sem as duas divulgações no texto', () => {
+    expect(detectRecordingConsentFromRawTranscript('Oi, tudo bem? Vamos conversar.').status).toBe(
+      'PENDING',
+    );
+  });
+
+  it('recusa quando o texto bruto contém uma frase de recusa, mesmo sem separação por locutor', () => {
+    const result = detectRecordingConsentFromRawTranscript(
+      'Aqui é a Gessica, assistente de inteligência artificial da Atlas GR, pode ser gravada. Não autorizo a gravação, desligue.',
+    );
+    expect(result.status).toBe('DECLINED');
   });
 });
 

@@ -12,6 +12,14 @@ Este arquivo governa esta pasta e todas as subpastas.
 - Não criar/editar migration.
 - Não armazenar segredo em localStorage.
 - Não afirmar sucesso sem confirmação.
+- Não remover a "ABERTURA OBRIGATÓRIA" do roteiro de voz (`birth-voice/atlasProductPlaybook.ts`) —
+  é a divulgação de que a Gessica é uma IA e de que a ligação pode ser gravada, base do
+  consentimento detectado por `detectRecordingConsent`/`detectRecordingConsentFromRawTranscript`
+  (`birthVoice.helpers.ts`) e consumido pela ponte para o Copiloto Comercial IA (Onda 7, item 2 —
+  `src/shared/contracts/copilotoVoiceIngestion.contract.ts`, implementada em
+  `copiloto-ia/infra/CopilotoVoiceIngestionAdapter.ts`). Sem essa abertura, toda ligação cai em
+  consentimento `PENDING` e o conteúdo nunca é processado pelo Copiloto — decisão estrutural, não
+  bug.
 
 ## Coordenação
 - Schema -> 01. Navegação -> 02. IA -> 07. Deploy -> 08.

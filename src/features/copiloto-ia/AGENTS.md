@@ -15,9 +15,12 @@ signals + Deal Health Score por oportunidade (Onda 5), e ajuste de forecast comp
 avaliação de coaching por rubrica + risco de churn + handoff agregado (Onda 6), e SLA/tempo de
 resposta no WhatsApp (Onda 7, item 1 — `application/whatsappResponseTime.ts`: função pura e
 determinística sobre `WhatsAppMessage` já persistida pelo Baileys, sem IA; não envia nem altera
-mensagem nenhuma). Onda 7 ainda tem a ponte ligações (birth-voice/Bland AI) → Copiloto pendente; a
-migração para WhatsApp Business Platform oficial foi discutida mas não autorizada para implementação
-ainda. NÃO substitui `ConversationSignal`
+mensagem nenhuma), e a ponte ligações (birth-voice/Bland AI) → Copiloto (Onda 7, item 2 —
+`infra/CopilotoVoiceIngestionAdapter.ts`, implementa `CopilotoVoiceIngestionPort`
+(`src/shared/contracts/copilotoVoiceIngestion.contract.ts`), espelhando o mesmo pipeline de
+`jobs/transcribeConversation.worker.ts` sem duplicar suas funções). A migração para WhatsApp
+Business Platform oficial foi discutida mas não autorizada para implementação ainda. NÃO substitui
+`ConversationSignal`
 (`src/features/intelligence`), que lê janelas de `WhatsAppMessage`/e-mail já persistidas sem
 transcrição bruta nem consentimento de gravação — são modelos complementares.
 
@@ -42,6 +45,18 @@ adapter/serviço concreto e injetar) acontece só em `src/shared/di/setup.ts` (r
 importar as duas features ao mesmo tempo. Sempre rode `npm run test:architecture` (não só
 `npm run lint`) antes de considerar uma mudança pronta — lint sozinho não pega esse tipo de
 violação.
+
+Onda 7 item 2 inverteu a direção: `src/features/integrations/birth-voice/` (dono do resultado real
+da ligação) empurra dado PARA este módulo via `CopilotoVoiceIngestionPort`
+(`src/shared/contracts/copilotoVoiceIngestion.contract.ts`), implementada por
+`infra/CopilotoVoiceIngestionAdapter.ts` e registrada em `src/shared/di/setup.ts` — mesmo padrão de
+porta+adapter+composition-root, só que com `birth-voice` do lado consumidor desta vez. O
+consentimento de gravação (LGPD) é decidido do lado de `birth-voice`
+(`detectRecordingConsent`/`detectRecordingConsentFromRawTranscript` em `birthVoice.helpers.ts`,
+sobre a divulgação obrigatória no roteiro de voz — ver `integrations/AGENTS.md`) e entra nesta
+porta já classificado (`GRANTED`/`DECLINED`/`PENDING`) — este módulo só honra o resultado
+(`CopilotoVoiceIngestionAdapter`: `GRANTED` roda o pipeline completo, `DECLINED` cancela sem
+processar conteúdo, `PENDING` não fabrica consentimento e não processa nada).
 
 ## Pode alterar
 - domínio/regras/persistência deste módulo (`domain/`, `application/`, `infra/`, `presentation/`,
