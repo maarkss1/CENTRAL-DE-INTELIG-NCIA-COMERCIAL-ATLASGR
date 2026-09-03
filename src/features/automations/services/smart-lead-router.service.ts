@@ -1,4 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { z } from 'zod';
 import { cleanAndParseJson, getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { logger } from '../../../lib/logger.js';
 
@@ -26,6 +27,21 @@ export interface LeadRoutingMatch {
   matchRationale: string;
   fallbackRepId?: string;
 }
+
+// Achado da auditoria (PR #328, item fora de escopo original): o LLM devolvia `recommendedRepId`
+// como texto livre, sem garantia nenhuma de que correspondesse a um vendedor real da lista
+// `availableReps` enviada no prompt — um JSON sintaticamente válido com um id inventado passava
+// direto para quem consome este resultado (ex.: gravar `Lead.owner`). O schema abaixo valida o
+// SHAPE da resposta (nunca confiar que o LLM respeitou o formato pedido no prompt); a checagem de
+// pertencimento a `availableReps` (não expressável em Zod, depende do input da chamada) acontece
+// logo depois, em `matchLeadToRep`.
+const leadRoutingMatchSchema = z.object({
+  recommendedRepId: z.string().min(1),
+  recommendedRepName: z.string().min(1),
+  matchScore: z.number().min(0).max(100),
+  matchRationale: z.string().min(1),
+  fallbackRepId: z.string().optional(),
+});
 
 export class SmartLeadRouterService {
   async matchLeadToRep(
@@ -69,20 +85,32 @@ Retorne SEMPRE e APENAS um JSON válido no formato:
         promptId: 'smart-lead-routing',
       });
 
-      return cleanAndParseJson<LeadRoutingMatch>(response.content);
+      const parsed = leadRoutingMatchSchema.parse(cleanAndParseJson<unknown>(response.content));
+
+      const isEligible = availableReps.some((rep) => rep.repId === parsed.recommendedRepId);
+      if (!isEligible) {
+        logger.warn(
+          { recommendedRepId: parsed.recommendedRepId, leadId: lead.leadId },
+          '[smart-lead-router] LLM sugeriu vendedor fora da lista de disponíveis — usando fallback por winRate.',
+        );
+        return this.fallbackByWinRate(availableReps);
+      }
+
+      return parsed;
     } catch (error) {
       logger.error({ err: error }, 'Erro no roteamento inteligente de lead');
-      // Fallback: seleciona o vendedor com maior winRate
-      const sortedByWinRate = [...availableReps].sort(
-        (a, b) => b.winRatePercent - a.winRatePercent,
-      );
-      const best = sortedByWinRate[0];
-      return {
-        recommendedRepId: best.repId,
-        recommendedRepName: best.name,
-        matchScore: 80,
-        matchRationale: 'Selecionado por critério de melhor taxa de conversão histórica.',
-      };
+      return this.fallbackByWinRate(availableReps);
     }
+  }
+
+  private fallbackByWinRate(availableReps: RepProfile[]): LeadRoutingMatch {
+    const sortedByWinRate = [...availableReps].sort((a, b) => b.winRatePercent - a.winRatePercent);
+    const best = sortedByWinRate[0];
+    return {
+      recommendedRepId: best.repId,
+      recommendedRepName: best.name,
+      matchScore: 80,
+      matchRationale: 'Selecionado por critério de melhor taxa de conversão histórica.',
+    };
   }
 }

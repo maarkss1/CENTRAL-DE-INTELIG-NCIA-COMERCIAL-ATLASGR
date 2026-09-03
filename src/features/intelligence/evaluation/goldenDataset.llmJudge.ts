@@ -1,8 +1,26 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { z } from 'zod';
 import { cleanAndParseJson, getAiModel } from '../../../lib/ai/gateway.js';
 import type { GoldenSemanticJudge, SemanticJudgeResult } from './goldenDataset.scoring.js';
 
 const clamp01 = (value: unknown): number => Math.max(0, Math.min(1, Number(value) || 0));
+
+// Achado da auditoria (PR #328, item fora de escopo original): `clamp01`/`String()` já degradavam
+// com segurança campo a campo, mas isso presumia que `raw` fosse sempre um objeto — uma resposta
+// que fosse JSON válido porém não-objeto (ex.: `null`, um array, um número) fazia `raw.semanticScore`
+// lançar ou se comportar de forma imprevisível antes de chegar no clamp. `.catch({})` preserva
+// exatamente a filosofia já documentada na classe (nunca deixar o juiz virar um PASS/crash
+// silencioso) — só formaliza "shape inesperado" como um caso tratado, não uma exceção não pega.
+const semanticJudgeRawSchema = z
+  .object({
+    semanticScore: z.unknown(),
+    factualityScore: z.unknown(),
+    playbookAdherenceScore: z.unknown(),
+    hallucinationRisk: z.unknown(),
+    rationale: z.unknown(),
+  })
+  .partial()
+  .catch({});
 
 /**
  * Juiz semântico opcional. O scorer determinístico continua obrigatório mesmo quando este juiz é
@@ -32,7 +50,7 @@ export class GatewayGoldenSemanticJudge implements GoldenSemanticJudge {
       ),
     ]);
 
-    const raw = cleanAndParseJson<Record<string, unknown>>(response.content);
+    const raw = semanticJudgeRawSchema.parse(cleanAndParseJson<unknown>(response.content));
     return {
       semanticScore: clamp01(raw.semanticScore),
       factualityScore: clamp01(raw.factualityScore),
