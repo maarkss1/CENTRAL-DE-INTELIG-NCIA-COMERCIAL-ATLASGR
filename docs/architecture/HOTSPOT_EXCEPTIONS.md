@@ -57,9 +57,9 @@ propósito por estar fora de "## Exceções ativas"):
 
 ### `src/features/commercial-intelligence/components/JoaoReisDiagnosticHub.tsx`
 
-- **Limite excepcional:** 1700 linhas
+- **Limite excepcional:** 1800 linhas
 - **Dono:** Agente 04 — CRM e BI / Agente 02 — Produto e UX
-- **Motivo:** painel analítico complexo de diagnóstico comercial executivo, combinando visualizações ECharts, formulários de auditoria e cálculo de scores. Limite elevado de 1300 para 1700 em 2026-09-02 (PR #329) sem nenhuma linha de código nova: o arquivo estava fora do padrão do `biome format` (gate `format:check` do CI) e a formatação obrigatória o levou de 1154 para 1661 linhas — crescimento de formatação, não de lógica; a modularização continua devida.
+- **Motivo:** painel analítico complexo de diagnóstico comercial executivo, combinando visualizações ECharts, formulários de auditoria e cálculo de scores. Limite elevado de 1300 para 1700 em 2026-09-02 (PR #329) sem nenhuma linha de código nova (crescimento de formatação, `biome format`). Elevado de novo para 1800 em 2026-09-03: o arquivo cresceu de 1661 para 1743 linhas ao extrair 6 componentes locais (KpiStat, FunnelBars, ChannelDonut, CompareBar, DeltaPill, DealsGrid) para primitivos compartilhados em `src/components/ui/` — desta vez crescimento real (não reflow), mas na direção certa (menos duplicação, vocabulário reutilizável para outras telas) — ver `.claude/PILOTS.md`, Pilot 028. A modularização (dividir o próprio hub em sub-componentes de tela) continua devida; headroom dado para não bloquear o gate enquanto isso não acontece.
 - **Registrado em:** 2026-09-01
 - **Reavaliar até:** 2026-11-30
 
