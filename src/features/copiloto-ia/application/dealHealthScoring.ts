@@ -74,3 +74,66 @@ export function computeDealHealthScore(input: DealHealthScoreInput): DealHealthS
     factors: { sentimentBase, objectionPenalty, buyingSignalBonus, competitorPenalty },
   };
 }
+
+// ─── Customer Success / Churn (Onda 6) ─────────────────────────────────────
+// Mesmo princípio do Deal Health Score acima — score determinístico e documentado sobre sinais já
+// extraídos por IA (`conversationIntelligence.service.ts`), não "a IA decide o risco". Conceito
+// DISTINTO de Deal Health: aqui é sobre risco de insatisfação/perda de um cliente já fechado
+// (pós-venda), não sobre a chance de fechar uma oportunidade em aberto.
+
+export interface ChurnRiskScoreInput {
+  sentimentScore: SentimentScore | null;
+  complaintsCount: number;
+  /** Reclamações de severidade "alta" pesam mais que a contagem simples — contadas à parte. */
+  highSeverityComplaintsCount: number;
+  blockersCount: number;
+}
+
+export interface ChurnRiskScoreFactors {
+  sentimentBase: number;
+  complaintPenalty: number;
+  highSeverityComplaintPenalty: number;
+  blockerPenalty: number;
+}
+
+export interface ChurnRiskScoreResult {
+  score: number;
+  factors: ChurnRiskScoreFactors;
+}
+
+/** -6 por reclamação, teto -20. */
+const COMPLAINT_PENALTY_PER_ITEM = 6;
+const COMPLAINT_PENALTY_CAP = 20;
+
+/** -12 adicionais por reclamação de severidade alta (empilha com a penalidade geral acima), teto
+ * -30 — uma única reclamação grave já deve puxar o score bastante pra baixo. */
+const HIGH_SEVERITY_COMPLAINT_PENALTY_PER_ITEM = 12;
+const HIGH_SEVERITY_COMPLAINT_PENALTY_CAP = 30;
+
+/** -10 por bloqueio identificado (algo impedindo o cliente de usar/avançar), teto -25. */
+const BLOCKER_PENALTY_PER_ITEM = 10;
+const BLOCKER_PENALTY_CAP = 25;
+
+export function computeChurnRiskScore(input: ChurnRiskScoreInput): ChurnRiskScoreResult {
+  const sentimentBase = input.sentimentScore ? SENTIMENT_BASE[input.sentimentScore] : 50;
+  const complaintPenalty = Math.min(
+    COMPLAINT_PENALTY_CAP,
+    Math.max(0, input.complaintsCount) * COMPLAINT_PENALTY_PER_ITEM,
+  );
+  const highSeverityComplaintPenalty = Math.min(
+    HIGH_SEVERITY_COMPLAINT_PENALTY_CAP,
+    Math.max(0, input.highSeverityComplaintsCount) * HIGH_SEVERITY_COMPLAINT_PENALTY_PER_ITEM,
+  );
+  const blockerPenalty = Math.min(
+    BLOCKER_PENALTY_CAP,
+    Math.max(0, input.blockersCount) * BLOCKER_PENALTY_PER_ITEM,
+  );
+
+  const rawScore = sentimentBase - complaintPenalty - highSeverityComplaintPenalty - blockerPenalty;
+  const score = Math.round(Math.max(0, Math.min(100, rawScore)));
+
+  return {
+    score,
+    factors: { sentimentBase, complaintPenalty, highSeverityComplaintPenalty, blockerPenalty },
+  };
+}

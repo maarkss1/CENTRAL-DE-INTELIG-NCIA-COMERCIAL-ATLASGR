@@ -7,22 +7,26 @@ Quem implementa cada onda seguinte do pacote `atlasgr_copiloto_ai_pack` (ver
 especificação original — agentes, prompts e roadmap por onda).
 
 ## O que é
-Módulo do Copiloto Comercial IA (pacote `atlasgr_copiloto_ai_pack`), já cobrindo as Ondas 1-5 do
+Módulo do Copiloto Comercial IA (pacote `atlasgr_copiloto_ai_pack`), já cobrindo as Ondas 1-6 do
 roadmap: fundação de dados/RBAC (Onda 1), captura real de áudio via extensão Chrome (Onda 2),
 transcrição via Whisper + resumo executivo (Onda 3), mapeamento configurável de campo + writeback
-real no Bitrix24 para `entityType: LEAD` (Onda 4), e extração de objeções/concorrentes/buying
-signals + Deal Health Score por oportunidade (Onda 5). Onda 6 em diante (forecast/coaching/churn/
-handoff formais, WhatsApp) ainda não existe. NÃO substitui `ConversationSignal`
+real no Bitrix24 para `entityType: LEAD` (Onda 4), extração de objeções/concorrentes/buying
+signals + Deal Health Score por oportunidade (Onda 5), e ajuste de forecast complementar ao CRM +
+avaliação de coaching por rubrica + risco de churn + handoff agregado (Onda 6). Onda 7 (WhatsApp,
+ligações, calendário) ainda não existe. NÃO substitui `ConversationSignal`
 (`src/features/intelligence`), que lê janelas de `WhatsAppMessage`/e-mail já persistidas sem
 transcrição bruta nem consentimento de gravação — são modelos complementares.
 
-**Deal Health Score (Onda 5)**: `application/dealHealthScoring.ts` é uma fórmula DETERMINÍSTICA
-(sentimento da síntese + contagem de objeções não resolvidas/buying signals/menções a concorrente,
-pesos e tetos documentados no próprio arquivo) — só a EXTRAÇÃO dos sinais brutos usa IA
-(`infra/conversationIntelligence.service.ts`), nunca o score em si. Não confundir com
-`commercial-intelligence/application/healthScore.ts` (cobertura de pipeline/qualidade de dado do
-funil inteiro) — são conceitos e granularidades diferentes (por oportunidade individual vs.
-portfólio), calculados de formas completamente distintas.
+**Scores determinísticos (Ondas 5-6)**: `application/dealHealthScoring.ts`
+(`computeDealHealthScore`/`computeChurnRiskScore`) e `application/forecastAdjustment.ts`
+(`computeAiProbabilityAdjustment`) são fórmulas DETERMINÍSTICAS e documentadas — só a EXTRAÇÃO dos
+sinais brutos usa IA (`infra/conversationIntelligence.service.ts`,
+`infra/coachingEvaluation.service.ts`), nunca o score/probabilidade em si ("a IA decide o número"
+é o erro que este módulo evita de propósito em toda onda). `dealHealthScoring.ts`/
+`forecastAdjustment.ts` NÃO confundir com `commercial-intelligence/application/healthScore.ts`/
+`forecastEngine.ts` (cobertura/forecast do PORTFÓLIO inteiro) — são conceitos e granularidades
+diferentes (por oportunidade individual, informado pelo conteúdo real de UMA conversa), calculados
+de formas completamente distintas e nunca substituem a leitura oficial do CRM (`Lead.probability`).
 
 **Composição com outras features**: este módulo depende de Bitrix (writeback) e chatbook (resumo
 de reunião) só através de PORTAS em `src/shared/contracts/` (`bitrixWriteback.contract.ts`,

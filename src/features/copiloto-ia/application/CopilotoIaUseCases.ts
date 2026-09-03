@@ -30,6 +30,9 @@ import type {
   CopilotoConsentRecordDTO,
   CompleteAudioUploadInput,
   ConversationStateDTO,
+  CreateCoachingEvaluationInput,
+  CopilotoCoachingEvaluationDTO,
+  HandoffSummaryDTO,
 } from '../domain/CopilotoIa';
 
 /** Únicas fontes que não gravam áudio/vídeo — dispensam consentimento explícito de gravação. */
@@ -335,5 +338,72 @@ export class CopilotoIaUseCases {
     leadId: string,
   ): Promise<CopilotoDealHealthSnapshotDTO[]> {
     return this.repository.listDealHealthSnapshots(organizationId, leadId);
+  }
+
+  // ─── Onda 6 — Coaching ────────────────────────────────────────────────
+
+  async recordCoachingEvaluation(
+    organizationId: string,
+    conversationId: string,
+    input: CreateCoachingEvaluationInput,
+  ): Promise<CopilotoCoachingEvaluationDTO> {
+    await this.requireState(organizationId, conversationId);
+    if (!Number.isInteger(input.overallScore) || input.overallScore < 0 || input.overallScore > 100) {
+      throw new AppError('overallScore precisa ser um inteiro entre 0 e 100.', 400);
+    }
+    return this.repository.createCoachingEvaluation(organizationId, conversationId, input);
+  }
+
+  async getCoachingEvaluation(
+    organizationId: string,
+    conversationId: string,
+  ): Promise<CopilotoCoachingEvaluationDTO | null> {
+    return this.repository.getCoachingEvaluationByConversation(organizationId, conversationId);
+  }
+
+  // ─── Onda 6 — Handoff ─────────────────────────────────────────────────
+  // Só agrega o que já existe (resumo + insights + Deal Health + coaching) — nenhuma chamada de
+  // IA nova. "isComplete"/"missingParts" tornam "handoff incompleto" (AGENT_12 do pacote) um fato
+  // checável, não uma impressão subjetiva de quem está lendo.
+
+  async getHandoffSummary(organizationId: string, conversationId: string): Promise<HandoffSummaryDTO> {
+    const conversation = await this.getConversation(organizationId, conversationId);
+
+    const byType = (type: string) => conversation.insights.filter((insight) => insight.type === type);
+    const summaryInsight = byType('resumo')[0] ?? null;
+
+    const latestDealHealth = conversation.leadId
+      ? await this.repository.latestDealHealthSnapshot(organizationId, conversation.leadId)
+      : null;
+    const coachingEvaluation = await this.repository.getCoachingEvaluationByConversation(
+      organizationId,
+      conversationId,
+    );
+
+    const missingParts: string[] = [];
+    if (conversation.status !== 'READY') {
+      missingParts.push('Transcrição/processamento ainda não concluído.');
+    }
+    if (!summaryInsight) {
+      missingParts.push('Resumo executivo ainda não gerado.');
+    }
+    if (conversation.leadId && !latestDealHealth) {
+      missingParts.push('Deal Health Score ainda não calculado para o Lead vinculado.');
+    }
+
+    return {
+      conversation,
+      summary: summaryInsight?.valueJson ?? null,
+      objections: byType('objecao'),
+      competitors: byType('concorrente'),
+      buyingSignals: byType('buying_signal'),
+      complaints: byType('reclamacao'),
+      promises: byType('promessa'),
+      blockers: byType('bloqueio'),
+      latestDealHealth,
+      coachingEvaluation,
+      isComplete: missingParts.length === 0,
+      missingParts,
+    };
   }
 }
