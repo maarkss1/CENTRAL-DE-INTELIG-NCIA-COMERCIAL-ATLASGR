@@ -79,6 +79,7 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
         title: true,
         audioObjectKey: true,
         audioMimeType: true,
+        leadId: true,
       },
     });
   }

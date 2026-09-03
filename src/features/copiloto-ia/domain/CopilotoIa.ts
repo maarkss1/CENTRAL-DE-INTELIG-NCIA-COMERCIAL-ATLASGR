@@ -200,6 +200,8 @@ export interface ConversationStateDTO {
   title: string | null;
   audioObjectKey: string | null;
   audioMimeType: string | null;
+  /** Onda 5: sem Lead vinculado, não há "oportunidade" pra calcular Deal Health Score sobre. */
+  leadId: string | null;
 }
 
 export interface CopilotoIaRepository {
