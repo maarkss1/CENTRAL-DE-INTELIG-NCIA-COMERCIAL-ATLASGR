@@ -229,10 +229,7 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                       </span>
                       {rule.source === 'deal' ? pipelineName(rule.categoryId) : 'Todos os leads'}
                       {stageName(rule) && (
-                        <span className="font-normal text-ink-2">
-                          {' '}
-                          · {stageName(rule)}
-                        </span>
+                        <span className="font-normal text-ink-2"> · {stageName(rule)}</span>
                       )}
                       {rule.assignedById && (
                         <span className="font-normal text-ink-2">

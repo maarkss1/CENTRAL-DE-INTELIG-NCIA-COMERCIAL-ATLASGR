@@ -467,9 +467,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
             <p className="text-xs text-ink-2">
               Filtre por vendedor, etapa e oportunidade. Importe com 1 clique.{' '}
               {total > 0 && (
-                <strong className="text-ink font-bold">
-                  {total} registro(s) no portal.
-                </strong>
+                <strong className="text-ink font-bold">{total} registro(s) no portal.</strong>
               )}
             </p>
           </div>
@@ -573,13 +571,13 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
             <button
               onClick={() => setQuickFilter('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${quickFilter === 'all' ? 'bg-ink text-surface shadow-sm' :'bg-surface-2 text-ink-2 hover:text-ink'}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${quickFilter === 'all' ? 'bg-ink text-surface shadow-sm' : 'bg-surface-2 text-ink-2 hover:text-ink'}`}
             >
               Todos ({mode === 'deals' ? deals.length : leads.length})
             </button>
             <button
               onClick={() => setQuickFilter('unimported')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${quickFilter === 'unimported' ? 'bg-brand-active text-white shadow-sm shadow-brand-active/20' :'bg-surface-2 text-ink-2 hover:text-ink'}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${quickFilter === 'unimported' ? 'bg-brand-active text-white shadow-sm shadow-brand-active/20' : 'bg-surface-2 text-ink-2 hover:text-ink'}`}
             >
               Disponíveis para Importar
             </button>
@@ -844,9 +842,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-14 gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-brand" />
-          <p className="text-xs font-bold text-ink-2">
-            Carregando dados do Bitrix24...
-          </p>
+          <p className="text-xs font-bold text-ink-2">Carregando dados do Bitrix24...</p>
         </div>
       ) : (
         <div className="max-h-[34rem] overflow-y-auto space-y-3 pr-1">
@@ -882,9 +878,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                           <div className="w-8 h-8 rounded-xl bg-soft text-brand-active dark:text-brand-2 flex items-center justify-center shrink-0 font-bold text-xs">
                             <Building2 className="w-4 h-4" />
                           </div>
-                          <h4 className="font-bold text-ink text-sm truncate">
-                            {deal.title}
-                          </h4>
+                          <h4 className="font-bold text-ink text-sm truncate">{deal.title}</h4>
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-soft text-brand-active dark:text-brand-2 border border-brand/20 text-[10px] font-bold">
                             <Tag className="w-3 h-3" />
                             {deal.stageLabel}
@@ -973,9 +967,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                           <div className="w-8 h-8 rounded-xl bg-soft text-brand-active dark:text-brand-2 flex items-center justify-center shrink-0 font-bold text-xs">
                             <Users className="w-4 h-4" />
                           </div>
-                          <h4 className="font-bold text-ink text-sm truncate">
-                            {lead.title}
-                          </h4>
+                          <h4 className="font-bold text-ink text-sm truncate">{lead.title}</h4>
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-soft text-brand-active dark:text-brand-2 border border-brand/20 text-[10px] font-bold">
                             <Tag className="w-3 h-3" />
                             {lead.statusLabel}
@@ -1056,9 +1048,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
           {(mode === 'deals' ? processedDeals.length : processedLeads.length) === 0 && (
             <div className="p-10 text-center bg-surface-2 rounded-3xl border border-dashed border-line space-y-2">
               <Info className="w-8 h-8 text-ink-2 mx-auto" />
-              <p className="text-sm font-bold text-ink">
-                Nenhum registro encontrado
-              </p>
+              <p className="text-sm font-bold text-ink">Nenhum registro encontrado</p>
               <p className="text-xs text-ink-2">
                 Tente ajustar os filtros, mudar a busca ou selecionar outra aba.
               </p>
@@ -1146,10 +1136,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
 
             <div className="space-y-4">
               <div>
-                <span
-                  id="bulk-temperature-label"
-                  className="block text-xs font-bold text-ink mb-2"
-                >
+                <span id="bulk-temperature-label" className="block text-xs font-bold text-ink mb-2">
                   Temperatura Inicial do Lead no AtlasGR
                 </span>
                 <div

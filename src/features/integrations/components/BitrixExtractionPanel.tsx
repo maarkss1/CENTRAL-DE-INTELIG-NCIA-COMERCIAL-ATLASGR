@@ -475,9 +475,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
 
                 {(run.status === 'completed' || run.status === 'completed_partial') && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold text-ink">
-                      {run.totalCount} registro(s)
-                    </span>
+                    <span className="text-xs font-bold text-ink">{run.totalCount} registro(s)</span>
                     {csvFiles.map((f) => (
                       <button
                         key={f.filename}

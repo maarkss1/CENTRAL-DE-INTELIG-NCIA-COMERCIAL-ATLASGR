@@ -54,7 +54,9 @@ export function LeadCopilotoPanel({ leadId }: { leadId: string }) {
                 : `${conversationCount} conversa${conversationCount === 1 ? '' : 's'} capturada${conversationCount === 1 ? '' : 's'}`}
             </span>
             {latestScore != null && (
-              <Badge variant={latestScore >= 70 ? 'success' : latestScore >= 40 ? 'warning' : 'danger'}>
+              <Badge
+                variant={latestScore >= 70 ? 'success' : latestScore >= 40 ? 'warning' : 'danger'}
+              >
                 Deal Health {latestScore}/100
               </Badge>
             )}

@@ -65,8 +65,7 @@ const CAPABILITY_STYLES: Record<
   pending: {
     label: 'pendente de escopo',
     icon: Clock3,
-    className:
-      'bg-surface-2 text-ink-2 border-line',
+    className: 'bg-surface-2 text-ink-2 border-line',
   },
 };
 
