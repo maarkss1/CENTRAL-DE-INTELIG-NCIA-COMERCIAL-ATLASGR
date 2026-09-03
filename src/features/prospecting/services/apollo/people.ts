@@ -79,7 +79,12 @@ async function enrichPersonByNameUncached(
           reveal_personal_emails: true,
         }),
       },
-      { timeoutMs: 15_000, providerName: 'Apollo-PeopleMatch', billable: true, allowedHosts: ['api.apollo.io'] },
+      {
+        timeoutMs: 15_000,
+        providerName: 'Apollo-PeopleMatch',
+        billable: true,
+        allowedHosts: ['api.apollo.io'],
+      },
     );
 
     if (!res.ok) {
@@ -214,7 +219,12 @@ async function enrichOrganizationWithContactsUncached(
           page: 1,
         }),
       },
-      { timeoutMs: 15_000, providerName: 'Apollo-PeopleSearch', billable: true, allowedHosts: ['api.apollo.io'] },
+      {
+        timeoutMs: 15_000,
+        providerName: 'Apollo-PeopleSearch',
+        billable: true,
+        allowedHosts: ['api.apollo.io'],
+      },
     );
 
     if (!res.ok) {
