@@ -96,6 +96,20 @@ describe('ReportsHub', () => {
         expect(await screen.findByText('—')).toBeInTheDocument();
     });
 
+    it('exibe atividades atrasadas, perdidos no mês e score médio a partir da mesma resposta de overview', async () => {
+        render(<ReportsHub />);
+        expect(await screen.findByText('2')).toBeInTheDocument(); // Atrasadas
+        expect(screen.getByText('1')).toBeInTheDocument(); // Perdidos no Mês
+        expect(screen.getByText('70')).toBeInTheDocument(); // Score Médio
+    });
+
+    it('mostra "—" para o score médio quando a IA ainda não pontuou nenhum lead', async () => {
+        overviewMock.mockResolvedValue({ ...metricsFixture, averageScore: null });
+        render(<ReportsHub />);
+        const dashes = await screen.findAllByText('—');
+        expect(dashes).toHaveLength(2); // Valor em Pipeline + Score Médio
+    });
+
     it('mostra erro ao falhar o carregamento das métricas e desabilita o botão de gerar', async () => {
         overviewMock.mockRejectedValue(new Error('falhou'));
         render(<ReportsHub />);

@@ -10,6 +10,7 @@ import {
   MESA_TRATAMENTO_ROLES,
   COPILOTO_IA_ROLES,
 } from './lib/auth/authorization';
+import { EXECUTIVE_HUB_ALLOWED_EMAIL } from './config/access-policy';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -323,7 +324,7 @@ function AppLayout() {
           <Route
             path="social-selling"
             element={
-              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+              <RequireUserAllowed allowedEmails={[EXECUTIVE_HUB_ALLOWED_EMAIL]}>
                 <SocialSellingHub />
               </RequireUserAllowed>
             }
@@ -331,7 +332,7 @@ function AppLayout() {
           <Route
             path="treinamento-atlasgr"
             element={
-              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+              <RequireUserAllowed allowedEmails={[EXECUTIVE_HUB_ALLOWED_EMAIL]}>
                 <TreinamentoAtlasGRHub />
               </RequireUserAllowed>
             }
@@ -339,7 +340,7 @@ function AppLayout() {
           <Route
             path="proposta-comercial"
             element={
-              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+              <RequireUserAllowed allowedEmails={[EXECUTIVE_HUB_ALLOWED_EMAIL]}>
                 <PropostaComercialHub />
               </RequireUserAllowed>
             }
@@ -347,7 +348,7 @@ function AppLayout() {
           <Route
             path="hub-inteligencia-marketing"
             element={
-              <RequireUserAllowed allowedEmails={['marcelo.nascimento@atlasgr.com.br']}>
+              <RequireUserAllowed allowedEmails={[EXECUTIVE_HUB_ALLOWED_EMAIL]}>
                 <HubInteligenciaMarketingHub />
               </RequireUserAllowed>
             }

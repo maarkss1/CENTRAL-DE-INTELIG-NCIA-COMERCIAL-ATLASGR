@@ -33,3 +33,16 @@ export const LOSS_REASONS: LossReasonOption[] = [
   { id: '22340', label: 'Fechou com outra GR' },
   { id: '22386', label: 'Era influenciador. Passou contato do decisor' },
 ];
+
+/**
+ * Traduz o ID numérico do Bitrix (o que o `&lt;select&gt;` da Mesa de Tratamento envia,
+ * `CurrentLeadCard.tsx`) para o texto do motivo — o mesmo formato que a importação de leads do
+ * Bitrix já grava em `Lead.lossReason` (`applyInboundCustomFields`, resolve enum pra texto antes
+ * de persistir). Usado na escrita (`mesaTratamento.routes.ts`) pra todo consumidor a jusante
+ * (Win/Loss Analysis, `lossTaxonomy.ts`, sincronização de volta ao Bitrix) sempre ver o mesmo
+ * formato, não uma mistura de ID cru e texto. Se o ID não for reconhecido, devolve o próprio ID
+ * (nunca lança) — mais seguro que perder o dado por completo.
+ */
+export function resolveLossReasonLabel(id: string): string {
+  return LOSS_REASONS.find((r) => r.id === id)?.label ?? id;
+}
