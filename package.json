@@ -191,6 +191,14 @@
     },
     "openai": {
       "zod": "$zod"
+    },
+    "mysql2": "^3.22.0",
+    "qs": "^6.16.0",
+    "mammoth": {
+      "@xmldom/xmldom": "^0.8.15"
+    },
+    "@capacitor/cli": {
+      "@xmldom/xmldom": "^0.9.12"
     }
   },
   "devDependencies": {
