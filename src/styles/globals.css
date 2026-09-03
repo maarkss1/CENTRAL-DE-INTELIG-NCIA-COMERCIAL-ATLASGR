@@ -223,6 +223,16 @@
      `--color-danger` (#ef4444) já definido no bloco `@theme` (4.93:1 contra a superfície escura),
      em vez de inventar uma cor nova.*/
   --critical: #d03b3b;
+  /* --critical acima já foi calibrado pra passar 4.5:1 cru contra --surface sólida (comentário
+     acima) — mas isso não cobre o padrão de badge "soft" (bg-critical/15 text-critical, usado em
+     DealsGrid.tsx/CompareBar.tsx pro estágio "Perdido"/Δ negativo): a mistura de 15% de --critical
+     sobre --surface-2 mede só 3.48:1 no claro e 3.93:1 no escuro (calculado, mesma fórmula de
+     luminância relativa do WCAG) — abaixo do mínimo, porque --critical não tinha o par "-active"
+     que --ok/--warn já ganharam para exatamente este cenário. Mistura de sentido oposto por tema
+     (escurece no claro, clareia no escuro) porque a superfície de fundo muda de direção entre os
+     temas — mesmo raciocínio de --ok-active/--warn-active, só que --critical já era redefinido por
+     tema (ao contrário de --ok/--warn), então --critical-active também precisa ser. */
+  --critical-active: color-mix(in srgb, var(--critical) 55%, black);
   /* Mesmo problema do --critical acima, pros badges "soft" (bg-ok/15 text-ok, bg-info/15
      text-info — Team.tsx, QualificationMatrixPage.tsx, ColdCallStatusCard.tsx etc.): o texto
      saturado direto sobre --surface/--surface-2 claras cai abaixo de 4.5:1 (achado real do
@@ -278,6 +288,11 @@
   --shadow-nav-value: 12px 0 38px -24px rgba(0, 0, 0, 0.85);
   --shadow-nav-active-value: 0 12px 30px -15px color-mix(in srgb, var(--brand) 58%, black);
   --critical: #ef4444;
+  /* --critical claro escurece pro badge soft (ver comentário no :root); no escuro precisa do
+     sentido oposto — clarear em direção ao branco — porque #ef4444 puro sobre a mistura escura
+     (bg-critical/15 sobre --surface-2 escura) mede só 3.93:1. 20% de --critical + 80% de branco
+     mede 4.93:1 contra --surface-2 e 5.29:1 contra --surface, com folga sobre o mínimo AA. */
+  --critical-active: color-mix(in srgb, var(--critical) 20%, white);
   /* --color-ok/--color-info crus já passam 4.5:1 contra a superfície escura — ver comentário
      de --ok-active/--info-active no :root acima. */
   --ok-active: var(--color-ok);
@@ -339,6 +354,8 @@
   /* Estado crítico/risco reativo a tema (ver definição em --critical, :root/.dark acima) — nunca
      usar #d03b3b/#ef4444 cru num componente novo; usar text-critical/bg-critical/border-critical. */
   --color-critical: var(--critical);
+  /* Reativo a tema — ver --critical-active em :root/.dark acima. */
+  --color-critical-active: var(--critical-active);
   /* Versão escurecida de --brand pra texto branco em cima (ex.: item ativo da Sidebar) atingir
      4.5:1 de contraste (WCAG AA) — achado real do axe-core (tests/e2e/accessibility.spec.ts):
      branco sobre --brand puro dá só ~3.2:1 (AtlasGR) / ~3.9:1 (TotalTrac), abaixo do mínimo.
