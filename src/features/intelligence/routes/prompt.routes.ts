@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 import { listPrompts, createPrompt, updatePromptVariables } from '../services/prompt.service.js';
 
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
@@ -62,7 +63,7 @@ promptRoutes.put(
   validateRequest(updatePromptSchema),
   async (req, res, next) => {
     try {
-      const { id } = req.params;
+      const id = routeParam(req.params.id, 'id');
       const { variables } = req.body;
       const { organizationId } = (req as AuthRequest).user;
 

@@ -3,6 +3,7 @@ import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js'
 import { requireRole } from '../../shared/middlewares/requireRole.js';
 import { lgpdService } from './lgpd.service.js';
 import { AuditService } from '../../lib/audit/audit.service.js';
+import { routeParam } from '../../shared/http/routeParams.js';
 
 export const lgpdRouter = Router();
 
@@ -20,7 +21,7 @@ lgpdRouter.delete(
       // Um fallback para `x-organization-id` aqui permitiria que qualquer requisição forjasse
       // esse header e apagasse/anonimizasse dados de OUTRO tenant.
       const { organizationId, id: actorId } = (req as AuthRequest).user;
-      const { contactId } = req.params;
+      const contactId = routeParam(req.params.contactId, 'contactId');
       const result = await lgpdService.eraseContact(organizationId, contactId, actorId);
 
       // Registro explícito, além do UPDATE genérico de Contact que a extensão de auditoria do
@@ -56,7 +57,7 @@ lgpdRouter.get(
     (async () => {
       // Mesmo raciocínio da rota de exclusão acima: organizationId só do usuário autenticado.
       const { organizationId, id: actorId } = (req as AuthRequest).user;
-      const { contactId } = req.params;
+      const contactId = routeParam(req.params.contactId, 'contactId');
       const data = await lgpdService.exportContactData(organizationId, contactId);
 
       // Rota só de leitura — não passa pela extensão de auditoria do Prisma (que só cobre

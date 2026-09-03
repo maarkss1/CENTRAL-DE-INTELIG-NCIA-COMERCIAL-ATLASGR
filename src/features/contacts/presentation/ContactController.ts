@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { ContactUseCases } from '../application/ContactUseCases';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import { routeParam } from '../../../shared/http/routeParams';
 
 export class ContactController {
   constructor(private contactUseCases: ContactUseCases) {}
@@ -28,7 +29,10 @@ export class ContactController {
   getContactById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const contact = await this.contactUseCases.findContactById(orgId, req.params.id);
+      const contact = await this.contactUseCases.findContactById(
+        orgId,
+        routeParam(req.params.id, 'id'),
+      );
       if (!contact) {
         res.status(404).json({ success: false, error: 'Contact not found' });
         return;
@@ -52,7 +56,11 @@ export class ContactController {
   updateContact = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const contact = await this.contactUseCases.updateContact(orgId, req.params.id, req.body);
+      const contact = await this.contactUseCases.updateContact(
+        orgId,
+        routeParam(req.params.id, 'id'),
+        req.body,
+      );
       res.json({ success: true, data: contact });
     } catch (error) {
       next(error);
@@ -62,7 +70,7 @@ export class ContactController {
   deleteContact = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      await this.contactUseCases.deleteContact(orgId, req.params.id);
+      await this.contactUseCases.deleteContact(orgId, routeParam(req.params.id, 'id'));
       res.status(204).send();
     } catch (error) {
       next(error);
@@ -72,7 +80,10 @@ export class ContactController {
   enrichContact = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const result = await this.contactUseCases.enrichContact(orgId, req.params.id);
+      const result = await this.contactUseCases.enrichContact(
+        orgId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
