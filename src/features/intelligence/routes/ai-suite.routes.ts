@@ -112,6 +112,14 @@ aiSuiteRouter.post('/churn/predict', async (req: Request, res: Response, next: N
 });
 
 // #14 Smart Lead Router
+// Achado da auditoria (PR #328): SmartLeadRouterService.matchLeadToRep já valida (schema Zod +
+// checagem de pertencimento) que o vendedor sugerido pelo LLM está DENTRO de `reps` — mas `reps`
+// em si ainda vem cru do body do cliente, não é buscado no banco por `organizationId`. Corrigir
+// isso de verdade exige montar `RepProfile[]` a partir do banco (User CLOSER/SDR + winRate +
+// contagem de leads abertos por owner) — não existe hoje nenhum agregador pronto para isso
+// (confirmado: as peças soltas existem em assignment.service.ts/sellerPerformanceAggregator/
+// PrismaAnalyticsRepository, mas nenhuma monta a lista completa), então é um serviço novo, maior
+// que o escopo desta correção — documentado aqui para não ficar perdido.
 aiSuiteRouter.post(
   '/lead-router/match',
   async (req: Request, res: Response, next: NextFunction) => {
