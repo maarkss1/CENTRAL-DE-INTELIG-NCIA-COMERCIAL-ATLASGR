@@ -11,6 +11,9 @@ import type {
   ConversationStateDTO,
   CopilotoBitrixFieldMappingDTO,
   UpsertBitrixFieldMappingInput,
+  CopilotoInsightDTO,
+  CopilotoCoachingEvaluationDTO,
+  CopilotoDealHealthSnapshotDTO,
 } from '../../domain/CopilotoIa';
 
 const ORG_ID = 'org-1';
@@ -50,6 +53,7 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
   conversations = new Map<string, CopilotoConversationDTO>();
   transcriptSegmentIds = new Map<string, string[]>();
   suggestions = new Map<string, CopilotoCrmFieldSuggestionDTO>();
+  insightsByConversation = new Map<string, CopilotoInsightDTO[]>();
   /** Por padrão todo lead/company/contact "existe" — testes que querem o caminho negativo
    * populam este Set com ids que devem ser tratados como inexistentes na organização. */
   missingCrmEntityIds = new Set<string>();
@@ -95,8 +99,21 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
     };
   }
 
-  async getConversationById(): Promise<CopilotoConversationDetailDTO | null> {
-    throw new Error('not needed in these tests');
+  async getConversationById(
+    _organizationId: string,
+    id: string,
+  ): Promise<CopilotoConversationDetailDTO | null> {
+    const conversation = this.conversations.get(id);
+    if (!conversation) return null;
+    return {
+      ...conversation,
+      transcriptSegments: [],
+      insights: this.insightsByConversation.get(id) ?? [],
+      crmFieldSuggestions: Array.from(this.suggestions.values()).filter(
+        (suggestion) => suggestion.conversationId === id,
+      ),
+      consentRecords: [],
+    };
   }
 
   async listConversations(): Promise<CopilotoConversationDTO[]> {
@@ -215,9 +232,10 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
     _organizationId: string,
     conversationId: string,
     data: { type: string; valueJson: unknown; confidence?: number; evidenceSegmentIds?: string[] },
-  ) {
-    return {
-      id: 'insight-1',
+  ): Promise<CopilotoInsightDTO> {
+    const existing = this.insightsByConversation.get(conversationId) ?? [];
+    const insight: CopilotoInsightDTO = {
+      id: `insight-${conversationId}-${existing.length + 1}`,
       conversationId,
       type: data.type,
       valueJson: data.valueJson,
@@ -225,10 +243,12 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
       evidenceSegmentIds: data.evidenceSegmentIds ?? [],
       createdAt: new Date(),
     };
+    this.insightsByConversation.set(conversationId, [...existing, insight]);
+    return insight;
   }
 
-  async listInsights() {
-    return [];
+  async listInsights(_organizationId: string, conversationId: string): Promise<CopilotoInsightDTO[]> {
+    return this.insightsByConversation.get(conversationId) ?? [];
   }
 
   async createCrmFieldSuggestion(
@@ -286,21 +306,74 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
     return updated;
   }
 
+  dealHealthSnapshots: CopilotoDealHealthSnapshotDTO[] = [];
+
   async createDealHealthSnapshot(
     _organizationId: string,
-    data: { leadId: string; score: number; factorsJson: unknown },
-  ) {
-    return {
-      id: 'snap-1',
+    data: {
+      leadId: string;
+      score: number;
+      factorsJson: unknown;
+      forecastProbabilityAi?: number;
+      forecastReasons?: string[];
+      churnRiskScore?: number;
+      churnFactorsJson?: unknown;
+    },
+  ): Promise<CopilotoDealHealthSnapshotDTO> {
+    const snapshot: CopilotoDealHealthSnapshotDTO = {
+      id: `snap-${this.dealHealthSnapshots.length + 1}`,
       leadId: data.leadId,
       score: data.score,
       factorsJson: data.factorsJson,
+      forecastProbabilityAi: data.forecastProbabilityAi ?? null,
+      forecastReasons: data.forecastReasons ?? [],
+      churnRiskScore: data.churnRiskScore ?? null,
+      churnFactorsJson: data.churnFactorsJson ?? null,
       createdAt: new Date(),
     };
+    this.dealHealthSnapshots.push(snapshot);
+    return snapshot;
   }
 
   async listDealHealthSnapshots() {
-    return [];
+    return this.dealHealthSnapshots;
+  }
+
+  async getLeadProbability(): Promise<number | null> {
+    return null;
+  }
+
+  async latestDealHealthSnapshot(
+    _organizationId: string,
+    leadId: string,
+  ): Promise<CopilotoDealHealthSnapshotDTO | null> {
+    const forLead = this.dealHealthSnapshots.filter((s) => s.leadId === leadId);
+    return forLead[forLead.length - 1] ?? null;
+  }
+
+  coachingEvaluations = new Map<string, CopilotoCoachingEvaluationDTO>();
+
+  async createCoachingEvaluation(
+    _organizationId: string,
+    conversationId: string,
+    data: { rubricJson: unknown; overallScore: number },
+  ): Promise<CopilotoCoachingEvaluationDTO> {
+    const evaluation: CopilotoCoachingEvaluationDTO = {
+      id: `coaching-${conversationId}`,
+      conversationId,
+      rubricJson: data.rubricJson,
+      overallScore: data.overallScore,
+      createdAt: new Date(),
+    };
+    this.coachingEvaluations.set(conversationId, evaluation);
+    return evaluation;
+  }
+
+  async getCoachingEvaluationByConversation(
+    _organizationId: string,
+    conversationId: string,
+  ): Promise<CopilotoCoachingEvaluationDTO | null> {
+    return this.coachingEvaluations.get(conversationId) ?? null;
   }
 
   fieldMappings = new Map<string, CopilotoBitrixFieldMappingDTO>();
@@ -659,6 +732,82 @@ describe('CopilotoIaUseCases', () => {
           factorsJson: {},
         }),
       ).rejects.toThrow('Lead informado não existe nesta organização');
+    });
+  });
+
+  describe('Onda 6 — recordCoachingEvaluation / getCoachingEvaluation', () => {
+    it('rejeita overallScore fora de 0-100', async () => {
+      const conversation = await useCases.createConversation(
+        ORG_ID,
+        { source: 'MANUAL', leadId: 'lead-1' },
+        'user-1',
+      );
+      await expect(
+        useCases.recordCoachingEvaluation(ORG_ID, conversation.id, {
+          rubricJson: {},
+          overallScore: 150,
+        }),
+      ).rejects.toThrow('overallScore precisa ser um inteiro entre 0 e 100');
+    });
+
+    it('grava e lê a avaliação de coaching de uma conversa', async () => {
+      const conversation = await useCases.createConversation(
+        ORG_ID,
+        { source: 'MANUAL', leadId: 'lead-1' },
+        'user-1',
+      );
+      await useCases.recordCoachingEvaluation(ORG_ID, conversation.id, {
+        rubricJson: { descoberta: { score: 8, evidence: 'Perguntou sobre o volume mensal' } },
+        overallScore: 74,
+      });
+      const found = await useCases.getCoachingEvaluation(ORG_ID, conversation.id);
+      expect(found?.overallScore).toBe(74);
+    });
+  });
+
+  describe('Onda 6 — getHandoffSummary', () => {
+    it('sinaliza incompleto quando a conversa ainda não está READY', async () => {
+      const conversation = await useCases.createConversation(
+        ORG_ID,
+        { source: 'MANUAL', leadId: 'lead-1' },
+        'user-1',
+      );
+      const handoff = await useCases.getHandoffSummary(ORG_ID, conversation.id);
+      expect(handoff.isComplete).toBe(false);
+      expect(handoff.missingParts.join(' ')).toContain('Transcrição');
+      expect(handoff.missingParts.join(' ')).toContain('Resumo');
+    });
+
+    it('agrupa insights por tipo e fica completo quando tudo existe', async () => {
+      const conversation = await useCases.createConversation(
+        ORG_ID,
+        { source: 'MANUAL', leadId: 'lead-1' },
+        'user-1',
+      );
+      await useCases.createInsight(ORG_ID, conversation.id, {
+        type: 'resumo',
+        valueJson: { executiveSummary: 'Reunião produtiva' },
+      });
+      await useCases.createInsight(ORG_ID, conversation.id, {
+        type: 'objecao',
+        valueJson: { text: 'Preço alto', resolved: true },
+      });
+      await useCases.recordDealHealthSnapshot(ORG_ID, {
+        leadId: 'lead-1',
+        score: 80,
+        factorsJson: {},
+      });
+      // Marca READY passando pelo ciclo real (evita reimplementar a máquina de estados aqui).
+      await useCases.startCapture(ORG_ID, conversation.id);
+      await useCases.stopCapture(ORG_ID, conversation.id);
+      await useCases.markReady(ORG_ID, conversation.id);
+
+      const handoff = await useCases.getHandoffSummary(ORG_ID, conversation.id);
+      expect(handoff.objections).toHaveLength(1);
+      expect(handoff.summary).toEqual({ executiveSummary: 'Reunião produtiva' });
+      expect(handoff.latestDealHealth?.score).toBe(80);
+      expect(handoff.isComplete).toBe(true);
+      expect(handoff.missingParts).toEqual([]);
     });
   });
 });
