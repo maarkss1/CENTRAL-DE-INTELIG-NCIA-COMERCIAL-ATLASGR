@@ -1578,8 +1578,16 @@ export function CadenceHub() {
           </div>
         </header>
 
-        <CadenceRunsSection key={runsKey} />
-        <SequencesSection key={sequencesKey} canManage={canManage} />
+        {/* Prefixo distinto por seção: `runsKey`/`sequencesKey` são contadores independentes que
+            começam em 0 e são incrementados juntos em vários callbacks (`onCreated` de
+            NewSequenceDialog/JourneyTemplatesDialog) — sem o prefixo, os dois `key` numéricos
+            coincidem (0 com 0, depois 1 com 1) entre estes dois elementos IRMÃOS, o que o React
+            trata como colisão de key na reconciliação (mesmo sendo tipos de componente
+            diferentes — o namespace de key é por lista de filhos, não por tipo). O resultado
+            observado era o warning real "Encountered two children with the same key" e a seção
+            de execuções ficando duplicada na tela (achado real, `tests/e2e/cadence.spec.ts`). */}
+        <CadenceRunsSection key={`runs-${runsKey}`} />
+        <SequencesSection key={`sequences-${sequencesKey}`} canManage={canManage} />
         <OptOutsSection />
       </div>
 
