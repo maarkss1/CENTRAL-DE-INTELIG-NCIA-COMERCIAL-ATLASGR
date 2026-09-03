@@ -1,9 +1,10 @@
+import { Bookmark, Calendar, Loader2, Play, Plus, Sparkles, Trash2 } from 'lucide-react';
 import type React from 'react';
-import { useState, useEffect } from 'react';
-import { Bookmark, Play, Trash2, X, Plus, Calendar, Sparkles, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { Dialog } from '../../../components/ui/Dialog';
 import { api } from '../../../lib/api.js';
 import { toast } from '../../../lib/toast.js';
-import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import type { ProspectCandidate } from '../domain/prospectTypes.js';
 
 export interface SavedSearchItem {
@@ -127,32 +128,37 @@ export function SavedSearchesModal({
     }
   };
 
-  if (!isOpen) return null;
+  const dialogTitle = (
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-2xl bg-brand/10 text-brand-active dark:text-brand-2 flex items-center justify-center font-bold shrink-0">
+        <Bookmark size={20} />
+      </div>
+      <div>
+        <div className="text-xl font-bold text-ink leading-tight">Listas Salvas & Agendamento</div>
+        <p className="text-xs text-ink-2 font-normal">
+          Automatize buscas periódicas de novos leads e frotistas
+        </p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs">
-      <div className="bg-surface border border-line rounded-3xl shadow-2xl max-w-2xl w-full p-6 space-y-6 max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-line pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-brand/10 text-brand-active dark:text-brand-2 flex items-center justify-center font-bold">
-              <Bookmark size={20} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-ink">Listas Salvas & Agendamento</h2>
-              <p className="text-xs text-ink-2">
-                Automatize buscas periódicas de novos leads e frotistas
-              </p>
-            </div>
-          </div>
+    <>
+      <Dialog
+        isOpen={isOpen}
+        onClose={onClose}
+        title={dialogTitle}
+        maxWidth="max-w-2xl"
+        footer={
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
+            className="px-5 py-2 rounded-2xl bg-surface-2 text-xs font-bold text-ink hover:bg-surface-3 transition-colors"
           >
-            <X size={20} />
+            Fechar
           </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+        }
+      >
+        <div className="space-y-4">
           {/* Botão para salvar filtro atual */}
           {!showCreateForm ? (
             <button
@@ -288,18 +294,9 @@ export function SavedSearchesModal({
             ))
           )}
         </div>
-
-        <div className="flex justify-end pt-4 border-t border-line">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 rounded-2xl bg-surface-2 text-xs font-bold text-ink hover:bg-surface-3 transition-colors"
-          >
-            Fechar
-          </button>
-        </div>
-      </div>
+      </Dialog>
 
       {dialog}
-    </div>
+    </>
   );
 }

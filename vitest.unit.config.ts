@@ -74,30 +74,27 @@ export default defineConfig({
         lines: 35,
         // Domínio crítico 1: primitivos de design system (src/components/ui/**) — reuso alto,
         // usados por praticamente toda tela do produto (ver CLAUDE.md seção 2.6: "Componha a
-        // partir daqui"). Recalibrado em 2026-08-31: o piso anterior (Statements 27% · Branches
-        // 23% · Functions 23% · Lines 28%, baseline local histórico de 28.95/25/25.12/30.09%)
-        // ficou vermelho na main sem relação com nenhuma mudança em andamento — vários widgets
-        // novos sem teste (CommandPalette.tsx, AIEmailGenerator.tsx, BugReportButton.tsx,
-        // ClockCalendarWidget.tsx, Carousel.tsx, AIContextPopover.tsx, LiveStatsWidget.tsx,
-        // Table.tsx, GamificationWidget.tsx, ToolLogos.tsx, Magnetic.tsx, ClickSpark.tsx,
-        // AtlasChatbotTrigger.tsx, Timeline.tsx, entre outros) foram adicionados ao diretório sem
-        // cobertura correspondente, diluindo o agregado. Baseline real medido em 2026-08-31:
-        // Statements 24.87% · Branches 20.07% · Functions 21.52% · Lines 25.53%.
+        // partir daqui"). Recalibrado em 2026-08-31 (Statements 24% · Branches 19% · Functions
+        // 20% · Lines 24%, baseline 24.87/20.07/21.52/25.53%); ver histórico daquela calibração
+        // logo abaixo — mesmo padrão se repetiu.
         //
-        // Recalibrado de novo em 2026-09-03 (PR #335): mais 6 primitivos compartilhados
-        // (KpiStat, FunnelBars, ChannelDonut, CompareBar, DeltaPill, DealsGrid — extraídos do
-        // JoaoReisDiagnosticHub.tsx em PR #329, ver HOTSPOT_EXCEPTIONS.md e .claude/PILOTS.md
-        // Pilot 028) entraram no diretório sem teste próprio, na main, sem relação com o PR que
-        // detectou o gate vermelho. Baseline real medido agora: Statements 22.22% · Branches
-        // 17.63% · Functions 19.86% · Lines 22.99%. Piso abaixado de novo para acompanhar o real
-        // (mesmo critério de "nunca corrigir CI escondendo débito, só documentando" já usado
-        // neste projeto) — NÃO é meta de qualidade, só evita regredir ainda mais a partir de
-        // agora. Ajustar para cima à medida que os componentes acima ganharem teste.
+        // Recalibrado de novo em 2026-09-03 (PR #335 e #336, em paralelo — mesma causa raiz:
+        // mais 6 primitivos compartilhados extraídos do JoaoReisDiagnosticHub.tsx em PR #329
+        // sem teste próprio, ver HOTSPOT_EXCEPTIONS.md e .claude/PILOTS.md Pilot 028): o piso de
+        // 2026-08-31 ficou vermelho na main sem relação com o trabalho de nenhum dos dois PRs —
+        // confirmado rodando esta mesma suíte contra origin/main isolado (checkout temporário,
+        // sem nenhuma mudança de PR): reproduz idêntico (Statements 22.22% · Branches 17.63% ·
+        // Functions 19.86% · Lines 22.99%, a diferença de ~0.14pp em branches entre execuções é
+        // ruído, não relacionado a nenhum PR). Mesmo padrão documentado acima para 2026-08-31:
+        // mais componentes novos sem teste diluindo o agregado. Piso abaixado de novo para
+        // acompanhar o real (~1pp de folga, mesmo critério já usado nas calibrações anteriores) —
+        // segue não sendo meta de qualidade, só o piso atual para não regredir mais enquanto
+        // cobertura real não é adicionada.
         'src/components/ui/**': {
           statements: 21,
-          branches: 16,
-          functions: 18,
-          lines: 21,
+          branches: 17,
+          functions: 19,
+          lines: 22,
         },
         // Domínio crítico 2: motor de automações (regras de estagnação/notificação do pipeline) —
         // já era a área mais bem coberta do repo antes deste item (ver testes existentes em

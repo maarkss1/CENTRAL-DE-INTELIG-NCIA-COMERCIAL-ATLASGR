@@ -15,8 +15,16 @@ import type { CadenceChannel } from './optOut.js';
  * o que fazer com essas contagens — bloquear ou não — é lógica pura e testável aqui.
  */
 
-/** Motivo de bloqueio por rate limit — subconjunto de `CadenceSkipReason` (ver `domain/cadence.ts`). */
-export type RateLimitBlockReason = 'contact-rate-limit' | 'domain-rate-limit';
+/**
+ * Motivo de bloqueio por rate limit — subconjunto de `CadenceSkipReason` (ver `domain/cadence.ts`).
+ * `channel-spacing` (achado da auditoria, PR #328, item fora de escopo original): o limite por
+ * contato acima é um CAP DE VOLUME (só bloqueia a partir do Nº toque em 24h) — não impede dois
+ * `CadenceRun`s diferentes do mesmo lead (ex.: sequência de e-mail e sequência de WhatsApp, cada
+ * uma com `delayHoursFromPrevious: 0` no primeiro toque) de despachar quase simultaneamente no
+ * mesmo ciclo do scheduler, o que para o destinatário parece perseguição mesmo sem estourar
+ * nenhuma cota.
+ */
+export type RateLimitBlockReason = 'contact-rate-limit' | 'channel-spacing' | 'domain-rate-limit';
 
 export interface CadenceRateLimitPolicy {
   /** N: máximo de toques com `result: 'sent'`, em QUALQUER canal e QUALQUER cadência/run, por contato dentro da janela (`contactWindowHours`). */
@@ -25,6 +33,13 @@ export interface CadenceRateLimitPolicy {
   contactWindowHours: number;
   /** M: máximo de contatos DISTINTOS do mesmo domínio de e-mail recebendo e-mail (`result: 'sent'`, canal `email`) no mesmo dia. */
   maxEmailRecipientsPerDomainPerDay: number;
+  /**
+   * Intervalo mínimo, em minutos, entre dois toques 'sent' de CANAIS DIFERENTES para o mesmo
+   * contato — cruza QUALQUER `CadenceRun`/cadência, mesmo espírito de `maxTouchesPerContactWindow`.
+   * Um segundo toque no MESMO canal do último enviado nunca é bloqueado por este motivo (é o que
+   * `delayHoursFromPrevious` do próprio toque já governa, dentro do mesmo run).
+   */
+  minMinutesBetweenChannelTouches: number;
 }
 
 /**
@@ -39,14 +54,19 @@ export interface CadenceRateLimitPolicy {
  *   corporativos de e-mail (Google Workspace/Microsoft 365 monitoram volume por domínio de
  *   destino, não só por remetente) mas ainda permite prospecção real de contas grandes (uma
  *   transportadora com múltiplos decisores no mesmo domínio).
+ * - `30` minutos entre canais diferentes é o suficiente para nunca parecer disparo simultâneo
+ *   (o scheduler roda a cada 5 minutos, `SCAN_INTERVAL_MS` em `cadenceRun.worker.ts` — 30min é 6
+ *   ciclos, folga real, não um valor no limite) sem atrasar de forma perceptível uma cadência
+ *   legítima de e-mail → WhatsApp no mesmo dia.
  *
- * Nenhum destes três é hardcoded sem nome no ponto de uso — configuráveis por env var, ver
+ * Nenhum destes quatro é hardcoded sem nome no ponto de uso — configuráveis por env var, ver
  * `application/rateLimitConfig.ts`.
  */
 export const DEFAULT_RATE_LIMIT_POLICY: CadenceRateLimitPolicy = {
   maxTouchesPerContactWindow: 3,
   contactWindowHours: 24,
   maxEmailRecipientsPerDomainPerDay: 20,
+  minMinutesBetweenChannelTouches: 30,
 };
 
 /**
@@ -90,25 +110,54 @@ export interface DomainRateLimitCheck {
   currentLeadAlreadyCounted: boolean;
 }
 
+export interface LastSentTouch {
+  channel: CadenceChannel;
+  attemptedAt: Date;
+}
+
+/**
+ * O último toque 'sent' (qualquer canal/cadência/run) que este contato recebeu ainda está a menos
+ * de `minMinutesBetweenChannelTouches` do candidato — só bloqueia quando o CANAL é diferente (dois
+ * toques seguidos no mesmo canal já são governados por `delayHoursFromPrevious` do próprio toque,
+ * dentro do run; não é papel deste limite duplicar essa regra).
+ */
+export function isChannelSpacingLimited(
+  candidateChannel: CadenceChannel,
+  lastTouch: LastSentTouch | null,
+  now: Date,
+  policy: CadenceRateLimitPolicy = DEFAULT_RATE_LIMIT_POLICY,
+): boolean {
+  if (!lastTouch || lastTouch.channel === candidateChannel) return false;
+  const elapsedMinutes = (now.getTime() - lastTouch.attemptedAt.getTime()) / 60_000;
+  return elapsedMinutes < policy.minMinutesBetweenChannelTouches;
+}
+
 export interface DecideRateLimitBlockInput {
   channel: CadenceChannel;
   sentTouchesInWindow: number;
   /** `null` quando o canal não é `email` ou o e-mail do contato não pôde ser resolvido/normalizado — nesse caso só o limite por contato se aplica. */
   domainCheck: DomainRateLimitCheck | null;
+  /** `null` quando este é o primeiro toque 'sent' já registrado para o contato — nada a espaçar. */
+  lastTouch: LastSentTouch | null;
+  now: Date;
   policy?: CadenceRateLimitPolicy;
 }
 
 /**
  * Decide, a partir das contagens já obtidas (I/O feito por quem chama), qual bloqueio de rate
- * limit (se algum) se aplica ao próximo toque. Limite por contato tem precedência sobre o de
- * domínio — é o motivo mais específico ao lead, e um contato que já estourou o próprio limite não
- * precisa do motivo de domínio para ser bloqueado.
+ * limit (se algum) se aplica ao próximo toque. Ordem de precedência (motivo mais específico ao
+ * contato primeiro): limite de volume por contato → espaçamento entre canais → limite de domínio.
+ * Um contato que já estourou o próprio limite de volume não precisa do motivo de espaçamento nem
+ * de domínio para ser bloqueado.
  */
 export function decideRateLimitBlock(
   input: DecideRateLimitBlockInput,
 ): RateLimitBlockReason | null {
   const policy = input.policy ?? DEFAULT_RATE_LIMIT_POLICY;
   if (isContactRateLimited(input.sentTouchesInWindow, policy)) return 'contact-rate-limit';
+  if (isChannelSpacingLimited(input.channel, input.lastTouch, input.now, policy)) {
+    return 'channel-spacing';
+  }
   if (
     input.channel === 'email' &&
     input.domainCheck &&

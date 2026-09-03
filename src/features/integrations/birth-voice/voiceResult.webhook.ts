@@ -6,12 +6,18 @@ import { logger } from '../../../lib/logger.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { sendWhatsAppMessage } from '../whatsapp/whatsapp.service.js';
 import { sseService } from '../../notifications/sse.service.js';
-import { classifyCallOutcome, callResultedInConversation } from './birthVoice.helpers.js';
+import {
+  classifyCallOutcome,
+  callResultedInConversation,
+  detectRecordingConsentFromRawTranscript,
+} from './birthVoice.helpers.js';
 import { last8DigitsIndex } from '../../../lib/crypto/piiIndex.js';
 import {
   claimWebhookDelivery,
   webhookDeliveryFingerprint,
 } from '../../../shared/security/webhookReplayGuard.js';
+import { container } from '../../../shared/di/container.js';
+import type { CopilotoVoiceIngestionPort } from '../../../shared/contracts/copilotoVoiceIngestion.contract.js';
 
 /**
  * Webhook de resultado de ligação da Bland AI (rota legada /api/webhooks/voice-result).
@@ -288,6 +294,33 @@ ${transcript || 'Nenhuma transcrição gravada.'}`;
       }
 
       sseService.notifyVoiceQualified(organizationId, lead.id, sseMessage);
+
+      // Onda 7, item 2 — ponte para o Copiloto Comercial IA (src/shared/contracts/
+      // copilotoVoiceIngestion.contract.ts). Só quando houve conversa real (nunca para
+      // voicemail/não-atendida/etc — evitaria encher o módulo de conversas vazias) e há
+      // transcrição pra processar. Efeito colateral SECUNDÁRIO: nunca pode derrubar este webhook
+      // (o registro real do resultado da ligação, acima, já aconteceu) — sempre em try/catch,
+      // mesmo padrão do fallback de WhatsApp acima.
+      if (hadConversation && transcript) {
+        try {
+          const copilotoVoiceIngestionPort = container.resolve<CopilotoVoiceIngestionPort>(
+            'CopilotoVoiceIngestionPort',
+          );
+          await copilotoVoiceIngestionPort.ingestCallResult(organizationId, {
+            providerCallId: callId,
+            leadId: lead.id,
+            rawTranscript: transcript,
+            durationSeconds: callLength * 60,
+            consent: detectRecordingConsentFromRawTranscript(transcript),
+          });
+        } catch (err) {
+          logger.warn(
+            { err, callId, leadId: lead.id },
+            'Falha ao ingerir resultado da ligação no Copiloto Comercial IA (efeito secundário, não afeta o registro da ligação).',
+          );
+        }
+      }
+
       return { leadFound: true as const, duplicate: false, leadId: lead.id };
     });
 

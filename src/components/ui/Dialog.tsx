@@ -1,12 +1,14 @@
+import { X } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 type DialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  /** Normalmente uma string simples; aceita ReactNode para cabeçalhos com ícone/subtítulo (ex.:
+      SavedSearchesModal) sem duplicar a estrutura de header fora deste componente. */
+  title: React.ReactNode;
   children: React.ReactNode;
   /** Classe Tailwind de largura máxima do painel (ex.: "max-w-2xl"). Default: "max-w-md". */
   maxWidth?: string;

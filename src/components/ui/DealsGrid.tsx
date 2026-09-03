@@ -32,7 +32,7 @@ export function DealCard({
     status === 'won'
       ? 'bg-ok/15 text-ok-active dark:text-ok'
       : status === 'lost'
-        ? 'bg-critical/15 text-critical'
+        ? 'bg-critical/15 text-critical-active dark:text-critical'
         : 'bg-surface text-ink-2 border border-line';
   return (
     <div

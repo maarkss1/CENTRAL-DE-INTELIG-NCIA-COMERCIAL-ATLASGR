@@ -263,6 +263,105 @@ export function detectOptOut(data: CallEndedData): OptOutDetection {
 }
 
 /**
+ * Onda 7, item 2 — consentimento de gravação para a ponte ligações -> Copiloto Comercial IA (ver
+ * `src/shared/contracts/copilotoVoiceIngestion.contract.ts`). O roteiro (`atlasProductPlaybook.ts`)
+ * agora exige que a IA diga, nas duas primeiras frases de toda ligação, que é uma IA e que a
+ * ligação pode ser gravada — estas listas de frases detectam isso (e uma eventual recusa do lead)
+ * na transcrição, no mesmo espírito de `OPT_OUT_PHRASES`/`detectOptOut` acima: nunca inventa
+ * consentimento por omissão, só confirma quando o texto realmente sustenta a conclusão.
+ */
+const AI_DISCLOSURE_PHRASES = [
+  'assistente de inteligencia artificial',
+  'sou uma inteligencia artificial',
+  'sou uma assistente de ia',
+  'atendente virtual de ia',
+];
+const RECORDING_DISCLOSURE_PHRASES = [
+  'pode ser gravada',
+  'esta sendo gravada',
+  'ligacao gravada',
+  'gravacao desta ligacao',
+  'fins de qualidade e treinamento',
+];
+/** Recusa a SER GRAVADO/falar com uma IA — distinto do opt-out de "não me ligue mais"
+ * (`OPT_OUT_PHRASES` acima), que é sobre ligações futuras, não sobre esta gravação específica. */
+const RECORDING_DECLINE_PHRASES = [
+  'nao quero ser gravado',
+  'nao quero ser gravada',
+  'nao autorizo gravacao',
+  'nao autorizo a gravacao',
+  'nao aceito ser gravado',
+  'nao aceito ser gravada',
+  'para de gravar',
+  'pare de gravar',
+  'desliga a gravacao',
+  'desligue a gravacao',
+  'nao quero que gravem',
+  'nao quero ser gravado nessa ligacao',
+];
+
+export interface RecordingConsentDetection {
+  /**
+   * `GRANTED` só quando a IA fez a divulgação obrigatória (é uma IA + que a ligação pode ser
+   * gravada) E o lead não recusou. `DECLINED` quando o lead recusou explicitamente, mesmo sem
+   * divulgação prévia detectada (recusar já basta). `PENDING` em qualquer outro caso — inclusive
+   * quando a divulgação não foi detectada no texto (falha de roteiro, transcrição incompleta) —
+   * nunca fabricado como concedido só porque não houve recusa.
+   */
+  status: 'GRANTED' | 'DECLINED' | 'PENDING';
+  evidence: string | null;
+}
+
+function classifyRecordingConsent(input: {
+  assistantText: string;
+  leadText: string;
+}): RecordingConsentDetection {
+  const leadNormalized = normalizeForMatch(input.leadText);
+  const declineMatch = RECORDING_DECLINE_PHRASES.find((phrase) => leadNormalized.includes(phrase));
+  if (declineMatch) {
+    return { status: 'DECLINED', evidence: declineMatch };
+  }
+
+  const assistantNormalized = normalizeForMatch(input.assistantText);
+  const hasAiDisclosure = AI_DISCLOSURE_PHRASES.some((phrase) =>
+    assistantNormalized.includes(phrase),
+  );
+  const hasRecordingDisclosure = RECORDING_DISCLOSURE_PHRASES.some((phrase) =>
+    assistantNormalized.includes(phrase),
+  );
+  if (hasAiDisclosure && hasRecordingDisclosure) {
+    return { status: 'GRANTED', evidence: null };
+  }
+
+  return { status: 'PENDING', evidence: null };
+}
+
+/** Caminho do Birth Voices Hub — transcrição já segmentada por locutor (`CallEndedData.transcript`).
+ * Só as falas do lead contam para recusa, só as da IA contam para a divulgação — mesmo raciocínio
+ * de `detectOptOut` sobre por que só examinar o turno certo evita falso positivo. */
+export function detectRecordingConsent(data: CallEndedData): RecordingConsentDetection {
+  const turns = data.transcript ?? [];
+  const leadText = turns
+    .filter((turn) => turn.role === 'user')
+    .map((turn) => turn.content)
+    .join(' ');
+  const assistantText = turns
+    .filter((turn) => turn.role === 'assistant')
+    .map((turn) => turn.content)
+    .join(' ');
+  return classifyRecordingConsent({ assistantText, leadText });
+}
+
+/** Caminho legado da Bland — `concatenated_transcript` é um bloco único sem locutor identificado.
+ * Sem separação por locutor, tanto a recusa quanto a divulgação são procuradas no texto inteiro —
+ * nunca mais permissivo que o caminho segmentado acima (uma recusa em qualquer trecho já nega). */
+export function detectRecordingConsentFromRawTranscript(
+  rawTranscript: string,
+): RecordingConsentDetection {
+  return classifyRecordingConsent({ assistantText: rawTranscript, leadText: rawTranscript });
+}
+
+/**
  * Confere a assinatura HMAC sobre os bytes crus recebidos.
  *
  * Precisa ser o corpo bruto: `JSON.parse` seguido de `JSON.stringify` pode reordenar chaves e

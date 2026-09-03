@@ -8,6 +8,7 @@ import {
   callMarker,
   buildObservations,
   detectOptOut,
+  detectRecordingConsent,
   pickCallablePhone,
   classifyCallOutcome,
   callResultedInConversation,
@@ -19,6 +20,8 @@ import {
   claimWebhookDelivery,
   webhookDeliveryFingerprint,
 } from '../../../shared/security/webhookReplayGuard.js';
+import { container } from '../../../shared/di/container.js';
+import type { CopilotoVoiceIngestionPort } from '../../../shared/contracts/copilotoVoiceIngestion.contract.js';
 
 type RecordOutcome = 'recorded' | 'duplicate' | 'lead-not-found';
 
@@ -137,6 +140,34 @@ async function recordCallResult(
             'Falha ao disparar fallback de WhatsApp pós-ligação (Hub de voz)',
           );
         }
+      }
+    }
+
+    // Onda 7, item 2 — ponte para o Copiloto Comercial IA (src/shared/contracts/
+    // copilotoVoiceIngestion.contract.ts). Mesmo raciocínio do webhook legado
+    // (voiceResult.webhook.ts): só quando houve conversa real e há transcrição, e nunca pode
+    // derrubar este webhook (efeito colateral secundário) — sempre em try/catch, depois de todo o
+    // registro real da ligação já ter acontecido acima.
+    if (hadConversation && data.transcript && data.transcript.length > 0) {
+      try {
+        const copilotoVoiceIngestionPort = container.resolve<CopilotoVoiceIngestionPort>(
+          'CopilotoVoiceIngestionPort',
+        );
+        await copilotoVoiceIngestionPort.ingestCallResult(organizationId, {
+          providerCallId: data.callSid || 'sem-id',
+          leadId,
+          turns: data.transcript.map((turn) => ({
+            speaker: turn.role === 'assistant' ? 'assistant' : 'lead',
+            text: turn.content,
+          })),
+          durationSeconds: typeof data.durationSeconds === 'number' ? data.durationSeconds : 0,
+          consent: detectRecordingConsent(data),
+        });
+      } catch (err) {
+        logger.warn(
+          { err, leadId, callSid: data.callSid },
+          'Falha ao ingerir resultado da ligação no Copiloto Comercial IA (efeito secundário, não afeta o registro da ligação).',
+        );
       }
     }
 
