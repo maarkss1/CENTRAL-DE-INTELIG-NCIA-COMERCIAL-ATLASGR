@@ -727,7 +727,7 @@ if __name__ == "__main__":
                 onClick={() => setActiveTabOutput('json')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   activeTabOutput === 'json'
-                    ? 'bg-slate-600 text-white shadow-lg'
+                    ? `${accent.solidBg} text-white shadow-lg`
                     : 'bg-surface-2 text-ink-2 hover:bg-line'
                 }`}
               >

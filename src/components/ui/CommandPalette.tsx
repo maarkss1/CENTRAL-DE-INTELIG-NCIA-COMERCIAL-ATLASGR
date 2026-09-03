@@ -17,6 +17,7 @@ import { TAB_META } from '../layout/tabMeta';
 import { api } from '../../lib/api';
 import type { Company, Contact, PaginatedResponse } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { EXECUTIVE_HUB_ALLOWED_EMAIL } from '../../config/access-policy';
 import {
   OPEN_COMMAND_PALETTE_EVENT,
   OPEN_AI_CHAT_EVENT,
@@ -76,6 +77,7 @@ const MODULE_ORDER: TabType[] = [
   'winloss',
   'sdr-diagnostic-joao',
   'commercial_intelligence',
+  'copiloto_ia',
   'social-selling',
   'treinamento-atlasgr',
   'proposta-comercial',
@@ -274,8 +276,7 @@ export function CommandPalette() {
     result.push(...quickActions.filter((a) => !q || normalize(a.label).includes(q)));
 
     const isMarcelo =
-      !!currentUser &&
-      currentUser.email.toLowerCase().trim() === 'marcelo.nascimento@atlasgr.com.br';
+      !!currentUser && currentUser.email.toLowerCase().trim() === EXECUTIVE_HUB_ALLOWED_EMAIL;
     const visibleModuleOrder = isMarcelo
       ? MODULE_ORDER
       : MODULE_ORDER.filter((t) => !EXECUTIVE_TABS.includes(t));

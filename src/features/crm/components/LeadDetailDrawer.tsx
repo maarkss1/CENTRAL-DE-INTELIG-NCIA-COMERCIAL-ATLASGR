@@ -35,6 +35,9 @@ import { useAuth } from '../../../contexts/AuthContext';
 // de WhatsApp (src/features/integrations/whatsapp, sessão Baileys por tenant) — reusado aqui em vez
 // de duplicar lógica de polling/envio; CRM só decide QUANDO oferecer a ação, não COMO ela funciona.
 import { WhatsAppChatPanel } from '../../integrations/whatsapp/components/WhatsAppChatPanel';
+// Mesmo raciocínio do WhatsAppChatPanel acima: o CRM só decide QUANDO oferecer a entrada, não
+// COMO o Copiloto Comercial IA funciona (Onda 7 — UI/UX, ver src/features/copiloto-ia/AGENTS.md).
+import { LeadCopilotoPanel } from '../../copiloto-ia/components/LeadCopilotoPanel';
 
 import { bitrixApi } from '../../integrations/bitrix/bitrix.api';
 import { calculateLeadScore } from '../domain/leadScoreCalculator';
@@ -763,6 +766,8 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                   />
                 </section>
               )}
+
+              <LeadCopilotoPanel leadId={lead.id} />
 
               {/* Seção de Ação Bitrix24 */}
               <section className="space-y-4">

@@ -471,7 +471,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                       type="submit"
                       size="sm"
                       disabled={isRoleplayThinking}
-                      className="px-4 py-2.5 bg-amber-500 text-slate-950 font-bold cursor-pointer"
+                      className="px-4 py-2.5 bg-brand text-white font-bold cursor-pointer"
                     >
                       <Send className="w-4 h-4" />
                     </Button>

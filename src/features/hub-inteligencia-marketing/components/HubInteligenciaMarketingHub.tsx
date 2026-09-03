@@ -72,7 +72,7 @@ export function HubInteligenciaMarketingHub() {
 
   return (
     <div
-      className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}
+      className={`flex flex-col h-full space-y-4 bg-bg ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-bg overflow-hidden' : 'p-6'}`}
     >
       {/* Unified Executive Header */}
       <ExecutiveHeader
@@ -87,7 +87,7 @@ export function HubInteligenciaMarketingHub() {
       {/* KPI Summary Bar */}
       {!isFullscreen && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
             <div className="p-2.5 bg-brand/10 text-brand rounded-xl">
               <PieChart className="w-5 h-5" />
             </div>
@@ -96,8 +96,8 @@ export function HubInteligenciaMarketingHub() {
               <div className="text-sm font-bold text-ink">Nacional 2026</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-success/10 text-success-active dark:text-success rounded-xl">
               <Compass className="w-5 h-5" />
             </div>
             <div>
@@ -105,8 +105,8 @@ export function HubInteligenciaMarketingHub() {
               <div className="text-sm font-bold text-ink">Polos Logísticos</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-purple-500/10 text-purple-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl">
               <Database className="w-5 h-5" />
             </div>
             <div>
@@ -114,8 +114,8 @@ export function HubInteligenciaMarketingHub() {
               <div className="text-sm font-bold text-ink">MDF-e + RNTRC</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-info/10 text-info-active dark:text-info rounded-xl">
               <FileText className="w-5 h-5" />
             </div>
             <div>
@@ -183,7 +183,7 @@ export function HubInteligenciaMarketingHub() {
 
       {/* Main Content Area */}
       <div
-        className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
+        className={`flex-1 bg-surface rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
       >
         {activeTab === 'metodologia' ? (
           <div className="flex flex-col lg:flex-row h-full min-h-[650px]">
@@ -200,7 +200,7 @@ export function HubInteligenciaMarketingHub() {
                   placeholder="Filtrar por título..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-card border border-line rounded-lg text-ink focus:outline-none focus:border-brand"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-line rounded-lg text-ink focus:outline-none focus:border-brand"
                 />
               </div>
 
@@ -212,7 +212,7 @@ export function HubInteligenciaMarketingHub() {
                     className={`w-full text-left p-3 rounded-xl border transition-all ${
                       activeDoc === d.file
                         ? 'bg-brand/10 border-brand/40 text-brand font-bold shadow-sm'
-                        : 'bg-card border-line hover:bg-soft text-ink'
+                        : 'bg-surface border-line hover:bg-soft text-ink'
                     }`}
                   >
                     <div className="text-xs font-semibold">{d.title}</div>
@@ -243,7 +243,7 @@ export function HubInteligenciaMarketingHub() {
               <iframe
                 key={`doc-${activeDoc}-${iframeKey}`}
                 src={`/tools/hub-inteligencia-marketing/${activeDoc}`}
-                className="w-full h-[580px] border-none rounded-xl bg-card"
+                className="w-full h-[580px] border-none rounded-xl bg-surface"
                 title={`Doc - ${activeDoc}`}
               />
             </div>

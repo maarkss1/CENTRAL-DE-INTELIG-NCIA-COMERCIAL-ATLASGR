@@ -1,5 +1,6 @@
 import { Worker, Queue } from 'bullmq';
 import { prisma } from '../../../lib/prisma.js';
+import { requestContext } from '../../../lib/async-context.js';
 import { logger } from '../../../lib/logger.js';
 import { connection } from '../../../lib/queue/redis.js';
 import { recordDeadLetter, isFinalAttempt } from '../../../lib/queue/deadLetter.js';
@@ -8,20 +9,52 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
 export const WIN_LOSS_QUEUE_NAME = 'win-loss-analysis-queue';
 
-export function createWinLossAnalysisWorker() {
-  const worker = new Worker(
-    WIN_LOSS_QUEUE_NAME,
-    async (job) => {
-      logger.info('Iniciando job de Win/Loss Analysis (IA)');
+/** Mesmos 4 status usados pelo disparo manual (`POST /api/intelligence/win-loss-analysis`,
+ *  `intelligence.routes.ts`) — antes desta correção o cron usava uma lista menor (sem
+ *  `Negocios_Ganhos`), então a análise automática de sexta nunca via negócios explicitamente
+ *  marcados como ganhos, só a transição para `Convertido_em_Oportunidade`. Achado real do Piloto de
+ *  Win/Loss Analysis: as duas execuções (manual e agendada) devem enxergar o mesmo universo de
+ *  leads. */
+const WIN_LOSS_STATUSES = [
+  'Convertido_em_Oportunidade',
+  'Lead_Desqualificado',
+  'Negocios_Perdidos',
+  'Negocios_Ganhos',
+] as const;
 
-      // Pega leads fechados nos últimos 7 dias
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+export interface WinLossOrgAnalysis {
+  organizationId: string;
+  analysis: string;
+  leadsAnalyzed: number;
+}
 
+/**
+ * Uma execução completa da varredura — uma análise de IA SEPARADA por organização (nunca leads de
+ * organizações diferentes no mesmo prompt). Extraído do processor do `Worker` (mesmo padrão de
+ * `runStagnationScan` em `stagnation-scanner.service.ts`) pra ser testável sem precisar instanciar
+ * um `Worker`/Redis reais.
+ */
+export async function runWinLossAnalysis(): Promise<WinLossOrgAnalysis[]> {
+  logger.info('Iniciando job de Win/Loss Analysis (IA)');
+
+  // Pega leads fechados nos últimos 7 dias
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  // Bug real corrigido aqui (achado do Piloto de Win/Loss Analysis): a versão anterior fazia
+  // uma única query sem `organizationId`, misturando leads de TODAS as organizações no mesmo
+  // prompt de IA — vazamento cross-tenant real. Mesmo padrão de correção já usado em
+  // `stagnation-scanner.service.ts`: lista as organizações (não é tenant-scoped em si) e roda
+  // uma análise SEPARADA por organização, dentro do contexto de tenant correto
+  // (`requestContext.run`), igual ao caminho manual já faz via `req.user.organizationId`.
+  const organizations = await prisma.organization.findMany({ select: { id: true } });
+  const analyses: WinLossOrgAnalysis[] = [];
+
+  for (const { id: organizationId } of organizations) {
+    await requestContext.run({ tenantId: organizationId }, async () => {
       const leads = await prisma.lead.findMany({
         where: {
-          status: {
-            in: ['Convertido_em_Oportunidade', 'Lead_Desqualificado', 'Negocios_Perdidos'],
-          },
+          organizationId,
+          status: { in: [...WIN_LOSS_STATUSES] },
           updatedAt: { gte: sevenDaysAgo },
         },
         include: {
@@ -34,18 +67,18 @@ export function createWinLossAnalysisWorker() {
             take: 10,
           },
         },
+        take: 30,
       });
 
-      if (leads.length === 0) {
-        logger.info('Sem leads suficientes para Win/Loss analysis.');
-        return { analysis: 'No data' };
-      }
+      if (leads.length === 0) return;
 
       const dataStr = leads
         .map((l) => {
-          const msgs = l.whatsAppMessages.map((m) => `${m.direction}: ${m.body}`).join(' | ');
+          const msgs = l.whatsAppMessages
+            .map((m) => `${m.direction}: ${m.body || '(sem texto)'}`)
+            .join(' | ');
           const tl = l.timeline.map((t) => t.description).join(' | ');
-          return `Lead ID: ${l.id} | Status: ${l.status}\nInterações: ${msgs}\nTimeline: ${tl}\n---`;
+          return `Lead ID: ${l.id} | Status: ${l.status}\nInterações: ${msgs || 'Sem mensagens'}\nTimeline: ${tl || 'Sem timeline'}\n---`;
         })
         .join('\n');
 
@@ -62,13 +95,30 @@ export function createWinLossAnalysisWorker() {
           typeof response.content === 'string'
             ? response.content
             : JSON.stringify(response.content);
-        logger.info({ analysisText }, 'Win/Loss Analysis concluída');
-
-        return { analysis: analysisText };
+        logger.info(
+          { organizationId, leadsAnalyzed: leads.length },
+          'Win/Loss Analysis concluída para a organização',
+        );
+        analyses.push({ organizationId, analysis: analysisText, leadsAnalyzed: leads.length });
       } catch (err) {
-        logger.error({ err }, 'Falha na análise Win/Loss com IA');
-        throw err;
+        logger.error({ err, organizationId }, 'Falha na análise Win/Loss com IA');
       }
+    });
+  }
+
+  if (analyses.length === 0) {
+    logger.info('Sem leads suficientes para Win/Loss analysis em nenhuma organização.');
+  }
+
+  return analyses;
+}
+
+export function createWinLossAnalysisWorker() {
+  const worker = new Worker(
+    WIN_LOSS_QUEUE_NAME,
+    async () => {
+      const analyses = await runWinLossAnalysis();
+      return { analyses };
     },
     {
       connection: connection as any,

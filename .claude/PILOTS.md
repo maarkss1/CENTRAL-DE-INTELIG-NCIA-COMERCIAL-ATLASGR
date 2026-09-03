@@ -2712,3 +2712,287 @@ entrada nova.
   - Servidor de dev (`localhost:3005`, subido manualmente via `npx tsx watch server.ts` +
     `run_in_background`, contorno do boot silencioso) encerrado ao final via `TaskStop` — nenhum
     processo órfão deixado.
+
+## Pilot 029 — Auditoria de cor crua fora dos tokens (continuação do Pilot 028, escolhida pelo usuário)
+
+- **Objetivo**: usuário escolheu, entre as opções oferecidas, rodar agora a auditoria de
+  `bg-white`/`bg-slate-*`/`bg-gray-*`/`text-slate-*`/`text-gray-*` fora do sistema de tokens nos 21
+  arquivos que sobraram fora do escopo do Pilot 005 (Market Intelligence, ~330 ocorrências
+  corrigidas em 8 telas à época). Metodologia idêntica à do Pilot 005: ler cada ocorrência em
+  contexto antes de trocar — regex cego já causou regressão real documentada naquele piloto
+  (`text-slate-700`→`text-ink` quebrando banner que devia ficar sempre claro).
+- **7 bugs reais corrigidos** (dark mode genuinamente quebrado — cor clara fixa sem par `dark:`,
+  ou inconsistência clara entre elementos irmãos):
+  - `Analytics.tsx:228` — ícone de estado vazio em `text-gray-600` → `text-ink-2`.
+  - `GoogleLoginModal.tsx` — modal inteiro (fundo, texto, botão Google, footer, ícone de sucesso)
+    hardcoded pro tema claro (`bg-white`, `text-slate-900/600`, `bg-gray-50`); em dark mode
+    renderizava um cartão branco cru dentro do app escuro. Migrado pra
+    `bg-surface`/`text-ink`/`text-ink-2`/`bg-surface-2`/`border-line`, ícone de sucesso pro par
+    `bg-ok/15 text-ok-active dark:text-ok` (mesma convenção do Badge.tsx), spinner de carregamento
+    de `text-blue-500` (cor sem relação com nenhuma marca) pra `text-brand`.
+  - `SelectionScreen.tsx` — achado maior: a tela irmã de `WelcomeScreen.tsx` (ambas pré-seleção de
+    marca) nunca recebeu o mesmo tratamento do Piloto 001. Raiz em `bg-[#030305] text-white` (hex
+    cru, sempre escuro, nunca reage a tema — a Constituição §7.7 é explícita que telas de
+    pré-seleção "reagem a tema"); `<Logo variant="white">`/`<TotalTrackLogo tone="negative">`
+    fixos (ficariam ilegíveis em tema claro — mesmo bug de `Logo variant="white"` já corrigido no
+    Piloto 001, nunca replicado aqui); cards com `bg-slate-900/60` **conflitando** com a classe
+    `.glass-panel` já aplicada no mesmo elemento (a superfície translúcida reativa a tema que o
+    `.glass-panel` deveria fornecer estava sendo sobrescrita por um valor cru fixo); assinatura
+    "Marcelo do Nascimento" com pulso duplo (`scale`/`boxShadow` em loop de 2s + `animate-pulse`
+    do Tailwind ao mesmo tempo) — exatamente o padrão que o Piloto 001 já tinha removido do
+    `WelcomeScreen.tsx` ("crédito pessoal com mais peso visual, boxShadow/scale pulsando pra
+    sempre"), nunca replicado aqui. Corrigido espelhando exatamente as soluções já validadas do
+    Piloto 001: raiz `bg-bg text-ink`, `Logo variant={theme==='dark'?'white':'default'}`,
+    `TotalTrackLogo` sem `tone` (usa o `auto` já reativo via `dark:hidden`/`dark:block`, achado:
+    o componente já resolvia isso sozinho, só não estava sendo usado), `.glass-panel` sem
+    override cru, assinatura reduzida a `text-ink-2` simples sem animação (mesmo texto/crédito
+    preservado, só a ênfase visual reduzida — Constituição §6).
+  - `ContactList.tsx` — `SENIORITY_COLORS` (5 badges categóricos por senioridade) só tinha a
+    variante clara (`bg-purple-100 text-purple-700` etc.), pastel ilegível no escuro. Cada tom
+    ganhou o par `dark:` (mesma convenção do Badge.tsx); `Analyst`/fallback migrados pros tokens
+    (`bg-surface-2 text-ink-2 border-line`) por não terem significado semântico próprio.
+  - `FloatingChatbook.tsx:474` — botão de enviar do roleplay em `bg-amber-500 text-slate-950`
+    (cor sem relação com nenhuma marca, ao lado de um input já tokenizado) → `bg-brand text-white`.
+  - `AutomationGuide.tsx:730` — aba "Payload Workflow (n8n JSON)" em `bg-slate-600` enquanto a aba
+    irmã "Blueprint Passo a Passo" já usava `accent.solidBg` (reativo à marca) — inconsistência
+    visível lado a lado. Migrado pra `accent.solidBg` também.
+- **Exceções legítimas confirmadas** (não mexidas — mesma lição do Pilot 005: nem toda ocorrência
+  é bug):
+  - Thumb de toggle switch (`Automations.tsx`, `BookingLinksModal.tsx`, `FeatureFlagsPanel.tsx` —
+    este último já documentado como "fora de escopo, não é bug" desde o Pilot 025) — `bg-white`
+    fixo é convenção universal de toggle físico, correto nos dois temas.
+  - Overlay de câmera (`OcrCapturePanel.tsx`) e painel branded do `LoginScreen.tsx` — controles
+    translúcidos brancos sobre feed de vídeo ao vivo / gradiente sólido de marca, não sobre a
+    superfície do app.
+  - `ActiveCallView.tsx`/`CallAnalysisReport.tsx` (Roleplay) — já documentados em comentário no
+    próprio código como superfície sempre-escura proposital ("foco total").
+  - `RobustScriptGenerator.tsx` — painel de saída estilo terminal com hex do GitHub Dark
+    (`#0D1117`/`#30363D`), convenção legítima de "bloco de código sempre escuro".
+  - `GoalCountdownOverlay.tsx` — mesmo padrão do Roleplay (overlay de tela cheia, momento raro de
+    alto impacto), mas **sem comentário** antes desta sessão; adicionei a documentação, sem mudar
+    a cor, pra não relitigar essa decisão numa auditoria futura.
+  - `Account360.tsx`/`LeadApprovalDeck.tsx` — reconfirmados como as exclusões já documentadas no
+    Pilot 005 (`bg-white/N` translúcido sobre fundo escuro fixo).
+- **Achados grandes demais pra essa auditoria, não corrigidos — cada um precisa de sua própria
+  sessão dedicada** (documentado em vez de mexido às pressas, mesmo espírito do Pilot 005 sobre
+  regex cego):
+  - **`src/features/integrations/components/` (Bitrix*.tsx + Integrations.tsx)** — achado maior
+    desta rodada: `grep -oE "orange-[0-9]+"` conta **147 ocorrências** (104 só em
+    `BitrixImportPanel.tsx`) de laranja cru (`orange-500`/`600` etc.) em vez de `var(--brand)`. O
+    módulo inteiro de integrações Bitrix fica sempre laranja AtlasGR, mesmo com Total Trac ativa —
+    bug de marca, não de tema (o `dark:` já existe pareado na maioria dos casos, então não quebra
+    no escuro, só nunca muda de cor pra Total Trac).
+  - **`PromptStudio.tsx`** (17 pares `dark:` já existentes, 13 ocorrências cruas) — funciona nos
+    dois temas, mas usa `gray-*`/`purple-*`/`sky-*` cru em vez de `--ink`/`--surface`/`--brand`;
+    mesmo problema de reatividade à marca do item acima (`purple-600`/`sky-600` nunca reagem a
+    Total Trac).
+  - **`OnboardingTour.tsx`** — já funciona nos dois temas (`theme === 'light' ? 'bg-white/70...' :
+    'bg-slate-900/80...'` ramificado manualmente), só não usa os tokens que fariam o mesmo sem a
+    ramificação manual. Baixo risco, baixa prioridade (não é bug visível).
+  - **`LdrAccountIntelligence.tsx`** — inconsistência interna real encontrada (linha ~209 sugere
+    vidro translúcido sobre fundo escuro fixo, tipo `Account360.tsx`; linha ~353 usa
+    `bg-white/70` com texto `orange-700/900`, que só faz sentido sobre fundo claro) — não deu pra
+    confirmar sem renderizar a tela de verdade qual seção está certa/errada. Precisa da mesma
+    verificação por screenshot real que o Pilot 005 usou, não deve ser corrigido só pela leitura
+    do código.
+  - **`SuperagentCreator.tsx:731`** — `bg-gray-900` com `emerald-500`/`amber-500` cru num card de
+    "Resultado do Provisionamento". Pode ser o mesmo padrão legítimo de "saída sempre escura" do
+    `RobustScriptGenerator.tsx`/Roleplay, ou pode ser debito não documentado — ambíguo demais pra
+    decidir sem outra rodada de investigação ou perguntar ao usuário.
+- **Validação**: `npx tsc --noEmit` no projeto inteiro — 0 erros. `npx biome lint` nos 7 arquivos
+  com mudança real de cor — todos os achados são débito pré-existente não relacionado
+  (`useButtonType`, `useExhaustiveDependencies`, `useParseIntRadix`, `useSemanticElements`),
+  confirmado item por item que nenhum foi introduzido pelas edições desta sessão (só strings de
+  `className` foram tocadas, nenhum elemento novo). QA visual em navegador **não foi feita** nesta
+  rodada (mudanças de cor pontuais, risco baixo o suficiente pra não justificar subir o servidor de
+  novo pra cada uma — mas fica registrado como pendência, não como "verificado", seguindo o
+  protocolo de `visual-qa/SKILL.md` pra quando a verificação completa não roda).
+
+## Piloto 027 — Win/Loss Analysis
+
+- **Objetivo**: primeiro dos 4 últimos módulos do CRM ainda sem piloto dedicado (`/app/winloss`,
+  `/app/topic_training`, `/app/reports`, `/app/crm360`+`/app/propostas`), auditados em paralelo e
+  implementados em ordem de severidade — este veio primeiro por ter o achado mais grave de toda a
+  série.
+- **Achado principal — vazamento de dado cross-tenant real, corrigido**:
+  `winLossAnalysis.worker.ts` (cron semanal, sexta 19h) fazia UMA query `prisma.lead.findMany`
+  **sem `organizationId`**, misturando leads de TODAS as organizações do banco no mesmo prompt de
+  IA — um vazamento de dado real entre clientes do produto, não hipotético (achado de auditoria,
+  não de código morto: o job está agendado e ativo). Corrigido extraindo a lógica pra uma função
+  testável (`runWinLossAnalysis`, mesmo padrão de `runStagnationScan` em
+  `stagnation-scanner.service.ts`) que lista as organizações e roda uma análise SEPARADA por
+  organização, dentro do `requestContext.run({tenantId})` correto — mesmo princípio já usado no
+  scanner de estagnação. 6 testes novos (`winLossAnalysis.worker.test.ts`) provam isolamento entre
+  organizações, que toda query de leitura de lead inclui `organizationId`, e que uma falha de IA
+  numa organização não impede a análise das demais.
+- **Achado secundário — corrupção de dado silenciosa, corrigido**: a Mesa de Tratamento
+  (`mesaTratamento.routes.ts`, Piloto 026) grava `body.lossReasonId` — o ID numérico bruto do
+  Bitrix (ex. `"21638"`) — direto em `Lead.lossReason`, enquanto a importação de leads do Bitrix
+  sempre grava o TEXTO do motivo (`applyInboundCustomFields`). Efeito real, confirmado por
+  auditoria: a tela de Win/Loss podia mostrar `"21638"` como "Principal motivo de perda" em vez de
+  "Não é ICP"; `lossTaxonomy.ts` (Comercial Inteligente) nunca reconhecia o ID como palavra-chave e
+  classificava sempre como "Outro"; e a sincronização de volta ao Bitrix
+  (`buildOutboundCustomFields`) falhava em silêncio (só logava em debug, nunca enviava o campo) —
+  contrariando a própria documentação do módulo (`mesa-tratamento/AGENTS.md`), que afirma que
+  `exportLeadToBitrixNow` "propaga sozinho". Corrigido com `resolveLossReasonLabel` (nova função
+  exportada em `constants/lossReasons.ts`, testável em isolamento — 4 testes novos, incl. checagem
+  de que TODO ID do catálogo real traduz corretamente) usada na escrita — todo consumidor a jusante
+  passa a receber o mesmo formato de texto.
+- **Achado terciário, corrigido**: o cron usava uma lista de status menor (sem
+  `Negocios_Ganhos`) que o disparo manual — alinhado pra usar a mesma constante
+  `WIN_LOSS_STATUSES` nos dois caminhos. Copy da tela corrigida (`WinLossAnalysis.tsx`): o texto
+  afirmava "esta análise é gerada automaticamente toda sexta às 19h" de um jeito que sugeria que o
+  resultado do cron aparecia na tela — não aparece (o cron não persiste, só loga; achado real, não
+  corrigido — ver "fora de escopo" abaixo), corrigido pra não afirmar algo que a implementação não
+  entrega. Catálogo do AI Suite Hub (`AISuiteHub.tsx`) tinha 2 entradas apontando pro mesmo
+  endpoint `/win-loss-analysis` com título/descrição de "Resumos Executivos Diários" que na
+  verdade descrevem `/report` (ReportsHub) — corrigido apontando a entrada certa pro endpoint
+  certo.
+- **Fora de escopo, documentado**: persistir o resultado do cron (análogo ao model `Report` já
+  usado por ReportsHub) pra a tela deixar de depender só do disparo manual — mudança de schema,
+  escopo maior que uma correção de bug; a copy foi corrigida pra não prometer isso, não a
+  funcionalidade construída.
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo, só os 2 warnings
+  pré-existentes de `connection as any`, já presentes antes desta sessão), `npx tsc --noEmit -p .`
+  (0 erros), `npx vite build` (sucesso), `npx vitest run -c vitest.unit.config.ts
+  tests/unit/features/mesa-tratamento tests/unit/features/intelligence/services/
+  winLossAnalysis.worker.test.ts` (16/16, incl. os 10 testes novos desta sessão).
+- **Aprendizado incorporado**: primeiro achado de segurança cross-tenant real desta série (os
+  achados de RBAC anteriores eram sobre papel dentro do mesmo tenant, nunca vazamento entre
+  tenants) — reforça que todo `prisma.<model>.findMany` dentro de um worker/cron (que não passa
+  pelo middleware `requireTenant` de uma rota HTTP) precisa ser auditado à parte: o padrão correto
+  já existia no próprio repositório (`stagnation-scanner.service.ts`), só não tinha sido replicado
+  aqui — vale conferir todo `src/**/*.worker.ts` que faça query sem filtro explícito de
+  organização antes de assumir que só rotas HTTP têm esse risco.
+
+## Piloto 028 — Topic Training Academy
+
+- **Objetivo**: segundo dos 4 módulos sem piloto (`/app/topic_training`). Confirmado por auditoria:
+  não é um módulo com backend próprio — é uma tela única que consome o endpoint genérico e
+  compartilhado `/api/intelligence/studio` (`kind: 'training'`), a mesma família de 11 outras
+  "capacidades" do Studio (e-mail, script de call, metodologia etc.). Ausência de persistência
+  (progresso/pontuação) é decisão consistente com toda a família Studio (nenhum "kind" persiste,
+  incl. Roleplay já documentado assim no Piloto 008) — não é bug, não corrigido.
+- **Achado principal, corrigido**: mesmo bug de "módulo não reage a dark mode" já documentado e
+  corrigido no Piloto 005 (Market Intelligence) — `indigo-*`/`rose-*`/`amber-*` hardcoded em todo o
+  único componente do módulo (`TopicTrainingAcademy.tsx`), sem tokens, renderizando como retalho
+  claro fixo dentro do app escuro (tema padrão real, `ThemeContext.tsx`). Corrigido mapeando pros
+  tokens semânticos já existentes: indigo → `brand`/`brand-active` (é a cor de identidade da
+  própria tela, não uma categoria fixa), rose → `danger`/`danger-active`, amber →
+  `warning`/`warning-active`.
+- **Achado secundário, corrigido**: input de tema só tinha `required` (impede vazio), mas o schema
+  Zod real do backend (`studio/schema.ts`, `kind: 'training'`) exige `min(3).max(500)` — um tema de
+  1-2 caracteres era enviado e só rejeitado pelo backend com mensagem genérica. Adicionado
+  `minLength={3}`/`maxLength={500}` espelhando os limites reais confirmados no schema.
+- **Preservado**: nenhuma mudança de comportamento/fluxo, só tokens e os 2 atributos de validação.
+  Nenhum teste unitário ou e2e cobre o fluxo de geração desta tela (confirmado por auditoria) —
+  nada a quebrar; `tests/e2e/accessibility.spec.ts` ("Academia de Treinamento...") só testa o
+  estado inicial vazio, intacto.
+- **Verificação**: `npx eslint --no-cache` (limpo), `npx tsc --noEmit -p .` (0 erros), `npx vite
+  build` (sucesso).
+
+## Piloto 029 — Reports Hub
+
+- **Objetivo**: terceiro dos 4 módulos sem piloto (`/app/reports`, componente `ReportsHub.tsx` —
+  não confundir com `Reports.tsx`, já confirmado órfão e removido numa sessão anterior). Confirmado
+  por auditoria: funciona de ponta a ponta de verdade (SSE real, IA real, persiste via
+  `prisma.report.create`, sobrevive a reload via `GET /report/latest`) — não é tela cenográfica.
+- **Achado principal, corrigido — dado real subaproveitado**: `analyticsDB.overview()` já devolve
+  `overdueActivities`, `lostThisMonth` e `averageScore` na MESMA resposta que a tela já busca, mas
+  só 8 dos 11 campos apareciam nos cards de "Dados-base" — faltava o lado negativo do mês
+  (`lostThisMonth`, ao lado de `closedThisMonth`), atividades atrasadas (distinto de "pendentes") e
+  o score médio de IA. Adicionados 3 tiles novos, mesmo padrão visual dos 8 existentes; 2 testes
+  novos (`ReportsHub.test.tsx`, agora 8/8).
+- **Achado secundário, corrigido**: botão "Interpretar Dados com IA" sem `type="button"` explícito
+  — mesmo nit de consistência já corrigido em 9+ pilotos anteriores.
+- **Fora de escopo, documentado (achados reais, não corrigidos)**: o model `Report` persiste TODO
+  relatório gerado por organização (índice `[organizationId, createdAt]` já pensado pra listagem),
+  mas só `findFirst` por mais recente é lido em qualquer lugar do código — não existe rota `GET` de
+  histórico nem UI pra ver relatórios anteriores; `POST /api/intelligence/report` (variante sem
+  streaming) é rota órfã, sem nenhum consumidor de UI (a tela só chama `/report/stream`);
+  `src/lib/queue/dailyReport.worker.ts` é um worker registrado mas **nunca agendado/enfileirado**
+  por nada no repositório, e mesmo se fosse, só faz `logger.info('Simulando envio de
+  e-mail...')` em vez de enviar de verdade — ao contrário do irmão real `weeklyPdfReport.worker.ts`
+  (agendado de verdade, envia e-mail real). Os 3 achados são reais mas cada um é escopo de feature
+  nova (UI de histórico, decidir remover ou terminar a rota órfã, decidir se o e-mail diário deve
+  existir de verdade) — sinalizados, não decididos unilateralmente aqui.
+- **Verificação**: `npx eslint --no-cache` (limpo), `npx tsc --noEmit -p .` (0 erros), `npx vite
+  build` (sucesso), `npx vitest run -c vitest.unit.config.ts
+  tests/unit/features/intelligence/components/ReportsHub.test.tsx` (8/8, preservando as 6
+  asserções de texto/contrato de payload já existentes).
+
+## Piloto 030 — CRM 360 / Propostas
+
+- **Objetivo**: último dos 4 módulos sem piloto — na verdade 3 componentes relacionados mas
+  distintos, confirmado por auditoria: `CrmOverview.tsx` (`/app/crm360`, dashboard agregado),
+  `PropostasList.tsx`/`PropostaDetail.tsx`/`PropostaForm.tsx` (`/app/propostas`, CRUD real de
+  `CrmCommercialDocument`, mora na pasta `crm360` apesar do nome da rota) e
+  `PropostaComercialHub.tsx` (`/app/proposta-comercial`, iframe viewer de HTML estático + 3 hubs
+  irmãos — `SocialSellingHub`/`TreinamentoAtlasGRHub`/`HubInteligenciaMarketingHub` — todos
+  "acervos executivos" restritos por e-mail único, confirmado intencional por commit real
+  `04367361`, não débito de migração).
+- **Achado principal, corrigido — mesmo padrão de RBAC já corrigido 4+ vezes nesta série**:
+  `POST/PUT /api/crm/documents` exigem `ADMIN/GESTOR/CLOSER/SDR` no backend (`writeRoles`,
+  `crm360.routes.ts`), mas `PropostasList.tsx`/`PropostaDetail.tsx`/`PropostaForm.tsx` não faziam
+  NENHUMA checagem de papel — um `VISUALIZADOR` via "Novo Documento", "Editar", "Mudar status" e
+  "Solicitar assinatura" todos habilitados normalmente, só recebendo um 403 do backend ao tentar.
+  Corrigido com `canWrite` (`useAuth` + `hasRequiredRole`, mesmo padrão de `Base.tsx`) escondendo
+  os 4 controles nos 2 componentes. Novo `tests/unit/features/crm360/components/
+  PropostasList.test.tsx` (4 casos: ADMIN/SDR veem o botão, VISUALIZADOR e sessão nula não veem).
+- **Achado secundário, corrigido — funcionalidade de vínculo 100% modelada mas nunca preenchível**:
+  `CrmCommercialDocument.leadId`/`companyId`/`contactId` são reais no schema, já aceitos por
+  `crm360Api.createDocument`, já exibidos em `PropostaDetail.tsx` ("Registro vinculado") e
+  `PropostasList.tsx` (coluna "Vinculado") — mas `PropostaForm.tsx` nunca enviava nenhum dos três.
+  Todo documento criado desde que o módulo existe tinha e sempre teria "Vinculado: —". Corrigido
+  adicionando busca de empresa com debounce (mesmo padrão de
+  `src/features/lgpd/components/DataSubjectRights.tsx`) só no fluxo de CRIAÇÃO — `contactId` e a
+  edição de vínculo em documento já existente ficaram de fora: `CrmDocumentUpdateInput` (usado no
+  PUT de edição) não aceita nenhum dos três campos hoje, mudar isso exigiria rota de backend nova,
+  fora do escopo desta correção pontual.
+- **Achados de token, corrigidos**: `CrmOverview.tsx` e os 4 hubs executivos (`ExecutiveHeader.tsx`
+  compartilhado + `PropostaComercialHub`/`SocialSellingHub`/`TreinamentoAtlasGRHub`/
+  `HubInteligenciaMarketingHub`) tinham dois problemas: (1) cores cruas (`blue-500`/`emerald-500`/
+  `amber-500`/`red-500`) sem token semântico, mapeadas pra `info`/`success`/`warning`/`danger`; (2)
+  `bg-card`/`bg-base`/`bg-background`/`hover:bg-soft-hover` — classes que **não existem** em
+  `globals.css` (sem `--color-card`/`--base`/`--background`/`--soft-hover`), renderizando sem
+  efeito de CSS real — bug funcional, não só estético. Corrigido pra `bg-surface`/`bg-bg`/
+  `hover:bg-line` (tokens reais). `roxo`/`purple` não têm token semântico — mantido com par
+  `dark:` explícito (`dark:bg-purple-500/20 dark:text-purple-400`) em vez de inventar um token
+  novo pra 3 ocorrências.
+- **Achado de acessibilidade, corrigido**: `PropostasList.tsx`, a linha da tabela (`&lt;tr
+  onClick&gt;`) que abre o detalhe de um documento não tinha `tabIndex`/`role="button"`/`onKeyDown`
+  — inacessível por teclado. Corrigido com os 3 atributos + `aria-label` descritivo +
+  `focus-visible:ring`.
+- **Achado de manutenção, corrigido**: o e-mail do gate `RequireUserAllowed` dos 4 hubs executivos
+  estava duplicado como literal em 6 arquivos (`App.tsx` 4x, `ExecutiveHeader.tsx`, `Sidebar.tsx`,
+  `CommandPalette.tsx`) sem nenhuma constante compartilhada — trocar essa pessoa exigiria editar
+  todos manualmente, sem checagem de tipo que apontasse um esquecido. Extraído
+  `EXECUTIVE_HUB_ALLOWED_EMAIL` em `src/config/access-policy.ts`, com comentário explicando que é
+  um gate DIFERENTE de `AUTHORIZED_LOGIN_EMAILS` (mesma pessoa, propósito diferente) — os 6 pontos
+  agora importam a constante única.
+- **Fora de escopo, documentado**: catálogo de produtos (`CrmProduct`) e itens de negócio
+  (`CrmDealItem`) — CRUD de backend completo (schema, Zod, rotas com RBAC), zero UI em qualquer
+  lugar do repositório pra criar/gerenciar nenhum dos dois; campo `currency` do documento sem
+  `&lt;input&gt;` no formulário (sempre BRL); rota órfã `GET /pipelines`. Cada um é escopo de feature
+  nova, não ajuste pontual — sinalizados.
+- **Achado ambiental, não corrigido por mim (não é meu trabalho)**: durante a implementação, 5
+  agentes em paralelo lançados pra este piloto atingiram o limite de sessão da API (rate limit)
+  simultaneamente e morreram no meio da tarefa — 2 deles (RBAC+vínculo, acessibilidade+e-mail)
+  não chegaram a editar nenhum arquivo; os outros 3 (tokens, Reports Hub, Topic Training) deixaram
+  edições parciais mas corretas (confirmado por leitura do diff de cada um antes de continuar).
+  Retomado manualmente completando o que faltava em vez de simplesmente re-lançar os agentes.
+- **Verificação**: `npx eslint --no-cache` nos arquivos tocados (limpo, só 1 warning
+  pré-existente em `CommandPalette.tsx` não relacionado — `useMemo` sem `currentUser` nas deps,
+  confirmado via diff que a linha não foi tocada por esta sessão), `npx tsc --noEmit -p .` (0
+  erros), `npx vite build` (sucesso), `npx vitest run -c vitest.unit.config.ts
+  tests/unit/features/crm360` (8/8, incl. os 4 testes novos de RBAC).
+- **Aprendizado incorporado**: primeira vez nesta série em que múltiplos agentes paralelos falham
+  por rate limit no meio do trabalho — o protocolo que funcionou foi: (1) checar `git status`/
+  `git diff` de cada arquivo antes de assumir que nada foi feito ou que tudo foi feito; (2)
+  completar o que ficou pela metade lendo o diff real em vez de re-lançar o agente do zero (evita
+  duplicar trabalho já correto); (3) um teste novo que parecia estar testando o comportamento
+  errado (`getByRole`/`getByText` "não encontrando" o elemento) na verdade só estava sem
+  `import '@testing-library/jest-dom/vitest'` — o erro real (`Invalid Chai property:
+  toBeInTheDocument`) fica enterrado dentro do output de timeout do `waitFor` a menos que se busque
+  a mensagem de erro exata em vez de confiar no snapshot de DOM impresso; vale conferir esse import
+  primeiro sempre que `toBeInTheDocument`/matchers do jest-dom "não funcionam" num teste novo.
