@@ -4911,6 +4911,33 @@ paths:
         '201': { description: Snapshot criado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
 
+  # ─── Onda 6 — Coaching + Handoff ────────────────────────────────────
+  /copiloto-ia/conversations/{id}/coaching:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Copiloto IA]
+      summary: >-
+        Avaliação de coaching da conversa (rubrica + score geral), quando já calculada —
+        `data` vem `null` se ainda não houver avaliação registrada
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /copiloto-ia/conversations/{id}/handoff:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Copiloto IA]
+      summary: >-
+        Vista agregada de handoff da conversa (resumo, objeções, concorrentes, buying signals,
+        reclamações, promessas, bloqueios, último Deal Health e coaching) — só composição do que
+        já foi extraído, sem chamada de IA nova. `isComplete`/`missingParts` sinalizam handoff
+        incompleto de forma objetiva.
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ─── Onda 4 — mapeamento de campo Bitrix + writeback (ADMIN/GESTOR) ───
   /copiloto-ia/bitrix-field-mappings:
     get:
