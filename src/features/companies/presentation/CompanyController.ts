@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { CompanyUseCases } from '../application/CompanyUseCases';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import { routeParam } from '../../../shared/http/routeParams';
 
 export class CompanyController {
   constructor(private companyUseCases: CompanyUseCases) {}
@@ -25,7 +26,7 @@ export class CompanyController {
   getCompanyById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const company = await this.companyUseCases.findCompanyById(orgId, req.params.id);
+      const company = await this.companyUseCases.findCompanyById(orgId, routeParam(req.params.id, 'id'));
       if (!company) {
         res.status(404).json({ success: false, error: 'Company not found' });
         return;
@@ -49,7 +50,11 @@ export class CompanyController {
   updateCompany = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const company = await this.companyUseCases.updateCompany(orgId, req.params.id, req.body);
+      const company = await this.companyUseCases.updateCompany(
+        orgId,
+        routeParam(req.params.id, 'id'),
+        req.body,
+      );
       res.json({ success: true, data: company });
     } catch (error) {
       next(error);
@@ -59,7 +64,7 @@ export class CompanyController {
   deleteCompany = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      await this.companyUseCases.deleteCompany(orgId, req.params.id);
+      await this.companyUseCases.deleteCompany(orgId, routeParam(req.params.id, 'id'));
       res.status(204).send();
     } catch (error) {
       next(error);
@@ -69,7 +74,7 @@ export class CompanyController {
   enrichCompany = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const result = await this.companyUseCases.enrichCompany(orgId, req.params.id, {
+      const result = await this.companyUseCases.enrichCompany(orgId, routeParam(req.params.id, 'id'), {
         cnpj: req.body?.cnpj,
         segmentKeywords: req.body?.segmentKeywords,
       });

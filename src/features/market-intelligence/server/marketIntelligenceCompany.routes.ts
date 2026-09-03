@@ -8,6 +8,7 @@ import {
   parseCompanyCatalogQuery,
 } from './marketIntelligenceCompany.service.js';
 import { getAccountIntelligence } from './catalogAccountIntelligence.service.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:cnpj/intelligence', async (req, res, next) => {
   try {
-    const result = await getAccountIntelligence(req.params.cnpj);
+    const result = await getAccountIntelligence(routeParam(req.params.cnpj, 'cnpj'));
     if (!result.account) {
       res.status(404).json({
         success: false,
@@ -53,7 +54,7 @@ router.post('/:cnpj/approve-to-pipeline', async (req: any, res, next) => {
   try {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.id;
-    const result = await approveToPipeline(organizationId, req.params.cnpj, userId);
+    const result = await approveToPipeline(organizationId, routeParam(req.params.cnpj, 'cnpj'), userId);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     if (error instanceof CompanyCatalogValidationError) {
@@ -66,7 +67,7 @@ router.post('/:cnpj/approve-to-pipeline', async (req: any, res, next) => {
 
 router.get('/:cnpj', async (req, res, next) => {
   try {
-    const result = await getMarketIntelligenceCompany(req.params.cnpj);
+    const result = await getMarketIntelligenceCompany(routeParam(req.params.cnpj, 'cnpj'));
     if (!result.company) {
       res.status(404).json({
         success: false,

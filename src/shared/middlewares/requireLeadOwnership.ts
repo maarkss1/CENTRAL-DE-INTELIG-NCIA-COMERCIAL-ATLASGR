@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from './authenticateToken.js';
 import { prisma } from '../../lib/prisma.js';
+import { routeParam } from '../http/routeParams.js';
 
 /**
  * CLOSER/SDR só pode editar/excluir/reenriquecer os leads que capturou — GESTOR/ADMIN já são
@@ -28,7 +29,7 @@ export function requireLeadOwnership() {
     }
 
     const lead = await prisma.lead.findFirst({
-      where: { id: req.params.id, organizationId: authReq.user.organizationId },
+      where: { id: routeParam(req.params.id, 'id'), organizationId: authReq.user.organizationId },
       select: { owner: true },
     });
 

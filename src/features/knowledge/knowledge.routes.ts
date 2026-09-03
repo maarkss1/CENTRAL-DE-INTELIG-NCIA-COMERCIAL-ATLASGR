@@ -14,6 +14,7 @@ import { validateRequest } from '../../shared/middlewares/validateRequest.js';
 import { logger } from '../../lib/logger.js';
 import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../shared/middlewares/requireRole.js';
+import { routeParam } from '../../shared/http/routeParams.js';
 import { getAiModel } from '../../lib/ai/gateway.js';
 import { HumanMessage } from '@langchain/core/messages';
 
@@ -232,7 +233,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { organizationId } = (req as AuthRequest).user;
-    const document = await ingestionService.get(organizationId, req.params.id);
+    const document = await ingestionService.get(organizationId, routeParam(req.params.id, 'id'));
     if (!document) {
       res.status(404).json({ success: false, error: 'Documento não encontrado.' });
       return;
@@ -351,7 +352,11 @@ router.put(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const result = await ingestionService.updateDocument(organizationId, req.params.id, req.body);
+      const result = await ingestionService.updateDocument(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+        req.body,
+      );
       res.json({ success: true, data: result });
     } catch (error) {
       if ((error as Error).message === 'Documento não encontrado.') {
@@ -367,7 +372,7 @@ router.put(
 router.post('/:id/reembed', writeRoles, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { organizationId } = (req as AuthRequest).user;
-    const result = await ingestionService.reembedDocument(organizationId, req.params.id);
+    const result = await ingestionService.reembedDocument(organizationId, routeParam(req.params.id, 'id'));
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -381,12 +386,13 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const removed = await ingestionService.delete(organizationId, req.params.id);
+      const documentId = routeParam(req.params.id, 'id');
+      const removed = await ingestionService.delete(organizationId, documentId);
       if (!removed) {
         res.status(404).json({ success: false, error: 'Documento não encontrado.' });
         return;
       }
-      logger.info({ documentId: req.params.id }, 'Documento removido da Base de Conhecimento');
+      logger.info({ documentId }, 'Documento removido da Base de Conhecimento');
       res.status(204).send();
     } catch (error) {
       next(error);

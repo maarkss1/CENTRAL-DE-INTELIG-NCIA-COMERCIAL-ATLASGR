@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { FeatureFlagsUseCases } from '../application/FeatureFlagsUseCases.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 
 export class FeatureFlagsController {
   constructor(private featureFlagsUseCases: FeatureFlagsUseCases) {}
@@ -24,7 +25,7 @@ export class FeatureFlagsController {
   setOverride = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;
-      const { key } = req.params;
+      const key = routeParam(req.params.key, 'key');
       const { enabled } = req.body as { enabled?: unknown };
 
       if (typeof enabled !== 'boolean') {
@@ -49,7 +50,7 @@ export class FeatureFlagsController {
   clearOverride = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const { key } = req.params;
+      const key = routeParam(req.params.key, 'key');
       const result = await this.featureFlagsUseCases.clearOverrideForOrganization(
         organizationId,
         key,
