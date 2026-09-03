@@ -7,6 +7,8 @@ export interface ChannelDonutProps {
   colorMap?: Record<string, string>;
   totalLabel?: string;
   formatLabel?: (label: string) => string;
+  /** Mostrado no lugar da lista quando `data` não tem nenhuma entrada com valor > 0. */
+  emptyLabel?: string;
 }
 
 export function ChannelDonut({
@@ -14,18 +16,25 @@ export function ChannelDonut({
   colorMap = {},
   totalLabel = 'total',
   formatLabel = (label) => label,
+  emptyLabel = 'Sem dados neste período.',
 }: ChannelDonutProps) {
   const total = Object.values(data).reduce((a, b) => a + b, 0);
-  const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  const sorted = Object.entries(data)
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1]);
   let acc = 0;
   const stops = sorted
     .map(([label, value]) => {
-      const from = total ? (acc / total) * 100 : 0;
+      const from = (acc / total) * 100;
       acc += value;
-      const to = total ? (acc / total) * 100 : 0;
+      const to = (acc / total) * 100;
       return `${colorMap[label] ?? 'var(--ink-2)'} ${from}% ${to}%`;
     })
     .join(', ');
+  // total > 0 aqui sempre que `sorted` não está vazio (filtramos value > 0 acima), então `stops`
+  // só fica vazio quando não há nada pra desenhar — conic-gradient() sem stops é CSS inválido e
+  // deixava o anel transparente sem nenhum indício de "sem dados" (achado real do code-review).
+  const ringBackground = sorted.length > 0 ? `conic-gradient(${stops})` : 'var(--surface-2)';
 
   return (
     <div className="flex flex-wrap items-center gap-6">
@@ -33,33 +42,37 @@ export function ChannelDonut({
         role="img"
         aria-label={`${total} ${totalLabel}`}
         className="relative h-32 w-32 shrink-0 rounded-full"
-        style={{ background: `conic-gradient(${stops})` }}
+        style={{ background: ringBackground }}
       >
         <div className="absolute inset-[16%] flex flex-col items-center justify-center rounded-full bg-surface shadow-[inset_0_0_0_1px_var(--line)]">
           <span className="font-mono text-xl font-bold tabular-nums text-ink">{total}</span>
           <span className="text-[9px] uppercase tracking-wide text-ink-2">{totalLabel}</span>
         </div>
       </div>
-      <div className="min-w-[220px] flex-1 space-y-2">
-        {sorted.map(([label, value]) => {
-          const pct = total ? Math.round((value / total) * 1000) / 10 : 0;
-          return (
-            <div key={label} className="grid grid-cols-[8px_1fr_64px] items-center gap-2.5">
-              <span
-                aria-hidden="true"
-                className="h-2 w-2 rounded-sm"
-                style={{ background: colorMap[label] ?? 'var(--ink-2)' }}
-              />
-              <span className="truncate text-[11px] font-semibold text-ink">
-                {formatLabel(label)}
-              </span>
-              <span className="text-right font-mono text-[10px] tabular-nums text-ink-2">
-                {value} · {pct}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      {sorted.length === 0 ? (
+        <p className="min-w-[220px] flex-1 text-xs text-ink-2">{emptyLabel}</p>
+      ) : (
+        <div className="min-w-[220px] flex-1 space-y-2">
+          {sorted.map(([label, value]) => {
+            const pct = Math.round((value / total) * 1000) / 10;
+            return (
+              <div key={label} className="grid grid-cols-[8px_1fr_64px] items-center gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-sm"
+                  style={{ background: colorMap[label] ?? 'var(--ink-2)' }}
+                />
+                <span className="truncate text-[11px] font-semibold text-ink">
+                  {formatLabel(label)}
+                </span>
+                <span className="text-right font-mono text-[10px] tabular-nums text-ink-2">
+                  {value} · {pct}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
