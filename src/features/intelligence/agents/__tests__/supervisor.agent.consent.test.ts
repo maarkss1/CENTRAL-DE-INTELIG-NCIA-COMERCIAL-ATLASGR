@@ -19,6 +19,20 @@ vi.mock('../../../../lib/logger.js', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
+// mem0.ts faz `await import('mem0ai')` de propósito (lazy, mem0ai não é dependência real do
+// projeto — ver comentário em mem0.ts) e trata a ausência do pacote em runtime real via
+// try/catch. Vite/Vitest, porém, tentam resolver o import dinâmico em tempo de transform mesmo
+// assim, o que quebra a suíte antes do try/catch entrar em ação — mockado para não depender do
+// pacote estar instalado neste ambiente de teste. Achado reincidente (já corrigido durante o
+// merge da PR #328, reapareceu depois por outro commit de main reformatando este arquivo).
+vi.mock('../../../../lib/ai/memory/mem0.js', () => ({
+  agentMemory: {
+    search: vi.fn().mockResolvedValue([]),
+    formatForPrompt: vi.fn().mockReturnValue(''),
+    add: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 const { requestContext } = await import('../../../../lib/async-context');
 const { SwarmOrchestrator } = await import('../supervisor.agent');
 const { PiiConsentRequiredError } = await import('../../services/guardrails.service');

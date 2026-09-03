@@ -55,7 +55,10 @@ export class CopilotoBitrixWritebackUseCases {
     organizationId: string,
     suggestionId: string,
   ): Promise<CopilotoCrmFieldSuggestionDTO> {
-    const suggestion = await this.repository.getCrmFieldSuggestionById(organizationId, suggestionId);
+    const suggestion = await this.repository.getCrmFieldSuggestionById(
+      organizationId,
+      suggestionId,
+    );
     if (!suggestion) throw new AppError('Sugestão de campo de CRM não encontrada.', 404);
     if (suggestion.status !== 'APPROVED' && suggestion.status !== 'FAILED') {
       throw new AppError(

@@ -152,6 +152,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
     ) {
       broadcastEvent({ type: 'DEAL_LOST', organizationId, payload: { leadId: id } });
     }
+    if (data.status) this.syncStatusChangeToBitrix(organizationId, id, updated.bitrixLeadId);
     return updated;
   }
 
@@ -180,7 +181,43 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
     ) {
       broadcastEvent({ type: 'DEAL_LOST', organizationId, payload: { leadId: id } });
     }
+    this.syncStatusChangeToBitrix(organizationId, id, updated.bitrixLeadId);
     return updated;
+  }
+
+  /**
+   * Achado da auditoria (PR #328, item fora de escopo original): mudar a etapa de um lead no
+   * Kanban (drag-and-drop) não propagava nada para o Bitrix24 — só aparecia lá na próxima
+   * exportação manual. Um lead que NUNCA foi exportado (`bitrixLeadId` nulo) continua exigindo
+   * exportação manual explícita (não decidimos por conta própria criar um Lead novo no Bitrix só
+   * porque o status mudou); só re-sincroniza quem já foi exportado antes, mantendo o texto de
+   * etapa em COMMENTS/timeline e os campos `UF_CRM_*` atualizados quase em tempo real em vez de
+   * só na próxima exportação manual. Fire-and-forget deliberado (mesmo padrão de
+   * `pushLeadToBitrix` na criação): a mudança de etapa no Atlas nunca deve esperar ou falhar por
+   * causa do Bitrix — erro fica registrado em `Lead.bitrixSyncError`/`BitrixSyncLog`, nunca lançado
+   * para quem chamou.
+   *
+   * Preenche `STATUS_ID` (o campo estruturado de etapa do Bitrix)? Não — não existe hoje nenhum
+   * mapeamento `LeadStatus → STATUS_ID` no código, e os `STATUS_ID` reais são específicos do
+   * pipeline configurado em cada portal Bitrix (não inventáveis aqui, mesma classe de limitação
+   * documentada em `bitrixFieldMap.ts` para o Fit Score). Só o funil "Negócio" (Deal) não tem
+   * NENHUM método de escrita no Bitrix ainda (`crm.deal.update` não existe em lugar nenhum do
+   * código) — sincronizar Deal ficou de fora, é esforço maior que este achado.
+   */
+  private syncStatusChangeToBitrix(
+    organizationId: string,
+    leadId: string,
+    bitrixLeadId: string | null,
+  ): void {
+    if (!bitrixLeadId) return;
+    import('../../integrations/bitrix/bitrix.service.js')
+      .then(({ pushLeadToBitrix }) => pushLeadToBitrix(organizationId, leadId))
+      .catch((err) => {
+        logger.warn(
+          { err, organizationId, leadId },
+          '[bitrix] Falha ao disparar re-sincronização automática após mudança de etapa',
+        );
+      });
   }
 
   async deleteLead(organizationId: string, id: string) {

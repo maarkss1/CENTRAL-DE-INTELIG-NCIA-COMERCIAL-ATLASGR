@@ -1,6 +1,13 @@
 import { prisma } from '../../../lib/prisma.js';
 import type { CadenceRateLimitPort } from '../application/rateLimitService.js';
 import { emailDomainIndexOf } from '../../../lib/crypto/piiIndex.js';
+import type { CadenceChannel } from '../domain/optOut.js';
+import type { LastSentTouch } from '../domain/rateLimit.js';
+
+/** `CadenceChannel` do Prisma ('Email'/'WhatsApp'/'Voice') → domínio ('email'/'whatsapp'/'voice'). Só usado aqui — nenhum outro adapter deste módulo precisou de um mapa genérico até agora (ver `countDistinctEmailRecipientsForDomain` abaixo, que compara direto contra o literal `'Email'`). */
+function fromPrismaCadenceChannel(value: string): CadenceChannel {
+  return value.toLowerCase() as CadenceChannel;
+}
 
 /**
  * Adaptador Prisma real de `CadenceRateLimitPort` — tabelas `CadenceTouchAttempt`/`CadenceRun`
@@ -68,6 +75,16 @@ export class PrismaCadenceRateLimitPort implements CadenceRateLimitPort {
       distinctRecipientsToday: distinctLeadIds.size,
       currentLeadAlreadyCounted: distinctLeadIds.has(leadId),
     };
+  }
+
+  async findLastSentTouch(organizationId: string, leadId: string): Promise<LastSentTouch | null> {
+    const row = await prisma.cadenceTouchAttempt.findFirst({
+      where: { organizationId, result: 'Sent', cadenceRun: { leadId, organizationId } },
+      orderBy: { attemptedAt: 'desc' },
+      select: { channel: true, attemptedAt: true },
+    });
+    if (!row) return null;
+    return { channel: fromPrismaCadenceChannel(row.channel), attemptedAt: row.attemptedAt };
   }
 }
 

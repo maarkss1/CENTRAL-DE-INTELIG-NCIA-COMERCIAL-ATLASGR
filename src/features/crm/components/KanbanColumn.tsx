@@ -64,6 +64,23 @@ export const KanbanColumn = React.memo(function KanbanColumn({
         </div>
       </div>
 
+      {
+        // Achado da auditoria (PR #328, item fora de escopo original): sem virtualização, uma
+        // coluna populosa monta todos os `KanbanCard` no DOM de uma vez (até ~1000 leads/funil
+        // buscados por `useCrmBoardController`, sem paginação real — ver `groupedLeads` em
+        // `CrmBoard.tsx`). Analisado e DELIBERADAMENTE NÃO implementado agora, apesar de
+        // `@tanstack/react-virtual` já ser dependência real do projeto e já ter um padrão pronto
+        // (`ui/VirtualTable.tsx`, `CompanyList.tsx`): virtualizar esta lista especificamente exige
+        // continuar passando TODOS os ids ao `SortableContext` do @dnd-kit (drag-and-drop e
+        // reordenação por teclado dependem disso para colisão/foco), só renderizando via
+        // windowing os `KanbanCard` VISÍVEIS — um padrão não-trivial de acertar sem quebrar o drag
+        // por teclado (`crm-kanban.spec.ts`, já historicamente sensível a timing nesta suíte, ver
+        // achado do PR #328 sobre esse mesmo teste) nem o autoscroll ao arrastar perto da borda da
+        // janela virtualizada, e que exigiria validação visual/interativa real em navegador para
+        // ser considerado concluído (não disponível neste ambiente/sessão). Forçar essa mudança
+        // sem essa validação é mais arriscado do que manter o estado atual — ver seção 4 regra
+        // #8 e seção 12 item 6 de .claude/CLAUDE.md.
+      }
       <div className="p-3 flex-1 overflow-y-auto space-y-3 min-h-[150px] custom-scrollbar">
         <SortableContext items={leads.map((lead) => lead.id)} strategy={rectSortingStrategy}>
           {leads.map((lead) => (

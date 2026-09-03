@@ -62,9 +62,7 @@ export function computeWhatsAppResponseTimeStats(
   const medianResponseMs = sortedGaps.length
     ? sortedGaps.length % 2 === 1
       ? sortedGaps[(sortedGaps.length - 1) / 2]
-      : Math.round(
-          (sortedGaps[sortedGaps.length / 2 - 1] + sortedGaps[sortedGaps.length / 2]) / 2,
-        )
+      : Math.round((sortedGaps[sortedGaps.length / 2 - 1] + sortedGaps[sortedGaps.length / 2]) / 2)
     : null;
 
   return {

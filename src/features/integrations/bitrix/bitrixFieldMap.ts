@@ -331,6 +331,17 @@ export const BITRIX_FIELD_MAP: BitrixFieldMapping[] = [
     dealCode: 'UF_CRM_1784922718473',
   },
 
+  // `Lead.score` (Fit Score) NÃO tem entrada aqui de propósito — achado P3 da auditoria (ver PR
+  // #328): hoje ele só viaja para o Bitrix como texto dentro de COMMENTS/timeline
+  // (`service/outboundSync.ts`), não como campo filtrável/relatável. Diferente dos outros campos
+  // deste mapa, não dá para simplesmente adicionar uma entrada `{ target: { kind: 'lead', field:
+  // 'score' }, type: 'double', ... }` — não existe hoje nenhum `UF_CRM_*` reservado para isso no
+  // portal `atlasgr.bitrix24.com.br` (confirmado varrendo este arquivo: nenhuma ocorrência de
+  // "score"). Pré-requisito real, fora do alcance de uma mudança de código: um admin do Bitrix
+  // precisa criar um campo customizado numérico em Lead e em Deal primeiro (mesmo padrão dual
+  // leadCode/dealCode do resto do mapa) — só depois disso vale adicionar a entrada aqui e
+  // incrementar BITRIX_FIELD_MAP_VERSION.
+
   // Achado em public/tools/portal-comercial (ferramenta de referência standalone, ex-extrator-bitrix.html) — não
   // fazia parte do levantamento original de 2026-08-05 que gerou o resto deste mapa. Só código
   // Lead conhecido; nenhum equivalente Deal foi identificado até agora.

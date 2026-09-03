@@ -1,4 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { z } from 'zod';
 import { cleanAndParseJson, getAiModel } from '../../../lib/ai/gateway.js';
 import { generateEmailDraft, generateObjectionHandling } from '../../../lib/ai/features.js';
 import { compileLeadGraph } from '../graphs/leadQualification.js';
@@ -7,6 +8,16 @@ import { NextBestActionService } from '../../activities/services/next-best-actio
 import { MeetingSynthesisService } from '../../chatbook/services/meeting-synthesis.service.js';
 import { KnowledgeCopilotService } from '../../knowledge/services/knowledge-copilot.service.js';
 import { GOLDEN_TOOL_NAMES, type GoldenCase } from './goldenDataset.types.js';
+
+// Achado da auditoria (PR #328, item fora de escopo original): sem este schema, um "tool" fora de
+// GOLDEN_TOOL_NAMES (nome inventado, ou a mais provável falha real: um typo do LLM) passava para o
+// scorer do golden-dataset como se fosse uma seleção válida — o teste de regressão perde o sentido
+// se ele mesmo aceita qualquer string como "ferramenta". `z.enum(GOLDEN_TOOL_NAMES)` é a mesma
+// lista usada por `expected.expectedTool` em goldenDataset.types.ts — nunca duplicar a lista.
+const toolSelectionSchema = z.object({
+  tool: z.enum(GOLDEN_TOOL_NAMES),
+  args: z.record(z.string(), z.unknown()),
+});
 
 const nextBestAction = new NextBestActionService();
 const meeting = new MeetingSynthesisService();
@@ -46,7 +57,7 @@ export async function runGoldenCaseAgainstProduction(goldenCase: GoldenCase): Pr
         ),
         new HumanMessage(goldenCase.input.scenario),
       ]);
-      return cleanAndParseJson<{ tool: string; args: Record<string, unknown> }>(response.content);
+      return toolSelectionSchema.parse(cleanAndParseJson<unknown>(response.content));
     }
   }
 }
