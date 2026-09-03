@@ -73,6 +73,11 @@ export function GoalCountdownOverlay({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
+        // Overlay de tela cheia pra um momento raro e de alto impacto (meta batida/contagem
+        // regressiva) — fundo sempre escuro de propósito ("modo cinema"), independente do tema do
+        // app, mesmo raciocínio já documentado em ActiveCallView.tsx/CallAnalysisReport.tsx pra
+        // telas de foco total. Os `bg-white/5-10` abaixo são vidro translúcido sobre esse fundo
+        // fixo, não a superfície do app.
         className="fixed inset-0 z-[100] flex flex-col bg-zinc-950 text-white overflow-hidden"
       >
         {/* Background Decorativo */}

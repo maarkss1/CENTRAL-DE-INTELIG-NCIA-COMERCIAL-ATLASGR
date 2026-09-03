@@ -30,12 +30,19 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { Pagination } from '../../../components/ui/Pagination';
 import { useConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
+// Cor categórica por senioridade (sem significado semântico de estado — não é ok/warn/danger, por
+// isso não usa os tokens de marca/semânticos do projeto). Achado real: só tinha a variante clara
+// (bg-*-100/text-*-700), ilegível no tema escuro (pastel claro sobre superfície escura). Cada tom
+// ganhou o par `dark:` correspondente, mesma convenção já usada em Badge.tsx.
 const SENIORITY_COLORS: Record<string, string> = {
-  'C-Level': 'bg-purple-100 text-purple-700 border-purple-200',
-  Director: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-  VP: 'bg-blue-100 text-blue-700 border-blue-200',
-  Manager: 'bg-sky-100 text-sky-700 border-sky-200',
-  Analyst: 'bg-gray-100 text-gray-600 border-gray-200',
+  'C-Level':
+    'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30',
+  Director:
+    'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30',
+  VP: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30',
+  Manager:
+    'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30',
+  Analyst: 'bg-surface-2 text-ink-2 border-line',
 };
 
 function SkeletonRow() {
@@ -333,7 +340,7 @@ export function ContactList() {
                       <td className="p-4 hidden xl:table-cell">
                         {contact.seniority && (
                           <span
-                            className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${SENIORITY_COLORS[contact.seniority] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}
+                            className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${SENIORITY_COLORS[contact.seniority] ?? 'bg-surface-2 text-ink-2 border-line'}`}
                           >
                             {contact.seniority}
                           </span>

@@ -61,13 +61,13 @@ export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLogin
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden"
+          className="relative w-full max-w-md bg-surface rounded-3xl shadow-2xl overflow-hidden"
         >
           {/* Close button */}
           <button
             onClick={onClose}
             aria-label="Fechar"
-            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-10"
+            className="absolute top-4 right-4 p-2 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-full transition-colors z-10"
           >
             <X size={20} />
           </button>
@@ -96,8 +96,8 @@ export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLogin
               </svg>
             </div>
 
-            <h2 className="text-2xl font-semibold text-slate-900 mb-2">Fazer login</h2>
-            <p className="text-slate-600 mb-8 text-xs">
+            <h2 className="text-2xl font-semibold text-ink mb-2">Fazer login</h2>
+            <p className="text-ink-2 mb-8 text-xs">
               Use sua Conta do Google corporativa (@atlasgr.com.br ou @totaltrac.com.br) para
               acessar a plataforma
             </p>
@@ -106,7 +106,7 @@ export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLogin
               {step === 'button' && (
                 <button
                   onClick={handleGoogleLogin}
-                  className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-slate-700 font-medium py-3 px-4 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm"
+                  className="w-full flex items-center justify-center gap-3 bg-surface border border-line text-ink font-medium py-3 px-4 rounded-xl hover:bg-surface-2 active:bg-surface-2 transition-colors shadow-sm"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                     <path
@@ -132,14 +132,14 @@ export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLogin
 
               {step === 'loading' && (
                 <div className="py-4 flex flex-col items-center justify-center">
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-4" />
-                  <p className="text-sm text-slate-500">Autenticando de forma segura...</p>
+                  <Loader2 className="w-8 h-8 text-brand animate-spin mb-4" />
+                  <p className="text-sm text-ink-2">Autenticando de forma segura...</p>
                 </div>
               )}
 
               {step === 'success' && (
                 <div className="py-4 flex flex-col items-center justify-center">
-                  <div className="w-12 h-12 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 bg-ok/15 text-ok-active dark:text-ok rounded-full flex items-center justify-center mb-4">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
@@ -149,14 +149,14 @@ export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLogin
                       />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-slate-900">Login realizado com sucesso!</p>
+                  <p className="text-sm font-medium text-ink">Login realizado com sucesso!</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="bg-gray-50 border-t border-gray-100 p-4 text-center">
-            <p className="text-xs text-gray-500">
+          <div className="bg-surface-2 border-t border-line p-4 text-center">
+            <p className="text-xs text-ink-2">
               Ao continuar, você concorda com os Termos de Serviço e a Política de Privacidade.
             </p>
           </div>
