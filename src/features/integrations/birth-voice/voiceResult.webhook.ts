@@ -303,8 +303,9 @@ ${transcript || 'Nenhuma transcrição gravada.'}`;
       // mesmo padrão do fallback de WhatsApp acima.
       if (hadConversation && transcript) {
         try {
-          const copilotoVoiceIngestionPort =
-            container.resolve<CopilotoVoiceIngestionPort>('CopilotoVoiceIngestionPort');
+          const copilotoVoiceIngestionPort = container.resolve<CopilotoVoiceIngestionPort>(
+            'CopilotoVoiceIngestionPort',
+          );
           await copilotoVoiceIngestionPort.ingestCallResult(organizationId, {
             providerCallId: callId,
             leadId: lead.id,

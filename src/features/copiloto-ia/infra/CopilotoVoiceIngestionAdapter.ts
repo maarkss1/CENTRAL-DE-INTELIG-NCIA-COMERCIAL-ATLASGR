@@ -21,7 +21,11 @@ import { logger } from '../../../lib/logger.js';
 import { CopilotoIaUseCases } from '../application/CopilotoIaUseCases.js';
 import { PrismaCopilotoIaRepository } from './PrismaCopilotoIaRepository.js';
 import { extractConversationIntelligence } from './conversationIntelligence.service.js';
-import { computeDealHealthScore, computeChurnRiskScore, type SentimentScore } from '../application/dealHealthScoring.js';
+import {
+  computeDealHealthScore,
+  computeChurnRiskScore,
+  type SentimentScore,
+} from '../application/dealHealthScoring.js';
 import { computeAiProbabilityAdjustment } from '../application/forecastAdjustment.js';
 import type { AddTranscriptSegmentInput } from '../domain/CopilotoIa.js';
 import type {

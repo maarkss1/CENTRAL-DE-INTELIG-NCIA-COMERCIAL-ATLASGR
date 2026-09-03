@@ -5183,6 +5183,15 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
 
+  /copiloto-ia/leads/{leadId}/whatsapp-response-time:
+    get:
+      tags: [Copiloto IA]
+      summary: SLA/tempo de resposta no WhatsApp para o lead (Onda 7)
+      parameters:
+        - { name: leadId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
   /copiloto-ia/bitrix-field-mappings/{id}:
     delete:
       tags: [Copiloto IA]
