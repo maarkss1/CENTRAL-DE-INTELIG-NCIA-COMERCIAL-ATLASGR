@@ -225,7 +225,7 @@ export function Analytics() {
 
         {data?.isEmpty && !loading && !error && (
           <Card padding="lg" className="text-center border-dashed">
-            <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+            <BarChart3 className="w-12 h-12 mx-auto mb-4 text-ink-2" />
             <h3 className="text-lg font-semibold text-ink mb-1">
               Ainda não há dados para analisar
             </h3>

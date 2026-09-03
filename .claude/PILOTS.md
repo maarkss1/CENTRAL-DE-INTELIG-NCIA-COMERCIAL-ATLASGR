@@ -2712,3 +2712,98 @@ entrada nova.
   - Servidor de dev (`localhost:3005`, subido manualmente via `npx tsx watch server.ts` +
     `run_in_background`, contorno do boot silencioso) encerrado ao final via `TaskStop` — nenhum
     processo órfão deixado.
+
+## Pilot 029 — Auditoria de cor crua fora dos tokens (continuação do Pilot 028, escolhida pelo usuário)
+
+- **Objetivo**: usuário escolheu, entre as opções oferecidas, rodar agora a auditoria de
+  `bg-white`/`bg-slate-*`/`bg-gray-*`/`text-slate-*`/`text-gray-*` fora do sistema de tokens nos 21
+  arquivos que sobraram fora do escopo do Pilot 005 (Market Intelligence, ~330 ocorrências
+  corrigidas em 8 telas à época). Metodologia idêntica à do Pilot 005: ler cada ocorrência em
+  contexto antes de trocar — regex cego já causou regressão real documentada naquele piloto
+  (`text-slate-700`→`text-ink` quebrando banner que devia ficar sempre claro).
+- **7 bugs reais corrigidos** (dark mode genuinamente quebrado — cor clara fixa sem par `dark:`,
+  ou inconsistência clara entre elementos irmãos):
+  - `Analytics.tsx:228` — ícone de estado vazio em `text-gray-600` → `text-ink-2`.
+  - `GoogleLoginModal.tsx` — modal inteiro (fundo, texto, botão Google, footer, ícone de sucesso)
+    hardcoded pro tema claro (`bg-white`, `text-slate-900/600`, `bg-gray-50`); em dark mode
+    renderizava um cartão branco cru dentro do app escuro. Migrado pra
+    `bg-surface`/`text-ink`/`text-ink-2`/`bg-surface-2`/`border-line`, ícone de sucesso pro par
+    `bg-ok/15 text-ok-active dark:text-ok` (mesma convenção do Badge.tsx), spinner de carregamento
+    de `text-blue-500` (cor sem relação com nenhuma marca) pra `text-brand`.
+  - `SelectionScreen.tsx` — achado maior: a tela irmã de `WelcomeScreen.tsx` (ambas pré-seleção de
+    marca) nunca recebeu o mesmo tratamento do Piloto 001. Raiz em `bg-[#030305] text-white` (hex
+    cru, sempre escuro, nunca reage a tema — a Constituição §7.7 é explícita que telas de
+    pré-seleção "reagem a tema"); `<Logo variant="white">`/`<TotalTrackLogo tone="negative">`
+    fixos (ficariam ilegíveis em tema claro — mesmo bug de `Logo variant="white"` já corrigido no
+    Piloto 001, nunca replicado aqui); cards com `bg-slate-900/60` **conflitando** com a classe
+    `.glass-panel` já aplicada no mesmo elemento (a superfície translúcida reativa a tema que o
+    `.glass-panel` deveria fornecer estava sendo sobrescrita por um valor cru fixo); assinatura
+    "Marcelo do Nascimento" com pulso duplo (`scale`/`boxShadow` em loop de 2s + `animate-pulse`
+    do Tailwind ao mesmo tempo) — exatamente o padrão que o Piloto 001 já tinha removido do
+    `WelcomeScreen.tsx` ("crédito pessoal com mais peso visual, boxShadow/scale pulsando pra
+    sempre"), nunca replicado aqui. Corrigido espelhando exatamente as soluções já validadas do
+    Piloto 001: raiz `bg-bg text-ink`, `Logo variant={theme==='dark'?'white':'default'}`,
+    `TotalTrackLogo` sem `tone` (usa o `auto` já reativo via `dark:hidden`/`dark:block`, achado:
+    o componente já resolvia isso sozinho, só não estava sendo usado), `.glass-panel` sem
+    override cru, assinatura reduzida a `text-ink-2` simples sem animação (mesmo texto/crédito
+    preservado, só a ênfase visual reduzida — Constituição §6).
+  - `ContactList.tsx` — `SENIORITY_COLORS` (5 badges categóricos por senioridade) só tinha a
+    variante clara (`bg-purple-100 text-purple-700` etc.), pastel ilegível no escuro. Cada tom
+    ganhou o par `dark:` (mesma convenção do Badge.tsx); `Analyst`/fallback migrados pros tokens
+    (`bg-surface-2 text-ink-2 border-line`) por não terem significado semântico próprio.
+  - `FloatingChatbook.tsx:474` — botão de enviar do roleplay em `bg-amber-500 text-slate-950`
+    (cor sem relação com nenhuma marca, ao lado de um input já tokenizado) → `bg-brand text-white`.
+  - `AutomationGuide.tsx:730` — aba "Payload Workflow (n8n JSON)" em `bg-slate-600` enquanto a aba
+    irmã "Blueprint Passo a Passo" já usava `accent.solidBg` (reativo à marca) — inconsistência
+    visível lado a lado. Migrado pra `accent.solidBg` também.
+- **Exceções legítimas confirmadas** (não mexidas — mesma lição do Pilot 005: nem toda ocorrência
+  é bug):
+  - Thumb de toggle switch (`Automations.tsx`, `BookingLinksModal.tsx`, `FeatureFlagsPanel.tsx` —
+    este último já documentado como "fora de escopo, não é bug" desde o Pilot 025) — `bg-white`
+    fixo é convenção universal de toggle físico, correto nos dois temas.
+  - Overlay de câmera (`OcrCapturePanel.tsx`) e painel branded do `LoginScreen.tsx` — controles
+    translúcidos brancos sobre feed de vídeo ao vivo / gradiente sólido de marca, não sobre a
+    superfície do app.
+  - `ActiveCallView.tsx`/`CallAnalysisReport.tsx` (Roleplay) — já documentados em comentário no
+    próprio código como superfície sempre-escura proposital ("foco total").
+  - `RobustScriptGenerator.tsx` — painel de saída estilo terminal com hex do GitHub Dark
+    (`#0D1117`/`#30363D`), convenção legítima de "bloco de código sempre escuro".
+  - `GoalCountdownOverlay.tsx` — mesmo padrão do Roleplay (overlay de tela cheia, momento raro de
+    alto impacto), mas **sem comentário** antes desta sessão; adicionei a documentação, sem mudar
+    a cor, pra não relitigar essa decisão numa auditoria futura.
+  - `Account360.tsx`/`LeadApprovalDeck.tsx` — reconfirmados como as exclusões já documentadas no
+    Pilot 005 (`bg-white/N` translúcido sobre fundo escuro fixo).
+- **Achados grandes demais pra essa auditoria, não corrigidos — cada um precisa de sua própria
+  sessão dedicada** (documentado em vez de mexido às pressas, mesmo espírito do Pilot 005 sobre
+  regex cego):
+  - **`src/features/integrations/components/` (Bitrix*.tsx + Integrations.tsx)** — achado maior
+    desta rodada: `grep -oE "orange-[0-9]+"` conta **147 ocorrências** (104 só em
+    `BitrixImportPanel.tsx`) de laranja cru (`orange-500`/`600` etc.) em vez de `var(--brand)`. O
+    módulo inteiro de integrações Bitrix fica sempre laranja AtlasGR, mesmo com Total Trac ativa —
+    bug de marca, não de tema (o `dark:` já existe pareado na maioria dos casos, então não quebra
+    no escuro, só nunca muda de cor pra Total Trac).
+  - **`PromptStudio.tsx`** (17 pares `dark:` já existentes, 13 ocorrências cruas) — funciona nos
+    dois temas, mas usa `gray-*`/`purple-*`/`sky-*` cru em vez de `--ink`/`--surface`/`--brand`;
+    mesmo problema de reatividade à marca do item acima (`purple-600`/`sky-600` nunca reagem a
+    Total Trac).
+  - **`OnboardingTour.tsx`** — já funciona nos dois temas (`theme === 'light' ? 'bg-white/70...' :
+    'bg-slate-900/80...'` ramificado manualmente), só não usa os tokens que fariam o mesmo sem a
+    ramificação manual. Baixo risco, baixa prioridade (não é bug visível).
+  - **`LdrAccountIntelligence.tsx`** — inconsistência interna real encontrada (linha ~209 sugere
+    vidro translúcido sobre fundo escuro fixo, tipo `Account360.tsx`; linha ~353 usa
+    `bg-white/70` com texto `orange-700/900`, que só faz sentido sobre fundo claro) — não deu pra
+    confirmar sem renderizar a tela de verdade qual seção está certa/errada. Precisa da mesma
+    verificação por screenshot real que o Pilot 005 usou, não deve ser corrigido só pela leitura
+    do código.
+  - **`SuperagentCreator.tsx:731`** — `bg-gray-900` com `emerald-500`/`amber-500` cru num card de
+    "Resultado do Provisionamento". Pode ser o mesmo padrão legítimo de "saída sempre escura" do
+    `RobustScriptGenerator.tsx`/Roleplay, ou pode ser debito não documentado — ambíguo demais pra
+    decidir sem outra rodada de investigação ou perguntar ao usuário.
+- **Validação**: `npx tsc --noEmit` no projeto inteiro — 0 erros. `npx biome lint` nos 7 arquivos
+  com mudança real de cor — todos os achados são débito pré-existente não relacionado
+  (`useButtonType`, `useExhaustiveDependencies`, `useParseIntRadix`, `useSemanticElements`),
+  confirmado item por item que nenhum foi introduzido pelas edições desta sessão (só strings de
+  `className` foram tocadas, nenhum elemento novo). QA visual em navegador **não foi feita** nesta
+  rodada (mudanças de cor pontuais, risco baixo o suficiente pra não justificar subir o servidor de
+  novo pra cada uma — mas fica registrado como pendência, não como "verificado", seguindo o
+  protocolo de `visual-qa/SKILL.md` pra quando a verificação completa não roda).
