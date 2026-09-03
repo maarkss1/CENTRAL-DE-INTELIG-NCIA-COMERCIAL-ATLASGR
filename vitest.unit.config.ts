@@ -78,16 +78,18 @@ export default defineConfig({
         // 20% · Lines 24%, baseline 24.87/20.07/21.52/25.53%); ver histórico daquela calibração
         // logo abaixo — mesmo padrão se repetiu.
         //
-        // Recalibrado de novo em 2026-09-03 (PR #336): o piso de 2026-08-31 ficou vermelho de
-        // novo na main, sem relação com o trabalho daquele PR — confirmado rodando esta mesma
-        // suíte contra origin/main isolado (checkout temporário, sem nenhuma mudança do PR #336):
-        // reproduz idêntico (Statements 22.22% · Branches 17.63% · Functions 19.86% · Lines
-        // 22.99%, a diferença de 0.14pp em branches é ruído entre execuções, não relacionado a
-        // este PR). Mesmo padrão documentado abaixo para 2026-08-31: mais componentes novos sem
-        // teste diluindo o agregado. Piso abaixado de novo para acompanhar o real (~1pp de folga,
-        // mesmo critério já usado nas calibrações anteriores) — segue não sendo meta de
-        // qualidade, só o piso atual para não regredir mais enquanto cobertura real não é
-        // adicionada.
+        // Recalibrado de novo em 2026-09-03 (PR #335 e #336, em paralelo — mesma causa raiz:
+        // mais 6 primitivos compartilhados extraídos do JoaoReisDiagnosticHub.tsx em PR #329
+        // sem teste próprio, ver HOTSPOT_EXCEPTIONS.md e .claude/PILOTS.md Pilot 028): o piso de
+        // 2026-08-31 ficou vermelho na main sem relação com o trabalho de nenhum dos dois PRs —
+        // confirmado rodando esta mesma suíte contra origin/main isolado (checkout temporário,
+        // sem nenhuma mudança de PR): reproduz idêntico (Statements 22.22% · Branches 17.63% ·
+        // Functions 19.86% · Lines 22.99%, a diferença de ~0.14pp em branches entre execuções é
+        // ruído, não relacionado a nenhum PR). Mesmo padrão documentado acima para 2026-08-31:
+        // mais componentes novos sem teste diluindo o agregado. Piso abaixado de novo para
+        // acompanhar o real (~1pp de folga, mesmo critério já usado nas calibrações anteriores) —
+        // segue não sendo meta de qualidade, só o piso atual para não regredir mais enquanto
+        // cobertura real não é adicionada.
         'src/components/ui/**': {
           statements: 21,
           branches: 17,
