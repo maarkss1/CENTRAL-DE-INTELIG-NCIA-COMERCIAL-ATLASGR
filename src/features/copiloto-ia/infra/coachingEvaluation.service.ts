@@ -109,15 +109,18 @@ export async function evaluateConversationCoaching(
     promptId: PROMPT_ID,
   });
 
-  const parsed = cleanAndParseJson<Partial<Record<(typeof RUBRIC_DIMENSIONS)[number], Partial<RubricDimension>>>>(
-    response.content,
-  );
+  const parsed = cleanAndParseJson<
+    Partial<Record<(typeof RUBRIC_DIMENSIONS)[number], Partial<RubricDimension>>>
+  >(response.content);
 
   const rubric = RUBRIC_DIMENSIONS.reduce((acc, dimension) => {
     const raw = parsed[dimension];
     acc[dimension] = {
       score: clampScore(raw?.score),
-      evidence: typeof raw?.evidence === 'string' && raw.evidence.trim() ? raw.evidence : 'Sem evidência retornada pelo modelo.',
+      evidence:
+        typeof raw?.evidence === 'string' && raw.evidence.trim()
+          ? raw.evidence
+          : 'Sem evidência retornada pelo modelo.',
     };
     return acc;
   }, {} as CoachingRubricOutput);

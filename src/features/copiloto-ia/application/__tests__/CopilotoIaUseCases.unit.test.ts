@@ -247,7 +247,10 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
     return insight;
   }
 
-  async listInsights(_organizationId: string, conversationId: string): Promise<CopilotoInsightDTO[]> {
+  async listInsights(
+    _organizationId: string,
+    conversationId: string,
+  ): Promise<CopilotoInsightDTO[]> {
     return this.insightsByConversation.get(conversationId) ?? [];
   }
 
