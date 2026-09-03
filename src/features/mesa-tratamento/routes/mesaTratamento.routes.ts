@@ -15,6 +15,7 @@ import {
   exportLeadToBitrixNow,
 } from '../../integrations/bitrix/bitrix.service.js';
 import { rankLeadsForQueue } from '../mesaTratamento.priority.js';
+import { resolveLossReasonLabel } from '../constants/lossReasons.js';
 
 const router = Router();
 const mesaRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
@@ -252,7 +253,18 @@ router.post(
       // a fonte da verdade pro funil de SDR. Ver AGENTS.md desta pasta.
       if (isDisqualify) {
         data.status = 'Lead_Desqualificado';
-        data.lossReason = body.lossReasonId;
+        // Bug real corrigido aqui: `body.lossReasonId` é o ID numérico opaco do Bitrix (ex.
+        // "21638"), mas todo o resto do produto que lê `Lead.lossReason` (Win/Loss Analysis,
+        // `lossTaxonomy.ts` do Comercial Inteligente, e a própria sincronização de volta ao
+        // Bitrix em `buildOutboundCustomFields`) espera o TEXTO do motivo — é assim que a
+        // importação de leads do Bitrix já grava esse campo (`applyInboundCustomFields`, que
+        // resolve o ID pra texto antes de persistir). Gravar o ID cru fazia "21638" aparecer como
+        // "Principal motivo de perda" na tela de Win/Loss, quebrava a classificação de motivo de
+        // perda (sempre caía em "Outro") e fazia a exportação de volta ao Bitrix falhar em
+        // silêncio (o texto não bate com nenhum valor do enum, `buildOutboundCustomFields` só
+        // loga em debug e não envia o campo). Traduz pro texto aqui, na escrita, pra todo
+        // consumidor a jusante já receber o mesmo formato que o Bitrix também produz.
+        data.lossReason = resolveLossReasonLabel(body.lossReasonId as string);
       } else if (body.outcome === 'convertido') {
         data.status = 'Convertido_em_Oportunidade';
       }

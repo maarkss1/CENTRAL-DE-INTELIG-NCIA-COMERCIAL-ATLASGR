@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Dialog } from '../../../components/ui/Dialog';
 import { Input } from '../../../components/ui/Input';
@@ -10,9 +10,11 @@ import { Label } from '../../../components/ui/Label';
 import { Select } from '../../../components/ui/Select';
 import { Textarea } from '../../../components/ui/Textarea';
 import { clientLogger } from '../../../lib/clientLogger';
+import { companiesDB } from '../../../lib/db';
 import { toast } from '../../../lib/toast';
 import { crm360Api } from '../crm360.api';
 import type { CrmCommercialDocument, CrmProduct } from '../crm360.types';
+import type { Company } from '../../../types';
 
 const DOCUMENT_TYPES = ['Orcamento', 'Proposta', 'Fatura', 'Contrato'] as const;
 
@@ -125,6 +127,48 @@ export function PropostaForm({ document, onClose, onSave }: PropostaFormProps) {
       });
   }, []);
 
+  // Achado real (auditoria desta sessão): CrmCommercialDocument.leadId/companyId/contactId já são
+  // modelados de ponta a ponta (schema, API, painel "Registro vinculado" em PropostaDetail.tsx,
+  // coluna "Vinculado" em PropostasList.tsx) mas este formulário nunca enviava nenhum dos três —
+  // todo documento criado ficava com "Vinculado: —" pra sempre. Corrigido aqui só pro vínculo com
+  // EMPRESA, e só na criação: `CrmDocumentUpdateInput` (usado no PUT de edição, crm360.api.ts) não
+  // aceita `companyId`/`leadId`/`contactId` — mudar o vínculo de um documento já existente exigiria
+  // uma rota de backend nova, fora do escopo desta correção pontual. `contactId` também ficou de
+  // fora: a busca abaixo é por empresa (mesmo padrão de combobox com debounce já usado em
+  // src/features/lgpd/components/DataSubjectRights.tsx), e a maioria dos documentos comerciais se
+  // vincula a uma empresa, não a um contato específico — vincular contato exigiria uma segunda
+  // busca encadeada (contatos da empresa escolhida), escopo maior que este ajuste.
+  const [companySearch, setCompanySearch] = useState('');
+  const [companyResults, setCompanyResults] = useState<Company[]>([]);
+  const [searchingCompany, setSearchingCompany] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+
+  useEffect(() => {
+    if (isEdit || selectedCompany || companySearch.trim().length < 2) {
+      setCompanyResults([]);
+      return;
+    }
+    let cancelled = false;
+    setSearchingCompany(true);
+    const timer = window.setTimeout(() => {
+      companiesDB
+        .list({ search: companySearch, limit: 6 })
+        .then((res) => {
+          if (!cancelled) setCompanyResults(res.data);
+        })
+        .catch(() => {
+          if (!cancelled) setCompanyResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setSearchingCompany(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [companySearch, selectedCompany, isEdit]);
+
   useEffect(() => {
     reset(
       document
@@ -222,6 +266,7 @@ export function PropostaForm({ document, onClose, onSave }: PropostaFormProps) {
           lineItems,
           notes: data.notes || null,
           terms: data.terms || null,
+          companyId: selectedCompany?.id ?? undefined,
         });
         toast.success('Documento criado.');
       }
@@ -290,6 +335,61 @@ export function PropostaForm({ document, onClose, onSave }: PropostaFormProps) {
             <Input id="doc-discount" type="number" step="0.01" min="0" {...register('discount')} />
           </div>
         </div>
+
+        {!isEdit && (
+          <div className="space-y-2 relative">
+            <Label htmlFor="doc-company-search">Vincular a uma empresa (opcional)</Label>
+            {selectedCompany ? (
+              <div className="flex items-center justify-between gap-2 bg-surface-2 border border-brand/30 rounded-xl px-3 py-2.5">
+                <span className="text-sm font-bold text-ink truncate">
+                  {selectedCompany.tradeName || selectedCompany.legalName}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCompany(null)}
+                  className="text-xs font-semibold text-ink-2 hover:text-ink shrink-0"
+                >
+                  Trocar
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-2" />
+                  <input
+                    id="doc-company-search"
+                    type="text"
+                    value={companySearch}
+                    onChange={(e) => setCompanySearch(e.target.value)}
+                    placeholder="Buscar empresa por nome..."
+                    autoComplete="off"
+                    className="w-full pl-9 pr-3 py-2.5 bg-surface-2 border border-line rounded-xl text-sm text-ink placeholder-ink-2 outline-none focus:ring-1 focus:ring-brand"
+                  />
+                  {searchingCompany && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-ink-2" />
+                  )}
+                </div>
+                {companyResults.length > 0 && (
+                  <div className="mt-1 bg-surface border border-line rounded-xl shadow-xl max-h-48 overflow-y-auto absolute z-10 w-full">
+                    {companyResults.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCompany(c);
+                          setCompanyResults([]);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-2 transition-colors border-b border-line last:border-b-0"
+                      >
+                        {c.tradeName || c.legalName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">

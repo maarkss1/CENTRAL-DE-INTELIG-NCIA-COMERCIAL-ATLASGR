@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { FileText, Plus, Search, WifiOff } from 'lucide-react';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { clientLogger } from '../../../lib/clientLogger';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { crm360Api } from '../crm360.api';
 import type { CrmCommercialDocument } from '../crm360.types';
 import { PropostaDetail } from './PropostaDetail';
@@ -34,6 +36,14 @@ const STATUS_STYLES: Record<DocumentStatus, string> = {
 };
 
 export function PropostasList() {
+  const { currentUser } = useAuth();
+  // POST/PUT /documents exigem ADMIN/GESTOR/CLOSER/SDR no backend (`writeRoles`,
+  // crm360.routes.ts) — antes desta correção, PropostasList/PropostaDetail/PropostaForm não
+  // faziam nenhuma checagem de papel, então um VISUALIZADOR via os controles de escrita
+  // normalmente e só recebia um 403 do backend ao tentar (achado real, mesmo padrão já corrigido
+  // em Knowledge Base/Automations/Playbook/Document Editor).
+  const canWrite =
+    !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
   const [documents, setDocuments] = useState<CrmCommercialDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,16 +135,18 @@ export function PropostasList() {
               eletrônica.
             </p>
           </div>
-          <button
-            onClick={() => {
-              setEditingDocument(null);
-              setIsFormOpen(true);
-            }}
-            className="flex items-center gap-2 bg-brand-active hover:brightness-110 text-white px-5 py-2.5 rounded-2xl font-bold transition-all shadow-lg shadow-brand/20 active:scale-95 cursor-pointer"
-          >
-            <Plus className="w-5 h-5" />
-            Novo Documento
-          </button>
+          {canWrite && (
+            <button
+              onClick={() => {
+                setEditingDocument(null);
+                setIsFormOpen(true);
+              }}
+              className="flex items-center gap-2 bg-brand-active hover:brightness-110 text-white px-5 py-2.5 rounded-2xl font-bold transition-all shadow-lg shadow-brand/20 active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-5 h-5" />
+              Novo Documento
+            </button>
+          )}
         </div>
 
         <div className="bg-surface p-4 rounded-2xl border border-line shadow-lg flex flex-col sm:flex-row gap-3 items-center">
@@ -197,11 +209,15 @@ export function PropostasList() {
               <EmptyState
                 title="Nenhum documento comercial ainda"
                 description="Crie um orçamento, proposta, fatura ou contrato para começar."
-                actionLabel="Novo Documento"
-                onAction={() => {
-                  setEditingDocument(null);
-                  setIsFormOpen(true);
-                }}
+                actionLabel={canWrite ? 'Novo Documento' : undefined}
+                onAction={
+                  canWrite
+                    ? () => {
+                        setEditingDocument(null);
+                        setIsFormOpen(true);
+                      }
+                    : undefined
+                }
                 icon={<FileText className="w-10 h-10 text-brand" />}
               />
             ) : (
@@ -232,7 +248,16 @@ export function PropostasList() {
                     <tr
                       key={doc.id}
                       onClick={() => setSelectedDocumentId(doc.id)}
-                      className="border-t border-line hover:bg-surface-2/60 cursor-pointer transition-colors"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedDocumentId(doc.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Ver detalhes de ${doc.title || doc.number}`}
+                      className="border-t border-line hover:bg-surface-2/60 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
                     >
                       <td className="p-4 font-semibold text-ink">{doc.number}</td>
                       <td className="p-4 text-ink max-w-xs truncate">{doc.title}</td>
