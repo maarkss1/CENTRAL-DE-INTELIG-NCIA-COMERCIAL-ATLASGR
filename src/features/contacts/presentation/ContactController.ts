@@ -29,7 +29,10 @@ export class ContactController {
   getContactById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const contact = await this.contactUseCases.findContactById(orgId, routeParam(req.params.id, 'id'));
+      const contact = await this.contactUseCases.findContactById(
+        orgId,
+        routeParam(req.params.id, 'id'),
+      );
       if (!contact) {
         res.status(404).json({ success: false, error: 'Contact not found' });
         return;
@@ -77,7 +80,10 @@ export class ContactController {
   enrichContact = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const result = await this.contactUseCases.enrichContact(orgId, routeParam(req.params.id, 'id'));
+      const result = await this.contactUseCases.enrichContact(
+        orgId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);

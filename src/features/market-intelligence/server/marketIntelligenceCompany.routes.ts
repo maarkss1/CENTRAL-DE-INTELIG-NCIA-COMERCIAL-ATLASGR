@@ -54,7 +54,11 @@ router.post('/:cnpj/approve-to-pipeline', async (req: any, res, next) => {
   try {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.id;
-    const result = await approveToPipeline(organizationId, routeParam(req.params.cnpj, 'cnpj'), userId);
+    const result = await approveToPipeline(
+      organizationId,
+      routeParam(req.params.cnpj, 'cnpj'),
+      userId,
+    );
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     if (error instanceof CompanyCatalogValidationError) {

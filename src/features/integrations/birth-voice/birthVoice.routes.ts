@@ -56,7 +56,11 @@ router.post(
     try {
       const { organizationId } = (req as AuthRequest).user;
       const agentType = req.body.agentType || 'sdr';
-      const result = await callLead(organizationId, routeParam(req.params.leadId, 'leadId'), agentType);
+      const result = await callLead(
+        organizationId,
+        routeParam(req.params.leadId, 'leadId'),
+        agentType,
+      );
       res.status(202).json({ success: true, data: result });
     } catch (error) {
       // Mesmo status/formato usado em intelligence.routes.ts para o mesmo erro — ver

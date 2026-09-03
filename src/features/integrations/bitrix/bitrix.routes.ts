@@ -613,7 +613,11 @@ router.put(
         res.status(400).json({ success: false, error: 'active deve ser booleano.' });
         return;
       }
-      const result = await setSyncRuleActive(organizationId, routeParam(req.params.id, 'id'), active);
+      const result = await setSyncRuleActive(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+        active,
+      );
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);

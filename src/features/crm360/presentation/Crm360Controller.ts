@@ -88,7 +88,10 @@ export class Crm360Controller {
   getDealItems = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orgId = (req as AuthRequest).user.organizationId;
-      const data = await this.crm360UseCases.getDealItems(orgId, routeParam(req.params.leadId, 'leadId'));
+      const data = await this.crm360UseCases.getDealItems(
+        orgId,
+        routeParam(req.params.leadId, 'leadId'),
+      );
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -162,7 +165,10 @@ export class Crm360Controller {
   listDocumentVersions = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const orgId = (req as AuthRequest).user.organizationId;
-      const data = await this.crm360UseCases.listDocumentVersions(orgId, routeParam(req.params.id, 'id'));
+      const data = await this.crm360UseCases.listDocumentVersions(
+        orgId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -187,7 +193,9 @@ export class Crm360Controller {
   /** Rota pública (sem `authenticateToken`) — ver `crm360Public.routes.ts`. */
   viewPublicDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await this.crm360UseCases.recordDocumentView(routeParam(req.params.token, 'token'));
+      const data = await this.crm360UseCases.recordDocumentView(
+        routeParam(req.params.token, 'token'),
+      );
       if (!data) {
         res.status(404).json({ success: false, error: 'Proposta não encontrada.' });
         return;

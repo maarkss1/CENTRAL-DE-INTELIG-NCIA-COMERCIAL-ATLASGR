@@ -26,7 +26,10 @@ export class CompanyController {
   getCompanyById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const company = await this.companyUseCases.findCompanyById(orgId, routeParam(req.params.id, 'id'));
+      const company = await this.companyUseCases.findCompanyById(
+        orgId,
+        routeParam(req.params.id, 'id'),
+      );
       if (!company) {
         res.status(404).json({ success: false, error: 'Company not found' });
         return;
@@ -74,10 +77,14 @@ export class CompanyController {
   enrichCompany = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const result = await this.companyUseCases.enrichCompany(orgId, routeParam(req.params.id, 'id'), {
-        cnpj: req.body?.cnpj,
-        segmentKeywords: req.body?.segmentKeywords,
-      });
+      const result = await this.companyUseCases.enrichCompany(
+        orgId,
+        routeParam(req.params.id, 'id'),
+        {
+          cnpj: req.body?.cnpj,
+          segmentKeywords: req.body?.segmentKeywords,
+        },
+      );
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);

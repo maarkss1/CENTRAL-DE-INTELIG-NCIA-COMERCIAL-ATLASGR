@@ -58,7 +58,11 @@ export class ActivityController {
   updateActivity = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId: orgId } = (req as AuthRequest).user;
-      const activity = await this.activityUseCases.updateActivity(orgId, routeParam(req.params.id, 'id'), req.body);
+      const activity = await this.activityUseCases.updateActivity(
+        orgId,
+        routeParam(req.params.id, 'id'),
+        req.body,
+      );
       res.json({ success: true, data: activity });
     } catch (error) {
       next(error);
