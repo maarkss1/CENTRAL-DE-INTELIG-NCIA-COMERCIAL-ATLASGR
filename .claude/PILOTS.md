@@ -2712,3 +2712,80 @@ entrada nova.
   - Servidor de dev (`localhost:3005`, subido manualmente via `npx tsx watch server.ts` +
     `run_in_background`, contorno do boot silencioso) encerrado ao final via `TaskStop` — nenhum
     processo órfão deixado.
+
+## Pilot 029 — Auditoria de cor crua fora dos tokens: módulo Bitrix24 preso em laranja AtlasGR
+
+- **Objetivo**: dando sequência à auditoria de cores Tailwind cruas fora do sistema de tokens
+  (mesma categoria de débito do Piloto 005/006), migrar os 4 componentes do módulo de integração
+  Bitrix24 (`BitrixExtractionPanel.tsx`, `BitrixImportPanel.tsx`, `BitrixSyncRulesPanel.tsx`,
+  `Integrations.tsx`) de `orange-500`/`orange-600`/`gray-*`/`white` cru para os tokens reativos do
+  projeto (`bg-brand`/`text-brand`/`bg-soft`/`bg-surface`/`bg-surface-2`/`text-ink`/`text-ink-2`/
+  `border-line`).
+- **Bug real, não só débito estético**: laranja cru (`orange-500`/`600`, cor de ação/foco/destaque)
+  nunca reage à troca de marca — um usuário Total Trac abrindo qualquer tela de Integrações via
+  botões, badges "ativo" e ícones em laranja da AtlasGR, quebrando a identidade visual da própria
+  marca escolhida. Achado equivalente ao de `Card`/`Button` no Piloto 006, mas nunca corrigido nas
+  telas de feature (o Piloto 006 documentou explicitamente que telas de feature individuais não
+  foram auditadas naquela rodada).
+- **Achado colateral em `Integrations.tsx` que o grep por `orange-` não pegava**: o badge do
+  cabeçalho da sidebar usava `text-[var(--brand-primary)]` — uma custom property estática
+  (`--brand-primary: #ff5618`, definida uma única vez em `:root`, nunca redefinida em `.dark` nem
+  reescrita pelo `BrandContext.tsx`) em vez do token dinâmico `--brand`. Mesmo sintoma (ícone preso
+  em laranja da AtlasGR na Total Trac), mecanismo diferente — só apareceu por leitura direta do
+  JSX, não por grep de classe Tailwind. Corrigido para `text-brand`.
+- **Contagem migrada** (todas as ocorrências de `orange-*` confirmadas zeradas via grep após a
+  mudança, nos 4 arquivos): `BitrixImportPanel.tsx` 104, `BitrixSyncRulesPanel.tsx` 16,
+  `Integrations.tsx` 17, `BitrixExtractionPanel.tsx` 10 — mesma contagem exata do achado original
+  da auditoria.
+- **Escopo mecânico deliberadamente mais amplo que só "trocar laranja"**: seguindo o pedido
+  explícito, `gray-*`/`white` com par `dark:` já existente também foram migrados para
+  `text-ink`/`text-ink-2`/`bg-surface`/`bg-surface-2`/`border-line` — não é bug de dark mode (o par
+  `dark:` já existia e já funcionava, ao contrário do achado do Piloto 005), é consolidação da
+  escala cinza duplicada na escala "warm neutral" do projeto. Extensão pontual e justificada a
+  3 trechos **sem** par `dark:` pré-existente, por estarem na vizinhança imediata do que já estava
+  sendo editado (mesmo componente/bloco): fundo raiz da tela (`bg-gray-50/50` → `bg-bg`), chrome da
+  sidebar (`bg-white`/`border-gray-200`/`text-gray-900` sem par → `bg-surface`/`border-line`/
+  `text-ink`) e dois textos secundários do card Google (linha de eventos do Calendar). **Não
+  estendido** às abas WhatsApp/Google/3CX além desses pontos, nem à seção 3CX inteira (que usa uma
+  família de cor própria, sky-*, e tem vários trechos sem par `dark:` — mesma classe de achado do
+  Piloto 005, mas família de cor e escopo diferentes, fora do pedido original) — reportado à parte
+  via `spawn_task`, não corrigido nesta sessão.
+- **Badges de status semânticos preservados** (mesmo critério do Piloto 005): `green`/`blue`/
+  `amber`/`red`/`violet`/`sky`/`emerald` usados para "conectado"/"erro"/"pendente"/"em andamento"/
+  concluído em `STATUS_BADGE`/`CAPABILITY_STYLES` e nos botões de download/WhatsApp/e-mail já têm
+  significado semântico (ok/critical/warn/info), não são "cor de marca" — mantidos como estão,
+  já com pares `dark:` corretos.
+- **Botões sólidos de marca**: em vez de inventar uma cor nova pro "laranja escuro" de hover
+  (`orange-700`), reaproveitado o padrão já estabelecido em `Button.tsx` (`bg-brand-active
+  hover:bg-brand-2`, ou `hover:brightness-110` nos casos com gradiente `from-brand-active
+  to-brand-2`) — mesmo motivo do comentário em `Button.tsx`: texto branco direto sobre `--brand`
+  cru não atinge 4.5:1 AA em nenhuma das duas marcas.
+- **Verificação real do dev server travou nesta sessão, com um sintoma novo em relação aos
+  Pilotos 003/004/P3**: `preview_start({name: 'prospector-dev-uxcheck'})` reproduziu o boot
+  silencioso já documentado (processo vivo, zero log além do banner do npm, porta nunca abre,
+  confirmado por `navigate` recusando conexão depois de 90s+ de espera). O contorno documentado
+  (subir via `npx tsx watch server.ts` manual + `run_in_background`) **não funcionou como nas
+  rodadas anteriores**: a primeira tentativa manual travou sem log (mesmo padrão), e a segunda
+  tentativa (porta diferente, variáveis de ambiente completas) foi encerrada por `SIGTERM` (exit
+  143) segundos após o start, antes de qualquer log de aplicação — não foi possível confirmar se é
+  limite de processo em background deste ambiente Windows/Git Bash específico (diferente dos
+  ambientes Linux com `apt-get`/Docker completo dos Pilotos 003/004/P3) ou concorrência entre as
+  duas tentativas simultâneas. Log de uma tentativa anterior revelou uma causa real conjunta:
+  `EADDRINUSE` na porta 3009 (duas instâncias tentando subir ao mesmo tempo) e `Redis NOAUTH` — o
+  perfil `prospector-dev-uxcheck` do `launch.json` não define `REDIS_URL` com a senha que o
+  container `atlas_redis` exige, then as filas (`agentQueue`/`coldCallQueue`/etc.) ficam
+  "offline" (não bloqueante, só um warning, mas registra como débito de configuração separado).
+  **Sem servidor real, a verificação ficou restrita a `tsc --noEmit` (0 erros nos 4 arquivos —
+  erros pré-existentes de Prisma client desatualizado em `copiloto-ia`/`commercial-intelligence`,
+  não relacionados) e `eslint` (0 erros/warnings nos 4 arquivos)**, mais revisão manual token a
+  token contra os padrões já validados visualmente em `Button.tsx` (Piloto 006) e no próprio
+  `Integrations.tsx` (que já tinha uma seção — cartões de conexão Bitrix — migrada para os mesmos
+  tokens em sessão anterior, confirmando que a escolha de token está alinhada ao padrão já
+  aprovado). Nenhum processo órfão deixado (`preview_stop` + `netstat` confirmando portas
+  3005/3009/3011 livres ao final).
+- **Aprendizados incorporados à constituição**: nenhuma mudança de regra desta vez — reforça,
+  registrado aqui, que grep por classe Tailwind não pega toda cor de marca hardcoded (custom
+  property estática via `text-[var(--x)]` é um segundo padrão de bug a procurar numa auditoria
+  futura de cor); e que o contorno de boot silencioso do dev server documentado nos Pilotos
+  003/004/P3 não é garantido neste ambiente — uma sessão futura sem servidor real deve seguir o
+  protocolo de QA alternativa da `visual-qa/SKILL.md` sem insistir indefinidamente no boot.
