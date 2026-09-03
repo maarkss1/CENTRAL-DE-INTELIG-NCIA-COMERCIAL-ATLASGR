@@ -124,7 +124,9 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
       ? createAccountIntelligenceSchedulerWorker()
       : null,
     forecastSnapshotWorker: embeddedWorkersEnabled ? createForecastSnapshotWorker() : null,
-    copilotoTranscriptionWorker: embeddedWorkersEnabled ? createCopilotoTranscriptionWorker() : null,
+    copilotoTranscriptionWorker: embeddedWorkersEnabled
+      ? createCopilotoTranscriptionWorker()
+      : null,
     searchWorker: null,
     coldCallWorker: null,
     swarmSchedulerWorker: null,
