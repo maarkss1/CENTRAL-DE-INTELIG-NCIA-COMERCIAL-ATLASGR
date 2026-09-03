@@ -482,4 +482,26 @@ export class CopilotoIaController {
       next(error);
     }
   };
+
+  // ─── Onda 6 — Coaching + Handoff ─────────────────────────────────────────
+
+  getCoachingEvaluation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const evaluation = await this.useCases.getCoachingEvaluation(organizationId, req.params.id);
+      res.json({ success: true, data: evaluation });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getHandoffSummary = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const handoff = await this.useCases.getHandoffSummary(organizationId, req.params.id);
+      res.json({ success: true, data: handoff });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

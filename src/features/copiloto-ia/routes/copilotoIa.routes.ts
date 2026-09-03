@@ -65,6 +65,14 @@ router.post('/leads/:leadId/deal-health', (req, res, next) =>
   resolve().createDealHealthSnapshot(req, res, next),
 );
 
+// ─── Onda 6 — Coaching + Handoff ────────────────────────────────────────
+router.get('/conversations/:id/coaching', (req, res, next) =>
+  resolve().getCoachingEvaluation(req, res, next),
+);
+router.get('/conversations/:id/handoff', (req, res, next) =>
+  resolve().getHandoffSummary(req, res, next),
+);
+
 // ─── Onda 4 — mapeamento de campo Bitrix + writeback (ADMIN/GESTOR) ────────
 router.get('/bitrix-field-mappings', managementRoles, (req, res, next) =>
   resolve().listBitrixFieldMappings(req, res, next),

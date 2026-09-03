@@ -834,6 +834,7 @@ model Organization {
   copilotoDealHealthSnapshots   CopilotoDealHealthSnapshot[]
   copilotoConsentRecords        CopilotoConsentRecord[]
   copilotoBitrixFieldMappings   CopilotoBitrixFieldMapping[]
+  copilotoCoachingEvaluations   CopilotoCoachingEvaluation[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
   threeCXCallEvents             ThreeCXCallEvent[]
@@ -1968,6 +1969,7 @@ model CopilotoConversation {
   insights            CopilotoInsight[]
   crmFieldSuggestions CopilotoCrmFieldSuggestion[]
   consentRecords      CopilotoConsentRecord[]
+  coachingEvaluation  CopilotoCoachingEvaluation?
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -2123,14 +2125,62 @@ model CopilotoDealHealthSnapshot {
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
-  /// 0-100, mesma escala de `healthScore.ts` (commercial-intelligence).
+  /// 0-100, mesma escala de `healthScore.ts` (commercial-intelligence) — NÃO é o mesmo cálculo:
+  /// aquele é sobre cobertura/qualidade do funil inteiro, este é por oportunidade individual,
+  /// informado pelo conteúdo real desta conversa (ver `application/dealHealthScoring.ts`).
   score       Int
   factorsJson Json
+
+  /// Onda 6 ("Forecast IA complementar ao CRM") — probabilidade ajustada a partir de
+  /// `Lead.probability` (a probabilidade OFICIAL do CRM, nunca substituída) + o delta desta
+  /// conversa (`application/forecastAdjustment.ts`, fórmula determinística, não "a IA inventa o
+  /// número"). `null` quando o Lead não tinha `probability` preenchida no CRM no momento do
+  /// snapshot — nunca fabricado.
+  forecastProbabilityAi Int?
+  /// Motivos legíveis por humano de por que a probabilidade IA diverge da probabilidade CRM —
+  /// nunca uma mudança de probabilidade sem explicação (AGENT_10 do pacote: "obrigatório explicar
+  /// cada mudança material de probabilidade").
+  forecastReasons String[]
+
+  /// Onda 6 ("Customer Success e Churn") — mesmo raciocínio de `score` acima, mas sobre risco de
+  /// insatisfação/perda do cliente (reclamação, bloqueio recorrente), não sobre saúde da
+  /// oportunidade de venda. `null` quando a conversa não teve sinal de CS extraído (ex.: MEET de
+  /// descoberta inicial, sem contexto de relacionamento pós-venda).
+  churnRiskScore  Int?
+  churnFactorsJson Json?
 
   createdAt DateTime @default(now())
 
   @@index([organizationId, leadId, createdAt])
   @@index([leadId])
+}
+
+/// Onda 6 ("Sales Coaching e QA") — avaliação de UMA conversa contra a rubrica fixa do pacote
+/// (descoberta, qualificação, escuta, objeções, clareza, produto, próximo passo, aderência ao
+/// playbook, qualidade do registro), cada dimensão 0-10 com evidência textual — nunca "opinião
+/// vaga" sem trecho que a sustente (AGENT_11 do pacote). `overallScore` é a MÉDIA das dimensões
+/// (×10, 0-100) — aritmética determinística sobre os scores que a IA atribuiu por dimensão, nunca
+/// um número solto inventado à parte.
+model CopilotoCoachingEvaluation {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  conversationId String               @unique
+  conversation   CopilotoConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// { descoberta: {score, evidence}, qualificacao: {...}, escuta, objecoes, clareza, produto,
+  /// proximoPasso, aderenciaPlaybook, qualidadeRegistro } — schema documentado em
+  /// `infra/coachingEvaluation.service.ts`, não modelado campo-a-campo aqui para não exigir
+  /// migration toda vez que a rubrica ganhar/perder uma dimensão.
+  rubricJson Json
+  /// 0-100, média das 9 dimensões × 10.
+  overallScore Int
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, createdAt])
 }
 
 model CopilotoConsentRecord {
