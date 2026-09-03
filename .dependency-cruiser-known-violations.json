@@ -235,6 +235,15 @@
   },
   {
     "type": "dependency",
+    "from": "src/features/crm/components/LeadDetailDrawer.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/copiloto-ia/components/LeadCopilotoPanel.tsx"
+  },
+  {
+    "type": "dependency",
     "from": "src/features/crm/infra/PrismaDealClosureGate.ts",
     "rule": {
       "name": "no-cross-feature-imports",

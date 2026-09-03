@@ -76,6 +76,7 @@ const MODULE_ORDER: TabType[] = [
   'winloss',
   'sdr-diagnostic-joao',
   'commercial_intelligence',
+  'copiloto_ia',
   'social-selling',
   'treinamento-atlasgr',
   'proposta-comercial',
