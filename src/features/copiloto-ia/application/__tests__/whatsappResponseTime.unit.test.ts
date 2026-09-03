@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { computeWhatsAppResponseTimeStats } from '../whatsappResponseTime';
 
-const at = (isoOffset: string) => new Date(`2026-09-02T10:00:00.000Z`.replace('10:00:00', isoOffset));
+const at = (isoOffset: string) =>
+  new Date(`2026-09-02T10:00:00.000Z`.replace('10:00:00', isoOffset));
 
 describe('computeWhatsAppResponseTimeStats', () => {
   it('sem mensagem nenhuma, tudo fica null/zero', () => {

@@ -150,8 +150,9 @@ async function recordCallResult(
     // registro real da ligação já ter acontecido acima.
     if (hadConversation && data.transcript && data.transcript.length > 0) {
       try {
-        const copilotoVoiceIngestionPort =
-          container.resolve<CopilotoVoiceIngestionPort>('CopilotoVoiceIngestionPort');
+        const copilotoVoiceIngestionPort = container.resolve<CopilotoVoiceIngestionPort>(
+          'CopilotoVoiceIngestionPort',
+        );
         await copilotoVoiceIngestionPort.ingestCallResult(organizationId, {
           providerCallId: data.callSid || 'sem-id',
           leadId,
