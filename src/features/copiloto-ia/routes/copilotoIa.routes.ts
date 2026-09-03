@@ -73,6 +73,11 @@ router.get('/conversations/:id/handoff', (req, res, next) =>
   resolve().getHandoffSummary(req, res, next),
 );
 
+// ─── Onda 7 — SLA/tempo de resposta no WhatsApp ────────────────────────────
+router.get('/leads/:leadId/whatsapp-response-time', (req, res, next) =>
+  resolve().getWhatsAppResponseTimeStats(req, res, next),
+);
+
 // ─── Onda 4 — mapeamento de campo Bitrix + writeback (ADMIN/GESTOR) ────────
 router.get('/bitrix-field-mappings', managementRoles, (req, res, next) =>
   resolve().listBitrixFieldMappings(req, res, next),

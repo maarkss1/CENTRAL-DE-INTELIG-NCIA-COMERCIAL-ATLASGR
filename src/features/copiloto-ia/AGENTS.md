@@ -12,8 +12,12 @@ roadmap: fundação de dados/RBAC (Onda 1), captura real de áudio via extensão
 transcrição via Whisper + resumo executivo (Onda 3), mapeamento configurável de campo + writeback
 real no Bitrix24 para `entityType: LEAD` (Onda 4), extração de objeções/concorrentes/buying
 signals + Deal Health Score por oportunidade (Onda 5), e ajuste de forecast complementar ao CRM +
-avaliação de coaching por rubrica + risco de churn + handoff agregado (Onda 6). Onda 7 (WhatsApp,
-ligações, calendário) ainda não existe. NÃO substitui `ConversationSignal`
+avaliação de coaching por rubrica + risco de churn + handoff agregado (Onda 6), e SLA/tempo de
+resposta no WhatsApp (Onda 7, item 1 — `application/whatsappResponseTime.ts`: função pura e
+determinística sobre `WhatsAppMessage` já persistida pelo Baileys, sem IA; não envia nem altera
+mensagem nenhuma). Onda 7 ainda tem a ponte ligações (birth-voice/Bland AI) → Copiloto pendente; a
+migração para WhatsApp Business Platform oficial foi discutida mas não autorizada para implementação
+ainda. NÃO substitui `ConversationSignal`
 (`src/features/intelligence`), que lê janelas de `WhatsAppMessage`/e-mail já persistidas sem
 transcrição bruta nem consentimento de gravação — são modelos complementares.
 

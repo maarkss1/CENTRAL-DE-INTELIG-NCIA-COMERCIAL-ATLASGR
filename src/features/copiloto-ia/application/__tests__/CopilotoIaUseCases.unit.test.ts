@@ -15,6 +15,7 @@ import type {
   CopilotoCoachingEvaluationDTO,
   CopilotoDealHealthSnapshotDTO,
 } from '../../domain/CopilotoIa';
+import type { WhatsAppMessageTiming } from '../whatsappResponseTime';
 
 const ORG_ID = 'org-1';
 
@@ -374,6 +375,15 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
     conversationId: string,
   ): Promise<CopilotoCoachingEvaluationDTO | null> {
     return this.coachingEvaluations.get(conversationId) ?? null;
+  }
+
+  whatsAppMessageTimingsByLead = new Map<string, WhatsAppMessageTiming[]>();
+
+  async getWhatsAppMessageTimingsForLead(
+    _organizationId: string,
+    leadId: string,
+  ): Promise<WhatsAppMessageTiming[]> {
+    return this.whatsAppMessageTimingsByLead.get(leadId) ?? [];
   }
 
   fieldMappings = new Map<string, CopilotoBitrixFieldMappingDTO>();
@@ -808,6 +818,28 @@ describe('CopilotoIaUseCases', () => {
       expect(handoff.latestDealHealth?.score).toBe(80);
       expect(handoff.isComplete).toBe(true);
       expect(handoff.missingParts).toEqual([]);
+    });
+  });
+
+  describe('getWhatsAppResponseTimeStats', () => {
+    it('busca as mensagens do lead no repositório e delega o cálculo à função pura', async () => {
+      const timings: WhatsAppMessageTiming[] = [
+        { direction: 'inbound', receivedAt: new Date('2026-09-02T10:00:00Z') },
+        { direction: 'outbound', receivedAt: new Date('2026-09-02T10:05:00Z') },
+      ];
+      repository.whatsAppMessageTimingsByLead.set('lead-1', timings);
+
+      const stats = await useCases.getWhatsAppResponseTimeStats(ORG_ID, 'lead-1');
+
+      expect(stats.firstResponseMs).toBe(5 * 60 * 1000);
+      expect(stats.sampleCount).toBe(1);
+    });
+
+    it('lead sem nenhuma mensagem retorna estatísticas vazias, não erro', async () => {
+      const stats = await useCases.getWhatsAppResponseTimeStats(ORG_ID, 'lead-sem-mensagem');
+      expect(stats.sampleCount).toBe(0);
+      expect(stats.firstResponseMs).toBeNull();
+      expect(stats.hasPendingResponse).toBe(false);
     });
   });
 });
