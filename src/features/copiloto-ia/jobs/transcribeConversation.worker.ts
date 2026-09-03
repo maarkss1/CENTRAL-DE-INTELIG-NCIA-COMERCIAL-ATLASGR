@@ -62,7 +62,10 @@ async function recordWhisperCost(organizationId: string, durationSeconds: number
       },
     });
   } catch (err) {
-    logger.warn({ err, organizationId }, '[copiloto-ia] falha ao registrar custo do Whisper em AILog');
+    logger.warn(
+      { err, organizationId },
+      '[copiloto-ia] falha ao registrar custo do Whisper em AILog',
+    );
   }
 }
 
