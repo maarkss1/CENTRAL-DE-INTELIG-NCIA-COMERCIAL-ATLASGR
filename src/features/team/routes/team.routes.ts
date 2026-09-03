@@ -11,6 +11,7 @@ import {
   TeamServiceError,
   ASSIGNABLE_ROLES,
 } from '../services/team.service.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 
 const router = Router();
 
@@ -72,7 +73,7 @@ router.post(
       const authReq = req as AuthRequest;
       const { member, tempPassword } = await resetTeamMemberPassword(
         authReq.user.organizationId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
       );
       // Mesma regra da criação: a senha só existe nesta resposta, nunca é devolvida de novo.
       res.json({ success: true, data: { member, tempPassword } });
@@ -91,7 +92,10 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authReq = req as AuthRequest;
-      const member = await unlockTeamMember(authReq.user.organizationId, req.params.id);
+      const member = await unlockTeamMember(
+        authReq.user.organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: { member } });
     } catch (error) {
       if (error instanceof TeamServiceError) {
@@ -106,7 +110,11 @@ router.post(
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
-    await deleteTeamMember(authReq.user.organizationId, req.params.id, authReq.user.id);
+    await deleteTeamMember(
+      authReq.user.organizationId,
+      routeParam(req.params.id, 'id'),
+      authReq.user.id,
+    );
     res.json({ success: true, message: 'Usuário removido.' });
   } catch (error) {
     if (error instanceof TeamServiceError) {

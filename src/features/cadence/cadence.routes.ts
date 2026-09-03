@@ -129,6 +129,7 @@ router.get('/runs', async (req: Request, res: Response, next: NextFunction): Pro
 });
 
 import { CADENCE_JOURNEY_TEMPLATES } from './domain/cadenceTemplates.js';
+import { routeParam } from '../../shared/http/routeParams.js';
 
 router.get('/templates', (_req: Request, res: Response): void => {
   res.json({ success: true, data: CADENCE_JOURNEY_TEMPLATES });
@@ -140,7 +141,9 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;
-      const template = CADENCE_JOURNEY_TEMPLATES.find((t) => t.id === req.params.templateId);
+      const template = CADENCE_JOURNEY_TEMPLATES.find(
+        (t) => t.id === routeParam(req.params.templateId, 'templateId'),
+      );
       if (!template) {
         throw new AppError('Modelo de jornada não encontrado.', 404);
       }
@@ -224,7 +227,7 @@ router.post(
       const sequence = await deactivateCadenceSequence(
         prismaCadenceSequenceRepository,
         organizationId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
       );
       if (!sequence) throw new AppError('Sequência não encontrada nesta organização.', 404);
       res.json({ success: true, data: sequence });
@@ -311,7 +314,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const run = await loadOwnRun(organizationId, req.params.id);
+      const run = await loadOwnRun(organizationId, routeParam(req.params.id, 'id'));
       const updated = pauseCadenceRun(run, new Date());
       await prismaCadenceRunRepository.save(updated);
       res.json({ success: true, data: updated });
@@ -327,7 +330,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const run = await loadOwnRun(organizationId, req.params.id);
+      const run = await loadOwnRun(organizationId, routeParam(req.params.id, 'id'));
       const updated = resumeCadenceRun(run);
       await prismaCadenceRunRepository.save(updated);
       res.json({ success: true, data: updated });
@@ -343,7 +346,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const run = await loadOwnRun(organizationId, req.params.id);
+      const run = await loadOwnRun(organizationId, routeParam(req.params.id, 'id'));
       const updated = stopCadenceManually(run, new Date());
       await prismaCadenceRunRepository.save(updated);
       res.json({ success: true, data: updated });
@@ -365,7 +368,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId, id: actorUserId, email: actorEmail } = (req as AuthRequest).user;
-      const { leadId } = req.params;
+      const leadId = routeParam(req.params.leadId, 'leadId');
       const { proposedStart, proposedEnd } = req.body as z.infer<typeof scheduleMeetingSchema>;
 
       const lead = await prisma.lead.findFirst({

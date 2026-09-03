@@ -57,6 +57,7 @@ import {
   appendAssistantTurn,
 } from '../services/assistant-history.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { aiSuiteRouter } from './ai-suite.routes.js';
 
@@ -280,7 +281,7 @@ router.get(
   '/agents/sdr/status/:sessionId',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { sessionId } = req.params;
+      const sessionId = routeParam(req.params.sessionId, 'sessionId');
       const authRequest = req as AuthRequest;
 
       const memory = await loadAgentMemory({
@@ -358,7 +359,7 @@ router.post(
   pendingActionRoles,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = routeParam(req.params.id, 'id');
       const authRequest = req as AuthRequest;
       const db = authRequest.db || prisma;
       const result = await approvePendingAction(
@@ -395,7 +396,7 @@ router.delete(
       const discarded = await discardPendingAction(
         db,
         authRequest.user.organizationId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         authRequest.user.id,
       );
       if (!discarded) {

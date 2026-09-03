@@ -12,6 +12,7 @@ import type {
   ForecastTier,
   ExportFormat,
 } from '../domain/CommercialIntelligence';
+import { routeParam } from '../../../shared/http/routeParams';
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -183,7 +184,10 @@ export class CommercialIntelligenceController {
   getForecastExplain = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const data = await this.useCases.forecastExplain(organizationId, req.params.leadId);
+      const data = await this.useCases.forecastExplain(
+        organizationId,
+        routeParam(req.params.leadId, 'leadId'),
+      );
       if (!data) {
         res.status(404).json({ success: false, error: 'Negócio não encontrado' });
         return;

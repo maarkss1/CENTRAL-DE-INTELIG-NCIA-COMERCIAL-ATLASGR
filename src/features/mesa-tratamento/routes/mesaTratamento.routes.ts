@@ -5,6 +5,7 @@ import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { hasRequiredRole } from '../../../lib/auth/authorization.js';
 import { prisma } from '../../../lib/prisma.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 import {
   findUnimportedBitrixLeadIds,
   importSelectedBitrixLeads,
@@ -191,7 +192,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const { id } = req.params;
+      const id = routeParam(req.params.id, 'id');
       const body = req.body as {
         outcome?:
           | 'contato'

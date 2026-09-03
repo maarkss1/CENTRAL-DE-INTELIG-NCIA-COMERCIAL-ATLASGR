@@ -11,6 +11,7 @@ import {
   claimWebhookDelivery,
   webhookDeliveryFingerprint,
 } from '../../../shared/security/webhookReplayGuard.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 
 // ── Webhook de ENTRADA (Bitrix → Atlas, "исходящий вебхук" no admin do portal) ──────────────────
 //
@@ -184,7 +185,7 @@ async function processEvent(
 }
 
 async function handleWebhook(req: Request, res: Response): Promise<void> {
-  const connectionId = req.params.connectionId;
+  const connectionId = routeParam(req.params.connectionId, 'connectionId');
   const body = req.body as Record<string, unknown>;
   const auth = body?.auth as Record<string, unknown> | undefined;
   const applicationToken =

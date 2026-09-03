@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 import {
   connectBitrix,
   listBitrixConnections,
@@ -105,7 +106,10 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const result = await testBitrixConnection(organizationId, req.params.connectionId);
+      const result = await testBitrixConnection(
+        organizationId,
+        routeParam(req.params.connectionId, 'connectionId'),
+      );
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -119,7 +123,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      await disconnectBitrix(organizationId, req.params.connectionId);
+      await disconnectBitrix(organizationId, routeParam(req.params.connectionId, 'connectionId'));
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -135,7 +139,10 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const result = await regenerateWebhookSecret(organizationId, req.params.connectionId);
+      const result = await regenerateWebhookSecret(
+        organizationId,
+        routeParam(req.params.connectionId, 'connectionId'),
+      );
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -154,7 +161,11 @@ router.put(
         res.status(400).json({ success: false, error: 'enabled deve ser booleano.' });
         return;
       }
-      await setInboundEventsEnabled(organizationId, req.params.connectionId, enabled);
+      await setInboundEventsEnabled(
+        organizationId,
+        routeParam(req.params.connectionId, 'connectionId'),
+        enabled,
+      );
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -434,7 +445,11 @@ router.post(
         res.status(400).json({ success: false, error: 'comment é obrigatório.' });
         return;
       }
-      const result = await postCommentToBitrix(organizationId, req.params.leadId, comment.trim());
+      const result = await postCommentToBitrix(
+        organizationId,
+        routeParam(req.params.leadId, 'leadId'),
+        comment.trim(),
+      );
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -456,7 +471,7 @@ router.post(
       };
       const result = await exportLeadToBitrixNow(
         organizationId,
-        req.params.leadId,
+        routeParam(req.params.leadId, 'leadId'),
         typeof connectionId === 'string' ? connectionId : undefined,
         {
           statusId: typeof statusId === 'string' ? statusId : undefined,
@@ -598,7 +613,11 @@ router.put(
         res.status(400).json({ success: false, error: 'active deve ser booleano.' });
         return;
       }
-      const result = await setSyncRuleActive(organizationId, req.params.id, active);
+      const result = await setSyncRuleActive(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+        active,
+      );
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -612,7 +631,7 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      await deleteSyncRule(organizationId, req.params.id);
+      await deleteSyncRule(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -715,7 +734,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const result = await getExtractionRun(organizationId, req.params.id);
+      const result = await getExtractionRun(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -729,7 +748,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      await cancelExtractionRun(organizationId, req.params.id);
+      await cancelExtractionRun(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -743,7 +762,7 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      await deleteExtractionRun(organizationId, req.params.id);
+      await deleteExtractionRun(organizationId, routeParam(req.params.id, 'id'));
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -767,7 +786,7 @@ router.get(
       const entity = req.query.entity ? String(req.query.entity) : undefined;
       const { buffer, filename, contentType } = await downloadExtractionFile(
         organizationId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         format as ExtractionFileFormat,
         entity,
       );
