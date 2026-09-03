@@ -141,7 +141,9 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;
-      const template = CADENCE_JOURNEY_TEMPLATES.find((t) => t.id === routeParam(req.params.templateId, 'templateId'));
+      const template = CADENCE_JOURNEY_TEMPLATES.find(
+        (t) => t.id === routeParam(req.params.templateId, 'templateId'),
+      );
       if (!template) {
         throw new AppError('Modelo de jornada não encontrado.', 404);
       }

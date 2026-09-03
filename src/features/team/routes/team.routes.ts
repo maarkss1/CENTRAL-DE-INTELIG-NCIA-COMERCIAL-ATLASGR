@@ -92,7 +92,10 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authReq = req as AuthRequest;
-      const member = await unlockTeamMember(authReq.user.organizationId, routeParam(req.params.id, 'id'));
+      const member = await unlockTeamMember(
+        authReq.user.organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: { member } });
     } catch (error) {
       if (error instanceof TeamServiceError) {
@@ -107,7 +110,11 @@ router.post(
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const authReq = req as AuthRequest;
-    await deleteTeamMember(authReq.user.organizationId, routeParam(req.params.id, 'id'), authReq.user.id);
+    await deleteTeamMember(
+      authReq.user.organizationId,
+      routeParam(req.params.id, 'id'),
+      authReq.user.id,
+    );
     res.json({ success: true, message: 'Usuário removido.' });
   } catch (error) {
     if (error instanceof TeamServiceError) {

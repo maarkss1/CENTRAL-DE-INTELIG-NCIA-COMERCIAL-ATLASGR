@@ -372,7 +372,10 @@ router.put(
 router.post('/:id/reembed', writeRoles, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { organizationId } = (req as AuthRequest).user;
-    const result = await ingestionService.reembedDocument(organizationId, routeParam(req.params.id, 'id'));
+    const result = await ingestionService.reembedDocument(
+      organizationId,
+      routeParam(req.params.id, 'id'),
+    );
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);

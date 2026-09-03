@@ -184,7 +184,10 @@ export class CommercialIntelligenceController {
   getForecastExplain = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const data = await this.useCases.forecastExplain(organizationId, routeParam(req.params.leadId, 'leadId'));
+      const data = await this.useCases.forecastExplain(
+        organizationId,
+        routeParam(req.params.leadId, 'leadId'),
+      );
       if (!data) {
         res.status(404).json({ success: false, error: 'Negócio não encontrado' });
         return;

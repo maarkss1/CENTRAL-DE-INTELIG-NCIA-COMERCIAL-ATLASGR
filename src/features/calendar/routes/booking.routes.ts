@@ -138,7 +138,13 @@ privateBookingRouter.patch(
     try {
       const { organizationId, id: userId, role } = (req as AuthRequest).user;
       const { active } = bookingLinkActiveSchema.parse(req.body);
-      const link = await setBookingLinkActive(organizationId, userId, role, routeParam(req.params.id, 'id'), active);
+      const link = await setBookingLinkActive(
+        organizationId,
+        userId,
+        role,
+        routeParam(req.params.id, 'id'),
+        active,
+      );
       res.json({ success: true, data: link });
     } catch (err) {
       next(err);
@@ -202,7 +208,9 @@ publicBookingRouter.get(
   '/:slug',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const link = await prisma.publicBookingLink.findUnique({ where: { slug: routeParam(req.params.slug, 'slug') } });
+      const link = await prisma.publicBookingLink.findUnique({
+        where: { slug: routeParam(req.params.slug, 'slug') },
+      });
 
       if (!link || !link.active) {
         res
@@ -267,7 +275,9 @@ publicBookingRouter.post(
   '/:slug',
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const link = await prisma.publicBookingLink.findUnique({ where: { slug: routeParam(req.params.slug, 'slug') } });
+      const link = await prisma.publicBookingLink.findUnique({
+        where: { slug: routeParam(req.params.slug, 'slug') },
+      });
 
       if (!link || !link.active) {
         res

@@ -101,7 +101,10 @@ export class CopilotoIaController {
   getConversation = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.getConversation(organizationId, routeParam(req.params.id, 'id'));
+      const conversation = await this.useCases.getConversation(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -111,7 +114,10 @@ export class CopilotoIaController {
   startCapture = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.startCapture(organizationId, routeParam(req.params.id, 'id'));
+      const conversation = await this.useCases.startCapture(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -121,7 +127,10 @@ export class CopilotoIaController {
   stopCapture = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.stopCapture(organizationId, routeParam(req.params.id, 'id'));
+      const conversation = await this.useCases.stopCapture(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -131,7 +140,10 @@ export class CopilotoIaController {
   markReady = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.markReady(organizationId, routeParam(req.params.id, 'id'));
+      const conversation = await this.useCases.markReady(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -141,7 +153,10 @@ export class CopilotoIaController {
   markFailed = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.markFailed(organizationId, routeParam(req.params.id, 'id'));
+      const conversation = await this.useCases.markFailed(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -151,7 +166,10 @@ export class CopilotoIaController {
   cancel = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const conversation = await this.useCases.cancel(organizationId, routeParam(req.params.id, 'id'));
+      const conversation = await this.useCases.cancel(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: conversation });
     } catch (error) {
       next(error);
@@ -267,14 +285,18 @@ export class CopilotoIaController {
     try {
       const { organizationId } = (req as AuthRequest).user;
       const body = req.body as Record<string, unknown>;
-      const insight = await this.useCases.createInsight(organizationId, routeParam(req.params.id, 'id'), {
-        type: requireString(body, 'type'),
-        valueJson: body.valueJson ?? {},
-        confidence: typeof body.confidence === 'number' ? body.confidence : undefined,
-        evidenceSegmentIds: Array.isArray(body.evidenceSegmentIds)
-          ? (body.evidenceSegmentIds as string[])
-          : undefined,
-      });
+      const insight = await this.useCases.createInsight(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+        {
+          type: requireString(body, 'type'),
+          valueJson: body.valueJson ?? {},
+          confidence: typeof body.confidence === 'number' ? body.confidence : undefined,
+          evidenceSegmentIds: Array.isArray(body.evidenceSegmentIds)
+            ? (body.evidenceSegmentIds as string[])
+            : undefined,
+        },
+      );
       res.status(201).json({ success: true, data: insight });
     } catch (error) {
       next(error);
@@ -284,7 +306,10 @@ export class CopilotoIaController {
   listInsights = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const insights = await this.useCases.listInsights(organizationId, routeParam(req.params.id, 'id'));
+      const insights = await this.useCases.listInsights(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: insights });
     } catch (error) {
       next(error);
@@ -506,7 +531,10 @@ export class CopilotoIaController {
   getHandoffSummary = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const handoff = await this.useCases.getHandoffSummary(organizationId, routeParam(req.params.id, 'id'));
+      const handoff = await this.useCases.getHandoffSummary(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       res.json({ success: true, data: handoff });
     } catch (error) {
       next(error);
