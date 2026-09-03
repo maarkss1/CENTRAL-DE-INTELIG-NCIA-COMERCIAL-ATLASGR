@@ -26,6 +26,7 @@ import type {
   CreateCoachingEvaluationInput,
   CopilotoCoachingEvaluationDTO,
 } from '../domain/CopilotoIa';
+import type { WhatsAppMessageTiming } from '../application/whatsappResponseTime';
 
 const CONVERSATION_DETAIL_INCLUDE = {
   transcriptSegments: { orderBy: { startMs: 'asc' as const } },
@@ -408,5 +409,20 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
     return prisma.copilotoCoachingEvaluation.findFirst({
       where: { organizationId, conversationId },
     });
+  }
+
+  async getWhatsAppMessageTimingsForLead(
+    organizationId: string,
+    leadId: string,
+  ): Promise<WhatsAppMessageTiming[]> {
+    const messages = await prisma.whatsAppMessage.findMany({
+      where: { organizationId, leadId },
+      select: { direction: true, receivedAt: true },
+      orderBy: { receivedAt: 'asc' },
+    });
+    return messages.map((message) => ({
+      direction: message.direction === 'outbound' ? 'outbound' : 'inbound',
+      receivedAt: message.receivedAt,
+    }));
   }
 }

@@ -15,6 +15,7 @@ import type {
   CopilotoCrmEntityType,
   CopilotoSuggestionStatus,
 } from '@prisma/client';
+import type { WhatsAppMessageTiming } from '../application/whatsappResponseTime';
 
 export type {
   CopilotoConversationSource,
@@ -370,4 +371,11 @@ export interface CopilotoIaRepository {
     organizationId: string,
     conversationId: string,
   ): Promise<CopilotoCoachingEvaluationDTO | null>;
+
+  /** Onda 7 — SLA/tempo de resposta no WhatsApp. Só leitura de `WhatsAppMessage` já persistida
+   * (Baileys) — este módulo não escreve nem envia mensagem nenhuma. */
+  getWhatsAppMessageTimingsForLead(
+    organizationId: string,
+    leadId: string,
+  ): Promise<WhatsAppMessageTiming[]>;
 }
