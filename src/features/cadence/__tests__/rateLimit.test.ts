@@ -3,9 +3,11 @@ import {
   DEFAULT_RATE_LIMIT_POLICY,
   decideRateLimitBlock,
   extractEmailDomain,
+  isChannelSpacingLimited,
   isContactRateLimited,
   isDomainRateLimited,
   type CadenceRateLimitPolicy,
+  type LastSentTouch,
 } from '../domain/rateLimit';
 
 // Auditoria transversal (Agente 17): o módulo de cadência já tinha opt-out multicanal, stop on
@@ -74,16 +76,72 @@ describe('isDomainRateLimited', () => {
   });
 });
 
+describe('isChannelSpacingLimited', () => {
+  const NOW = new Date('2026-08-03T12:00:00Z');
+  const policy: CadenceRateLimitPolicy = {
+    ...DEFAULT_RATE_LIMIT_POLICY,
+    minMinutesBetweenChannelTouches: 30,
+  };
+
+  it('bloqueia um canal diferente do último toque enviado há menos que o mínimo', () => {
+    const lastTouch: LastSentTouch = {
+      channel: 'email',
+      attemptedAt: new Date('2026-08-03T11:45:00Z'),
+    };
+    expect(isChannelSpacingLimited('whatsapp', lastTouch, NOW, policy)).toBe(true);
+  });
+
+  it('libera um canal diferente do último toque quando o mínimo já passou', () => {
+    const lastTouch: LastSentTouch = {
+      channel: 'email',
+      attemptedAt: new Date('2026-08-03T11:00:00Z'),
+    };
+    expect(isChannelSpacingLimited('whatsapp', lastTouch, NOW, policy)).toBe(false);
+  });
+
+  it('NUNCA bloqueia quando o canal candidato é o MESMO do último toque — isso é papel de delayHoursFromPrevious do próprio touch, não deste limite', () => {
+    const lastTouch: LastSentTouch = {
+      channel: 'email',
+      attemptedAt: new Date('2026-08-03T11:59:00Z'),
+    };
+    expect(isChannelSpacingLimited('email', lastTouch, NOW, policy)).toBe(false);
+  });
+
+  it('libera quando não há nenhum toque anterior', () => {
+    expect(isChannelSpacingLimited('whatsapp', null, NOW, policy)).toBe(false);
+  });
+
+  it('respeita uma política customizada (não hardcoded)', () => {
+    // 10 minutos de intervalo: bloqueado pelo default (30min), liberado por uma política mais permissiva (5min).
+    const lastTouch: LastSentTouch = {
+      channel: 'email',
+      attemptedAt: new Date('2026-08-03T11:50:00Z'),
+    };
+    expect(isChannelSpacingLimited('whatsapp', lastTouch, NOW, policy)).toBe(true);
+    const looserPolicy: CadenceRateLimitPolicy = { ...policy, minMinutesBetweenChannelTouches: 5 };
+    expect(isChannelSpacingLimited('whatsapp', lastTouch, NOW, looserPolicy)).toBe(false);
+  });
+});
+
 describe('decideRateLimitBlock', () => {
+  const NOW = new Date('2026-08-03T12:00:00Z');
   const policy: CadenceRateLimitPolicy = {
     maxTouchesPerContactWindow: 3,
     contactWindowHours: 24,
     maxEmailRecipientsPerDomainPerDay: 1,
+    minMinutesBetweenChannelTouches: 30,
   };
 
   it('sem nenhum sinal de bloqueio, devolve null', () => {
     expect(
-      decideRateLimitBlock({ channel: 'email', sentTouchesInWindow: 0, domainCheck: null, policy }),
+      decideRateLimitBlock({
+        channel: 'email',
+        sentTouchesInWindow: 0,
+        domainCheck: null,
+        lastTouch: null,
+        now: NOW,
+        policy,
+      }),
     ).toBeNull();
   });
 
@@ -93,32 +151,96 @@ describe('decideRateLimitBlock', () => {
         channel: 'whatsapp',
         sentTouchesInWindow: 3,
         domainCheck: null,
+        lastTouch: null,
+        now: NOW,
         policy,
       }),
     ).toBe('contact-rate-limit');
     expect(
-      decideRateLimitBlock({ channel: 'voice', sentTouchesInWindow: 3, domainCheck: null, policy }),
+      decideRateLimitBlock({
+        channel: 'voice',
+        sentTouchesInWindow: 3,
+        domainCheck: null,
+        lastTouch: null,
+        now: NOW,
+        policy,
+      }),
     ).toBe('contact-rate-limit');
+  });
+
+  it('canal diferente do último toque recente bloqueia por channel-spacing', () => {
+    const lastTouch: LastSentTouch = {
+      channel: 'email',
+      attemptedAt: new Date('2026-08-03T11:45:00Z'),
+    };
+    expect(
+      decideRateLimitBlock({
+        channel: 'whatsapp',
+        sentTouchesInWindow: 0,
+        domainCheck: null,
+        lastTouch,
+        now: NOW,
+        policy,
+      }),
+    ).toBe('channel-spacing');
   });
 
   it('domínio no teto bloqueia por domain-rate-limit, só para canal email', () => {
     const domainCheck = { distinctRecipientsToday: 1, currentLeadAlreadyCounted: false };
     expect(
-      decideRateLimitBlock({ channel: 'email', sentTouchesInWindow: 0, domainCheck, policy }),
+      decideRateLimitBlock({
+        channel: 'email',
+        sentTouchesInWindow: 0,
+        domainCheck,
+        lastTouch: null,
+        now: NOW,
+        policy,
+      }),
     ).toBe('domain-rate-limit');
   });
 
   it('domínio no teto NÃO bloqueia canal diferente de email (whatsapp/voice não têm limite de domínio)', () => {
     const domainCheck = { distinctRecipientsToday: 1, currentLeadAlreadyCounted: false };
     expect(
-      decideRateLimitBlock({ channel: 'whatsapp', sentTouchesInWindow: 0, domainCheck, policy }),
+      decideRateLimitBlock({
+        channel: 'whatsapp',
+        sentTouchesInWindow: 0,
+        domainCheck,
+        lastTouch: null,
+        now: NOW,
+        policy,
+      }),
     ).toBeNull();
   });
 
   it('contato tem precedência sobre domínio quando os dois estourariam', () => {
     const domainCheck = { distinctRecipientsToday: 1, currentLeadAlreadyCounted: false };
     expect(
-      decideRateLimitBlock({ channel: 'email', sentTouchesInWindow: 3, domainCheck, policy }),
+      decideRateLimitBlock({
+        channel: 'email',
+        sentTouchesInWindow: 3,
+        domainCheck,
+        lastTouch: null,
+        now: NOW,
+        policy,
+      }),
+    ).toBe('contact-rate-limit');
+  });
+
+  it('contato tem precedência sobre channel-spacing quando os dois estourariam', () => {
+    const lastTouch: LastSentTouch = {
+      channel: 'email',
+      attemptedAt: new Date('2026-08-03T11:45:00Z'),
+    };
+    expect(
+      decideRateLimitBlock({
+        channel: 'whatsapp',
+        sentTouchesInWindow: 3,
+        domainCheck: null,
+        lastTouch,
+        now: NOW,
+        policy,
+      }),
     ).toBe('contact-rate-limit');
   });
 });

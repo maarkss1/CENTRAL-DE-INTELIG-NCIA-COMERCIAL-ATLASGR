@@ -1,4 +1,4 @@
-import { extractEmailDomain } from '../domain/rateLimit.js';
+import { extractEmailDomain, type LastSentTouch } from '../domain/rateLimit.js';
 import type { CadenceRateLimitPort } from '../application/rateLimitService.js';
 import type { InMemoryCadenceRunRepository } from './InMemoryCadenceRunRepository.js';
 
@@ -68,5 +68,20 @@ export class InMemoryCadenceRateLimitPort implements CadenceRateLimitPort {
       distinctRecipientsToday: distinctLeadIds.size,
       currentLeadAlreadyCounted: distinctLeadIds.has(leadId),
     };
+  }
+
+  async findLastSentTouch(organizationId: string, leadId: string): Promise<LastSentTouch | null> {
+    const runs = await this.runRepo.listByOrganization(organizationId);
+    let last: LastSentTouch | null = null;
+    for (const run of runs) {
+      if (run.leadId !== leadId) continue;
+      for (const attempt of run.attempts) {
+        if (attempt.result !== 'sent') continue;
+        if (!last || attempt.attemptedAt > last.attemptedAt) {
+          last = { channel: attempt.channel, attemptedAt: attempt.attemptedAt };
+        }
+      }
+    }
+    return last;
   }
 }

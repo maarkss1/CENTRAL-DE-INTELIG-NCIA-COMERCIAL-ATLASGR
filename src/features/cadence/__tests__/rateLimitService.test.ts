@@ -309,6 +309,7 @@ describe('rate limit por domínio — no máximo M contatos distintos recebendo 
     maxTouchesPerContactWindow: 3,
     contactWindowHours: 24,
     maxEmailRecipientsPerDomainPerDay: 1,
+    minMinutesBetweenChannelTouches: 30,
   };
 
   beforeEach(() => {
@@ -539,6 +540,7 @@ describe('evaluateRateLimitForUpcomingTouch — política customizada via parâm
       maxTouchesPerContactWindow: 1,
       contactWindowHours: 24,
       maxEmailRecipientsPerDomainPerDay: 20,
+      minMinutesBetweenChannelTouches: 30,
     };
     const reason = await evaluateRateLimitForUpcomingTouch(rateLimit, {
       organizationId: ORG,

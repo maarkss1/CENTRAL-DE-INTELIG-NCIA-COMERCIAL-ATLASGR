@@ -4,6 +4,7 @@ import {
   decideRateLimitBlock,
   extractEmailDomain,
   type CadenceRateLimitPolicy,
+  type LastSentTouch,
   type RateLimitBlockReason,
 } from '../domain/rateLimit.js';
 
@@ -37,6 +38,12 @@ export interface CadenceRateLimitPort {
     until: Date,
     leadId: string,
   ): Promise<{ distinctRecipientsToday: number; currentLeadAlreadyCounted: boolean }>;
+  /**
+   * O toque `result: 'sent'` mais recente deste contato, em QUALQUER canal e QUALQUER
+   * cadência/run — base do limite de espaçamento entre canais (`channel-spacing`,
+   * `domain/rateLimit.ts`). `null` quando o contato nunca recebeu nenhum toque 'sent'.
+   */
+  findLastSentTouch(organizationId: string, leadId: string): Promise<LastSentTouch | null>;
 }
 
 export interface EvaluateRateLimitInput {
@@ -94,5 +101,14 @@ export async function evaluateRateLimitForUpcomingTouch(
     }
   }
 
-  return decideRateLimitBlock({ channel: input.channel, sentTouchesInWindow, domainCheck, policy });
+  const lastTouch = await port.findLastSentTouch(input.organizationId, input.leadId);
+
+  return decideRateLimitBlock({
+    channel: input.channel,
+    sentTouchesInWindow,
+    domainCheck,
+    lastTouch,
+    now: input.now,
+    policy,
+  });
 }
