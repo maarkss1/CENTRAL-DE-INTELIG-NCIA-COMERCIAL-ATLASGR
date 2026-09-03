@@ -157,7 +157,7 @@ export function TreinamentoAtlasGRHub() {
 
   return (
     <div
-      className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}
+      className={`flex flex-col h-full space-y-4 bg-bg ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-bg overflow-hidden' : 'p-6'}`}
     >
       {/* Unified Executive Header */}
       <ExecutiveHeader
@@ -172,7 +172,7 @@ export function TreinamentoAtlasGRHub() {
       {/* KPI Cards & Progress Bar */}
       {!isFullscreen && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
             <div className="p-2.5 bg-brand/10 text-brand rounded-xl">
               <BookOpen className="w-5 h-5" />
             </div>
@@ -181,19 +181,19 @@ export function TreinamentoAtlasGRHub() {
               <div className="text-sm font-bold text-ink">15 Módulos</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-success/10 text-success-active dark:text-success rounded-xl">
               <CheckCircle className="w-5 h-5" />
             </div>
             <div>
               <div className="text-[11px] font-semibold text-ink-2">Progresso Concluído</div>
-              <div className="text-sm font-bold text-emerald-500">
+              <div className="text-sm font-bold text-success-active dark:text-success">
                 {completedModules.length} de 15 ({progressPercentage}%)
               </div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-purple-500/10 text-purple-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl">
               <Award className="w-5 h-5" />
             </div>
             <div>
@@ -201,8 +201,8 @@ export function TreinamentoAtlasGRHub() {
               <div className="text-sm font-bold text-ink">Prova Final</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-info/10 text-info-active dark:text-info rounded-xl">
               <Layers className="w-5 h-5" />
             </div>
             <div>
@@ -243,7 +243,7 @@ export function TreinamentoAtlasGRHub() {
 
       {/* Main Content Area */}
       <div
-        className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
+        className={`flex-1 bg-surface rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
       >
         {activeSubTab === 'trilha' ? (
           <div className="flex flex-col lg:flex-row h-full min-h-[650px]">
@@ -266,7 +266,7 @@ export function TreinamentoAtlasGRHub() {
                   placeholder="Filtrar módulos..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-card border border-line rounded-lg text-ink focus:outline-none focus:border-brand"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-line rounded-lg text-ink focus:outline-none focus:border-brand"
                 />
               </div>
 
@@ -284,7 +284,7 @@ export function TreinamentoAtlasGRHub() {
                       className={`w-full text-left p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-2 ${
                         isSelected
                           ? 'bg-brand/10 border-brand/40 text-brand font-bold shadow-sm'
-                          : 'bg-card border-line hover:bg-soft text-ink'
+                          : 'bg-surface border-line hover:bg-soft text-ink'
                       }`}
                     >
                       <div className="space-y-0.5">

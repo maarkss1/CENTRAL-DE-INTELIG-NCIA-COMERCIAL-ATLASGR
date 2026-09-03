@@ -76,7 +76,7 @@ export function PropostaComercialHub() {
 
   return (
     <div
-      className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}
+      className={`flex flex-col h-full space-y-4 bg-bg ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-bg overflow-hidden' : 'p-6'}`}
     >
       {/* Unified Executive Header */}
       <ExecutiveHeader
@@ -91,7 +91,7 @@ export function PropostaComercialHub() {
       {/* KPI Cards Bar */}
       {!isFullscreen && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
             <div className="p-2.5 bg-brand/10 text-brand rounded-xl">
               <FileSignature className="w-5 h-5" />
             </div>
@@ -100,8 +100,8 @@ export function PropostaComercialHub() {
               <div className="text-sm font-bold text-ink">7 Modelos</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-success/10 text-success-active dark:text-success rounded-xl">
               <Gauge className="w-5 h-5" />
             </div>
             <div>
@@ -109,8 +109,8 @@ export function PropostaComercialHub() {
               <div className="text-sm font-bold text-ink">SDR & Forecast</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-info/10 text-info-active dark:text-info rounded-xl">
               <Layers className="w-5 h-5" />
             </div>
             <div>
@@ -118,8 +118,8 @@ export function PropostaComercialHub() {
               <div className="text-sm font-bold text-ink">Evolução & Extração</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-purple-500/10 text-purple-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -187,7 +187,7 @@ export function PropostaComercialHub() {
 
       {/* Main Container */}
       <div
-        className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
+        className={`flex-1 bg-surface rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
       >
         {activeTab === 'modelos' ? (
           <div className="flex flex-col lg:flex-row h-full min-h-[650px]">
@@ -204,7 +204,7 @@ export function PropostaComercialHub() {
                   placeholder="Filtrar por nome ou tag..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-card border border-line rounded-lg text-ink focus:outline-none focus:border-brand"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface border border-line rounded-lg text-ink focus:outline-none focus:border-brand"
                 />
               </div>
 
@@ -216,7 +216,7 @@ export function PropostaComercialHub() {
                     className={`w-full text-left p-3 rounded-xl border transition-all space-y-1 ${
                       selectedProposal === p.file
                         ? 'bg-brand/10 border-brand/40 text-brand font-bold shadow-sm'
-                        : 'bg-card border-line hover:bg-soft text-ink'
+                        : 'bg-surface border-line hover:bg-soft text-ink'
                     }`}
                   >
                     <div className="flex items-center justify-between">

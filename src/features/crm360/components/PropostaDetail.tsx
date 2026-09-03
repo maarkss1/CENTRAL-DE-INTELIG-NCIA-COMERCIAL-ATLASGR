@@ -7,6 +7,8 @@ import { Select } from '../../../components/ui/Select';
 import { clientLogger } from '../../../lib/clientLogger';
 import { toast } from '../../../lib/toast';
 import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { crm360Api } from '../crm360.api';
 import type { CrmCommercialDocument, CrmCommercialDocumentVersionDTO } from '../crm360.types';
 import { diffProposalVersions } from './proposalVersionDiff';
@@ -48,6 +50,11 @@ interface PropostaDetailProps {
 }
 
 export function PropostaDetail({ document, onBack, onEdit, onChanged }: PropostaDetailProps) {
+  const { currentUser } = useAuth();
+  // Mesmo gate de PropostasList.tsx — POST/PUT /documents exigem ADMIN/GESTOR/CLOSER/SDR no
+  // backend (achado real: nenhum destes 3 controles de escrita tinha checagem de papel antes).
+  const canWrite =
+    !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
   const [versions, setVersions] = useState<CrmCommercialDocumentVersionDTO[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(true);
   const [nextStatus, setNextStatus] = useState<DocumentStatus | ''>('');
@@ -151,9 +158,11 @@ export function PropostaDetail({ document, onBack, onEdit, onChanged }: Proposta
         >
           {document.status}
         </span>
-        <Button type="button" variant="ghost" onClick={onEdit} className="text-xs h-9 shrink-0">
-          <Pencil className="w-3.5 h-3.5 mr-1.5" /> Editar
-        </Button>
+        {canWrite && (
+          <Button type="button" variant="ghost" onClick={onEdit} className="text-xs h-9 shrink-0">
+            <Pencil className="w-3.5 h-3.5 mr-1.5" /> Editar
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -294,7 +303,7 @@ export function PropostaDetail({ document, onBack, onEdit, onChanged }: Proposta
             {document.contact && <p className="text-sm text-ink-2">👤 {document.contact.name}</p>}
           </div>
 
-          {availableNextStatuses.length > 0 && (
+          {canWrite && availableNextStatuses.length > 0 && (
             <div className="rounded-card border border-line bg-surface p-4 space-y-3">
               <p className="text-xs font-bold uppercase tracking-wide text-ink-2">Mudar status</p>
               <Select
@@ -320,7 +329,7 @@ export function PropostaDetail({ document, onBack, onEdit, onChanged }: Proposta
             </div>
           )}
 
-          {(document.status === 'Enviado' || document.status === 'Visualizado') && (
+          {canWrite && (document.status === 'Enviado' || document.status === 'Visualizado') && (
             <div className="rounded-card border border-line bg-surface p-4 space-y-3">
               <p className="text-xs font-bold uppercase tracking-wide text-ink-2">
                 Solicitar assinatura eletrônica

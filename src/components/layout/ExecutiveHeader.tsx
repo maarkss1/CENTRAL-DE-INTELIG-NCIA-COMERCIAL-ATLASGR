@@ -9,6 +9,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from 'lucide-react';
+import { EXECUTIVE_HUB_ALLOWED_EMAIL } from '../../config/access-policy';
 
 interface ExecutiveHeaderProps {
   title: string;
@@ -60,7 +61,7 @@ export function ExecutiveHeader({
           <ShieldCheck className="w-4 h-4 text-emerald-500" />
           <span className="hidden sm:inline">Acervo Executivo Privado</span>
           <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-bold border border-emerald-500/20">
-            marcelo.nascimento@atlasgr.com.br
+            {EXECUTIVE_HUB_ALLOWED_EMAIL}
           </span>
         </div>
 
@@ -77,7 +78,7 @@ export function ExecutiveHeader({
                 className={`px-3 py-1.5 text-xs font-semibold rounded-xl border flex items-center gap-1.5 whitespace-nowrap transition-all ${
                   isActive
                     ? 'bg-brand-active text-white border-brand shadow-sm'
-                    : 'bg-card text-ink-2 hover:bg-soft hover:text-ink border-line'
+                    : 'bg-surface text-ink-2 hover:bg-soft hover:text-ink border-line'
                 }`}
               >
                 <HubIcon className="w-3.5 h-3.5" />
@@ -105,7 +106,7 @@ export function ExecutiveHeader({
             <button
               type="button"
               onClick={onRefresh}
-              className="px-3 py-1.5 text-xs font-medium bg-soft text-ink hover:bg-soft-hover rounded-xl border border-line flex items-center gap-1.5 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium bg-soft text-ink hover:bg-line rounded-xl border border-line flex items-center gap-1.5 transition-colors"
               title="Recarregar tela"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -117,8 +118,8 @@ export function ExecutiveHeader({
             onClick={onToggleFullscreen}
             className={`px-3 py-1.5 text-xs font-medium rounded-xl border flex items-center gap-1.5 transition-colors shadow-sm ${
               isFullscreen
-                ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
-                : 'bg-soft text-ink hover:bg-soft-hover border-line'
+                ? 'bg-warning-active text-white border-warning hover:bg-warning'
+                : 'bg-soft text-ink hover:bg-line border-line'
             }`}
             title={isFullscreen ? 'Sair do Modo Tela Cheia' : 'Modo Tela Cheia Imersivo'}
           >

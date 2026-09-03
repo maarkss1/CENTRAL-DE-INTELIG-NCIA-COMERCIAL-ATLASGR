@@ -242,8 +242,9 @@ export function WinLossAnalysis() {
 
             <Card padding="sm" className="border-dashed text-center">
               <p className="text-xs text-ink-2">
-                💡 Esta análise é gerada automaticamente toda sexta às 19h e pode ser rodada
-                manualmente a qualquer momento.
+                💡 Uma varredura automática roda toda sexta às 19h nos bastidores, mas o resultado
+                dela ainda não aparece nesta tela — o que você está vendo é sempre da última vez que
+                alguém rodou manualmente pelo botão acima.
               </p>
             </Card>
           </div>

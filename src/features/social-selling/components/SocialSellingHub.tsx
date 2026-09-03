@@ -94,7 +94,7 @@ export function SocialSellingHub() {
 
   return (
     <div
-      className={`flex flex-col h-full space-y-4 bg-base ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-background overflow-hidden' : 'p-6'}`}
+      className={`flex flex-col h-full space-y-4 bg-bg ${isFullscreen ? 'fixed inset-0 z-50 p-4 bg-bg overflow-hidden' : 'p-6'}`}
     >
       {/* Unified Executive Header */}
       <ExecutiveHeader
@@ -109,7 +109,7 @@ export function SocialSellingHub() {
       {/* KPI Cards Bar */}
       {!isFullscreen && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
             <div className="p-2.5 bg-brand/10 text-brand rounded-xl">
               <Sparkles className="w-5 h-5" />
             </div>
@@ -118,8 +118,8 @@ export function SocialSellingHub() {
               <div className="text-sm font-bold text-ink">Estratégia Outbound</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-info/10 text-info-active dark:text-info rounded-xl">
               <Target className="w-5 h-5" />
             </div>
             <div>
@@ -127,8 +127,8 @@ export function SocialSellingHub() {
               <div className="text-sm font-bold text-ink">Alertas Automáticos</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-success/10 text-success-active dark:text-success rounded-xl">
               <Layers className="w-5 h-5" />
             </div>
             <div>
@@ -136,8 +136,8 @@ export function SocialSellingHub() {
               <div className="text-sm font-bold text-ink">5 Semanas de Copys</div>
             </div>
           </div>
-          <div className="p-3.5 bg-card border border-line rounded-2xl flex items-center gap-3">
-            <div className="p-2.5 bg-purple-500/10 text-purple-500 rounded-xl">
+          <div className="p-3.5 bg-surface border border-line rounded-2xl flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl">
               <Award className="w-5 h-5" />
             </div>
             <div>
@@ -180,7 +180,7 @@ export function SocialSellingHub() {
 
       {/* Main View Container */}
       <div
-        className={`flex-1 bg-card rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
+        className={`flex-1 bg-surface rounded-2xl border border-line overflow-hidden shadow-sm flex flex-col ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'min-h-[650px]'}`}
       >
         {activeSubTab === 'motor' && (
           <iframe
@@ -247,13 +247,13 @@ export function SocialSellingHub() {
                       </span>
                       <button
                         onClick={() => handleCopyCopy(item.copy, idx)}
-                        className="px-2.5 py-1 text-xs font-medium bg-soft text-ink hover:bg-soft-hover rounded-lg border border-line flex items-center gap-1.5 transition-colors"
+                        className="px-2.5 py-1 text-xs font-medium bg-soft text-ink hover:bg-line rounded-lg border border-line flex items-center gap-1.5 transition-colors"
                         title="Copiar texto para publicação no LinkedIn"
                       >
                         {copiedPostIndex === idx ? (
                           <>
-                            <Check className="w-3.5 h-3.5 text-emerald-500" />
-                            <span className="text-emerald-500 font-bold">Copiado!</span>
+                            <Check className="w-3.5 h-3.5 text-success-active dark:text-success" />
+                            <span className="text-success-active dark:text-success font-bold">Copiado!</span>
                           </>
                         ) : (
                           <>
@@ -265,7 +265,7 @@ export function SocialSellingHub() {
                     </div>
                     <h3 className="text-sm font-bold text-ink">{item.tema}</h3>
                     <p className="text-xs text-ink-2 font-medium">{item.desc}</p>
-                    <div className="p-3 bg-card rounded-xl border border-line/60 text-xs text-ink-2 leading-relaxed italic">
+                    <div className="p-3 bg-surface rounded-xl border border-line/60 text-xs text-ink-2 leading-relaxed italic">
                       "{item.copy}"
                     </div>
                   </div>
