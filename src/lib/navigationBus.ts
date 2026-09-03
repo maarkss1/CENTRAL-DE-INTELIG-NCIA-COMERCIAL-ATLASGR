@@ -53,6 +53,7 @@ const TAB_ROUTE_SET: Record<TabType, true> = {
   team: true,
   settings: true,
   commercial_intelligence: true,
+  copiloto_ia: true,
   crm360: true,
   propostas: true,
   'mesa-tratamento': true,

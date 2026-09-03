@@ -6,6 +6,7 @@ import {
   hasRequiredRole,
   isKnownRole,
   canAccessCommercialIntelligence,
+  canAccessCopilotoIa,
   type Role,
 } from '../lib/auth/authorization';
 
@@ -32,6 +33,8 @@ interface AuthContextType {
   canAccessBrand: (brand: 'atlasgr' | 'totaltrac') => boolean;
   /** Comercial Inteligente (Revenue Command Center executivo) — ADMIN/GESTOR, ver src/lib/auth/authorization.ts. */
   canAccessCommercialIntelligence: boolean;
+  /** Copiloto Comercial IA — ADMIN/GESTOR/CLOSER/SDR, ver COPILOTO_IA_ROLES em src/lib/auth/authorization.ts. */
+  canAccessCopilotoIa: boolean;
   isPending: boolean;
 }
 
@@ -132,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const canAccessCommercialIntelligenceValue = currentUser
     ? canAccessCommercialIntelligence(currentUser.role)
     : false;
+  const canAccessCopilotoIaValue = currentUser ? canAccessCopilotoIa(currentUser.role) : false;
 
   const canAccessAdminPanel = () => isAdmin;
 
@@ -153,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         canAccessAdminPanel,
         canAccessBrand,
         canAccessCommercialIntelligence: canAccessCommercialIntelligenceValue,
+        canAccessCopilotoIa: canAccessCopilotoIaValue,
         isPending,
       }}
     >

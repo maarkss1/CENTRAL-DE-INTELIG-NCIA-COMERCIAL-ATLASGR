@@ -21,7 +21,8 @@ interface NavGroupDefinition {
 
 export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: SidebarProps) {
   const { activeBrand, setActiveBrand } = useBrand();
-  const { currentUser, isAdmin, canAccessCommercialIntelligence, logout } = useAuth();
+  const { currentUser, isAdmin, canAccessCommercialIntelligence, canAccessCopilotoIa, logout } =
+    useAuth();
   const isAtlas = activeBrand === 'atlasgr';
   const navigate = useNavigate();
   const canManageOperations =
@@ -98,6 +99,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     {
       title: 'IA & Capacitação',
       items: [
+        ...(canAccessCopilotoIa ? (['copiloto_ia'] as TabType[]) : []),
         'intelligence',
         'chatbook',
         'roleplay',

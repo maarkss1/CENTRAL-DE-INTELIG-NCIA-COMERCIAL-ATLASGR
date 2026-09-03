@@ -5,7 +5,11 @@ import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { RequireRole } from './components/layout/RequireRole';
 import { RequireUserAllowed } from './components/layout/RequireUserAllowed';
-import { COMMERCIAL_INTELLIGENCE_ROLES, MESA_TRATAMENTO_ROLES } from './lib/auth/authorization';
+import {
+  COMMERCIAL_INTELLIGENCE_ROLES,
+  MESA_TRATAMENTO_ROLES,
+  COPILOTO_IA_ROLES,
+} from './lib/auth/authorization';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -126,6 +130,11 @@ const WinLossAnalysis = lazy(() =>
 const CommercialIntelligenceHub = lazy(() =>
   import('./features/commercial-intelligence/components/CommercialIntelligenceHub').then((m) => ({
     default: m.CommercialIntelligenceHub,
+  })),
+);
+const CopilotoIaHub = lazy(() =>
+  import('./features/copiloto-ia/components/CopilotoIaHub').then((m) => ({
+    default: m.CopilotoIaHub,
   })),
 );
 const JoaoReisDiagnosticHub = lazy(() =>
@@ -296,6 +305,17 @@ function AppLayout() {
             element={
               <RequireRole allowedRoles={[...COMMERCIAL_INTELLIGENCE_ROLES]}>
                 <CommercialIntelligenceHub />
+              </RequireRole>
+            }
+          />
+          {/* Copiloto Comercial IA — RequireRole bloqueia acesso direto por URL, mesmo padrão de
+              commercial_intelligence acima. Autorização real está em requireRole no backend
+              (copilotoIa.routes.ts). */}
+          <Route
+            path="copiloto_ia"
+            element={
+              <RequireRole allowedRoles={[...COPILOTO_IA_ROLES]}>
+                <CopilotoIaHub />
               </RequireRole>
             }
           />
