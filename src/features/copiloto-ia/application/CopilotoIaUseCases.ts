@@ -34,6 +34,10 @@ import type {
   CopilotoCoachingEvaluationDTO,
   HandoffSummaryDTO,
 } from '../domain/CopilotoIa';
+import {
+  computeWhatsAppResponseTimeStats,
+  type WhatsAppResponseTimeStats,
+} from './whatsappResponseTime';
 
 /** Únicas fontes que não gravam áudio/vídeo — dispensam consentimento explícito de gravação. */
 const SOURCES_WITHOUT_RECORDING_CONSENT: readonly CopilotoConversationSource[] = ['MANUAL'];
@@ -413,5 +417,17 @@ export class CopilotoIaUseCases {
       isComplete: missingParts.length === 0,
       missingParts,
     };
+  }
+
+  // ─── Onda 7 — SLA/tempo de resposta no WhatsApp ──────────────────────────
+
+  /** Só leitura sobre `WhatsAppMessage` já persistida (Baileys) — não envia nem altera mensagem
+   * nenhuma. Cálculo determinístico em `whatsappResponseTime.ts`, sem IA. */
+  async getWhatsAppResponseTimeStats(
+    organizationId: string,
+    leadId: string,
+  ): Promise<WhatsAppResponseTimeStats> {
+    const messages = await this.repository.getWhatsAppMessageTimingsForLead(organizationId, leadId);
+    return computeWhatsAppResponseTimeStats(messages);
   }
 }
