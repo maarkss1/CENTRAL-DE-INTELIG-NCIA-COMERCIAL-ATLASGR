@@ -504,4 +504,19 @@ export class CopilotoIaController {
       next(error);
     }
   };
+
+  // ─── Onda 7 — SLA/tempo de resposta no WhatsApp ─────────────────────────
+
+  getWhatsAppResponseTimeStats = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const stats = await this.useCases.getWhatsAppResponseTimeStats(
+        organizationId,
+        req.params.leadId,
+      );
+      res.json({ success: true, data: stats });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

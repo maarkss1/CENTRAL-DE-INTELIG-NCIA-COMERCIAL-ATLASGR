@@ -19,7 +19,9 @@ import { PrismaBugReportRepository } from '../../features/bug-reports/infra/Pris
 import { PrismaUsageRepository } from '../../features/billing/infra/PrismaUsageRepository';
 import { PrismaFeatureFlagRepository } from '../../features/feature-flags/infra/PrismaFeatureFlagRepository';
 import { PrismaCopilotoIaRepository } from '../../features/copiloto-ia/infra/PrismaCopilotoIaRepository';
+import { CopilotoVoiceIngestionAdapter } from '../../features/copiloto-ia/infra/CopilotoVoiceIngestionAdapter';
 import { BitrixLeadWritebackAdapter } from '../../features/integrations/bitrix/infra/BitrixLeadWritebackAdapter';
+import { MeetingSynthesisService } from '../../features/chatbook/services/meeting-synthesis.service';
 
 // Use Cases
 import { NoteUseCases } from '../../features/notes/application/NoteUseCases';
@@ -81,6 +83,13 @@ export function setupDI() {
   // src/shared/contracts/bitrixWriteback.contract.ts — este arquivo é a única "raiz de composição"
   // com licença de conhecer as duas features ao mesmo tempo.
   const bitrixLeadWritebackAdapter = new BitrixLeadWritebackAdapter();
+  // Porta de composição na direção oposta (integrations/birth-voice -> copiloto-ia), Onda 7 item 2
+  // — ver src/shared/contracts/copilotoVoiceIngestion.contract.ts. Reaproveita o MESMO
+  // MeetingSynthesisService de chatbook já usado pelo worker de transcrição (worker.ts/
+  // src/bootstrap/workers.ts) — não duplica a integração.
+  const copilotoVoiceIngestionAdapter = new CopilotoVoiceIngestionAdapter(
+    new MeetingSynthesisService(),
+  );
 
   container.register('NoteRepository', noteRepository);
   container.register('ActivityRepository', activityRepository);
@@ -97,6 +106,7 @@ export function setupDI() {
   container.register('UsageRepository', usageRepository);
   container.register('FeatureFlagRepository', featureFlagRepository);
   container.register('CopilotoIaRepository', copilotoIaRepository);
+  container.register('CopilotoVoiceIngestionPort', copilotoVoiceIngestionAdapter);
 
   // 3. Use Cases
   const noteUseCases = new NoteUseCases(noteRepository);
