@@ -54,6 +54,7 @@ import { createNewsMonitorWorker, scheduleGlobalNewsScan } from './src/lib/queue
 import { createAccountIntelligenceInsightsWorker, scheduleAccountIntelligenceInsightsJob } from './src/features/market-intelligence/jobs/accountIntelligenceInsights.worker.js';
 import { createForecastSnapshotWorker, scheduleForecastSnapshotJob } from './src/features/commercial-intelligence/jobs/forecastSnapshotWeekly.worker.js';
 import { createCopilotoTranscriptionWorker } from './src/features/copiloto-ia/jobs/transcribeConversation.worker.js';
+import { MeetingSynthesisService } from './src/features/chatbook/services/meeting-synthesis.service.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -94,7 +95,9 @@ async function startWorkerProcess() {
     const newsMonitorWorker = createNewsMonitorWorker();
     const accountIntelligenceInsightsWorker = createAccountIntelligenceInsightsWorker();
     const forecastSnapshotWorker = createForecastSnapshotWorker();
-    const copilotoTranscriptionWorker = createCopilotoTranscriptionWorker();
+    const copilotoTranscriptionWorker = createCopilotoTranscriptionWorker({
+        meetingSynthesisPort: new MeetingSynthesisService(),
+    });
 
     await Promise.all([
         scheduleBitrixSync(),

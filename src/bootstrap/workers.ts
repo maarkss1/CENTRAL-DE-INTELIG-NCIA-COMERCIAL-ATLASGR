@@ -57,6 +57,7 @@ import {
   scheduleForecastSnapshotJob,
 } from '../features/commercial-intelligence/jobs/forecastSnapshotWeekly.worker.js';
 import { createCopilotoTranscriptionWorker } from '../features/copiloto-ia/jobs/transcribeConversation.worker.js';
+import { MeetingSynthesisService } from '../features/chatbook/services/meeting-synthesis.service.js';
 
 type CloseableWorker = Worker<any, any, string> | null;
 
@@ -125,7 +126,7 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
       : null,
     forecastSnapshotWorker: embeddedWorkersEnabled ? createForecastSnapshotWorker() : null,
     copilotoTranscriptionWorker: embeddedWorkersEnabled
-      ? createCopilotoTranscriptionWorker()
+      ? createCopilotoTranscriptionWorker({ meetingSynthesisPort: new MeetingSynthesisService() })
       : null,
     searchWorker: null,
     coldCallWorker: null,

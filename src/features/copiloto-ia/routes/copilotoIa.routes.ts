@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { container } from '../../../shared/di/container.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
-import { COPILOTO_IA_ROLES } from '../../../lib/auth/authorization.js';
+import {
+  COPILOTO_IA_ROLES,
+  COPILOTO_IA_MANAGEMENT_ROLES,
+} from '../../../lib/auth/authorization.js';
 import type { CopilotoIaController } from '../presentation/CopilotoIaController.js';
 
 const router = Router();
@@ -10,6 +13,11 @@ const router = Router();
 // no mount de `src/bootstrap/routes.ts` — defesa em profundidade, mesmo padrão de
 // `commercial-intelligence`/`mesa-tratamento`.
 router.use(requireRole([...COPILOTO_IA_ROLES]));
+
+// Camada extra (defesa em profundidade dupla, mesmo padrão de `managementRoles` em
+// bitrix.routes.ts): configurar o mapeamento de campo e disparar o writeback real no Bitrix são
+// mais restritos que o resto do módulo (ADMIN/GESTOR, não CLOSER/SDR).
+const managementRoles = requireRole([...COPILOTO_IA_MANAGEMENT_ROLES]);
 
 function resolve(): CopilotoIaController {
   return container.resolve<CopilotoIaController>('CopilotoIaController');
@@ -55,6 +63,20 @@ router.get('/leads/:leadId/deal-health', (req, res, next) =>
 );
 router.post('/leads/:leadId/deal-health', (req, res, next) =>
   resolve().createDealHealthSnapshot(req, res, next),
+);
+
+// ─── Onda 4 — mapeamento de campo Bitrix + writeback (ADMIN/GESTOR) ────────
+router.get('/bitrix-field-mappings', managementRoles, (req, res, next) =>
+  resolve().listBitrixFieldMappings(req, res, next),
+);
+router.post('/bitrix-field-mappings', managementRoles, (req, res, next) =>
+  resolve().upsertBitrixFieldMapping(req, res, next),
+);
+router.delete('/bitrix-field-mappings/:id', managementRoles, (req, res, next) =>
+  resolve().deleteBitrixFieldMapping(req, res, next),
+);
+router.post('/crm-field-suggestions/:id/writeback', managementRoles, (req, res, next) =>
+  resolve().writebackCrmFieldSuggestion(req, res, next),
 );
 
 export const copilotoIaRoutes = router;

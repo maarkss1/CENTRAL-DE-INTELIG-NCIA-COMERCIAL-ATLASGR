@@ -9,6 +9,8 @@ import type {
   CopilotoCrmFieldSuggestionDTO,
   CopilotoSuggestionStatus,
   ConversationStateDTO,
+  CopilotoBitrixFieldMappingDTO,
+  UpsertBitrixFieldMappingInput,
 } from '../../domain/CopilotoIa';
 
 const ORG_ID = 'org-1';
@@ -89,6 +91,7 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
       title: conversation.title,
       audioObjectKey: conversation.audioObjectKey,
       audioMimeType: conversation.audioMimeType,
+      leadId: conversation.leadId,
     };
   }
 
@@ -253,6 +256,7 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
       approvedBy: null,
       approvedAt: null,
       writebackAt: null,
+      writebackError: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -267,7 +271,13 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
   async updateCrmFieldSuggestionStatus(
     _organizationId: string,
     id: string,
-    data: { status: CopilotoSuggestionStatus; approvedBy?: string; approvedAt?: Date },
+    data: {
+      status: CopilotoSuggestionStatus;
+      approvedBy?: string;
+      approvedAt?: Date;
+      writebackAt?: Date;
+      writebackError?: string | null;
+    },
   ) {
     const suggestion = this.suggestions.get(id);
     if (!suggestion) throw new Error('not found');
@@ -291,6 +301,46 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
 
   async listDealHealthSnapshots() {
     return [];
+  }
+
+  fieldMappings = new Map<string, CopilotoBitrixFieldMappingDTO>();
+  leadBitrixIds = new Map<string, string>();
+
+  async upsertBitrixFieldMapping(
+    _organizationId: string,
+    data: UpsertBitrixFieldMappingInput,
+  ): Promise<CopilotoBitrixFieldMappingDTO> {
+    const key = `${data.entityType}:${data.semanticField}`;
+    const mapping: CopilotoBitrixFieldMappingDTO = {
+      id: key,
+      entityType: data.entityType,
+      semanticField: data.semanticField,
+      bitrixFieldCode: data.bitrixFieldCode,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.fieldMappings.set(key, mapping);
+    return mapping;
+  }
+
+  async listBitrixFieldMappings(): Promise<CopilotoBitrixFieldMappingDTO[]> {
+    return Array.from(this.fieldMappings.values());
+  }
+
+  async deleteBitrixFieldMapping(_organizationId: string, id: string): Promise<void> {
+    this.fieldMappings.delete(id);
+  }
+
+  async getBitrixFieldCode(
+    _organizationId: string,
+    entityType: 'LEAD' | 'COMPANY' | 'CONTACT',
+    semanticField: string,
+  ): Promise<string | null> {
+    return this.fieldMappings.get(`${entityType}:${semanticField}`)?.bitrixFieldCode ?? null;
+  }
+
+  async getLeadBitrixId(_organizationId: string, leadId: string): Promise<string | null> {
+    return this.leadBitrixIds.get(leadId) ?? null;
   }
 }
 

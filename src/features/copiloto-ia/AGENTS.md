@@ -7,12 +7,33 @@ Quem implementa cada onda seguinte do pacote `atlasgr_copiloto_ai_pack` (ver
 especificação original — agentes, prompts e roadmap por onda).
 
 ## O que é
-Fundação de dados/domínio/RBAC (Onda 1 do roadmap do pacote) para captura e estruturação de
-conversas comerciais com transcrição real e consentimento auditável (Google Meet, ligação) — não
-existe ainda captura de mídia real (extensão Chrome), transcrição, inteligência de conversação nem
-writeback no Bitrix; isso é Onda 2 em diante. NÃO substitui `ConversationSignal`
+Módulo do Copiloto Comercial IA (pacote `atlasgr_copiloto_ai_pack`), já cobrindo as Ondas 1-5 do
+roadmap: fundação de dados/RBAC (Onda 1), captura real de áudio via extensão Chrome (Onda 2),
+transcrição via Whisper + resumo executivo (Onda 3), mapeamento configurável de campo + writeback
+real no Bitrix24 para `entityType: LEAD` (Onda 4), e extração de objeções/concorrentes/buying
+signals + Deal Health Score por oportunidade (Onda 5). Onda 6 em diante (forecast/coaching/churn/
+handoff formais, WhatsApp) ainda não existe. NÃO substitui `ConversationSignal`
 (`src/features/intelligence`), que lê janelas de `WhatsAppMessage`/e-mail já persistidas sem
-transcrição bruta nem consentimento de gravação — são modelos complementares, não duplicados.
+transcrição bruta nem consentimento de gravação — são modelos complementares.
+
+**Deal Health Score (Onda 5)**: `application/dealHealthScoring.ts` é uma fórmula DETERMINÍSTICA
+(sentimento da síntese + contagem de objeções não resolvidas/buying signals/menções a concorrente,
+pesos e tetos documentados no próprio arquivo) — só a EXTRAÇÃO dos sinais brutos usa IA
+(`infra/conversationIntelligence.service.ts`), nunca o score em si. Não confundir com
+`commercial-intelligence/application/healthScore.ts` (cobertura de pipeline/qualidade de dado do
+funil inteiro) — são conceitos e granularidades diferentes (por oportunidade individual vs.
+portfólio), calculados de formas completamente distintas.
+
+**Composição com outras features**: este módulo depende de Bitrix (writeback) e chatbook (resumo
+de reunião) só através de PORTAS em `src/shared/contracts/` (`bitrixWriteback.contract.ts`,
+`meetingSynthesis.contract.ts`) — nunca importa `src/features/integrations/bitrix/**` nem
+`src/features/chatbook/**` diretamente (`no-cross-feature-imports` em `.dependency-cruiser.cjs`
+barra isso; já aconteceu uma vez nesta onda e foi corrigido). A composição real (instanciar o
+adapter/serviço concreto e injetar) acontece só em `src/shared/di/setup.ts` (rotas HTTP) e
+`worker.ts`/`src/bootstrap/workers.ts` (worker de transcrição) — os únicos arquivos com licença de
+importar as duas features ao mesmo tempo. Sempre rode `npm run test:architecture` (não só
+`npm run lint`) antes de considerar uma mudança pronta — lint sozinho não pega esse tipo de
+violação.
 
 ## Pode alterar
 - domínio/regras/persistência deste módulo (`domain/`, `application/`, `infra/`, `presentation/`,
@@ -27,9 +48,13 @@ transcrição bruta nem consentimento de gravação — são modelos complementa
 - Não remover a policy de RLS das 6 tabelas (`prisma/migrations/20260902130000_copiloto_ia_rls`) —
   é a camada real de isolamento de tenant, não o filtro em `where` (ver `/AGENTS.md`, "Separação
   visual não é prova de isolamento").
-- Não implementar writeback real no Bitrix a partir de `CopilotoCrmFieldSuggestion.status =
-  APPROVED` sem antes resolver o mapeamento `semantic_field -> UF_CRM_*` real do portal do tenant
-  (ver `docs/BITRIX_FIELD_MAPPING.md` do pacote) — nunca assumir um código `UF_CRM_*` fixo.
+- Não assumir/hardcodar um código `UF_CRM_*` — o writeback (Onda 4) só grava um campo se existir
+  uma linha em `CopilotoBitrixFieldMapping` para (organizationId, entityType, semanticField); sem
+  mapeamento, a tentativa falha explicitamente (`FAILED` + `writebackError` legível), nunca grava
+  no campo errado. `BITRIX_FIELD_MAP` (`bitrixFieldMap.ts`, estático/hardcoded) é de outro fluxo
+  (sync automático de Lead) e nunca deve ser usado por este módulo.
+- Não importar `src/features/integrations/bitrix/**` nem `src/features/chatbook/**` diretamente
+  deste módulo — sempre pelas portas em `src/shared/contracts/` (ver seção "O que é" acima).
 - Não iniciar captura (`startCapture`/`CAPTURING`) sem `consentStatus` em `GRANTED`/`NOT_REQUIRED`
   — regra estrutural em `CopilotoIaUseCases.startCapture`, não remover essa checagem.
 - Não afrouxar `COPILOTO_IA_ROLES` (`src/lib/auth/authorization.ts`) sem decisão humana explícita.
@@ -58,6 +83,7 @@ transcrição bruta nem consentimento de gravação — são modelos complementa
 ## Gate mínimo
 - `npx tsc --noEmit`
 - `npm run lint`
+- `npm run test:architecture` (dependency-cruiser — pega import cross-feature que o lint não pega)
 - `src/features/copiloto-ia/application/__tests__/**`
 - `tests/integration/rbac-e2e-copiloto-ia.test.ts`
 - `npm run build`

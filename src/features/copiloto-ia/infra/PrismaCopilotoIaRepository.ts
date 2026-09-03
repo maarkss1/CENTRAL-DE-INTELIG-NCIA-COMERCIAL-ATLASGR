@@ -20,6 +20,9 @@ import type {
   RecordConsentInput,
   CopilotoConsentRecordDTO,
   CompleteAudioUploadInput,
+  CopilotoCrmEntityType,
+  CopilotoBitrixFieldMappingDTO,
+  UpsertBitrixFieldMappingInput,
 } from '../domain/CopilotoIa';
 
 const CONVERSATION_DETAIL_INCLUDE = {
@@ -76,6 +79,7 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
         title: true,
         audioObjectKey: true,
         audioMimeType: true,
+        leadId: true,
       },
     });
   }
@@ -267,7 +271,13 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
   async updateCrmFieldSuggestionStatus(
     organizationId: string,
     id: string,
-    data: { status: CopilotoSuggestionStatus; approvedBy?: string; approvedAt?: Date },
+    data: {
+      status: CopilotoSuggestionStatus;
+      approvedBy?: string;
+      approvedAt?: Date;
+      writebackAt?: Date;
+      writebackError?: string | null;
+    },
   ): Promise<CopilotoCrmFieldSuggestionDTO> {
     return prisma.copilotoCrmFieldSuggestion.update({
       where: { id, organizationId },
@@ -297,5 +307,58 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
       where: { organizationId, leadId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async upsertBitrixFieldMapping(
+    organizationId: string,
+    data: UpsertBitrixFieldMappingInput,
+  ): Promise<CopilotoBitrixFieldMappingDTO> {
+    return prisma.copilotoBitrixFieldMapping.upsert({
+      where: {
+        organizationId_entityType_semanticField: {
+          organizationId,
+          entityType: data.entityType,
+          semanticField: data.semanticField,
+        },
+      },
+      create: {
+        organizationId,
+        entityType: data.entityType,
+        semanticField: data.semanticField,
+        bitrixFieldCode: data.bitrixFieldCode,
+      },
+      update: { bitrixFieldCode: data.bitrixFieldCode },
+    });
+  }
+
+  async listBitrixFieldMappings(organizationId: string): Promise<CopilotoBitrixFieldMappingDTO[]> {
+    return prisma.copilotoBitrixFieldMapping.findMany({
+      where: { organizationId },
+      orderBy: [{ entityType: 'asc' }, { semanticField: 'asc' }],
+    });
+  }
+
+  async deleteBitrixFieldMapping(organizationId: string, id: string): Promise<void> {
+    await prisma.copilotoBitrixFieldMapping.deleteMany({ where: { id, organizationId } });
+  }
+
+  async getBitrixFieldCode(
+    organizationId: string,
+    entityType: CopilotoCrmEntityType,
+    semanticField: string,
+  ): Promise<string | null> {
+    const mapping = await prisma.copilotoBitrixFieldMapping.findFirst({
+      where: { organizationId, entityType, semanticField },
+      select: { bitrixFieldCode: true },
+    });
+    return mapping?.bitrixFieldCode ?? null;
+  }
+
+  async getLeadBitrixId(organizationId: string, leadId: string): Promise<string | null> {
+    const lead = await prisma.lead.findFirst({
+      where: { id: leadId, organizationId },
+      select: { bitrixLeadId: true },
+    });
+    return lead?.bitrixLeadId ?? null;
   }
 }

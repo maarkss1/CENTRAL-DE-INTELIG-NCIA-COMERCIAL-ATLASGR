@@ -1,4 +1,9 @@
 @import "tailwindcss";
+/* IBM Plex Mono — números tabulares (KPIs, valores em R$, métricas de indicador). Carregado via
+   Google Fonts CSS2 (não self-hosted como o Montserrat acima) porque cobre só dígitos/pontuação/
+   moeda em contextos pontuais, não texto corrido — não vale reproduzir na mão o unicode-range
+   subsetting que o endpoint já resolve. */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&display=swap");
 
 /* cyrillic-ext */
 @font-face {
@@ -194,11 +199,16 @@
 }
 
 :root {
-  --bg: #f8f9fa;
+  /* Warm neutral (ver comentário "Warm neutral design system" no @theme abaixo): o modo escuro já
+     usava esta paleta quente (#0d0a09/#171211/#1f1917/#f7f3f1/#a2968f) — o claro tinha ficado pra
+     trás com cinza frio neutro. Alinhado aqui pros dois temas usarem a mesma família de cor,
+     contraste recalculado e verificado (WCAG AA): --ink 17.2:1 e --ink-2 4.77:1 contra --surface,
+     4.5:1+ contra --surface-2 — igual ou melhor que os valores anteriores (11.99:1 / 5.22:1). */
+  --bg: #fbf9f7;
   --surface: #ffffff;
-  --surface-2: #f3f4f6;
-  --ink: #333333;
-  --ink-2: #666666;
+  --surface-2: #f5f1ee;
+  --ink: #1a1513;
+  --ink-2: #6f6560;
   --line: rgba(0, 0, 0, 0.09);
   --brand: #ff5618;
   --brand-2: #ff6b10;
@@ -287,6 +297,7 @@
 @theme {
   --font-sans: var(--font-brand-sans);
   --font-display: var(--font-brand-display);
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
 
   --color-atlas-orange: #ff5618;
   --color-atlas-orange-medium: #ff6b10;
@@ -341,6 +352,11 @@
      não coberto pelo --color-brand-active original porque esse só escurece --brand. */
   --color-brand-2-active: color-mix(in srgb, var(--brand-2) 65%, black);
   --color-warn: var(--warn);
+  /* Alias: "gold" (#FFC500, "Amarelo Alerta" do manual de marca) já existe como --warn — várias
+     classes gold-* (JoaoReisDiagnosticHub.tsx) foram escritas assumindo esse nome e renderizavam
+     sem cor nenhuma (mesmo padrão do bug "neon-purple" do Piloto 002: classe nunca definida,
+     sem erro no console). Alias em vez de token duplicado, mesmo valor exato. */
+  --color-gold: var(--warn);
   --color-ok: var(--ok);
   /* Reativos a tema — ver --ok-active/--warn-active/--info-active em :root/.dark acima. */
   --color-warn-active: var(--warn-active);
