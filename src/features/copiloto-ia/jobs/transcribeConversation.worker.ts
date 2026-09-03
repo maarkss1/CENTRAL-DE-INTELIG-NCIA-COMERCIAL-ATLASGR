@@ -11,6 +11,13 @@
 // (`dealHealthScoring.ts` — só a EXTRAÇÃO dos sinais usa IA, combinar em score é aritmética
 // documentada e reproduzível).
 //
+// Onda 6 ("Forecast/Coaching/CS-Churn"): no mesmo snapshot, também grava um ajuste de
+// probabilidade complementar ao CRM (`forecastAdjustment.ts`, nunca substitui `Lead.probability`)
+// e um risco de churn (`computeChurnRiskScore`, sobre reclamações/bloqueios extraídos na mesma
+// chamada de `extractConversationIntelligence`). Roda ainda uma SEGUNDA chamada de IA dedicada
+// pra avaliação de coaching (`coachingEvaluation.service.ts`) — tarefa de natureza diferente
+// (avaliar TÉCNICA, não extrair conteúdo), por isso não reaproveita o prompt de extração.
+//
 // A dependência de síntese é injetada via `MeetingSynthesisPort` (`src/shared/contracts/
 // meetingSynthesis.contract.ts`), nunca importada diretamente — `no-cross-feature-imports`
 // (.dependency-cruiser.cjs) proíbe `copiloto-ia` importar internals de `chatbook`. Quem monta a
@@ -30,7 +37,13 @@ import {
   WHISPER_USD_PER_MINUTE,
 } from '../infra/whisperTranscription.service.js';
 import { extractConversationIntelligence } from '../infra/conversationIntelligence.service.js';
-import { computeDealHealthScore, type SentimentScore } from '../application/dealHealthScoring.js';
+import { evaluateConversationCoaching } from '../infra/coachingEvaluation.service.js';
+import {
+  computeDealHealthScore,
+  computeChurnRiskScore,
+  type SentimentScore,
+} from '../application/dealHealthScoring.js';
+import { computeAiProbabilityAdjustment } from '../application/forecastAdjustment.js';
 import { CopilotoIaUseCases } from '../application/CopilotoIaUseCases.js';
 import { PrismaCopilotoIaRepository } from '../infra/PrismaCopilotoIaRepository.js';
 import type { MeetingSynthesisPort } from '../../../shared/contracts/meetingSynthesis.contract.js';
@@ -138,6 +151,9 @@ export async function runTranscribeConversationJob(
       let unresolvedObjectionsCount = 0;
       let buyingSignalsCount = 0;
       let competitorMentionsCount = 0;
+      let complaintsCount = 0;
+      let highSeverityComplaintsCount = 0;
+      let blockersCount = 0;
 
       if (whisperResult.text.trim()) {
         const synthesis = await deps.meetingSynthesisPort.synthesizeMeeting({
@@ -151,9 +167,9 @@ export async function runTranscribeConversationJob(
         });
         sentimentScore = synthesis.sentimentScore ?? null;
 
-        // Onda 5 — extração de objeções/concorrentes/buying signals, cada um como um
-        // `CopilotoInsight` PRÓPRIO (não só aninhado dentro do resumo) para consumo futuro
-        // (ex.: sugestão automática de campo de CRM a partir de uma objeção detectada).
+        // Onda 5/6 — extração de objeções/concorrentes/buying signals/reclamações/promessas/
+        // bloqueios, cada um como um `CopilotoInsight` PRÓPRIO (não só aninhado dentro do resumo)
+        // para consumo futuro (ex.: sugestão automática de campo de CRM a partir de uma objeção).
         const intelligence = await extractConversationIntelligence(whisperResult.text);
         for (const objection of intelligence.objections) {
           await useCases.createInsight(organizationId, conversationId, {
@@ -173,9 +189,40 @@ export async function runTranscribeConversationJob(
             valueJson: signal,
           });
         }
+        for (const complaint of intelligence.complaints) {
+          await useCases.createInsight(organizationId, conversationId, {
+            type: 'reclamacao',
+            valueJson: complaint,
+          });
+        }
+        for (const promise of intelligence.promises) {
+          await useCases.createInsight(organizationId, conversationId, {
+            type: 'promessa',
+            valueJson: promise,
+          });
+        }
+        for (const blocker of intelligence.blockers) {
+          await useCases.createInsight(organizationId, conversationId, {
+            type: 'bloqueio',
+            valueJson: blocker,
+          });
+        }
         unresolvedObjectionsCount = intelligence.objections.filter((o) => !o.resolved).length;
         buyingSignalsCount = intelligence.buyingSignals.length;
         competitorMentionsCount = intelligence.competitors.length;
+        complaintsCount = intelligence.complaints.length;
+        highSeverityComplaintsCount = intelligence.complaints.filter(
+          (c) => c.severity === 'alta',
+        ).length;
+        blockersCount = intelligence.blockers.length;
+
+        // Onda 6 — coaching é uma tarefa de avaliação, não de extração de conteúdo (prompt
+        // dedicado) — uma avaliação por conversa (`conversationId` único no schema).
+        const coaching = await evaluateConversationCoaching(whisperResult.text);
+        await useCases.recordCoachingEvaluation(organizationId, conversationId, {
+          rubricJson: coaching.rubric,
+          overallScore: coaching.overallScore,
+        });
       }
 
       if (state.leadId) {
@@ -185,10 +232,25 @@ export async function runTranscribeConversationJob(
           buyingSignalsCount,
           competitorMentionsCount,
         });
+        const { score: churnRiskScore, factors: churnFactors } = computeChurnRiskScore({
+          sentimentScore,
+          complaintsCount,
+          highSeverityComplaintsCount,
+          blockersCount,
+        });
+        const crmProbability = await repository.getLeadProbability(organizationId, state.leadId);
+        const { probabilityAi, reasons } = computeAiProbabilityAdjustment({
+          crmProbability,
+          dealHealthScore: score,
+        });
         await useCases.recordDealHealthSnapshot(organizationId, {
           leadId: state.leadId,
           score,
           factorsJson: { ...factors, conversationId, sentimentScore },
+          forecastProbabilityAi: probabilityAi,
+          forecastReasons: reasons,
+          churnRiskScore,
+          churnFactorsJson: churnFactors,
         });
       }
 

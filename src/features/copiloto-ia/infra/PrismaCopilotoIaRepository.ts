@@ -23,6 +23,8 @@ import type {
   CopilotoCrmEntityType,
   CopilotoBitrixFieldMappingDTO,
   UpsertBitrixFieldMappingInput,
+  CreateCoachingEvaluationInput,
+  CopilotoCoachingEvaluationDTO,
 } from '../domain/CopilotoIa';
 
 const CONVERSATION_DETAIL_INCLUDE = {
@@ -295,6 +297,10 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
         leadId: data.leadId,
         score: data.score,
         factorsJson: data.factorsJson as never,
+        forecastProbabilityAi: data.forecastProbabilityAi,
+        forecastReasons: data.forecastReasons ?? [],
+        churnRiskScore: data.churnRiskScore,
+        churnFactorsJson: (data.churnFactorsJson ?? undefined) as never,
       },
     });
   }
@@ -360,5 +366,47 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
       select: { bitrixLeadId: true },
     });
     return lead?.bitrixLeadId ?? null;
+  }
+
+  async getLeadProbability(organizationId: string, leadId: string): Promise<number | null> {
+    const lead = await prisma.lead.findFirst({
+      where: { id: leadId, organizationId },
+      select: { probability: true },
+    });
+    return lead?.probability ?? null;
+  }
+
+  async latestDealHealthSnapshot(
+    organizationId: string,
+    leadId: string,
+  ): Promise<CopilotoDealHealthSnapshotDTO | null> {
+    return prisma.copilotoDealHealthSnapshot.findFirst({
+      where: { organizationId, leadId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createCoachingEvaluation(
+    organizationId: string,
+    conversationId: string,
+    data: CreateCoachingEvaluationInput,
+  ): Promise<CopilotoCoachingEvaluationDTO> {
+    return prisma.copilotoCoachingEvaluation.create({
+      data: {
+        organizationId,
+        conversationId,
+        rubricJson: data.rubricJson as never,
+        overallScore: data.overallScore,
+      },
+    });
+  }
+
+  async getCoachingEvaluationByConversation(
+    organizationId: string,
+    conversationId: string,
+  ): Promise<CopilotoCoachingEvaluationDTO | null> {
+    return prisma.copilotoCoachingEvaluation.findFirst({
+      where: { organizationId, conversationId },
+    });
   }
 }

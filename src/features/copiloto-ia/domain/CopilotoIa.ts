@@ -151,6 +151,13 @@ export interface CopilotoDealHealthSnapshotDTO {
   leadId: string;
   score: number;
   factorsJson: unknown;
+  /** Onda 6 — "Forecast IA complementar ao CRM"; `null` quando o Lead não tinha `probability`
+   * preenchida no CRM no momento do snapshot. */
+  forecastProbabilityAi: number | null;
+  forecastReasons: string[];
+  /** Onda 6 — "Customer Success e Churn"; `null` quando a conversa não teve sinal de CS extraído. */
+  churnRiskScore: number | null;
+  churnFactorsJson: unknown;
   createdAt: Date;
 }
 
@@ -158,6 +165,43 @@ export interface CreateDealHealthSnapshotInput {
   leadId: string;
   score: number;
   factorsJson: unknown;
+  forecastProbabilityAi?: number;
+  forecastReasons?: string[];
+  churnRiskScore?: number;
+  churnFactorsJson?: unknown;
+}
+
+/** Onda 6 — "Sales Coaching e QA". `rubricJson` tem o schema documentado em
+ * `infra/coachingEvaluation.service.ts` (`CoachingRubricOutput`). */
+export interface CopilotoCoachingEvaluationDTO {
+  id: string;
+  conversationId: string;
+  rubricJson: unknown;
+  overallScore: number;
+  createdAt: Date;
+}
+
+export interface CreateCoachingEvaluationInput {
+  rubricJson: unknown;
+  overallScore: number;
+}
+
+/** Onda 6 — "Handoff": vista agregada de tudo que já foi extraído de uma conversa (resumo +
+ * insights + saúde/churn + coaching), sem chamada de IA nova — só composição do que já existe.
+ * `isComplete` sinaliza "handoff incompleto" (AGENT_12 do pacote) de forma objetiva/checável. */
+export interface HandoffSummaryDTO {
+  conversation: CopilotoConversationDTO;
+  summary: unknown | null;
+  objections: CopilotoInsightDTO[];
+  competitors: CopilotoInsightDTO[];
+  buyingSignals: CopilotoInsightDTO[];
+  complaints: CopilotoInsightDTO[];
+  promises: CopilotoInsightDTO[];
+  blockers: CopilotoInsightDTO[];
+  latestDealHealth: CopilotoDealHealthSnapshotDTO | null;
+  coachingEvaluation: CopilotoCoachingEvaluationDTO | null;
+  isComplete: boolean;
+  missingParts: string[];
 }
 
 export interface CopilotoConsentRecordDTO {
@@ -312,4 +356,22 @@ export interface CopilotoIaRepository {
   /** `null` quando o Lead não existe nesta organização OU ainda não tem `bitrixLeadId` (nunca
    * sincronizado com o Bitrix) — o chamador não distingue os dois casos, ambos impedem writeback. */
   getLeadBitrixId(organizationId: string, leadId: string): Promise<string | null>;
+  /** `null` quando o Lead não existe OU não tem `probability` preenchida no CRM — a probabilidade
+   * OFICIAL nunca é fabricada/assumida, sempre lida direto de `Lead.probability`. */
+  getLeadProbability(organizationId: string, leadId: string): Promise<number | null>;
+  latestDealHealthSnapshot(
+    organizationId: string,
+    leadId: string,
+  ): Promise<CopilotoDealHealthSnapshotDTO | null>;
+
+  /** Onda 6 — Coaching. Uma avaliação por conversa (`conversationId` é `@unique` no schema). */
+  createCoachingEvaluation(
+    organizationId: string,
+    conversationId: string,
+    data: CreateCoachingEvaluationInput,
+  ): Promise<CopilotoCoachingEvaluationDTO>;
+  getCoachingEvaluationByConversation(
+    organizationId: string,
+    conversationId: string,
+  ): Promise<CopilotoCoachingEvaluationDTO | null>;
 }
