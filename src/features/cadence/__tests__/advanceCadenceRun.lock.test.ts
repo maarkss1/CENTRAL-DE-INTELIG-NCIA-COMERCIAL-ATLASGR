@@ -23,6 +23,9 @@ function noopRateLimit(): CadenceRateLimitPort {
     async countDistinctEmailRecipientsForDomain() {
       return { distinctRecipientsToday: 0, currentLeadAlreadyCounted: false };
     },
+    async findLastSentTouch() {
+      return null;
+    },
   };
 }
 
