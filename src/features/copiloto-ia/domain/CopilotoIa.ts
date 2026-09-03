@@ -245,7 +245,11 @@ export interface CopilotoIaRepository {
   updateTranscriptionStatus(
     organizationId: string,
     id: string,
-    data: { transcriptionStartedAt?: Date; transcriptionCompletedAt?: Date; transcriptionError?: string | null },
+    data: {
+      transcriptionStartedAt?: Date;
+      transcriptionCompletedAt?: Date;
+      transcriptionError?: string | null;
+    },
   ): Promise<CopilotoConversationDTO>;
   createConsentRecord(
     organizationId: string,
