@@ -1,7 +1,16 @@
 import { StateGraph, START, END, Annotation } from '@langchain/langgraph';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { z } from 'zod';
 import { getAiModel, logAiUsage, cleanAndParseJson } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
+
+// Achado da auditoria (PR #328, item fora de escopo original): o parse da resposta do LLM abaixo
+// só fazia `result.score` opcional/`typeof` manual — um JSON malformado ou sem "score" caía no
+// mesmo `catch` de falha de rede, mas um JSON válido com "score" como string (ex.: "85") ou um
+// "summary" ausente passava sem barrar, silenciosamente. `.partial()` porque o próprio código já
+// tinha fallback por campo faltando — o schema só formaliza esse fallback em vez de confiar em
+// `typeof` ad-hoc.
+const qualificationResponseSchema = z.object({ score: z.number(), summary: z.string() }).partial();
 
 // Define the state for the graph
 const LeadQualificationState = Annotation.Root({
@@ -72,8 +81,8 @@ export const leadQualificationGraph = new StateGraph(LeadQualificationState)
     });
 
     try {
-      const result = cleanAndParseJson<{ score?: number; summary?: string }>(
-        response.content as string,
+      const result = qualificationResponseSchema.parse(
+        cleanAndParseJson<unknown>(response.content as string),
       );
       const score =
         typeof result.score === 'number' ? Math.max(0, Math.min(100, result.score)) : 50;

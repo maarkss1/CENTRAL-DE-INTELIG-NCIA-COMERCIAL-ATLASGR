@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 
@@ -98,5 +98,25 @@ describe('SavedSearchesModal — Executar', () => {
         await user.click(screen.getByTitle('Executar busca agora'));
 
         await waitFor(() => expect(onApplyCriteria).toHaveBeenCalledWith(SAVED_SEARCH.criteria, []));
+    });
+});
+
+// Achado da auditoria (PR #328): este modal era reimplementado à mão (overlay `fixed inset-0` +
+// painel próprio) em vez de usar o primitivo compartilhado `ui/Dialog` — sem Escape para fechar e
+// sem clique-fora-fecha (só o botão X/"Fechar" funcionavam). Migrado para `ui/Dialog`, que já
+// resolve os dois de propósito (ver Dialog.tsx). Este teste prova que Escape agora funciona aqui.
+describe('SavedSearchesModal — fechamento via Dialog compartilhado', () => {
+    it('Escape fecha o modal (comportamento herdado de ui/Dialog, antes ausente aqui)', async () => {
+        getMock.mockResolvedValueOnce([SAVED_SEARCH]);
+        const onClose = vi.fn();
+
+        const { container } = render(<SavedSearchesModal isOpen onClose={onClose} />);
+
+        await screen.findByText('Frotas SP');
+        const dialogEl = container.querySelector('dialog');
+        expect(dialogEl).not.toBeNull();
+        fireEvent.keyDown(dialogEl as Element, { key: 'Escape', code: 'Escape' });
+
+        expect(onClose).toHaveBeenCalledTimes(1);
     });
 });

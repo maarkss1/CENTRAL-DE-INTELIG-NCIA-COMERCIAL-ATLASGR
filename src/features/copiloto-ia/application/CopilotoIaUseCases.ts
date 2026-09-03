@@ -352,7 +352,11 @@ export class CopilotoIaUseCases {
     input: CreateCoachingEvaluationInput,
   ): Promise<CopilotoCoachingEvaluationDTO> {
     await this.requireState(organizationId, conversationId);
-    if (!Number.isInteger(input.overallScore) || input.overallScore < 0 || input.overallScore > 100) {
+    if (
+      !Number.isInteger(input.overallScore) ||
+      input.overallScore < 0 ||
+      input.overallScore > 100
+    ) {
       throw new AppError('overallScore precisa ser um inteiro entre 0 e 100.', 400);
     }
     return this.repository.createCoachingEvaluation(organizationId, conversationId, input);
@@ -370,10 +374,14 @@ export class CopilotoIaUseCases {
   // IA nova. "isComplete"/"missingParts" tornam "handoff incompleto" (AGENT_12 do pacote) um fato
   // checável, não uma impressão subjetiva de quem está lendo.
 
-  async getHandoffSummary(organizationId: string, conversationId: string): Promise<HandoffSummaryDTO> {
+  async getHandoffSummary(
+    organizationId: string,
+    conversationId: string,
+  ): Promise<HandoffSummaryDTO> {
     const conversation = await this.getConversation(organizationId, conversationId);
 
-    const byType = (type: string) => conversation.insights.filter((insight) => insight.type === type);
+    const byType = (type: string) =>
+      conversation.insights.filter((insight) => insight.type === type);
     const summaryInsight = byType('resumo')[0] ?? null;
 
     const latestDealHealth = conversation.leadId

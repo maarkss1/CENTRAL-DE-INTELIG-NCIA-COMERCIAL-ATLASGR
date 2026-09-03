@@ -10,6 +10,7 @@ import { DEFAULT_RATE_LIMIT_POLICY, type CadenceRateLimitPolicy } from '../domai
  * - `CADENCE_RATE_LIMIT_MAX_TOUCHES_PER_CONTACT` (default 3)
  * - `CADENCE_RATE_LIMIT_CONTACT_WINDOW_HOURS` (default 24)
  * - `CADENCE_RATE_LIMIT_MAX_EMAIL_RECIPIENTS_PER_DOMAIN_PER_DAY` (default 20)
+ * - `CADENCE_RATE_LIMIT_MIN_MINUTES_BETWEEN_CHANNEL_TOUCHES` (default 30)
  */
 export function loadCadenceRateLimitPolicy(
   env: NodeJS.ProcessEnv = process.env,
@@ -26,6 +27,10 @@ export function loadCadenceRateLimitPolicy(
     maxEmailRecipientsPerDomainPerDay: envPositiveInt(
       env.CADENCE_RATE_LIMIT_MAX_EMAIL_RECIPIENTS_PER_DOMAIN_PER_DAY,
       DEFAULT_RATE_LIMIT_POLICY.maxEmailRecipientsPerDomainPerDay,
+    ),
+    minMinutesBetweenChannelTouches: envPositiveInt(
+      env.CADENCE_RATE_LIMIT_MIN_MINUTES_BETWEEN_CHANNEL_TOUCHES,
+      DEFAULT_RATE_LIMIT_POLICY.minMinutesBetweenChannelTouches,
     ),
   };
 }
