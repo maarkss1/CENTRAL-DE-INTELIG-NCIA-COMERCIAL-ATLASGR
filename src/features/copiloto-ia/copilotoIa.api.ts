@@ -20,7 +20,12 @@ export type CopilotoConversationStatus =
   | 'CANCELLED';
 export type CopilotoConsentStatus = 'PENDING' | 'GRANTED' | 'DECLINED' | 'NOT_REQUIRED';
 export type CopilotoCrmEntityType = 'LEAD' | 'COMPANY' | 'CONTACT';
-export type CopilotoSuggestionStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'WRITTEN_BACK' | 'FAILED';
+export type CopilotoSuggestionStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'WRITTEN_BACK'
+  | 'FAILED';
 
 export interface CopilotoConversationDTO {
   id: string;
@@ -278,11 +283,17 @@ export const copilotoIaApi = {
     api.get<CopilotoCoachingEvaluationDTO | null>(`${BASE}/conversations/${id}/coaching`),
 
   approveSuggestion: (suggestionId: string) =>
-    api.patch<CopilotoCrmFieldSuggestionDTO>(`${BASE}/crm-field-suggestions/${suggestionId}/approve`),
+    api.patch<CopilotoCrmFieldSuggestionDTO>(
+      `${BASE}/crm-field-suggestions/${suggestionId}/approve`,
+    ),
   rejectSuggestion: (suggestionId: string) =>
-    api.patch<CopilotoCrmFieldSuggestionDTO>(`${BASE}/crm-field-suggestions/${suggestionId}/reject`),
+    api.patch<CopilotoCrmFieldSuggestionDTO>(
+      `${BASE}/crm-field-suggestions/${suggestionId}/reject`,
+    ),
   writebackSuggestion: (suggestionId: string) =>
-    api.post<CopilotoCrmFieldSuggestionDTO>(`${BASE}/crm-field-suggestions/${suggestionId}/writeback`),
+    api.post<CopilotoCrmFieldSuggestionDTO>(
+      `${BASE}/crm-field-suggestions/${suggestionId}/writeback`,
+    ),
 
   getLeadDealHealth: (leadId: string) =>
     api.get<CopilotoDealHealthSnapshotDTO[]>(`${BASE}/leads/${leadId}/deal-health`),
@@ -293,6 +304,5 @@ export const copilotoIaApi = {
     api.get<CopilotoBitrixFieldMappingDTO[]>(`${BASE}/bitrix-field-mappings`),
   upsertBitrixFieldMapping: (input: UpsertBitrixFieldMappingInput) =>
     api.post<CopilotoBitrixFieldMappingDTO>(`${BASE}/bitrix-field-mappings`, input),
-  deleteBitrixFieldMapping: (id: string) =>
-    api.delete<void>(`${BASE}/bitrix-field-mappings/${id}`),
+  deleteBitrixFieldMapping: (id: string) => api.delete<void>(`${BASE}/bitrix-field-mappings/${id}`),
 };

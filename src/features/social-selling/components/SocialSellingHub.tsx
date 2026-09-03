@@ -253,7 +253,9 @@ export function SocialSellingHub() {
                         {copiedPostIndex === idx ? (
                           <>
                             <Check className="w-3.5 h-3.5 text-success-active dark:text-success" />
-                            <span className="text-success-active dark:text-success font-bold">Copiado!</span>
+                            <span className="text-success-active dark:text-success font-bold">
+                              Copiado!
+                            </span>
                           </>
                         ) : (
                           <>

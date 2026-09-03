@@ -100,9 +100,7 @@ export function ConversationsTab({ leadId }: ConversationsTabProps) {
               </option>
             ))}
           </select>
-          {leadId && (
-            <Badge variant="info">Filtrado por Lead</Badge>
-          )}
+          {leadId && <Badge variant="info">Filtrado por Lead</Badge>}
         </div>
         <Button variant="outline" size="sm" onClick={load}>
           <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Atualizar
