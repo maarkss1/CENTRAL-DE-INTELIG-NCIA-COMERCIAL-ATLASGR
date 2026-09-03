@@ -58,7 +58,12 @@ export async function searchGooglePlacesCandidates(
           maxResultCount: Math.min(Math.max(count, 1), 20),
         }),
       },
-      { timeoutMs: 12_000, providerName: 'GooglePlaces-TextSearch', billable: true },
+      {
+        timeoutMs: 12_000,
+        providerName: 'GooglePlaces-TextSearch',
+        billable: true,
+        allowedHosts: ['places.googleapis.com'],
+      },
     );
 
     if (!res.ok) {
@@ -149,7 +154,12 @@ export async function searchGooglePlaceDetailed(
           languageCode: 'pt-BR',
         }),
       },
-      { timeoutMs: 12_000, providerName: 'GooglePlaces-Search', billable: true },
+      {
+        timeoutMs: 12_000,
+        providerName: 'GooglePlaces-Search',
+        billable: true,
+        allowedHosts: ['places.googleapis.com'],
+      },
     );
 
     if (!res.ok) {

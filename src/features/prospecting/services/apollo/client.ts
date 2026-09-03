@@ -68,6 +68,7 @@ export async function checkApolloConnection(): Promise<ApolloConnectionStatus> {
         headers: { 'X-Api-Key': apiKey },
       },
       8_000,
+      ['api.apollo.io'],
     );
 
     if (res.ok) {
