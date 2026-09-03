@@ -54,10 +54,11 @@ function KpiCard({
   intent?: 'brand' | 'success' | 'warning' | 'violet';
 }) {
   const styles = {
-    brand: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-    success: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-    warning: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-    violet: 'bg-violet-500/10 text-violet-500 border-violet-500/20',
+    brand: 'bg-info/10 text-info-active dark:text-info border-info/20',
+    success: 'bg-success/10 text-success-active dark:text-success border-success/20',
+    warning: 'bg-warning/10 text-warning-active dark:text-warning border-warning/20',
+    violet:
+      'bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 border-violet-500/20',
   };
   return (
     <article className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
@@ -118,8 +119,8 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
 
   if (error && !data) {
     return (
-      <div className="m-6 rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center">
-        <AlertTriangle className="mx-auto h-8 w-8 text-red-500" />
+      <div className="m-6 rounded-2xl border border-danger/20 bg-danger/5 p-8 text-center">
+        <AlertTriangle className="mx-auto h-8 w-8 text-danger-active dark:text-danger" />
         <p className="mt-3 font-bold text-ink">Cockpit indisponível</p>
         <p className="mt-1 text-sm text-ink-2">{error}</p>
         <button
@@ -232,7 +233,7 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-surface-2">
                   <div
-                    className={`h-full rounded-full ${stage.funnel === 'Negocio' ? 'bg-violet-500' : 'bg-blue-500'}`}
+                    className={`h-full rounded-full ${stage.funnel === 'Negocio' ? 'bg-violet-500 dark:bg-violet-400' : 'bg-info'}`}
                     style={{ width: `${Math.max(5, (stage.count / maxStage) * 100)}%` }}
                   />
                 </div>
@@ -265,7 +266,7 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
               return (
                 <div key={activity.id} className="flex items-center gap-3 py-3">
                   <span
-                    className={`rounded-lg p-2 ${overdue ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}
+                    className={`rounded-lg p-2 ${overdue ? 'bg-danger/10 text-danger-active dark:text-danger' : 'bg-info/10 text-info-active dark:text-info'}`}
                   >
                     <Activity className="h-4 w-4" />
                   </span>
@@ -281,9 +282,9 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
                     </p>
                   </div>
                   {overdue ? (
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    <AlertTriangle className="h-4 w-4 text-danger-active dark:text-danger" />
                   ) : (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <CheckCircle2 className="h-4 w-4 text-success-active dark:text-success" />
                   )}
                 </div>
               );

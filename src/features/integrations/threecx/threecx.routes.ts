@@ -7,6 +7,7 @@ import {
   claimWebhookDelivery,
   webhookDeliveryFingerprint,
 } from '../../../shared/security/webhookReplayGuard.js';
+import { routeParam } from '../../../shared/http/routeParams.js';
 import {
   list3CXConnections,
   connect3CX,
@@ -113,7 +114,10 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const data = await test3CXConnection(organizationId, req.params.connectionId);
+      const data = await test3CXConnection(
+        organizationId,
+        routeParam(req.params.connectionId, 'connectionId'),
+      );
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -127,7 +131,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      await disconnect3CX(organizationId, req.params.connectionId);
+      await disconnect3CX(organizationId, routeParam(req.params.connectionId, 'connectionId'));
       res.json({ success: true });
     } catch (error) {
       next(error);

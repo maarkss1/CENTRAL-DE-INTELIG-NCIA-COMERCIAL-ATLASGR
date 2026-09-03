@@ -5,6 +5,7 @@ import {
   AUTOMATION_ACTIONS,
 } from '../application/AutomationUseCases';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import { routeParam } from '../../../shared/http/routeParams';
 
 export class AutomationController {
   constructor(private automationUseCases: AutomationUseCases) {}
@@ -43,7 +44,7 @@ export class AutomationController {
       const { organizationId, id: userId, email } = (req as AuthRequest).user;
       const updated = await this.automationUseCases.updateAutomation(
         organizationId,
-        req.params.id,
+        routeParam(req.params.id, 'id'),
         req.body,
         { userId, email },
       );
@@ -60,10 +61,14 @@ export class AutomationController {
   deleteAutomation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId, id: userId, email } = (req as AuthRequest).user;
-      const ok = await this.automationUseCases.removeAutomation(organizationId, req.params.id, {
-        userId,
-        email,
-      });
+      const ok = await this.automationUseCases.removeAutomation(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+        {
+          userId,
+          email,
+        },
+      );
       if (!ok) {
         res.status(404).json({ success: false, error: 'Automação não encontrada.' });
         return;
@@ -78,7 +83,10 @@ export class AutomationController {
   getVersions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { organizationId } = (req as AuthRequest).user;
-      const timeline = await this.automationUseCases.listVersions(organizationId, req.params.id);
+      const timeline = await this.automationUseCases.listVersions(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+      );
       if (!timeline) {
         res.status(404).json({ success: false, error: 'Automação não encontrada.' });
         return;
@@ -94,9 +102,13 @@ export class AutomationController {
     try {
       const { organizationId } = (req as AuthRequest).user;
       const limit = Number(req.body?.limit ?? req.query?.limit);
-      const result = await this.automationUseCases.dryRun(organizationId, req.params.id, {
-        limit: Number.isFinite(limit) ? limit : undefined,
-      });
+      const result = await this.automationUseCases.dryRun(
+        organizationId,
+        routeParam(req.params.id, 'id'),
+        {
+          limit: Number.isFinite(limit) ? limit : undefined,
+        },
+      );
       if (!result) {
         res.status(404).json({ success: false, error: 'Automação não encontrada.' });
         return;

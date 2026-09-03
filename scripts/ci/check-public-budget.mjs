@@ -26,7 +26,14 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 // (municipios_scored.json) ~11.6MB. Os limites abaixo dao margem para crescimento organico dos
 // datasets municipais legitimos do Market Intelligence sem permitir a reintroducao silenciosa de
 // um dataset bruto/pesado.
-const MAX_TOTAL_BYTES = Number(process.env.PUBLIC_BUDGET_MAX_TOTAL_BYTES ?? 40 * 1024 * 1024);
+//
+// Elevado de 40MB para 60MB em 2026-09-03: public/ cresceu organicamente para ~48.68MB com mais
+// datasets legitimos do Market Intelligence (referenciados diretamente por
+// public/tools/atlas-market-intelligence/index.html e dashboard_oportunidade_gr.html — consumo real
+// pelo navegador, nao um dataset backend-only como o seed empresarial removido em ITEM-05). Headroom
+// dado acima do uso atual para crescimento organico continuar sem reabrir este gate a cada dataset
+// novo; nao e uma licenca para reintroduzir um dataset bruto/pesado sem essa mesma justificativa.
+const MAX_TOTAL_BYTES = Number(process.env.PUBLIC_BUDGET_MAX_TOTAL_BYTES ?? 60 * 1024 * 1024);
 const MAX_FILE_BYTES = Number(process.env.PUBLIC_BUDGET_MAX_FILE_BYTES ?? 16 * 1024 * 1024);
 
 function walk(dir) {

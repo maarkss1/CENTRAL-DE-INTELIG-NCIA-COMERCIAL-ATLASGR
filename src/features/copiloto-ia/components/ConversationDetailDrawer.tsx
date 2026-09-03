@@ -58,8 +58,7 @@ export function ConversationDetailDrawer({
   onChanged,
 }: ConversationDetailDrawerProps) {
   const { currentUser } = useAuth();
-  const canManage =
-    !!currentUser && ['ADMIN', 'GESTOR'].includes(currentUser.role);
+  const canManage = !!currentUser && ['ADMIN', 'GESTOR'].includes(currentUser.role);
 
   const [handoff, setHandoff] = useState<HandoffSummaryDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -217,7 +216,8 @@ export function ConversationDetailDrawer({
                 {handoff.latestDealHealth.forecastProbabilityAi != null && (
                   <div className="text-xs text-ink-2 space-y-1 border-t border-line pt-2">
                     <p className="font-semibold text-ink">
-                      Forecast IA (complementar ao CRM): {handoff.latestDealHealth.forecastProbabilityAi}%
+                      Forecast IA (complementar ao CRM):{' '}
+                      {handoff.latestDealHealth.forecastProbabilityAi}%
                     </p>
                     {handoff.latestDealHealth.forecastReasons.map((reason, i) => (
                       <p key={i}>{reason}</p>
@@ -242,21 +242,29 @@ export function ConversationDetailDrawer({
                 Coaching (nota geral: {handoff.coachingEvaluation.overallScore}/100)
               </h3>
               <div className="glass-card p-4 rounded-xl border border-line grid grid-cols-1 gap-2 text-xs">
-                {Object.entries(
-                  handoff.coachingEvaluation.rubricJson as CoachingRubricOutput,
-                ).map(([key, dimension]) => (
-                  <div key={key} className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-ink font-medium">
-                        {COACHING_DIMENSION_LABELS[key as keyof CoachingRubricOutput]}
-                      </p>
-                      <p className="text-ink-2">{dimension.evidence}</p>
+                {Object.entries(handoff.coachingEvaluation.rubricJson as CoachingRubricOutput).map(
+                  ([key, dimension]) => (
+                    <div key={key} className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-ink font-medium">
+                          {COACHING_DIMENSION_LABELS[key as keyof CoachingRubricOutput]}
+                        </p>
+                        <p className="text-ink-2">{dimension.evidence}</p>
+                      </div>
+                      <Badge
+                        variant={
+                          dimension.score >= 7
+                            ? 'success'
+                            : dimension.score >= 4
+                              ? 'warning'
+                              : 'danger'
+                        }
+                      >
+                        {dimension.score}/10
+                      </Badge>
                     </div>
-                    <Badge variant={dimension.score >= 7 ? 'success' : dimension.score >= 4 ? 'warning' : 'danger'}>
-                      {dimension.score}/10
-                    </Badge>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             </section>
           )}
@@ -299,7 +307,13 @@ export function ConversationDetailDrawer({
               <>
                 <span>{v.text}</span>
                 <Badge
-                  variant={v.strength === 'alta' ? 'success' : v.strength === 'media' ? 'warning' : 'outline'}
+                  variant={
+                    v.strength === 'alta'
+                      ? 'success'
+                      : v.strength === 'media'
+                        ? 'warning'
+                        : 'outline'
+                  }
                 >
                   {v.strength}
                 </Badge>
@@ -315,7 +329,15 @@ export function ConversationDetailDrawer({
             render={(v: ComplaintSignal) => (
               <>
                 <span>{v.text}</span>
-                <Badge variant={v.severity === 'alta' ? 'danger' : v.severity === 'media' ? 'warning' : 'outline'}>
+                <Badge
+                  variant={
+                    v.severity === 'alta'
+                      ? 'danger'
+                      : v.severity === 'media'
+                        ? 'warning'
+                        : 'outline'
+                  }
+                >
                   {v.severity}
                 </Badge>
               </>
@@ -355,7 +377,9 @@ export function ConversationDetailDrawer({
                     className="glass-card p-3 rounded-xl border border-line text-xs space-y-2"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-ink font-semibold">{suggestion.fieldCode}</span>
+                      <span className="font-mono text-ink font-semibold">
+                        {suggestion.fieldCode}
+                      </span>
                       <Badge
                         variant={
                           suggestion.status === 'WRITTEN_BACK'
@@ -423,9 +447,7 @@ export function ConversationDetailDrawer({
 
           {transcriptItems.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2">
-                Transcrição
-              </h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2">Transcrição</h3>
               <Timeline items={transcriptItems} emptyMessage="Sem transcrição registrada." />
             </section>
           )}
