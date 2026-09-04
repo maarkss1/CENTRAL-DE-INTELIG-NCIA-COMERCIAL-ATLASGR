@@ -97,7 +97,7 @@ const STATUS_BADGE: Record<
 > = {
   queued: {
     label: 'Na fila',
-    className: 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300',
+    className: 'bg-surface-2 text-ink-2',
     icon: Clock,
   },
   running: {
@@ -149,7 +149,7 @@ function triggerDownload(url: string) {
 }
 
 const selectClass =
-  'h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-3 disabled:opacity-40 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none cursor-pointer';
+  'h-9 text-sm rounded-xl border border-line bg-surface text-ink px-3 disabled:opacity-40 focus:bg-surface focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none cursor-pointer';
 
 interface BitrixExtractionPanelProps {
   connectionId: string;
@@ -275,8 +275,8 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
 
   if (!canManage) {
     return (
-      <div className="mt-8 pt-8 border-t border-gray-100 dark:border-white/10">
-        <div className="flex items-center gap-2.5 p-4 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-xs text-gray-500 dark:text-gray-400">
+      <div className="mt-8 pt-8 border-t border-line">
+        <div className="flex items-center gap-2.5 p-4 rounded-2xl border border-line bg-surface-2 text-xs text-ink-2">
           <Lock className="w-4 h-4 shrink-0" />
           Extrações em massa (CSV/XLSX/JSON) de todo o portal exigem permissão de Gestor ou
           Administrador — envolve o dado pessoal completo da organização.
@@ -286,18 +286,18 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
   }
 
   return (
-    <div className="mt-8 pt-8 border-t border-gray-100 dark:border-white/10 space-y-4">
+    <div className="mt-8 pt-8 border-t border-line space-y-4">
       <div>
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <Database className="w-5 h-5 text-orange-500" /> Extrações
+        <h3 className="text-lg font-bold text-ink flex items-center gap-2">
+          <Database className="w-5 h-5 text-brand" /> Extrações
         </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
+        <p className="text-sm text-ink-2 mt-1 max-w-2xl">
           Exporte um recorte completo do portal (Leads, Negócios, Empresas, Contatos, Atividades,
           Usuários) em CSV, XLSX ou JSON — roda em segundo plano, sem travar a tela.
         </p>
       </div>
 
-      <div className="p-5 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.03] space-y-4">
+      <div className="p-5 rounded-2xl border border-line bg-surface-2/50 space-y-4">
         <div className="flex flex-wrap gap-2">
           {ENTITY_OPTIONS.map((opt) => {
             const active = selectedEntities.has(opt.value);
@@ -307,7 +307,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
                 type="button"
                 onClick={() => toggleEntity(opt.value)}
                 aria-pressed={active}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? 'bg-orange-600 border-orange-600 text-white' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:border-orange-300'}`}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? 'bg-brand-active border-brand-active text-white' : 'bg-surface border-line text-ink-2 hover:border-brand/50'}`}
               >
                 {opt.label}
               </button>
@@ -319,7 +319,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
           <div className="flex flex-col gap-1">
             <label
               htmlFor="extraction-period"
-              className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 flex items-center gap-1"
+              className="text-[10px] font-bold uppercase tracking-wide text-ink-2 flex items-center gap-1"
             >
               <CalendarRange className="w-3 h-3" /> Período
             </label>
@@ -341,7 +341,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
               <div className="flex flex-col gap-1">
                 <label
                   htmlFor="extraction-from"
-                  className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500"
+                  className="text-[10px] font-bold uppercase tracking-wide text-ink-2"
                 >
                   De
                 </label>
@@ -356,7 +356,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
               <div className="flex flex-col gap-1">
                 <label
                   htmlFor="extraction-to"
-                  className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500"
+                  className="text-[10px] font-bold uppercase tracking-wide text-ink-2"
                 >
                   Até
                 </label>
@@ -373,7 +373,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
           <div className="flex flex-col gap-1 flex-1 min-w-[10rem]">
             <label
               htmlFor="extraction-search"
-              className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500"
+              className="text-[10px] font-bold uppercase tracking-wide text-ink-2"
             >
               Buscar por título/nome (opcional)
             </label>
@@ -383,13 +383,13 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Ex.: Transportadora"
-              className="h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-3 placeholder:text-gray-400 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none"
+              className="h-9 text-sm rounded-xl border border-line bg-surface text-ink px-3 placeholder:text-ink-2 focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none"
             />
           </div>
           <button
             onClick={startExtraction}
             disabled={submitting}
-            className="h-9 flex items-center gap-2 px-4 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
+            className="h-9 flex items-center gap-2 px-4 bg-brand-active hover:bg-brand-2 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
           >
             {submitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -405,10 +405,10 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
 
       {loadingRuns ? (
         <div className="flex justify-center py-4">
-          <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+          <Loader2 className="w-4 h-4 animate-spin text-ink-2" />
         </div>
       ) : runs.length === 0 ? (
-        <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-4">
+        <p className="text-xs text-ink-2 text-center py-4">
           Nenhuma extração ainda — configure os filtros acima e clique em Extrair.
         </p>
       ) : (
@@ -422,7 +422,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
             return (
               <div
                 key={run.id}
-                className="p-4 rounded-2xl border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm space-y-2.5"
+                className="p-4 rounded-2xl border border-line bg-surface shadow-sm space-y-2.5"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -434,10 +434,10 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
                       />{' '}
                       {badge.label}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-ink-2">
                       {run.entities.map((e) => ENTITY_LABEL.get(e) || e).join(', ')}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-ink-2">
                       {new Date(run.createdAt).toLocaleString('pt-BR')}
                     </span>
                   </div>
@@ -454,7 +454,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
                       <button
                         onClick={() => removeRun(run.id)}
                         title="Remover do histórico (apaga os arquivos gerados)"
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                        className="p-1.5 text-ink-2 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -463,7 +463,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
                 </div>
 
                 {run.status === 'running' && run.progress && (
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-2">
                     {run.progress.entities.map((p) => (
                       <span key={p.entity} className="flex items-center gap-1">
                         {ENTITY_LABEL.get(p.entity) || p.entity}: {p.processed}
@@ -475,14 +475,12 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
 
                 {(run.status === 'completed' || run.status === 'completed_partial') && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                      {run.totalCount} registro(s)
-                    </span>
+                    <span className="text-xs font-bold text-ink">{run.totalCount} registro(s)</span>
                     {csvFiles.map((f) => (
                       <button
                         key={f.filename}
                         onClick={() => triggerDownload(downloadUrl(run.id, 'csv', f.entity))}
-                        className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-lg transition-colors"
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-ink bg-surface-2 hover:bg-line rounded-lg transition-colors"
                       >
                         <FileText className="w-3 h-3" /> CSV{' '}
                         {ENTITY_LABEL.get(f.entity || '') || f.entity}
@@ -504,7 +502,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
                         <FileJson className="w-3 h-3" /> JSON
                       </button>
                     )}
-                    <Download className="w-3 h-3 text-gray-300 ml-auto shrink-0" />
+                    <Download className="w-3 h-3 text-ink-2/60 ml-auto shrink-0" />
                   </div>
                 )}
 
