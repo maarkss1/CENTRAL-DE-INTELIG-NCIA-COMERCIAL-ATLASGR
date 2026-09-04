@@ -271,8 +271,8 @@ Achado confirmado por leitura de código + evidência real de log de produção 
 
 | # | Severidade | Risco | Por que não foi corrigido agora |
 |---|---|---|---|
-| R1 | Operacional | Filas/worker inertes em produção (seção 10). **Importante**: mesmo depois de resolvido, os 6 jobs do achado #10 (agora corrigidos) e o resto do runtime de fila continuam dependendo disso — ativar Redis/worker sozinho não reativa nada que dependa de RLS quebrado, porque isso já foi corrigido nesta sessão | Exige provisionar Redis + ativar serviço pago — decisão humana de gasto |
-| R2 | Operacional | SMTP declarado mas sem valor real configurado (achado #6) | Exige credencial SMTP real — ação humana |
+| R1 | Operacional | Filas/worker inertes em produção (seção 10). **Importante**: mesmo depois de resolvido, os 6 jobs do achado #10 (agora corrigidos) e o resto do runtime de fila continuam dependendo disso — ativar Redis/worker sozinho não reativa nada que dependa de RLS quebrado, porque isso já foi corrigido nesta sessão | Exige provisionar Redis + ativar serviço pago — decisão humana de gasto. **Decidido pelo dono do produto em 2026-09-04, pós-merge do PR #344: não ativar agora.** Continua inerte por escolha explícita, não por pendência técnica ou esquecimento — ver seção 14 |
+| R2 | Operacional | SMTP declarado mas sem valor real configurado (achado #6) | Exige credencial SMTP real — ação humana. **Decidido pelo dono do produto em 2026-09-04, pós-merge do PR #344: não configurar agora.** Reset de senha continua sem enviar e-mail em produção por escolha explícita — ver seção 14 |
 | R3 | P3 | RLS: a entrada (descoberta cross-tenant) de todo `*.worker.ts` e de todo call site de `organization.findMany`/`lead.findMany` repo-wide foi varrida sistematicamente e corrigida (achado #10, seção 6) — o que resta não verificado é a lógica interna de cada job **depois** de já estar dentro de um `requestContext.run` correto (não reauditada linha a linha) | Escopo reduzido em relação à versão anterior deste relatório — a superfície de maior risco (descoberta sem contexto nenhum) já foi coberta de forma sistemática e verificada empiricamente contra Postgres real |
 | R4 | P3 | Warning não-fatal `brace_expansion_1.expand is not a function` durante `vite build` (geração do service worker via `workbox-build`) | Build continua com `EXIT=0` e o `dist/sw.js` gerado é válido (confirmado por inspeção) — causa raiz provável é o override global `brace-expansion@^2.0.1` em `package.json` vs. `minimatch@10` (usado por `workbox-build`/`glob` mais recentes) exigindo `brace-expansion@^5`; não investigado a fundo por não ser bloqueador |
 | R5 | P2 | Issue #157 ("Invalid password") não 100% fechada — causa raiz de login em si não localizada no código atual, só a causa raiz do sintoma adjacente (rate-limit) | Sem acesso a credenciais de produção reais para reproduzir o incidente original exatamente como ocorreu em 18/08 |
@@ -283,13 +283,14 @@ Achado confirmado por leitura de código + evidência real de log de produção 
 
 ## 12. Ações externas necessárias (fora do alcance do código)
 
-1. **Configurar SMTP real** no dashboard do Render (`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/
+1. ~~Configurar SMTP real~~ no dashboard do Render (`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/
    `SMTP_PASS`/`SMTP_FROM`/`SMTP_SECURE`) — sem isso, reset de senha continua não enviando e-mail em
-   produção, mesmo com o código corrigido.
-2. **Decidir sobre Redis + worker dedicado** (seção 10) — provisionar Redis gerenciado e ativar
+   produção, mesmo com o código corrigido. **Decidido (2026-09-04): não agora** — ver seção 14.
+2. ~~Decidir sobre Redis + worker dedicado~~ (seção 10) — provisionar Redis gerenciado e ativar
    `prospector-atlas-worker` é gasto real, exige autorização explícita do dono do produto.
+   **Decidido (2026-09-04): não agora** — ver seção 14.
 3. **Fechar/reabrir issues e PRs** conforme recomendação das seções 1 e 2, após revisão humana deste
-   relatório.
+   relatório. — **CONCLUÍDO** (ver seção 14).
 4. ~~CodeQL/Trivy/SonarQube/Dependency Review/gitleaks reais só rodam de verdade no CI oficial do
    GitHub Actions após o push~~ — **CONCLUÍDO nesta sessão**: confirmado 100% verde no commit final
    `ef5f1f0` (todos os 16 checks do PR #344, ver seção 13).
@@ -394,3 +395,62 @@ desta sessão não corrigido.
 como esperado, nenhuma falha. Isso não é mais uma expectativa — é o resultado real observado
 diretamente via `pull_request_read`/`get_check_runs` depois do push, a última peça de evidência que
 faltava para este veredito ser considerado definitivo.
+
+## 14. Fechamento pós-merge
+
+Registro do que aconteceu depois do veredito acima, a pedido explícito do dono do produto.
+
+### Merge do PR #344
+
+O PR #344 foi tirado de rascunho e mergeado em `main` via **squash** (mesma convenção já usada nos
+PRs #339/#340/#341 deste repositório — commit único, título `<descrição> (#NNN)`, committer
+`GitHub`/`web-flow`), no commit `2d0a25aaa4aa503574b349c57929a22dc0c841e6`, em 2026-09-04 16:47 UTC.
+Todos os 16 checks do CI real estavam `success`/`skipped` no momento do merge (mesmo SHA `7c1be30`
+confirmado na seção 13). Nenhum novo commit foi necessário entre a confirmação final e o merge.
+
+### Decisão explícita sobre R1/R2 (Redis/worker dedicado e SMTP real)
+
+O dono do produto confirmou explicitamente, após o merge: **não ativar nenhum serviço pago agora**.
+Isso cobre os dois riscos residuais operacionais documentados nas seções 10/11/12:
+
+- **R1 — Redis + worker dedicado** (`prospector-atlas-worker`, provisionamento de Redis gerenciado):
+  continuam inertes em produção por escolha consciente de custo, não por limitação técnica ou
+  pendência esquecida. Efeito prático inalterado em relação à seção 10: enriquecimento assíncrono em
+  lote, sincronização automática do Bitrix, scanners de leads frios/estagnados, snapshot semanal de
+  forecast, limpeza de memória de agentes e expurgo de extrações Bitrix continuam não rodando em
+  produção até essa decisão mudar.
+- **R2 — SMTP real**: as 6 variáveis já estão declaradas no `render.yaml` (`sync: false`, achado #6,
+  commit `63d7058`), mas nenhum valor real foi preenchido por decisão explícita — reset de senha
+  continua funcionando tecnicamente ponta a ponta (token gerado/validado/single-use, confirmado na
+  seção 5), mas o e-mail em si não sai em produção até uma credencial SMTP real ser configurada.
+
+Nenhum dos dois é um defeito de código: o código de ambos os caminhos está corrigido, testado e
+mergeado. O que resta pendente é puramente a decisão de gasto/infra do dono do produto, agora
+registrada como decisão consciente de adiamento, não como risco não avaliado.
+
+### Issues
+
+- **#157** e **#158** (duplicatas, "INCIDENTE: login e redefinição de senha indisponíveis em
+  produção"): fechadas com comentário citando este relatório — causas raiz reais corrigidas e
+  mergeadas (rate-limit de IP via `x-forwarded-for`, commit `5922200`; SMTP nunca declarado no
+  Blueprint, commit `63d7058`). Ressalva mantida (R5): a causa raiz exata do "Invalid password"
+  original de 18/08 não foi reproduzida contra credenciais de produção reais nesta sessão — se o
+  sintoma original exato recorrer em produção, reabrir citando este relatório.
+- **#326** ("reverte títulos coloridos/maiúsculos"): já estava fechada (confirmado, `closed_at`
+  2026-09-04T11:32:29Z, pelo próprio dono) — nenhuma ação necessária.
+- **#304** (smokes nacionais de Market Intelligence): permanece **aberta**, sem alteração — segue
+  condicionada à decisão do dono sobre a PR #342 (seção 2), fora do escopo desta missão.
+
+### O que continua em aberto, fora do alcance desta missão
+
+- **PR #342** (remoção do módulo Market Intelligence) — decisão do próprio dono do repositório,
+  ainda em draft/validação; não tocada nesta sessão.
+- **Corte de `DATABASE_URL`/`DIRECT_URL` de produção para o Neon** — documentado (seção 10, nota de
+  continuidade), ainda pendente, ação de alto risco fora do escopo de qualquer sessão automatizada.
+- **R9 — 45 segredos históricos achados pelo gitleaks** (commits de jul/2026) — informativo, não
+  introduzido por esta sessão; avaliação/rotação é decisão de segurança do dono do produto.
+
+Com isso, a missão de finalização está **encerrada**: todo o código corrigido e auditado nesta sessão
+está em `main` (commit `2d0a25a`), o veredito **RELEASE APPROVED** está confirmado contra CI real, e
+os únicos itens restantes são decisões humanas explicitamente registradas (adiadas ou já tomadas),
+não pendências técnicas desta sessão.
