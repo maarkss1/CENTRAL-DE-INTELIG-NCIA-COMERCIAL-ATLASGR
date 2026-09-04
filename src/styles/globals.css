@@ -524,11 +524,18 @@
     color: var(--ink);
   }
 
-  /* Todo título usa a cor da marca ativa (--brand já reage à troca AtlasGR/Total Trac via
-     BrandContext, ver seção 7 de .claude/CLAUDE.md) — pedido explícito do usuário, aplicado aqui
-     uma única vez em vez de em cada componente. Uma classe/utilitário de cor mais específico
-     definido num componente (ex.: título branco sobre um painel de marca sólido) continua
-     vencendo esta regra — @layer base sempre perde para @layer utilities no Tailwind 4. */
+  /* Revertido em 2026-09-04 (finalização de release; mesmo achado/correção já proposto e validado
+     pelo próprio dono do repositório em PR #326, nunca mergeada — extraído aqui porque o bug
+     seguia ativo em `main`). O commit 4264bcb ("títulos com cor da marca ativa") tinha aplicado
+     `color: var(--brand)` + `uppercase` + peso 700 fixo a TODO h1-h6 da aplicação inteira — não só
+     à tela de login (única superfície onde o pedido original fazia sentido), mas a cada título de
+     cada tela autenticada (dashboard, CRM, pipeline, configurações etc.). Duas regressões reais:
+     (1) `--brand` (#FF5618) sobre `--bg` (#F8F9FA) tem ~3:1 de contraste, abaixo do mínimo AA de
+     4.5:1 para texto normal — mesma classe de bug já documentada como DQA-19 (texto sobre cor
+     sólida de marca); (2) uppercase+cor de marca em todo título quebra a hierarquia visual de um
+     dashboard denso de uso repetido (CLAUDE.md, seção 4, regra #8: "UX nunca é sacrificado por
+     estética"). `color: var(--ink)` continua reagindo a tema claro/escuro (é um token, não um
+     valor fixo); só não força mais a cor de marca sobre título nenhum. */
   h1,
   h2,
   h3,
@@ -537,34 +544,38 @@
   h6 {
     font-family: var(--font-display);
     letter-spacing: -0.03em;
-    color: var(--brand);
-    text-transform: uppercase;
-    font-weight: 700;
+    color: var(--ink);
   }
 
   h1 {
     font-size: var(--text-h1);
     line-height: var(--text-h1--line-height);
+    font-weight: 700;
   }
   h2 {
     font-size: var(--text-h2);
     line-height: var(--text-h2--line-height);
+    font-weight: 700;
   }
   h3 {
     font-size: var(--text-h3);
     line-height: var(--text-h3--line-height);
+    font-weight: 600;
   }
   h4 {
     font-size: var(--text-h4);
     line-height: var(--text-h4--line-height);
+    font-weight: 600;
   }
   h5 {
     font-size: var(--text-h5);
     line-height: var(--text-h5--line-height);
+    font-weight: 600;
   }
   h6 {
     font-size: var(--text-h6);
     line-height: var(--text-h6--line-height);
+    font-weight: 600;
   }
 
   button,
