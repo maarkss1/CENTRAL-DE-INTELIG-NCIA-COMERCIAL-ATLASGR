@@ -99,5 +99,55 @@ describe('bootstrap/security', () => {
             expect(res.headers['x-content-type-options']).toBe('nosniff');
             expect(res.headers['access-control-allow-origin']).toBe('https://qualquer-origem.example.com');
         });
+
+        // Regressão real: Better Auth resolve IP do cliente lendo x-forwarded-for por conta
+        // própria (getIp, @better-auth/core/utils/ip.ts) — sem trustedProxies configurado, um
+        // header com mais de um IP (formato de cadeia com mais de um proxy à frente da
+        // aplicação) é tratado como não confiável e devolve null, fazendo o rate limit de login
+        // virar um único bucket compartilhado entre todos os clientes (warning real de produção
+        // "Rate limiting could not determine a client IP", issues #157/#158). Reaproveitar
+        // req.ip do Express foi tentado e descartado (trust proxy: N conta hops a partir do
+        // socket que conecta na aplicação, não a partir do cliente — com mais de 1 proxy à
+        // frente, req.ip resolve para outro proxy, não para o cliente real). Com
+        // TRUST_PROXY=true este middleware aplica a convenção universal do próprio cabeçalho
+        // (cada proxy ANEXA ao final; o valor mais à esquerda é sempre o cliente original) —
+        // sem precisar conhecer a contagem de hops nem o CIDR do proxy do Render.
+        it('com TRUST_PROXY=true, normaliza x-forwarded-for multi-hop para o primeiro valor (cliente original, convenção do header)', async () => {
+            vi.doMock('../../../src/config/env.js', () => ({
+                env: { NODE_ENV: 'production', ALLOWED_ORIGINS: 'https://app.example.com', TRUST_PROXY: true },
+            }));
+            const { applySecurityMiddleware } = await import('../../../src/bootstrap/security.js');
+            const app = express();
+            app.set('trust proxy', 1);
+            applySecurityMiddleware(app);
+            app.get('/ping', (req, res) => res.status(200).json({ xff: req.headers['x-forwarded-for'] }));
+
+            // Simula uma cadeia com mais de um proxy à frente da aplicação: "<cliente>, <proxy>".
+            const res = await request(app)
+                .get('/ping')
+                .set('X-Forwarded-For', '203.0.113.7, 10.0.0.5')
+                .set('Origin', 'https://app.example.com');
+
+            expect(res.status).toBe(200);
+            expect(res.body.xff).toBe('203.0.113.7');
+        });
+
+        it('não mexe em x-forwarded-for de hop único (caso já suportado pelo Better Auth)', async () => {
+            vi.doMock('../../../src/config/env.js', () => ({
+                env: { NODE_ENV: 'production', ALLOWED_ORIGINS: 'https://app.example.com', TRUST_PROXY: true },
+            }));
+            const { applySecurityMiddleware } = await import('../../../src/bootstrap/security.js');
+            const app = express();
+            app.set('trust proxy', 1);
+            applySecurityMiddleware(app);
+            app.get('/ping', (req, res) => res.status(200).json({ xff: req.headers['x-forwarded-for'] }));
+
+            const res = await request(app)
+                .get('/ping')
+                .set('X-Forwarded-For', '203.0.113.7')
+                .set('Origin', 'https://app.example.com');
+
+            expect(res.body.xff).toBe('203.0.113.7');
+        });
     });
 });

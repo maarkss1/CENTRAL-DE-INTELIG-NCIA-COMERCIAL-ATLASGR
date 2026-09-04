@@ -37,6 +37,37 @@ export function applySecurityMiddleware(app: Express): void {
   // do cliente, tornando o limite ineficaz em produção atrás de um load balancer.
   if (env.TRUST_PROXY) {
     app.set('trust proxy', 1);
+
+    // Better Auth resolve IP do cliente lendo x-forwarded-for por conta própria
+    // (@better-auth/core/utils/ip.ts, getIp) — não reaproveita req.ip do Express, e sem
+    // `advanced.ipAddress.trustedProxies` configurado, um header com mais de um IP é tratado como
+    // não confiável (devolve null): warning real de produção ("Rate limiting could not determine
+    // a client IP..."), degradando o rate limit de login para um único bucket compartilhado entre
+    // TODOS os clientes (issues #157/#158).
+    //
+    // `trustedProxies` exigiria o IP/CIDR exato do(s) proxy(s) do Render, não publicado de forma
+    // estável — e reaproveitar `req.ip` do Express (`trust proxy: 1`) foi tentado e descartado
+    // nesta rodada: `trust proxy: N` conta hops a partir do socket que conecta na aplicação, não
+    // a partir do cliente (verificado lendo express/lib/utils.js#compileTrust + o pacote
+    // `forwarded`) — com uma cadeia de mais de 1 proxy à frente da aplicação, `req.ip` resolve
+    // para o penúltimo hop (outro proxy), não para o cliente real, então usá-lo aqui só trocaria
+    // "não resolve" por "resolve errado com confiança".
+    //
+    // Em vez disso, aplicamos a convenção universal do próprio cabeçalho X-Forwarded-For (RFC
+    // 7239/de-facto desde sempre: cada proxy ANEXA ao final, o valor mais à ESQUERDA é sempre o
+    // cliente original) — `TRUST_PROXY=true` já é a declaração explícita do operador de que esta
+    // aplicação roda atrás de proxy(s) legítimo(s) que seguem essa convenção (mesma confiança que
+    // já habilita `trust proxy` no Express), então tomamos o primeiro valor da lista para
+    // qualquer rota, sem precisar conhecer a contagem exata de hops nem o CIDR do proxy.
+    app.use((req, _res, next) => {
+      const forwarded = req.headers['x-forwarded-for'];
+      const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+      if (raw?.includes(',')) {
+        const client = raw.split(',')[0]?.trim();
+        if (client) req.headers['x-forwarded-for'] = client;
+      }
+      next();
+    });
   }
 
   // Helmet adiciona cabeçalhos HTTP de segurança (X-Frame-Options, HSTS, etc.)
