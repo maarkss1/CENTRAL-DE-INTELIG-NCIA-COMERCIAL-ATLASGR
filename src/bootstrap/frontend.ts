@@ -33,7 +33,13 @@ export async function mountFrontend(app: Express): Promise<void> {
     // Treinamento AtlasGR (Next.js export) precisa de /_next na raiz (em produção fica em dist/tools/...)
     app.use('/_next', express.static(path.join(distPath, 'tools', 'treinamento-atlasgr', '_next')));
 
-    app.get('*', (_req, res) => {
+    // Express 5 (path-to-regexp v8) não aceita mais o wildcard nu `'*'` — o processo morria no
+    // boot com `PathError: Missing parameter name at index 1: *` (Render, deploys de 03/09/2026,
+    // commits 6624fda/5cd0a2d, ambos `update_failed`). A CI nunca pegou porque o E2E roda com
+    // NODE_ENV=test, que cai no branch do Vite acima e nunca executa este fallback de produção —
+    // ver scripts/ci/smoke-production-boot.mjs, que passou a exercitar exatamente este caminho.
+    // `/{*splat}` é a sintaxe oficial do Express 5 para "qualquer caminho, inclusive a raiz".
+    app.get('/{*splat}', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
