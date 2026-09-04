@@ -41,6 +41,21 @@ IBGE_MUNICIPIOS = "https://servicodados.ibge.gov.br/api/v1/localidades/municipio
 USER_AGENT = "AtlasGR-MarketIntelligence/1.0 (+data engineering)"
 ACTIVE_SITUATION = "02"
 DAV_NS = {"d": "DAV:"}
+# CodeQL (achado real de finalização, PR #344): `webdav_url()`/`download_archive()` constroem a URL
+# de busca a partir de nomes de arquivo descobertos via PROPFIND (resposta de rede, ver
+# `propfind_children`) -- mesmo BASE_HOST sempre fixo por concatenação de string (não é vulnerável
+# a takeover de host como `urljoin` seria), mas o par host+esquema é validado explicitamente aqui
+# de qualquer forma, no mesmo ponto de checagem (`urlopen`) usado pra `etl_mdfe_atlas.py` (allowlist
+# de host antes do fetch, mesmo padrão de `fetchWithTimeout`/`safeFetch`, PR #339) -- defesa em
+# profundidade, não depende de nenhuma modelagem de sanitizador entre funções.
+ALLOWED_HOSTS = {urllib.parse.urlsplit(BASE_HOST).hostname, urllib.parse.urlsplit(IBGE_MUNICIPIOS).hostname}
+
+
+def assert_allowed_url(url: str) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
+        raise RuntimeError(f"URL fora do host oficial esperado ({sorted(ALLOWED_HOSTS)}): {url!r}")
+    return url
 
 
 @dataclass(frozen=True)
@@ -52,7 +67,7 @@ class ArchiveMeta:
 
 
 def request_bytes(url: str, timeout: int = 180) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
+    request = urllib.request.Request(assert_allowed_url(url), headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
     with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
         payload = response.read()
         # urllib nao descomprime automaticamente; alguns servidores (ex.: IBGE) gzipam a
@@ -96,7 +111,7 @@ def webdav_url(path: str) -> str:
 
 def propfind_children(url: str, token: str) -> list[tuple[str, bool]]:
     request = urllib.request.Request(
-        url,
+        assert_allowed_url(url),
         method="PROPFIND",
         headers={"User-Agent": USER_AGENT, "Authorization": basic_auth_header(token), "Depth": "1"},
     )
@@ -141,6 +156,7 @@ def list_remote_archives(token: str, competence: str, include_company_details: b
 
 
 def download_archive(name: str, url: str, target_dir: Path, token: str, attempts: int = 4) -> ArchiveMeta:
+    url = assert_allowed_url(url)
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / name
     partial = target.with_suffix(target.suffix + ".part")
