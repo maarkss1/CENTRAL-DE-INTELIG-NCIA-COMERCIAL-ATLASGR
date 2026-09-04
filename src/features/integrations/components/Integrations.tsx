@@ -65,8 +65,7 @@ const CAPABILITY_STYLES: Record<
   pending: {
     label: 'pendente de escopo',
     icon: Clock3,
-    className:
-      'bg-gray-50 text-gray-700 border-gray-200 dark:bg-white/5 dark:text-gray-300 dark:border-white/10',
+    className: 'bg-surface-2 text-ink-2 border-line',
   },
 };
 
@@ -91,7 +90,7 @@ function CapabilityBadge({
 
 function IntegrationTruthBox({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-black/20 p-3 text-xs text-gray-600 dark:text-gray-300 space-y-2">
+    <div className="rounded-xl border border-line bg-surface-2 p-3 text-xs text-ink-2 space-y-2">
       {children}
     </div>
   );
@@ -159,16 +158,16 @@ export function Integrations() {
     // abas horizontal em telas estreitas em vez da sidebar vertical fixa de 256px, que sozinha
     // já não cabia num viewport de ~390px e empurrava o conteúdo pra fora da tela (achado real
     // reportado pelo usuário — sidebar fixa + conteúdo sem min-w-0 nunca encolhiam).
-    <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-gray-50/50 transition-colors duration-300">
+    <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-bg transition-colors duration-300">
       {/* Sidebar (vertical em lg+, barra de abas horizontal abaixo disso) */}
-      <div className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col lg:h-full shrink-0">
-        <div className="hidden lg:block p-6 border-b border-gray-100">
+      <div className="w-full lg:w-64 bg-surface border-b lg:border-b-0 lg:border-r border-line flex flex-col lg:h-full shrink-0">
+        <div className="hidden lg:block p-6 border-b border-line">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-[var(--brand-primary)] border border-gray-200">
+            <div className="w-10 h-10 bg-surface-2 rounded-lg flex items-center justify-center text-brand border border-line">
               <IconWrench className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Integrações</h1>
+              <h1 className="text-lg font-bold text-ink">Integrações</h1>
             </div>
           </div>
         </div>
@@ -227,7 +226,7 @@ export function Integrations() {
           )}
 
           {activeTab === 'whatsapp' && (
-            <Card className="p-4 md:p-8 bg-white dark:bg-white/5 border border-gray-100 shadow-sm rounded-2xl">
+            <Card className="p-4 md:p-8 bg-surface border border-line shadow-sm rounded-2xl">
               {/* Cabeçalho compacto quando conectado — a lista de conversas + chat precisa do máximo
                             de altura disponível, especialmente em mobile, onde a descrição não cabia sem
                             empurrar o painel pra abaixo da dobra. */}
@@ -235,9 +234,9 @@ export function Integrations() {
                 className={`flex items-center justify-between gap-3 ${status === 'connected' ? 'mb-3' : 'mb-6'}`}
               >
                 <div className="min-w-0">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">WhatsApp</h2>
+                  <h2 className="text-xl font-bold text-ink">WhatsApp</h2>
                   <p
-                    className={`text-sm text-gray-500 dark:text-gray-400 ${status === 'connected' ? 'hidden sm:block' : ''}`}
+                    className={`text-sm text-ink-2 ${status === 'connected' ? 'hidden sm:block' : ''}`}
                   >
                     {status === 'connected'
                       ? 'WhatsApp Web da organização — leitura e envio pela sessão local do servidor.'
@@ -287,7 +286,7 @@ export function Integrations() {
                     <span
                       className={`w-3 h-3 rounded-full ${status === 'connected' ? 'bg-success' : status === 'connecting' ? 'bg-warning animate-pulse' : 'bg-danger'}`}
                     ></span>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <span className="text-sm font-medium text-ink">
                       {status === 'connected'
                         ? 'Conectado'
                         : status === 'connecting'
@@ -341,14 +340,12 @@ export function Integrations() {
                 )}
 
                 {status === 'connecting' && qrCode && (
-                  <div className="text-center p-4 bg-gray-50 dark:bg-black/20 rounded-lg border border-gray-100">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      Escaneie o QR Code abaixo:
-                    </p>
+                  <div className="text-center p-4 bg-surface-2 rounded-lg border border-line">
+                    <p className="text-sm text-ink-2 mb-2">Escaneie o QR Code abaixo:</p>
                     <img
                       src={qrCode}
                       alt="WhatsApp QR Code"
-                      className="mx-auto rounded-xl shadow-sm border border-gray-200 dark:border-white/10"
+                      className="mx-auto rounded-xl shadow-sm border border-line"
                     />
                   </div>
                 )}
@@ -359,13 +356,11 @@ export function Integrations() {
           )}
 
           {activeTab === 'google' && (
-            <Card className="p-8 bg-white dark:bg-white/5 border border-gray-100 shadow-sm rounded-2xl">
+            <Card className="p-8 bg-surface border border-line shadow-sm rounded-2xl">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                    Google Workspace
-                  </h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <h2 className="text-xl font-bold text-ink">Google Workspace</h2>
+                  <p className="text-sm text-ink-2">
                     Gmail em modo leitura; Calendar tem leitura e escrita real (via Cadência); a
                     Agenda do produto continua local.
                   </p>
@@ -399,7 +394,7 @@ export function Integrations() {
                   <span
                     className={`w-3 h-3 rounded-full ${googleConnected ? 'bg-success' : 'bg-danger'}`}
                   ></span>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="text-sm font-medium text-ink">
                     {googleConnected ? `Conectado (${googleEmail})` : 'Desconectado'}
                   </span>
                   {googleConnected && (
@@ -451,17 +446,17 @@ export function Integrations() {
                   <>
                     {upcomingEvents.length > 0 && (
                       <div className="space-y-1.5">
-                        <p className="text-xs text-gray-500 font-medium">
+                        <p className="text-xs text-ink-2 font-medium">
                           Próximos eventos do Calendar
                         </p>
                         {upcomingEvents.map((event) => (
                           <div
                             key={event.id}
-                            className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-black/20 border border-gray-100 rounded-lg px-3 py-2 truncate"
+                            className="text-sm text-ink bg-surface-2 border border-line rounded-lg px-3 py-2 truncate"
                           >
                             {event.summary}
                             {event.start && (
-                              <span className="text-gray-400 text-xs ml-2">
+                              <span className="text-ink-2 text-xs ml-2">
                                 {new Date(event.start).toLocaleString('pt-BR')}
                               </span>
                             )}
@@ -493,11 +488,11 @@ export function Integrations() {
           )}
 
           {activeTab === 'bitrix' && (
-            <Card className="p-8 bg-white dark:bg-white/5 border border-gray-100 shadow-sm rounded-2xl">
+            <Card className="p-8 bg-surface border border-line shadow-sm rounded-2xl">
               <div className="flex items-start justify-between mb-8">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bitrix24</h2>
+                    <h2 className="text-xl font-bold text-ink">Bitrix24</h2>
                     {bitrixConnections.length > 0 && (
                       <>
                         <IntegrationStatusBadge
@@ -511,12 +506,12 @@ export function Integrations() {
                       </>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
+                  <p className="text-sm text-ink-2 mt-1 max-w-2xl">
                     Bitrix24 tem leitura/importação real, escrita real de leads e comentários, e
                     webhook de entrada opcional para atualizar registros já importados.
                   </p>
                 </div>
-                <div className="w-12 h-12 bg-orange-50 dark:bg-orange-500/10 rounded-full flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 bg-soft rounded-full flex items-center justify-center shrink-0">
                   <span className="text-2xl">🔗</span>
                 </div>
               </div>
@@ -597,8 +592,8 @@ export function Integrations() {
                   </div>
                 )}
 
-                <div className="p-5 rounded-xl border border-dashed border-gray-300 dark:border-white/20 bg-gray-50/50 dark:bg-white/[0.03] space-y-4">
-                  <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                <div className="p-5 rounded-xl border border-dashed border-line bg-surface-2/50 space-y-4">
+                  <p className="text-sm font-bold text-ink">
                     {bitrixConnections.length > 0
                       ? 'Conectar outro portal Bitrix24'
                       : 'Conectar Bitrix24'}
@@ -609,25 +604,25 @@ export function Integrations() {
                       value={bitrixLabelInput}
                       onChange={(e) => setBitrixLabelInput(e.target.value)}
                       placeholder="Nome pra identificar (ex.: AtlasGR, Total Trac)"
-                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-line shadow-sm bg-surface text-ink placeholder:text-ink-2 outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
                     />
                     <input
                       type="url"
                       value={bitrixWebhookInput}
                       onChange={(e) => setBitrixWebhookInput(e.target.value)}
                       placeholder="https://seudominio.bitrix24.com.br/rest/1/xxxxxxxx/"
-                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-line shadow-sm bg-surface text-ink placeholder:text-ink-2 outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
                     />
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-ink-2">
                     Gere em Bitrix24 → Aplicativos → Webhooks → Webhook de entrada, com permissão{' '}
-                    <strong className="font-bold text-gray-700 dark:text-gray-300">crm</strong>.
+                    <strong className="font-bold text-ink">crm</strong>.
                   </p>
                   <button
                     onClick={handleBitrixConnect}
                     disabled={bitrixLoading || !canManage}
                     title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
-                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors"
+                    className="w-full py-2.5 bg-brand-active hover:bg-brand-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors"
                   >
                     {bitrixLoading ? 'Validando webhook...' : 'Conectar'}
                   </button>
@@ -641,10 +636,10 @@ export function Integrations() {
                       );
                       if (!conn) return null;
                       return (
-                        <div className="p-5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 space-y-3">
+                        <div className="p-5 rounded-xl border border-line bg-surface space-y-3">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                              <KeyRound className="w-4 h-4 text-orange-500" /> Webhook de entrada
+                            <p className="text-sm font-bold text-ink flex items-center gap-1.5">
+                              <KeyRound className="w-4 h-4 text-brand" /> Webhook de entrada
                               (Bitrix24 → Atlas)
                             </p>
                             <label
@@ -665,11 +660,11 @@ export function Integrations() {
                                 }
                                 className="sr-only peer"
                               />
-                              <div className="w-9 h-5 bg-gray-200 dark:bg-white/10 rounded-full peer-checked:bg-orange-600 transition-colors peer-disabled:opacity-40" />
+                              <div className="w-9 h-5 bg-line rounded-full peer-checked:bg-brand-active transition-colors peer-disabled:opacity-40" />
                               <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
                             </label>
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                          <p className="text-xs text-ink-2">
                             Opcional — sem isto, o Atlas continua trazendo dados do Bitrix24 por
                             importação manual/regra automática (a cada 15 min). Ativar aqui faz o
                             Bitrix avisar o Atlas na hora quando um Lead/Negócio já importado muda,
@@ -681,13 +676,13 @@ export function Integrations() {
                               readOnly
                               value={conn.webhookReceiverUrl}
                               onFocus={(e) => e.target.select()}
-                              className="flex-1 px-3 py-2 text-xs font-mono rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/20 text-gray-700 dark:text-gray-300"
+                              className="flex-1 px-3 py-2 text-xs font-mono rounded-lg border border-line bg-surface-2 text-ink"
                             />
                             <button
                               type="button"
                               onClick={() => navigator.clipboard.writeText(conn.webhookReceiverUrl)}
                               title="Copiar URL"
-                              className="shrink-0 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                              className="shrink-0 p-2 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-lg transition-colors"
                             >
                               <Copy className="w-4 h-4" />
                             </button>
@@ -705,11 +700,11 @@ export function Integrations() {
                                   ? undefined
                                   : 'Requer permissão de Gestor ou Administrador'
                               }
-                              className="px-3 py-2 text-xs font-bold bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300 hover:bg-orange-100 rounded-lg transition-colors border border-orange-100 dark:border-orange-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                              className="px-3 py-2 text-xs font-bold bg-soft text-brand-active dark:text-brand-2 hover:bg-brand/20 rounded-lg transition-colors border border-brand/20 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               {conn.hasWebhookSecret ? 'Gerar novo segredo' : 'Gerar segredo'}
                             </button>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                            <span className="text-xs text-ink-2">
                               {conn.hasWebhookSecret
                                 ? 'Segredo configurado.'
                                 : 'Nenhum segredo gerado ainda.'}{' '}
@@ -760,7 +755,7 @@ export function Integrations() {
             <Card className="glass-card p-8 border border-gray-100 shadow-sm rounded-2xl">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                  <div className="p-4 bg-sky-50 text-sky-600 rounded-xl border border-sky-100">
+                  <div className="p-4 bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-xl border border-sky-100 dark:border-sky-500/20">
                     <IconWrench className="w-6 h-6" />
                   </div>
                   <div>
@@ -775,7 +770,7 @@ export function Integrations() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg ${threecxConnections.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg ${threecxConnections.length > 0 ? 'bg-success/15 text-success-active dark:text-success' : 'bg-surface-2 text-ink-2'}`}
                   >
                     {threecxConnections.length > 0 ? 'Ativo 24h' : 'Não conectado'}
                   </span>
@@ -814,13 +809,13 @@ export function Integrations() {
                     {threecxConnections.map((conn) => (
                       <div
                         key={conn.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 bg-white shadow-sm"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-line bg-surface shadow-sm"
                       >
                         <div className="flex items-center gap-3">
                           <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0" />
                           <div>
-                            <p className="text-sm font-bold text-gray-900">{conn.label}</p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-sm font-bold text-ink">{conn.label}</p>
+                            <p className="text-xs text-ink-2">
                               {conn.pbxUrl} — Ramal {conn.extension}
                             </p>
                           </div>
@@ -832,7 +827,7 @@ export function Integrations() {
                             title={
                               canManage ? undefined : 'Requer permissão de Gestor ou Administrador'
                             }
-                            className="px-3 py-2 text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg transition-colors border border-sky-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="px-3 py-2 text-xs font-bold bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-500/20 rounded-lg transition-colors border border-sky-100 dark:border-sky-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             Testar PABX
                           </button>
@@ -842,7 +837,7 @@ export function Integrations() {
                             title={
                               canManage ? undefined : 'Requer permissão de Gestor ou Administrador'
                             }
-                            className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="px-3 py-2 text-xs font-bold text-danger-active dark:text-danger hover:bg-danger/10 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             Desconectar
                           </button>

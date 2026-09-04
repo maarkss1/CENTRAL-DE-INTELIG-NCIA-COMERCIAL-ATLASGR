@@ -88,3 +88,40 @@ export function decryptField(stored: string): string {
   // da integração), nunca seguir adiante com um token errado.
   throw new Error('Falha ao decifrar credencial — chave incorreta ou dado corrompido/adulterado.');
 }
+
+/**
+ * Marcador não-PII devolvido por `tryDecryptField` quando a descriptografia falha. Nunca é uma
+ * string que passa por um regex de e-mail/telefone válido nem por igualdade com valor real —
+ * intencional, para que o dado corrompido nunca seja confundido com PII legítima a jusante
+ * (busca, dedup, envio de e-mail/WhatsApp).
+ */
+export const DECRYPTION_FAILED_MARKER = '⚠️ [dado ilegível — falha de descriptografia, ver logs]';
+
+/**
+ * Wrapper de `decryptField` que isola o dano por REGISTRO em vez de por QUERY inteira.
+ * `decryptField` continua fail-closed sem nenhuma mudança (nunca aceita cifra inválida como
+ * válida) — o problema real era o CHAMADOR: uma única linha com ciphertext indecifrável (chave
+ * errada/dado corrompido) lançava e derrubava toda a extensão `$allOperations` do Prisma, o que
+ * na prática apagava a listagem inteira de leads/contatos sempre que UM Contact relacionado
+ * tivesse PII indecifrável (incidente real de produção, 01-03/09/2026 — decryptField chamado por
+ * decryptNestedContactPii/decryptSensitiveResult, propagando para
+ * PrismaLeadRepository.findAllWithFilters → LeadController.getLeads).
+ *
+ * Nunca loga o ciphertext nem a chave — só o contexto (model/campo/id) necessário para localizar
+ * o registro afetado. Não é fail-open: o valor devolvido em falha é `DECRYPTION_FAILED_MARKER`,
+ * nunca o ciphertext cru nem um texto vazio que pareça válido.
+ */
+export function tryDecryptField(
+  stored: string,
+  context: { model: string; field: string; id?: string },
+): string {
+  try {
+    return decryptField(stored);
+  } catch {
+    logger.error(
+      { model: context.model, field: context.field, recordId: context.id },
+      '[secretFields] Falha ao decifrar campo — isolado a este registro, query não foi derrubada. Verifique CREDENTIALS_ENCRYPTION_KEY/rotação de chave.',
+    );
+    return DECRYPTION_FAILED_MARKER;
+  }
+}

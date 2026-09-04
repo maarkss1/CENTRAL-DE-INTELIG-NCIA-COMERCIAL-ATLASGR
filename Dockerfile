@@ -7,7 +7,13 @@ ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/prospector"
 
 RUN apt-get update && apt-get install -y openssl python3 make g++ ca-certificates && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
+# .npmrc carrega `legacy-peer-deps=true` (mem0ai fixa peer @types/pg@8.11.0, incompatível com o
+# @types/pg@^8.16 exigido por @prisma/adapter-pg — só tipos de dev, sem efeito em runtime). Sem
+# copiá-lo, `npm ci` dentro da imagem falha com ERESOLVE, mesmo com o lockfile íntegro — foi
+# exatamente o que derrubou o workflow "Publish private container image" em 03/09/2026 (run
+# 33817231355), enquanto o mesmo `npm ci` passava no CI e no Render porque lá o checkout
+# completo (com .npmrc) está presente.
+COPY package*.json .npmrc ./
 RUN npm ci --ignore-scripts
 
 COPY . .

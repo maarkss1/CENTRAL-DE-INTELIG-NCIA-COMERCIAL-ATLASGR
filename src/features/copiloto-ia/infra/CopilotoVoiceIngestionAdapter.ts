@@ -18,6 +18,7 @@
  * conversa `SCHEDULED` sem processar nada — nunca fabrica consentimento por omissão.
  */
 import { logger } from '../../../lib/logger.js';
+import { assertPiiExternalConsent } from '../../../shared/services/aiPiiConsent.service.js';
 import { CopilotoIaUseCases } from '../application/CopilotoIaUseCases.js';
 import { PrismaCopilotoIaRepository } from './PrismaCopilotoIaRepository.js';
 import { extractConversationIntelligence } from './conversationIntelligence.service.js';
@@ -112,6 +113,24 @@ export class CopilotoVoiceIngestionAdapter implements CopilotoVoiceIngestionPort
         { organizationId, conversationId: conversation.id, consent: input.consent.status },
         '[copiloto-ia] ligação registrada sem processar conteúdo (consentimento não concedido)',
       );
+      return;
+    }
+
+    // Achado real de finalização (2026-09-04): `input.consent.status` acima é o consentimento do
+    // INTERLOCUTOR para a ligação ser gravada/analisada (divulgação da IA) — um eixo LGPD
+    // diferente de `assertPiiExternalConsent`, a base legal da ORGANIZAÇÃO (tenant) para enviar
+    // PII a um provedor de IA externo (mesmo gate que já protege WhatsApp/SDR/Ops/Learning/
+    // Supervisor e a transcrição de reunião do próprio Copiloto — ver guardrails.service.ts).
+    // Esta ponte enviava `combinedText` (transcrição real da ligação) ao gateway de IA sem
+    // nenhuma checagem deste segundo eixo — corrigido aqui, fail-closed.
+    try {
+      assertPiiExternalConsent(organizationId);
+    } catch (error) {
+      logger.warn(
+        { err: error, organizationId, conversationId: conversation.id },
+        '[copiloto-ia] ponte de voz bloqueada: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.',
+      );
+      await useCases.cancel(organizationId, conversation.id);
       return;
     }
 

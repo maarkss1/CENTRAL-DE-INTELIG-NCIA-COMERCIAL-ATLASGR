@@ -60,7 +60,7 @@ async function getYoutubeVideoInfoUncached(
     const res = await fetchWithProviderRetry(
       `${YOUTUBE_OEMBED_URL}?${params.toString()}`,
       {},
-      { timeoutMs: 8_000, providerName: 'YouTube-oEmbed' },
+      { timeoutMs: 8_000, providerName: 'YouTube-oEmbed', allowedHosts: ['www.youtube.com'] },
     );
     if (!res.ok) {
       if (res.status === 404 || res.status === 401) {

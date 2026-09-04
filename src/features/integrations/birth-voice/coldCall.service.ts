@@ -76,7 +76,15 @@ export async function enabledOrganizations(): Promise<string[]> {
   // descrito acima, e o pior lugar possível pra isso acontecer por engano.
   if (!rawOrgs) return [];
   if (rawOrgs === '*' || rawOrgs === 'all') {
-    const orgs = await prisma.organization.findMany({ select: { id: true } });
+    // Achado real de finalização (2026-09-04): sem contexto de RLS, `Organization` (sob FORCE ROW
+    // LEVEL SECURITY, migration 20260722020322_enable_rls) nega a leitura por completo — esta
+    // chamada devolvia SEMPRE 0 organizações, então `SDR_COLD_CALL_ORGANIZATIONS=*` nunca
+    // habilitava a discagem fria pra ninguém (fail-closed por acidente, não pela trava fail-closed
+    // documentada acima). `Organization` está no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS,
+    // src/lib/prisma.ts) exatamente para esta descoberta inicial.
+    const orgs = await requestContext.run({ bypassRls: true }, () =>
+      prisma.organization.findMany({ select: { id: true } }),
+    );
     return orgs.map((o) => o.id);
   }
   return rawOrgs

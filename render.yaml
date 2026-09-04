@@ -2,28 +2,30 @@ services:
   - type: web
     name: prospector-atlas
     runtime: node
-    # free por enquanto: o workspace do Render ainda não tem cartão cadastrado, e o
-    # Blueprint recusa criar/sincronizar serviços em plano pago (starter) sem forma de
-    # pagamento no ambiente. Trocar para starter no dashboard depois de cadastrar o cartão —
-    # o free dorme após inatividade e tem menos CPU/RAM, não é para uso real com clientes.
-    plan: free
+    # Plano pago (starter): workspace já tem cartão cadastrado (critério de saída do modo
+    # local-first cumprido — ver docs/development/LOCAL_FIRST.md). starter não dorme por
+    # inatividade, tem mais CPU/RAM que o free e habilita preDeployCommand (ver abaixo).
+    plan: starter
+    # Deploy automático a cada push em main — o serviço web não tem mais autoDeployTrigger: off
+    # (diferente do bloco worker abaixo, que continua congelado). Confirme no dashboard do Render
+    # que "Auto-Deploy" está de fato ligado após o próximo sync do Blueprint.
+    autoDeployTrigger: commit
     # --include=dev: NODE_ENV=production (definido abaixo, também injetado no build) faz o
     # `npm ci` pular devDependencies por padrão — mas vite, @vitejs/plugin-react, esbuild e
     # typescript (usados só no build, nunca em runtime) estão todos lá. Sem essa flag o build
     # falha com ERR_MODULE_NOT_FOUND ao carregar vite.config.ts.
     buildCommand: npm ci --include=dev && npm run build
-    # preDeployCommand (Render "Pre-Deploy Command") é o ponto ideal para `prisma migrate deploy`:
-    # roda numa instância efêmera separada, ANTES da nova instância receber tráfego, com a
-    # instância antiga ainda no ar. Mas a Render só oferece esse recurso em planos pagos
-    # ("The pre-deploy command is available for paid web services, private services, and
-    # background workers" — https://render.com/docs/deploys) e este serviço está em `plan: free`
-    # (linha acima) até o workspace ter cartão cadastrado. Sem preDeployCommand disponível, migrar
-    # o schema como parte do `startCommand` (abaixo) é a alternativa correta: a instância nova só
-    # passa no healthCheckPath (linha ~24) depois que `prisma migrate deploy` terminar com sucesso,
-    # então o Render continua roteando tráfego para a instância antiga enquanto isso —
-    # preserva a garantia real (nunca servir tráfego contra schema desatualizado, nunca subir com
-    # migração pendente) mesmo sem a zero-downtime "instância efêmera separada" do plano pago.
-    startCommand: npx prisma migrate deploy && npm run start
+    # preDeployCommand (Render "Pre-Deploy Command") roda numa instância efêmera separada, ANTES
+    # da nova instância receber tráfego, com a instância antiga ainda no ar — só disponível em
+    # planos pagos ("The pre-deploy command is available for paid web services, private services,
+    # and background workers" — https://render.com/docs/deploys). Com o plano starter, a migration
+    # sai do startCommand e vai para cá: zero-downtime de verdade, em vez de rodar embutida no
+    # startCommand (alternativa usada enquanto o serviço estava em plan: free).
+    preDeployCommand: npx prisma migrate deploy
+    # Sem seed de bootstrap aqui: o seed de Market Intelligence (load-company-seed.mjs) foi
+    # removido junto com o módulo (ver refactor(market-intelligence) nesta mesma branch) — não há
+    # mais nenhum bootstrap de dados a rodar antes do servidor subir.
+    startCommand: npm run start
     # Bate no endpoint com checagem real de banco (SELECT 1), não só "processo respondeu" — ver
     # server.ts. Corrigido de /api/health (rota inexistente; cai no 404 genérico de /api/*) para
     # /health/ready.
@@ -33,14 +35,19 @@ services:
         value: production
       - key: HOST
         value: 0.0.0.0
-      # Banco Postgres gerenciado externamente (Supabase). Cole a Session Pooler connection string
-      # (porta 5432, aws-0-<region>.pooler.supabase.com) — funciona tanto para o tráfego da
-      # aplicação quanto para o preDeployCommand acima. Ver docs/deploy/producao.md secao 1.
+      # Banco Postgres gerenciado externamente (Neon, projeto prospector-atlas, região
+      # aws-us-east-1 — ver docs/deploy/producao.md secao 1). DUAS roles com poderes diferentes,
+      # diferente do Supabase (lá uma role só bastava): a role padrão que o Neon cria por
+      # provisionamento (prospector_app) sempre vem com BYPASSRLS forçado pela plataforma — não dá
+      # pra tirar via SQL nem é segura para tráfego de aplicação. DATABASE_URL usa a role
+      # `prospector_runtime` (criada via SQL puro, sem BYPASSRLS — RLS realmente se aplica),
+      # dono só de DML (SELECT/INSERT/UPDATE/DELETE), NUNCA DDL.
       - key: DATABASE_URL
         sync: false
-      # Opcional: só necessária se a Session Pooler apresentar problema com advisory locks do
-      # Prisma migrate — aponte para a Direct Connection (db.<ref>.supabase.co:5432) nesse caso.
-      # Sem esta variável, prisma.config.ts cai automaticamente para DATABASE_URL.
+      # Obrigatória no Neon (diferente do Supabase, onde era opcional): prisma.config.ts usa
+      # DIRECT_URL com prioridade sobre DATABASE_URL para o Prisma CLI (migrate/generate — ver
+      # preDeployCommand acima). Aponte para a role `prospector_app` (dona das tabelas, tem DDL) —
+      # `prospector_runtime` não tem privilégio para CREATE/ALTER TABLE e a migration falharia.
       - key: DIRECT_URL
         sync: false
       # Obrigatórias em produção (NODE_ENV=production) — src/config/env.ts recusa subir sem elas.
@@ -74,6 +81,17 @@ services:
         sync: false
       - key: BIRTH_VOICES_WEBHOOK_SECRET
         sync: false
+      # "Entrar com Google" (Better Auth) — sem estas duas o botão simplesmente não funciona
+      # (são opcionais no schema, não derrubam o boot), mas o checklist pós-deploy de
+      # docs/deploy/producao.md secao 7 cobra login Google funcionando.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # Sem ela, /admin/queues (BullBoard) e /metrics ficam permanentemente fail-closed mesmo
+      # para ADMIN de tenant — ver .env.example.
+      - key: PLATFORM_OPERATOR_TOKEN
+        sync: false
       - key: ENABLE_SEARCH
         value: "false"
       - key: ENABLE_QUEUES
@@ -95,6 +113,30 @@ services:
       - key: STORAGE_ACCESS_KEY_ID
         sync: false
       - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      # SMTP — envio real de e-mail (reset de senha, notificações). Achado real de finalização
+      # (2026-09-04): estas 6 variáveis nunca estiveram declaradas no Blueprint, então o serviço
+      # de produção nunca teve SMTP configurado — confirmado tecnicamente reproduzindo o fluxo de
+      # reset de senha localmente (POST /api/auth/request-password-reset gera e valida o token
+      # corretamente; o único ponto que falha sem estas variáveis é o envio do e-mail em si,
+      # src/lib/email/mailer.ts lança MailerNotConfiguredError). Sem SMTP_HOST configurado no
+      # Render, todo usuário que solicitar redefinição de senha recebe a resposta genérica de
+      # sucesso (correta, evita enumeração de e-mail) mas NUNCA recebe o e-mail — causa raiz mais
+      # provável da issue #158 ("login e redefinição de senha indisponíveis em produção").
+      # Declarar aqui não ativa nada sozinho (sync: false — requer o operador colar o valor real
+      # no dashboard do Render); o objetivo é fazer o Blueprint sync seguinte já sinalizar a
+      # variável como pendente, em vez de continuar ausente e invisível.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
         sync: false
 
   # Worker dedicado (worker.ts, Onda 6 Agente 16) — processa as filas BullMQ + o cron de
@@ -118,8 +160,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Mesmo banco do serviço web — ver docs/deploy/producao.md secao 1. Não crie uma segunda
-      # connection string separada; aponte para o mesmo Supabase.
+      # Mesmo banco do serviço web (Neon) — ver docs/deploy/producao.md secao 1. Não crie uma
+      # segunda connection string separada. startCommand roda `prisma migrate deploy` direto (sem
+      # preDeployCommand aqui), então DIRECT_URL (role prospector_app, com DDL) é obrigatória —
+      # DATABASE_URL sozinha (role prospector_runtime) não tem privilégio pra migrar o schema.
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
@@ -155,5 +199,7 @@ services:
       # worker for ativado — omitidas aqui de propósito porque as filas que as usam
       # (SDR_COLD_CALL_ENABLED/SWARM_SCHEDULER_ENABLED) começam desligadas.
 
-# Sem bloco `databases:` de propósito — o Postgres é externo (Supabase), não provisionado pelo
-# Render. Ver docs/deploy/producao.md secao 1 para criar o projeto e obter as connection strings.
+# Sem bloco `databases:` de propósito — o Postgres é externo (Neon), não provisionado pelo
+# Render. Ver docs/deploy/producao.md secao 1 para o projeto e as connection strings (duas roles:
+# prospector_app para DDL/migrations via DIRECT_URL, prospector_runtime para tráfego via
+# DATABASE_URL).

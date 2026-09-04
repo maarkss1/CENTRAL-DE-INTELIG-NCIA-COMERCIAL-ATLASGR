@@ -27,6 +27,7 @@ import {
   type BlockerSignal,
   type CoachingRubricOutput,
   COACHING_DIMENSION_LABELS,
+  SUGGESTION_STATUS_LABEL,
 } from '../copilotoIa.api';
 
 interface ConversationDetailDrawerProps {
@@ -393,7 +394,7 @@ export function ConversationDetailDrawer({
                                   : 'warning'
                         }
                       >
-                        {suggestion.status}
+                        {SUGGESTION_STATUS_LABEL[suggestion.status]}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">

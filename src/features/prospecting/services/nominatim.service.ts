@@ -42,6 +42,7 @@ async function fetchNominatim(query: string, count: number): Promise<NominatimPl
       headers: NOMINATIM_HEADERS,
     },
     10_000,
+    ['nominatim.openstreetmap.org'],
   );
 
   if (!res.ok) {

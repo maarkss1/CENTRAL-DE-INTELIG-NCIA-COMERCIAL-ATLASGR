@@ -103,6 +103,7 @@ async function fetchConnectedEmail(accessToken: string): Promise<string> {
       headers: { Authorization: `Bearer ${accessToken}` },
     },
     15_000,
+    ['www.googleapis.com'],
   );
   if (!response.ok) {
     // AppError (não Error genérico): sem isso, o errorHandler global substitui a mensagem por
@@ -272,6 +273,7 @@ export async function getUpcomingCalendarEvents(
       headers: { Authorization: `Bearer ${accessToken}` },
     },
     15_000,
+    ['www.googleapis.com'],
   );
 
   if (response.status === 401) {
@@ -283,6 +285,7 @@ export async function getUpcomingCalendarEvents(
         headers: { Authorization: `Bearer ${accessToken}` },
       },
       15_000,
+      ['www.googleapis.com'],
     );
   }
 
@@ -343,6 +346,7 @@ export async function createCalendarEvent(
       body: JSON.stringify(eventPayload),
     },
     15_000,
+    ['www.googleapis.com'],
   );
 
   if (response.status === 401) {
@@ -362,6 +366,7 @@ export async function createCalendarEvent(
         body: JSON.stringify(eventPayload),
       },
       15_000,
+      ['www.googleapis.com'],
     );
   }
 

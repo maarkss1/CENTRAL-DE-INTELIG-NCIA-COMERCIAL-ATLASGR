@@ -89,7 +89,7 @@ async function searchGithubOrganizationsUncached(
     const res = await fetchWithProviderRetry(
       `${GITHUB_API_BASE}/search/users?${params.toString()}`,
       { headers: GITHUB_HEADERS },
-      { timeoutMs: 10_000, providerName: 'GitHub-SearchOrgs' },
+      { timeoutMs: 10_000, providerName: 'GitHub-SearchOrgs', allowedHosts: ['api.github.com'] },
     );
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -143,7 +143,7 @@ async function getGithubOrganizationProfileUncached(
     const res = await fetchWithProviderRetry(
       `${GITHUB_API_BASE}/orgs/${encodeURIComponent(login)}`,
       { headers: GITHUB_HEADERS },
-      { timeoutMs: 10_000, providerName: 'GitHub-OrgProfile' },
+      { timeoutMs: 10_000, providerName: 'GitHub-OrgProfile', allowedHosts: ['api.github.com'] },
     );
     if (!res.ok) {
       const text = await res.text().catch(() => '');

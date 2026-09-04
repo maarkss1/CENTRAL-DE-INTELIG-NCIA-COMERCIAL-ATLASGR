@@ -36,6 +36,9 @@ export async function searchSearXNG(query: string, maxRecords = 5): Promise<News
       `${searxngUrl}/search?${params.toString()}`,
       { headers: { Accept: 'application/json' } },
       4_000,
+      // Host vem de env var (decisão do operador, não de um request) — validamos contra o
+      // próprio valor configurado, não uma lista fixa (instância auto-hospedada, endereço varia).
+      [new URL(searxngUrl).hostname],
     );
     if (!res.ok) return [];
     const data = (await res.json()) as {
@@ -92,6 +95,7 @@ export async function searchCompanyNews(companyName: string): Promise<NewsMentio
       `${GDELT_DOC_API}?${params.toString()}`,
       { headers: { Accept: 'application/json' } },
       10_000,
+      ['api.gdeltproject.org'],
     );
 
     if (!res.ok) {

@@ -21,16 +21,29 @@ function getMeetContext() {
   };
 }
 
-function publishContext() {
-  chrome.runtime.sendMessage({ type: 'ATLAS_MEET_CONTEXT', payload: getMeetContext() }).catch(() => {});
-}
+// Depois que a extensão é recarregada/atualizada (comum em desenvolvimento — `chrome://extensions`
+// → recarregar), qualquer aba do Meet que já estava aberta fica com uma cópia ANTIGA deste script,
+// cujo `chrome.runtime` foi invalidado — `sendMessage` nesse estado lança SÍNCRONO (antes de
+// devolver a Promise), então só `.catch()` no retorno não pega. `contextInvalidated` para de
+// tentar de vez (e desliga o observer) assim que confirma isso, em vez de martelar um erro não
+// tratado a cada mutação do DOM (o Meet muda o DOM o tempo inteiro) até a aba ser recarregada.
+let contextInvalidated = false;
 
-publishContext();
+function publishContext() {
+  if (contextInvalidated) return;
+  try {
+    chrome.runtime.sendMessage({ type: 'ATLAS_MEET_CONTEXT', payload: getMeetContext() }).catch(() => {});
+  } catch {
+    contextInvalidated = true;
+    observer.disconnect();
+  }
+}
 
 // O título/URL do Meet mudam depois que a reunião conecta (ex.: título só aparece após entrar na
 // sala) — reobserva o DOM em vez de publicar só uma vez no carregamento da página.
 const observer = new MutationObserver(() => publishContext());
 observer.observe(document.documentElement, { subtree: true, childList: true });
+publishContext();
 
 // ─── Indicador persistente de captura ──────────────────────────────────────
 // AGENT_04/PROMPT_EXTENSAO_CHROME exigem indicador visível na própria página enquanto uma sessão
