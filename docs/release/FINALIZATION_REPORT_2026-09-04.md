@@ -5,9 +5,11 @@
   `5cd0a2d`, com merge de `origin/main` de volta para dentro desta branch mais tarde na sessão — ver
   nota de continuidade)
 - **SHA inicial (observado, confirmado real):** `5cd0a2d28b4f87b06710fa3d580171a3ef853fcf`
-- **SHA final:** `a7d174cfbb0c310858ffb990becd87e09bff7646` (merge commit; `main` real avançou para
-  `8e3c6b2` durante esta sessão — ver nota de continuidade — e foi reconciliado nesta branch antes
-  do push final)
+- **SHA final:** `ef5f1f05829e442604fa1f0217eec0861ecb140d` — **CI oficial 100% verde neste commit**
+  (todos os 16 checks do PR #344, incluindo `application gate` completo com E2E, `CodeQL`, `Trivy`,
+  `SonarQube`, `Dependency Review`, secret scan). `main` avançou 2 vezes durante esta sessão
+  (`8e3c6b2` e depois `9eafae2`) e foi reconciliado nesta branch via merge (`c6a32cd`) antes do push
+  final — ver nota de continuidade e achado #16.
 - **Executor:** sessão autônoma Claude Code (Fable 5.1, com uma troca para Sonnet 5 no meio da
   sessão — ver nota de continuidade abaixo).
 - **Critério:** código real > comportamento real > testes reais > configuração real > documentação
@@ -288,8 +290,9 @@ Achado confirmado por leitura de código + evidência real de log de produção 
    `prospector-atlas-worker` é gasto real, exige autorização explícita do dono do produto.
 3. **Fechar/reabrir issues e PRs** conforme recomendação das seções 1 e 2, após revisão humana deste
    relatório.
-4. **CodeQL/Trivy/SonarQube/Dependency Review/gitleaks reais** só rodam de verdade no CI oficial do
-   GitHub Actions após o push — confirmar verde lá antes do veredito final ser considerado definitivo.
+4. ~~CodeQL/Trivy/SonarQube/Dependency Review/gitleaks reais só rodam de verdade no CI oficial do
+   GitHub Actions após o push~~ — **CONCLUÍDO nesta sessão**: confirmado 100% verde no commit final
+   `ef5f1f0` (todos os 16 checks do PR #344, ver seção 13).
 5. **Cortar `DATABASE_URL`/`DIRECT_URL` de produção pro Neon** (documentado, ainda pendente por
    decisão de outra sessão — ver nota de continuidade e seção 10) — troca de banco de produção é
    ação de alto risco, fora do escopo de qualquer sessão automatizada decidir sozinha.
@@ -383,3 +386,11 @@ explícita (Redis+worker pago, SMTP real, corte de banco pro Neon), (b) escopo i
 coberto por esta missão (Market Intelligence, condicionado a #342), (c) achado incidental fora do
 escopo desta branch (segredos históricos pré-existentes, R9) — nenhum deles é um defeito de código
 desta sessão não corrigido.
+
+**Confirmação final, pós-push**: o CI oficial do GitHub Actions rodou por completo no commit final
+`ef5f1f0` do PR #344 e fechou **100% verde** — os 16 checks (`application gate` completo com E2E de
+85 specs, `build`, `CodeQL` python+javascript-typescript, `Trivy` gate de PR, `Dependency Review`,
+`SonarQube`, `secret scan`, `budget`/bundle, `k6 latency`, `validate`) todos `success` ou `skipped`
+como esperado, nenhuma falha. Isso não é mais uma expectativa — é o resultado real observado
+diretamente via `pull_request_read`/`get_check_runs` depois do push, a última peça de evidência que
+faltava para este veredito ser considerado definitivo.
