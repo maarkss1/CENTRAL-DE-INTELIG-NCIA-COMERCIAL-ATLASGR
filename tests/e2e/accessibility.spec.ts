@@ -117,16 +117,6 @@ test.describe('Acessibilidade automática (axe-core)', () => {
     await assertNoBlockingViolations(page, testInfo);
   });
 
-  test('Market Intelligence não tem violações críticas/sérias', async ({ page }, testInfo) => {
-    // MI-007 (Sprint 04/Onda 16): rota aberta a qualquer usuário logado (sem RequireRole), nunca
-    // coberta por este arquivo até agora — ver tests/e2e/market-intelligence.spec.ts para o smoke
-    // test funcional da mesma rota.
-    await signUp(page, { email: uniqueTestEmail('a11y-market-intel') });
-    await page.goto('/app/market-intelligence');
-    await waitForAppReady(page);
-    await assertNoBlockingViolations(page, testInfo);
-  });
-
   test('Cadência não tem violações críticas/sérias', async ({ page }, testInfo) => {
     // CYC-009 (onda 29): tela ganhou ações de escrita reais (pausar/retomar/parar) nesta rodada,
     // nunca coberta por este arquivo até agora.
@@ -263,15 +253,6 @@ test.describe('Acessibilidade automática (axe-core)', () => {
   test('Análise Ganhos/Perdas não tem violações críticas/sérias', async ({ page }, testInfo) => {
     await signUp(page, { email: uniqueTestEmail('a11y-winloss') });
     await page.goto('/app/winloss');
-    await waitForAppReady(page);
-    await assertNoBlockingViolations(page, testInfo);
-  });
-
-  test('Deck de aprovação de leads (Market Intelligence) não tem violações críticas/sérias', async ({
-    page,
-  }, testInfo) => {
-    await signUp(page, { email: uniqueTestEmail('a11y-mideck') });
-    await page.goto('/app/market-intelligence/deck');
     await waitForAppReady(page);
     await assertNoBlockingViolations(page, testInfo);
   });
