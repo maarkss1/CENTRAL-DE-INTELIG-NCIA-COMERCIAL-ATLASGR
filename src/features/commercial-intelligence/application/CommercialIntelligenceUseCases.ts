@@ -2,9 +2,8 @@
  * Fachada pública do módulo "Comercial Inteligente" (Revenue Command Center executivo).
  *
  * Esta classe NÃO contém mais lógica de negócio própria — ela só implementa a API pública estável
- * consumida por `CommercialIntelligenceController`, `CommercialIntelligenceAiService` e
- * `market-intelligence/server/economicScenario.service.ts`, delegando cada método a um módulo
- * coeso de `application/`:
+ * consumida por `CommercialIntelligenceController` e `CommercialIntelligenceAiService`, delegando
+ * cada método a um módulo coeso de `application/`:
  *
  * - `scoring/dealScoring.ts` — carrega negócios + histórico e aplica o Forecast Ponderado
  *   Explicável a cada um (`ScoredDeal`), a base comum de todo relatório.
