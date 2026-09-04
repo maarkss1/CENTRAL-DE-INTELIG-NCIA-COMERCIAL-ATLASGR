@@ -27,6 +27,7 @@ import { Worker, Queue, type Job } from 'bullmq';
 import { connection, queuesEnabled } from '../../../lib/queue/redis.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { assertAiBudgetNotExceeded } from '../../../lib/ai/budget.js';
+import { assertPiiExternalConsent } from '../../../shared/services/aiPiiConsent.service.js';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { getDownloadUrl } from '../../../lib/storage/index.js';
@@ -102,6 +103,29 @@ export async function runTranscribeConversationJob(
         { conversationId, organizationId },
         '[copiloto-ia] conversa sem áudio associado — nada para transcrever',
       );
+      return;
+    }
+    // Achado real de finalização (2026-09-04): `state.consentStatus` (checado por
+    // `CopilotoIaUseCases.startCapture`, ver comentário do arquivo) é o consentimento do
+    // PARTICIPANTE da reunião para SER GRAVADO — um eixo LGPD completamente diferente de
+    // `assertPiiExternalConsent`, que é a base legal da ORGANIZAÇÃO (tenant) para enviar PII a um
+    // provedor de IA externo (mesmo gate que já protege WhatsApp/SDR/Ops/Learning/Supervisor —
+    // ver guardrails.service.ts). Este worker envia o áudio real (Whisper) e o texto da conversa
+    // (extractConversationIntelligence/evaluateConversationCoaching) a provedores externos sem
+    // nenhuma checagem deste segundo eixo — corrigido aqui, fail-closed, mesmo padrão já usado em
+    // conversation-intelligence.service.ts (WhatsApp).
+    try {
+      assertPiiExternalConsent(organizationId);
+    } catch (error) {
+      logger.warn(
+        { err: error, conversationId, organizationId },
+        '[copiloto-ia] transcrição bloqueada: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.',
+      );
+      await repository.updateTranscriptionStatus(organizationId, conversationId, {
+        transcriptionError:
+          'Organização sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.',
+      });
+      await useCases.markFailed(organizationId, conversationId).catch(() => {});
       return;
     }
     if (!isWhisperConfigured()) {

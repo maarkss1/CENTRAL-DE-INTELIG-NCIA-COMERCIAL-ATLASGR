@@ -333,29 +333,27 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
       </section>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        {/* "Documentos comerciais" e "Saúde do CRM" mostram KPIs reais (contagem vinda de
-                    /api/crm/overview), mas o backend de orçamentos/propostas (crm360.routes.ts:
-                    /documents, /pipelines, /products) ainda não tem nenhuma tela própria no app —
-                    só esta visão geral foi construída. Virar onNavigate('documentos'/'configuracoes')
-                    levaria a uma rota inexistente, redirecionada de volta ao dashboard sem aviso.
-                    Mantemos o número real visível (conteúdo, não decorativo) e tiramos só a
-                    afirmação de clique — ver CLAUDE.md seção 6 (preservar conteúdo, remover só o
-                    que promete algo que não existe) e o item 6 da auditoria (registrado como
-                    "parcial": cockpit ligado e funcional, sub-telas de documentos/pipeline
-                    ainda não construídas). */}
-        <div
-          className="flex items-center justify-between rounded-2xl border border-line border-dashed bg-surface p-4 text-left opacity-80"
-          role="note"
-          aria-label="Documentos comerciais — tela dedicada ainda não disponível"
+        {/* "Documentos comerciais" ligado de verdade em 2026-09-04 (finalização de release):
+            /app/propostas (PropostasList.tsx) já existe, é uma tela real com CRUD funcional de
+            CrmCommercialDocument — só nunca tinha sido conectada aqui, deixando o card como uma
+            nota inerte mesmo com o destino pronto. onNavigate('propostas') mapeia para essa rota
+            (ver App.tsx, handleCrmOverviewNavigate).
+
+            "Saúde do CRM" continua como card informativo, não botão: não existe hoje nenhuma tela
+            de configuração de pipelines/etapas no app (grep confirmado) — ligar a um destino
+            inexistente reintroduziria a mesma promessa falsa que este card já evitava. Ver
+            CLAUDE.md seção 6 (preservar conteúdo real, nunca prometer o que não existe). */}
+        <button
+          type="button"
+          onClick={() => onNavigate('propostas')}
+          className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand/40"
         >
           <span>
             <strong className="block text-ink">Documentos comerciais</strong>
-            <small className="text-ink-2">
-              {data.kpis.pendingDocuments} em aberto · tela dedicada em breve
-            </small>
+            <small className="text-ink-2">{data.kpis.pendingDocuments} em aberto</small>
           </span>
-          <FileClock className="h-5 w-5 text-ink-2" />
-        </div>
+          <FileClock className="h-5 w-5 text-brand" />
+        </button>
         <button
           onClick={() => onNavigate('activities')}
           className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand/40"
@@ -373,7 +371,9 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
         >
           <span>
             <strong className="block text-ink">Saúde do CRM</strong>
-            <small className="text-ink-2">Pipelines e etapas · tela dedicada em breve</small>
+            <small className="text-ink-2">
+              Pipelines e etapas · configuração ainda não disponível
+            </small>
           </span>
           <Gauge className="h-5 w-5 text-ink-2" />
         </div>

@@ -196,7 +196,17 @@ export function LdrAccountIntelligence() {
                 LDR Atlas · Account Intelligence
               </span>
             </div>
-            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] md:text-4xl">
+            {/* Achado real de finalização (2026-09-04, axe-core/color-contrast): a regra global
+                `h1 { color: var(--ink) }` (@layer base, globals.css) sempre vence sobre a cor
+                herdada de um ancestral (`text-white` no <header> acima é aplicado ao <header>, não
+                ao <h1> — o navegador só herda uma cor quando nenhuma regra mais específica mira o
+                próprio elemento; um seletor de tag em @layer base já mira o <h1> diretamente).
+                Sem `text-white` explícito aqui, este h1 renderizava quase preto (--ink, #1a1513)
+                sobre o fundo escuro do header (bg-atlas-dark, #333333) — contraste 1.43:1, muito
+                abaixo do mínimo de 3:1 pra texto grande (mesma classe de bug do precedente DQA-19:
+                texto de baixo contraste sobre cor sólida). Título sobre superfície escura precisa
+                de cor explícita, não pode depender de herança. */}
+            <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white md:text-4xl">
               Empresa real → inteligência → próxima ação
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">

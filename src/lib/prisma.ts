@@ -15,7 +15,7 @@ import {
   decryptSensitiveResult,
 } from './crypto/piiFields.js';
 import { computeContactPiiIndexes } from './crypto/piiIndex.js';
-import { decryptField } from './crypto/secretFields.js';
+import { tryDecryptField } from './crypto/secretFields.js';
 const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || '';
 
 // Campos de credencial de integração cifrados em repouso (AES-256-GCM, ver
@@ -97,10 +97,15 @@ function decryptNestedContactPii(value: unknown, depth = 0): unknown {
   }
   if (typeof value === 'object') {
     const obj = value as Record<string, unknown>;
+    const id = typeof obj.id === 'string' ? obj.id : undefined;
     for (const field of CONTACT_PII_FIELDS) {
       const v = obj[field];
       if (typeof v === 'string' && v.startsWith('enc:v1:')) {
-        obj[field] = decryptField(v);
+        // tryDecryptField isola a falha a ESTE campo/registro em vez de derrubar toda a query
+        // (ver secretFields.ts) — incidente real de produção corrigido nesta rodada de
+        // finalização: um único Contact com PII indecifrável quebrava qualquer listagem de
+        // leads que o incluísse via relação aninhada.
+        obj[field] = tryDecryptField(v, { model: 'Contact', field, id });
       }
     }
     for (const key of Object.keys(obj)) {
