@@ -106,6 +106,7 @@ async function fetchWithRetry(
     retries: Math.max(0, attempts - 1),
     timeoutMs,
     providerName: 'BrasilAPI',
+    allowedHosts: ['brasilapi.com.br'],
   });
 }
 

@@ -118,6 +118,9 @@ export class SearchService {
           body: JSON.stringify({ q: query, filter: `organizationId = "${organizationId}"`, limit }),
         },
         3_000,
+        // Host vem de env var (decisão do operador, não de um request) — validamos contra o
+        // próprio valor configurado, não uma lista fixa (instância auto-hospedada, endereço varia).
+        [new URL(meilisearchUrl).hostname],
       );
       if (!res.ok) return null;
       const data = (await res.json()) as {

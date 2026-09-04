@@ -44,6 +44,8 @@ export interface ProviderRetryOptions {
   billable?: boolean;
   /** Override para testes — evita esperar de verdade no backoff. */
   sleep?: (ms: number) => Promise<void>;
+  /** Repassado a `fetchWithTimeout` — ver o comentário de `allowedHosts` em `lib/http.ts`. */
+  allowedHosts?: readonly string[];
 }
 
 /** Status HTTP que valem retry: 429 (rate limit, sempre transitório) e 5xx (erro do servidor upstream). */
@@ -104,13 +106,14 @@ export async function fetchWithProviderRetry(
     providerName = 'provider',
     billable = false,
     sleep = defaultSleep,
+    allowedHosts,
   } = options;
 
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetchWithTimeout(input, init, timeoutMs);
+      const res = await fetchWithTimeout(input, init, timeoutMs, allowedHosts);
 
       if (billable) {
         // Só volume de chamadas de fato disparadas (não fabricamos R$/USD — ver doc do

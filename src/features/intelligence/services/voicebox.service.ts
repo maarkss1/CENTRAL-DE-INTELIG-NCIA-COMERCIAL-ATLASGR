@@ -49,6 +49,9 @@ export async function synthesizeSpeech(text: string, language = 'pt'): Promise<B
       }),
     },
     30_000,
+    // Host vem de env var (decisão do operador, não de um request) — validamos contra o próprio
+    // valor configurado, não uma lista fixa (instância auto-hospedada, endereço varia).
+    [new URL(VOICEBOX_API_URL).hostname],
   );
 
   if (!response.ok) {

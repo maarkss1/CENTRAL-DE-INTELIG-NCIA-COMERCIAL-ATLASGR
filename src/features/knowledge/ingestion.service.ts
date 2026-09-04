@@ -12,6 +12,14 @@ const EMBEDDING_CONCURRENCY = 4;
 /** Teto de trechos por documento — evita que um PDF gigante consuma a cota de embeddings inteira. */
 const MAX_CHUNKS_PER_DOCUMENT = 400;
 
+/**
+ * Teto genérico de itens para `mapWithConcurrency` — a função é usada só com arrays já truncados a
+ * `MAX_CHUNKS_PER_DOCUMENT` (bem abaixo deste teto), mas o laço abaixo é escrito para nunca confiar
+ * apenas no comprimento do array de entrada (que, sendo genérico, poderia vir de um chamador futuro
+ * sem truncamento prévio) — sempre reclampado explicitamente contra uma constante fixa.
+ */
+const MAX_MAP_WITH_CONCURRENCY_ITEMS = 10_000;
+
 export interface IngestOptions {
   organizationId: string;
   title: string;
@@ -32,11 +40,14 @@ async function mapWithConcurrency<T, R>(
   limit: number,
   worker: (item: T, index: number) => Promise<R>,
 ): Promise<R[]> {
-  const results = new Array<R>(items.length);
+  // Reclampado explicitamente (nunca só `items.length` cru) — ver comentário de
+  // MAX_MAP_WITH_CONCURRENCY_ITEMS acima.
+  const itemCount = Math.min(items.length, MAX_MAP_WITH_CONCURRENCY_ITEMS);
+  const results = new Array<R>(itemCount);
   let cursor = 0;
 
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
+  const runners = Array.from({ length: Math.min(limit, itemCount) }, async () => {
+    while (cursor < itemCount) {
       const index = cursor++;
       results[index] = await worker(items[index], index);
     }
@@ -110,8 +121,12 @@ export class IngestionService {
       : chunks.map(() => null);
 
     let embeddingFailures = 0;
+    // Reclampado explicitamente (nunca só `chunks.length` cru) mesmo `chunks` já vindo truncado de
+    // `allChunks.slice(0, MAX_CHUNKS_PER_DOCUMENT)` acima — o laço nunca deve confiar apenas na
+    // truncagem de um array anterior para provar seu próprio limite.
+    const chunkCount = Math.min(chunks.length, MAX_CHUNKS_PER_DOCUMENT);
     await withRlsContext(async (tx) => {
-      for (let i = 0; i < chunks.length; i++) {
+      for (let i = 0; i < chunkCount; i++) {
         const embedding = embeddings[i];
         if (vectorReady && !embedding) embeddingFailures++;
 
@@ -220,10 +235,12 @@ export class IngestionService {
     // Só apaga os trechos antigos depois de ter os novos embeddings em mãos: se o provedor
     // estivesse fora, o documento ficaria sem nenhum trecho pesquisável.
     let embeddingFailures = 0;
+    // Reclampado explicitamente pelo mesmo motivo do comentário equivalente em `ingestText` acima.
+    const chunkCount = Math.min(chunks.length, MAX_CHUNKS_PER_DOCUMENT);
     await withRlsContext(async (tx) => {
       await tx.$executeRaw`DELETE FROM "DocumentChunk" WHERE "documentId" = ${documentId}`;
 
-      for (let i = 0; i < chunks.length; i++) {
+      for (let i = 0; i < chunkCount; i++) {
         const embedding = embeddings[i];
         if (vectorReady && !embedding) embeddingFailures++;
 
