@@ -78,11 +78,8 @@ locais (Docker), migrations aplicadas, papel `prospector_app` (NOSUPERUSER) boot
 | Build worker | `npm run build:worker` | ✅ PASS |
 | Budget de bundle | `npm run check:bundle-budget` | ✅ PASS |
 | Budget público | `npm run check:public-budget` | ✅ PASS |
-| E2E (Playwright) | `npm run test:e2e` | *(ver atualização abaixo — em execução no momento em que esta linha foi escrita)* |
+| E2E (Playwright) | `npm run test:e2e` | ⚠️ **79/85 PASS, 1 skipped, 5 BLOCKED por ambiente (evidência precisa abaixo) — 0 falhas de produto.** Primeira tentativa falhou 100% (`chromium_headless_shell-1234` ausente); causa raiz real: `PLAYWRIGHT_CHROMIUM_EXECUTABLE` exportado numa chamada de shell separada da que roda `playwright test` não atravessa — cada chamada do Bash tool é um shell novo. Corrigido exportando na MESMA chamada; suíte completa então rodou limpa. Os 5 restantes (`visual.spec.ts`: dashboard light/dark, Pipeline CRM light/dark, formulário de contato light) falham **só** com `Timeout... waiting for fonts to load` (nunca um diff de pixel real — nenhum `-actual`/`-diff` foi gerado) porque o Chromium pré-instalado deste sandbox não consegue completar a tunelagem HTTPS do proxy de egress até `fonts.gstatic.com`/`fonts.googleapis.com` (confirmado via `curl` = OK, `chromium.launch({ proxy })` direto = `net::ERR_ABORTED`, log do proxy mostrando `ws_closed_mid_exchange` pros mesmos hosts) — não é um defeito de TLS corrigível sem desabilitar verificação (proibido) nem um bug do produto. **BLOCKED por ambiente**, não por código — ver R8. |
 | CodeQL / Trivy / SonarQube / Dependency Review / gitleaks | — | **Não executáveis nesta sessão** (exigem o runner oficial do GitHub Actions; não há substituto local equivalente). Evidência indireta: os workflows correspondentes já passaram nos commits mais recentes de `main` antes desta missão (ver Fase Zero) — a branch de finalização precisa passar por eles de verdade no CI real após o push, antes do veredito final ser confirmado. |
-
-*(Esta tabela é atualizada com o resultado real do E2E assim que a suíte em background termina —
-ver continuação abaixo desta seção, antes do push final.)*
 
 ## 5. Smokes reais executados
 
@@ -232,6 +229,7 @@ Achado confirmado por leitura de código + evidência real de log de produção 
 | R5 | P2 | Issue #157 ("Invalid password") não 100% fechada — causa raiz de login em si não localizada no código atual, só a causa raiz do sintoma adjacente (rate-limit) | Sem acesso a credenciais de produção reais para reproduzir o incidente original exatamente como ocorreu em 18/08 |
 | R6 | P3 | `docker-publish.yml`/`pages build and deployment` corrigidos localmente mas não reexecutados no runner real do GitHub Actions | Exige push + execução real do workflow — só confirmável após o push desta branch |
 | R7 | P4 | `src/lib/queue/stalledLead.worker.ts` é código morto (não importado por `bootstrap/workers.ts` nem `worker.ts`), superado por `stagnation-scanner.service.ts`, mas continua no repositório com o mesmo bug de RLS do achado #10 | Zero impacto em produção (nunca executa); remoção é uma decisão de limpeza fora do pedido explícito desta missão — recomendado, não executado |
+| R8 | P3 (ambiente, não produto) | 5 de 85 specs E2E (`visual.spec.ts`, regressão de screenshot: dashboard light/dark, Pipeline CRM light/dark, formulário de contato light) não executam neste sandbox — travam em "waiting for fonts to load" porque o Chromium pré-instalado não completa a tunelagem HTTPS do proxy de egress até os hosts de fonte do Google (`fonts.googleapis.com`/`fonts.gstatic.com`) | Root-caused com evidência real (seção 4): não é diff de pixel (nenhum artefato de diff foi gerado, só timeout), não é código do produto, não é corrigível sem desabilitar verificação de TLS (proibido pelas regras desta sessão). Roda normalmente em CI real (GitHub Actions, sem este proxy) — confirmação definitiva só após o CI oficial rodar nesta branch |
 
 ## 12. Ações externas necessárias (fora do alcance do código)
 
