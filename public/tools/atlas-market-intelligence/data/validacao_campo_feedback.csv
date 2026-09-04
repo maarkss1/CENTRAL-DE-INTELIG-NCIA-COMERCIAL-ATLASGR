@@ -1,4 +1,0 @@
-territorio,uf,transportadora_sindicato_contatado,data_contato,existe_gr_local,gr_local_nome,atendimento_remoto,observacoes,status_validacao
-Salvador,BA,Sindcam-BA,2026-08-29,Nao,,Sim,"Atendidos por GRs de SP via remota",VALIDADO_BRANCO
-Feira de Santana,BA,Transportadora Exemplo,2026-08-29,Nao,,Sim,"Uso de GR propria ou matriz",VALIDADO_BRANCO
-Vitoria,ES,Sindicato ES,2026-08-29,Sim,GR Capixaba,Nao,"Encontramos uma GR pequena operando localmente",INVALIDADO_CONCORRENCIA

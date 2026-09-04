@@ -11,8 +11,7 @@ interface PageHeaderProps {
 /**
  * Cabeçalho padrão de tela: título + subtítulo + ícone opcional, usando os tokens do design
  * system (text-ink/text-ink-2) e a mesma hierarquia visual já usada em Analytics e Atividades.
- * Referenciado por MarketIntelligence.tsx; componha a partir daqui em telas novas em vez de
- * repetir o markup de h1/p em cada módulo.
+ * Componha a partir daqui em telas novas em vez de repetir o markup de h1/p em cada módulo.
  */
 export function PageHeader({ title, subtitle, icon, actions }: PageHeaderProps) {
   return (

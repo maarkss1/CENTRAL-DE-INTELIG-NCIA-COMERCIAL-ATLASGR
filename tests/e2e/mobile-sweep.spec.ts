@@ -13,7 +13,6 @@ const MODULES = [
   'objections_matrix',
   'chatbook',
   'intelligence',
-  'market-intelligence',
   'topic_training',
   'bitrix',
   'reports',

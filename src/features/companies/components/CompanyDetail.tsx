@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Building2,
@@ -16,7 +15,6 @@ import {
   Phone,
   ShieldCheck,
   AlertTriangle,
-  Radar,
   Clock,
   DollarSign,
 } from 'lucide-react';
@@ -45,7 +43,6 @@ function formatEstimatedRevenue(amount: number): string {
 }
 
 export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
-  const navigate = useNavigate();
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [enriching, setEnriching] = useState(false);
@@ -167,13 +164,6 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
               </div>
 
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => navigate(`/app/market-intelligence/accounts/${company.id}`)}
-                  className="flex items-center gap-2 bg-surface-2 border border-line text-ink px-5 py-2.5 rounded-2xl font-black text-sm hover:bg-surface transition-all cursor-pointer"
-                >
-                  <Radar className="w-4 h-4 text-ink-2" />
-                  Account 360
-                </button>
                 {/* Âmbar é a cor categórica de "ação de enriquecimento por IA" já estabelecida e
                     auditada em CompanyList.tsx (individual + em massa) — reaproveitada aqui em vez
                     do gradiente amber/orange/yellow-300 sem contraste verificado que existia antes. */}

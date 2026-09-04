@@ -1,11 +1,9 @@
-import { LdrAccountIntelligence } from '../features/market-intelligence/components/LdrAccountIntelligence';
+import { Navigate } from 'react-router-dom';
 
+/**
+ * Compatibilidade para favoritos antigos após a retirada de Market Intelligence do produto.
+ * A Prospecção é o destino funcional que permanece ativo para captação e enriquecimento.
+ */
 export function Ldr() {
-  return (
-    <div className="flex h-full min-h-0 flex-col bg-surface">
-      <div className="min-h-0 flex-1 overflow-auto">
-        <LdrAccountIntelligence />
-      </div>
-    </div>
-  );
+  return <Navigate to="/app/prospect" replace />;
 }

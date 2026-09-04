@@ -7,10 +7,10 @@ name: Endpoint Latency Budget
 #
 # Onda 42 (dossie CPI DEC-20 opcao A): acrescenta um segundo cenario, tests/load/
 # k6-crm-authenticated.js, contra rotas AUTENTICADAS reais do CRM (login real via Better Auth,
-# listagem de leads/empresas, criacao de atividade, relatorio de qualidade de dados) — cobre o
-# debito que ficava registrado em docs/development/PERFORMANCE_BUDGETS.md ("nenhuma rota
-# autenticada tinha latencia medida sob carga"). Roda na mesma app/mesmos service containers do
-# cenario de health check, sem subir infraestrutura nova.
+# listagem de leads/empresas e criacao de atividade) — cobre o debito que ficava registrado em
+# docs/development/PERFORMANCE_BUDGETS.md ("nenhuma rota autenticada tinha latencia medida sob
+# carga"). Roda na mesma app/mesmos service containers do cenario de health check, sem subir
+# infraestrutura nova.
 #
 # Nao e um required check do repositorio (nao bloqueia merge por branch protection) — roda em PR
 # que mexe no bootstrap do servidor/infra de health check, e tambem por schedule/dispatch para
@@ -29,8 +29,6 @@ on:
       - 'src/features/crm/**'
       - 'src/features/companies/**'
       - 'src/features/activities/**'
-      - 'src/features/market-intelligence/server/dataQualityReport.service.ts'
-      - 'src/features/market-intelligence/server/accountIntelligence.routes.ts'
       - 'src/shared/middlewares/authenticateToken.ts'
       - 'src/shared/middlewares/authorization.ts'
       - 'src/lib/auth.ts'
