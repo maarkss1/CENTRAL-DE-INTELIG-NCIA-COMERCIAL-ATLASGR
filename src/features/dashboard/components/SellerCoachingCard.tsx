@@ -76,7 +76,7 @@ export function SellerCoachingCard() {
       variants={fadeInUp}
       initial="hidden"
       animate="show"
-      className="p-6 rounded-card-lg border border-line bg-surface shadow-card"
+      className="p-5 rounded-card-lg border border-line bg-surface shadow-card"
     >
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">

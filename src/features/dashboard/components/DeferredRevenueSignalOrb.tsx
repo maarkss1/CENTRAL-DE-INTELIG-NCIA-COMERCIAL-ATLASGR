@@ -38,17 +38,17 @@ export function DeferredRevenueSignalOrb(props: DeferredRevenueSignalOrbProps) {
   }, []);
 
   return (
-    <div ref={hostRef} className="min-h-[20rem]" data-testid="revenue-signal-orb">
+    <div ref={hostRef} className="min-h-[16rem]" data-testid="revenue-signal-orb">
       {shouldLoad ? (
         <Suspense
           fallback={
-            <div className="min-h-[20rem] animate-pulse rounded-[1.6rem] border border-line bg-surface-2/60 shadow-card" />
+            <div className="min-h-[16rem] animate-pulse rounded-[1.6rem] border border-line bg-surface-2/60 shadow-card" />
           }
         >
           <RevenueSignalOrb {...props} />
         </Suspense>
       ) : (
-        <div className="min-h-[20rem] rounded-[1.6rem] border border-line bg-surface/80 shadow-card" />
+        <div className="min-h-[16rem] rounded-[1.6rem] border border-line bg-surface/80 shadow-card" />
       )}
     </div>
   );

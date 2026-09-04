@@ -128,7 +128,7 @@ export function SinglePageDashboard() {
         />
       </div>
 
-      <div className="relative z-[1] w-full max-w-[92rem] space-y-6">
+      <div className="relative z-[1] w-full max-w-[92rem] space-y-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div data-testid="dashboard-greeting">
             <p className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] text-brand-active dark:text-brand-2">
@@ -169,7 +169,7 @@ export function SinglePageDashboard() {
           <GlowChart data={dashboard?.monthly ?? []} error={dashboardError} />
 
           {statsError ? (
-            <div className="flex min-h-[20rem] flex-col justify-between rounded-[1.6rem] border border-critical/25 bg-critical/10 p-5 shadow-card">
+            <div className="flex min-h-[16rem] flex-col justify-between rounded-[1.6rem] border border-critical/25 bg-critical/10 p-5 shadow-card">
               <div className="flex items-start gap-3 text-sm text-critical">
                 <div className="rounded-xl border border-critical/20 bg-critical/10 p-2.5">
                   <AlertTriangle className="h-5 w-5" />
@@ -190,7 +190,7 @@ export function SinglePageDashboard() {
               </button>
             </div>
           ) : statsLoading || !stats ? (
-            <div className="min-h-[20rem] animate-pulse rounded-[1.6rem] border border-line bg-surface-2/60 shadow-card" />
+            <div className="min-h-[16rem] animate-pulse rounded-[1.6rem] border border-line bg-surface-2/60 shadow-card" />
           ) : (
             <DeferredRevenueSignalOrb
               conversionRate={stats.conversionRate}
@@ -244,7 +244,7 @@ export function SinglePageDashboard() {
         <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
           <RealtimeFeed />
 
-          <div className="rounded-[1.5rem] border border-line bg-surface p-6 shadow-[0_24px_55px_-40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.055)]">
+          <div className="rounded-[1.5rem] border border-line bg-surface p-5 shadow-[0_24px_55px_-40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.055)]">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand-active dark:text-brand-2">
