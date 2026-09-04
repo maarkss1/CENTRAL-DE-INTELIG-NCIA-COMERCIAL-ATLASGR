@@ -282,7 +282,12 @@ export async function fetchApolloCandidates(
         },
         body: JSON.stringify(body),
       },
-      { timeoutMs: 15_000, providerName: 'Apollo-OrganizationSearch', billable: true },
+      {
+        timeoutMs: 15_000,
+        providerName: 'Apollo-OrganizationSearch',
+        billable: true,
+        allowedHosts: ['api.apollo.io'],
+      },
     );
 
     if (!res.ok) {

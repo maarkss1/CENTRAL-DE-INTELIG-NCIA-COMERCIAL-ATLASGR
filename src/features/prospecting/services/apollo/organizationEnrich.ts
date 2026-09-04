@@ -32,7 +32,12 @@ export async function enrichOrganizationByDomain(
       {
         headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
       },
-      { timeoutMs: 15_000, providerName: 'Apollo-OrganizationEnrich', billable: true },
+      {
+        timeoutMs: 15_000,
+        providerName: 'Apollo-OrganizationEnrich',
+        billable: true,
+        allowedHosts: ['api.apollo.io'],
+      },
     );
 
     if (!res.ok) {

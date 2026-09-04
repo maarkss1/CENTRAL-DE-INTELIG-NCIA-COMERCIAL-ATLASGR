@@ -87,7 +87,12 @@ async function findEmailViaHunterUncached(
     const res = await fetchWithProviderRetry(
       `https://api.hunter.io/v2/email-finder?${params.toString()}`,
       {},
-      { timeoutMs: 12_000, providerName: 'Hunter-EmailFinder', billable: true },
+      {
+        timeoutMs: 12_000,
+        providerName: 'Hunter-EmailFinder',
+        billable: true,
+        allowedHosts: ['api.hunter.io'],
+      },
     );
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -153,7 +158,12 @@ async function findPeopleViaDomainSearchUncached(
     const res = await fetchWithProviderRetry(
       `https://api.hunter.io/v2/domain-search?${params.toString()}`,
       {},
-      { timeoutMs: 12_000, providerName: 'Hunter-DomainSearch', billable: true },
+      {
+        timeoutMs: 12_000,
+        providerName: 'Hunter-DomainSearch',
+        billable: true,
+        allowedHosts: ['api.hunter.io'],
+      },
     );
     if (!res.ok) {
       const text = await res.text().catch(() => '');
