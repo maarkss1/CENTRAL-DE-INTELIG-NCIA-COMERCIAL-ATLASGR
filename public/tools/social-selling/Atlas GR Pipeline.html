@@ -365,8 +365,8 @@
         '<td>' + escapeHtml(x.proximoPasso || '—') + '</td>' +
         '<td class="' + (over ? 'date-over' : '') + '">' + fmtDateBR(x.proximaData) + '</td>' +
         '<td class="actions">' +
-          '<button type="button" class="btn ghost small" data-edit="' + x.id + '">Editar</button> ' +
-          '<button type="button" class="btn ghost small" data-del="' + x.id + '">Excluir</button>' +
+          '<button type="button" class="btn ghost small" data-edit="' + escapeHtml(x.id) + '">Editar</button> ' +
+          '<button type="button" class="btn ghost small" data-del="' + escapeHtml(x.id) + '">Excluir</button>' +
         '</td>' +
       '</tr>';
     }).join('');
