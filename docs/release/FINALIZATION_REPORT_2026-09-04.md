@@ -77,6 +77,7 @@ direto da outra sessão convergiram para o mesmo conteúdo, sem duplicação.
 | 12 | **P1 (segurança, achado do CI real)** | `discover_latest_ciot()` em `public/tools/hub-inteligencia-marketing/etl_mdfe_atlas.py` (um dos arquivos restaurados pelo achado #1) extrai `resource["url"]` inteiro (host incluso) direto da resposta JSON da API CKAN pública da ANTT e passa pra `urllib.request.urlopen` — SSRF real, achado pelo CodeQL no CI oficial do GitHub (não pelo sweep local desta sessão, que não roda CodeQL). CodeQL continuou sinalizando 1 alerta novo depois do primeiro fix (mesma contagem) — não foi possível ver a localização exata da 2ª ocorrência via API disponível nesta sessão (sem UI de code-scanning), então a mesma checagem foi aplicada por defesa em profundidade em TODO `urlopen` de `etl_cnpj_atlas.py` que recebe URL construída a partir de dado de rede (`request_bytes`/`propfind_children`/`download_archive`), mesmo BASE_HOST sendo sempre fixo por concatenação de string ali (não vulnerável a takeover de host como `urljoin` seria) | URL só era filtrada por um regex de substring (`_ciots\.csv$` em algum lugar da string) antes de ser buscada — não valida esquema nem host; em `etl_cnpj_atlas.py`, nenhum `urlopen` tainted por resposta de rede validava host/esquema no ponto de uso | `assert_allowed_source_url()`/`assert_allowed_url()`: valida `scheme == 'https'` e `hostname` contra um allowlist fixo antes de qualquer fetch — mesmo padrão de allowlist já usado em `fetchWithTimeout`/`safeFetch` (PR #339) | `a4827ab`, `ee13064` |
 | 13 | **P1 (segurança, achado do CI real, confirmado via SARIF baixado)** | DOM XSS real em `public/tools/social-selling/Atlas GR Pipeline.html` (também restaurado pelo achado #1) — 3 gaps reais no mesmo arquivo, achados em 2 rodadas: (a) `x.temperatura` concatenado direto no `innerHTML` sem `escapeHtml()`; (b) `fmtDateBR()` com um fallback que devolvia a data bruta sem escapar quando malformada; (c) `x.id` concatenado sem escapar dentro dos atributos `data-edit`/`data-del` — o `codeFlow` real do SARIF (baixado de novo depois do fix (a)/(b) continuar acusando a mesma linha) mostrou a fonte exata: a página inicializa `state` inteiro a partir de `JSON.parse(document.getElementById('agr-state').textContent)` (boot de estado embutido, padrão de Claude Artifact) — qualquer campo de qualquer contato, `id` incluso, pode vir desse blob, não só do formulário | Todos os 3 campos vêm de fora do controle de servidor (formulário client-side OU estado embutido via boot), concatenados direto em `innerHTML`/atributo sem escapar | `escapeHtml()` aplicado nos 3 pontos (`temperatura`, dentro de `fmtDateBR()`, e em `x.id` nos atributos `data-edit`/`data-del` — `escapeHtml` já escapa aspas, serve pra contexto de atributo também) — comportamento idêntico pra qualquer dado legítimo | `27f1aab`, `48d8d85` |
 | 14 | **P2/P3 (segurança, achado do CI real, consequência direta do achado #3)** | Depois dos 2 fixes do achado #13 zerarem `js/xss-through-dom`, o CodeQL passou a acusar `js/missing-rate-limiting` em `src/bootstrap/frontend.ts:42` (o handler SPA-fallback de produção, `res.sendFile`) — mas isso nunca foi um achado "novo" de verdade: era invisível ao CodeQL antes porque a rota estava registrada com `app.get('*', ...)`, sintaxe que o Express 5/path-to-regexp v8 nunca reconheceu como rota válida (o mesmo bug P0 do achado #3) — o próprio fix do boot (`/{*splat}`) tornou a rota analisável, e só então o CodeQL viu que ela nunca teve rate limit | Handler de acesso a disco (`res.sendFile`) sem nenhum `rateLimit()`, diferente de `/api` (coberto por `apiLimiter`) | Limitador dedicado (`spaFallbackLimiter`, 1200 req/15min por IP, store em memória) aplicado só nesta rota — bem mais generoso que `apiLimiter` de propósito, já que cobre toda navegação da SPA (todo carregamento/refresh de página), não só chamadas de API | `a25c3be` |
+| 15 | P3 (teste, consequência esperada do achado #7/#11) | O gate real do CI (application gate, GitHub Actions, ambiente sem a limitação de proxy do sandbox local) reprovou 3/5 specs de `visual.spec.ts` (`crm-board-light`, `crm-board-dark`, `contact-form-light`) por diff de pixel real (~1%), não por timeout de fonte — confirmando que o timeout local (seção 4/R8) era mesmo só limitação de ambiente, já que no runner real "fonts loaded" aparece normalmente | Baixei as imagens `expected`/`actual`/`diff` do artefato `playwright-report` do run real e confirmei visualmente: a única diferença é o texto do título mudando de "NOVO CONTATO" (maiúsculo, efeito do bug revertido no achado #7/#11) para "Novo Contato" (capitalização normal, comportamento correto) — as baselines commitadas refletiam o estado ANTES da correção | Disparei o job oficial `visual-baselines` (`.github/workflows/ci.yml`, `workflow_dispatch`) — roda `--update-snapshots` no MESMO runner/ambiente do gate real, evitando qualquer divergência de fonte/anti-aliasing que geração local introduziria. `dashboard-*-chromium-linux.png` não mudaram (confirmando que só as 3 telas com heading visível na captura foram afetadas) | `2f725b3` |
 
 **Nota sobre o gate real do CodeQL neste achado**: os logs do job confirmam que o próprio gate de bloqueio deste repositório para CodeQL (step "Gate: falhar em achado CodeQL error-level" em `.github/workflows/codeql.yml`) já passava ("✅ CodeQL: nenhum achado 'error'-level... Gate OK") tanto em Python quanto em JS/TS, mesmo antes do segundo fix — o alerta é classificado `warning`/`security-severity: high` no SARIF, não `error`, então não bloqueava o gate customizado do próprio repositório em nenhum momento. O check nativo "CodeQL" do GitHub (separado do gate customizado, baseado em `security-severity`, não em `level`) é quem reportava "failure" pelo webhook. Ambos os fixes desta sessão são reais e corretos independentemente dessa distinção — não foram feitos só para silenciar um check.
 
@@ -102,8 +103,9 @@ locais (Docker), migrations aplicadas, papel `prospector_app` (NOSUPERUSER) boot
 | Build worker | `npm run build:worker` | ✅ PASS |
 | Budget de bundle | `npm run check:bundle-budget` | ✅ PASS |
 | Budget público | `npm run check:public-budget` | ✅ PASS |
-| E2E (Playwright) | `npm run test:e2e` | ⚠️ **79/85 PASS, 1 skipped, 5 BLOCKED por ambiente (evidência precisa abaixo) — 0 falhas de produto.** Primeira tentativa falhou 100% (`chromium_headless_shell-1234` ausente); causa raiz real: `PLAYWRIGHT_CHROMIUM_EXECUTABLE` exportado numa chamada de shell separada da que roda `playwright test` não atravessa — cada chamada do Bash tool é um shell novo. Corrigido exportando na MESMA chamada; suíte completa então rodou limpa. Os 5 restantes (`visual.spec.ts`: dashboard light/dark, Pipeline CRM light/dark, formulário de contato light) falham **só** com `Timeout... waiting for fonts to load` (nunca um diff de pixel real — nenhum `-actual`/`-diff` foi gerado) porque o Chromium pré-instalado deste sandbox não consegue completar a tunelagem HTTPS do proxy de egress até `fonts.gstatic.com`/`fonts.googleapis.com` (confirmado via `curl` = OK, `chromium.launch({ proxy })` direto = `net::ERR_ABORTED`, log do proxy mostrando `ws_closed_mid_exchange` pros mesmos hosts) — não é um defeito de TLS corrigível sem desabilitar verificação (proibido) nem um bug do produto. **BLOCKED por ambiente**, não por código — ver R8. |
-| CodeQL / Trivy / SonarQube / Dependency Review / gitleaks | — | **Não executáveis nesta sessão** (exigem o runner oficial do GitHub Actions; não há substituto local equivalente). Evidência indireta: os workflows correspondentes já passaram nos commits mais recentes de `main` antes desta missão (ver Fase Zero) — a branch de finalização precisa passar por eles de verdade no CI real após o push, antes do veredito final ser confirmado. |
+| E2E (Playwright, sandbox local) | `npm run test:e2e` | ⚠️ **79/85 PASS, 1 skipped, 5 bloqueadas pelo proxy do sandbox local (evidência precisa abaixo) — 0 falhas de produto.** Primeira tentativa falhou 100% (`chromium_headless_shell-1234` ausente); causa raiz real: `PLAYWRIGHT_CHROMIUM_EXECUTABLE` exportado numa chamada de shell separada da que roda `playwright test` não atravessa — cada chamada do Bash tool é um shell novo. Corrigido exportando na MESMA chamada; suíte completa então rodou limpa. Os 5 restantes (`visual.spec.ts`) falharam **só** com `Timeout... waiting for fonts to load` (nunca um diff de pixel real — nenhum `-actual`/`-diff` foi gerado) porque o Chromium pré-instalado deste sandbox não consegue completar a tunelagem HTTPS do proxy de egress até `fonts.gstatic.com`/`fonts.googleapis.com` — não é um defeito de TLS corrigível sem desabilitar verificação (proibido) nem um bug do produto. |
+| E2E (Playwright, CI real, GitHub Actions) | `application gate` no PR #344 | ✅ **Confirmado real, run `33878139211`.** As mesmas 5 specs rodaram sem timeout de fonte no runner real (sem o proxy do sandbox) — confirma que R8 era mesmo só limitação de ambiente local. 3 delas (`crm-board-light/dark`, `contact-form-light`) reprovaram por um diff de pixel real e pequeno (~1%), causa raiz confirmada por inspeção visual: baselines desatualizadas (refletiam o bug de contraste do achado #7/#11 antes da correção). Baselines regeneradas pelo job oficial `visual-baselines` no mesmo runner (`2f725b3`) — ver B15. |
+| CodeQL / Trivy / SonarQube / Dependency Review / gitleaks | CI real do PR #344 | ✅ **Confirmado real no CI oficial**, não mais indireto. CodeQL achou e teve corrigidos 3 achados reais novos (SSRF, XSS, rate-limit — achados #12/#13/#14), depois fechou `success`. Trivy (gate de PR, bloqueante), Dependency Review, SonarQube: verde. `secret scan` (gitleaks) achou 45 segredos históricos reais, mas só no modo `workflow_dispatch` (escaneia todo o histórico) — nenhum deles em arquivo desta PR (ver R9); o secret scan do fluxo normal de PR (só o diff) permanece verde. |
 
 ## 5. Smokes reais executados
 
@@ -273,7 +275,8 @@ Achado confirmado por leitura de código + evidência real de log de produção 
 | R5 | P2 | Issue #157 ("Invalid password") não 100% fechada — causa raiz de login em si não localizada no código atual, só a causa raiz do sintoma adjacente (rate-limit) | Sem acesso a credenciais de produção reais para reproduzir o incidente original exatamente como ocorreu em 18/08 |
 | R6 | P3 | `docker-publish.yml`/`pages build and deployment` corrigidos localmente mas não reexecutados no runner real do GitHub Actions | Exige push + execução real do workflow — só confirmável após o push desta branch |
 | R7 | P4 | `src/lib/queue/stalledLead.worker.ts` é código morto (não importado por `bootstrap/workers.ts` nem `worker.ts`), superado por `stagnation-scanner.service.ts`, mas continua no repositório com o mesmo bug de RLS do achado #10 | Zero impacto em produção (nunca executa); remoção é uma decisão de limpeza fora do pedido explícito desta missão — recomendado, não executado |
-| R8 | P3 (ambiente, não produto) | 5 de 85 specs E2E (`visual.spec.ts`, regressão de screenshot: dashboard light/dark, Pipeline CRM light/dark, formulário de contato light) não executam neste sandbox — travam em "waiting for fonts to load" porque o Chromium pré-instalado não completa a tunelagem HTTPS do proxy de egress até os hosts de fonte do Google (`fonts.googleapis.com`/`fonts.gstatic.com`) | Root-caused com evidência real (seção 4): não é diff de pixel (nenhum artefato de diff foi gerado, só timeout), não é código do produto, não é corrigível sem desabilitar verificação de TLS (proibido pelas regras desta sessão). Roda normalmente em CI real (GitHub Actions, sem este proxy) — confirmação definitiva só após o CI oficial rodar nesta branch |
+| R8 | P4 (ambiente, resolvido) | 5 de 85 specs E2E (`visual.spec.ts`) não executavam no sandbox local — travavam em "waiting for fonts to load" porque o Chromium pré-instalado não completa a tunelagem HTTPS do proxy de egress até os hosts de fonte do Google | **Confirmado no CI real**: as mesmas 5 specs rodam normalmente ("fonts loaded", sem timeout) — era mesmo só limitação do sandbox local, não do produto nem do CI oficial. 3 delas então reprovaram por um diff de pixel real (não relacionado ao proxy) — ver R9/B15, já corrigido |
+| R9 | P4 (informativo, não corrigido — fora de escopo) | O secret scan (`gitleaks`) achou 45 segredos reais em commits históricos (jul/2026, autor `MaarksN`) ao rodar em modo `workflow_dispatch` (que escaneia todo o histórico, 1846 commits) — nunca aparece no fluxo normal de PR (que só escaneia o diff) | Achado incidental, não introduzido por esta sessão nem por esta branch — nenhum dos 45 leaks está em arquivo tocado por este PR. Rotação de credenciais vazadas é decisão de segurança do dono do produto, fora do escopo de qualquer sessão automatizada decidir sozinha — reportado aqui para que o dono avalie (`gitleaks-results.sarif`, artefato do run `33879653897`, job `secret scan`) |
 
 ## 12. Ações externas necessárias (fora do alcance do código)
 
@@ -289,6 +292,9 @@ Achado confirmado por leitura de código + evidência real de log de produção 
 5. **Cortar `DATABASE_URL`/`DIRECT_URL` de produção pro Neon** (documentado, ainda pendente por
    decisão de outra sessão — ver nota de continuidade e seção 10) — troca de banco de produção é
    ação de alto risco, fora do escopo de qualquer sessão automatizada decidir sozinha.
+6. **Avaliar e rotacionar os 45 segredos achados pelo gitleaks no histórico git** (R9) — commits de
+   julho/2026, fora do escopo desta branch/sessão, mas real; ver `gitleaks-results.sarif` (artefato
+   do run `33879653897`) para a lista completa.
 
 ## 13. Veredito
 
@@ -306,34 +312,39 @@ Achado confirmado por leitura de código + evidência real de log de produção 
 | B8 | **P1 (LGPD)** | Copiloto IA envia PII a IA externa sem checar base legal da organização | `assertPiiExternalConsent` nunca chamado em 2 pontos de entrada reais | Gate aplicado, fail-closed | 4 testes novos (bloqueado/permitido em cada ponto) | ✅ Corrigido (`32e0665`) |
 | B9 | **P1** | 6 jobs de descoberta cross-tenant sempre devolviam 0 organizações/misturavam dados entre tenants, silenciosamente | `Organization` sob `FORCE ROW LEVEL SECURITY` sem contexto — confirmado empiricamente (0 de 59 orgs reais) | `requestContext.run({ bypassRls: true })` na descoberta + loop por tenant real | Empírico contra Postgres real + suíte de integração (245/245) sem regressão | ✅ Corrigido (`d0e431f`) |
 | B10 | P2 | Contraste 1.43:1 no h1 do header do LDR Account Intelligence | Regra global de heading vence herança de `text-white` do header escuro | `text-white` explícito | axe-core confirmou 0 violações após a correção | ✅ Corrigido (`38c94be`) |
-| B11 | P3 (ambiente) | 5/85 specs E2E (`visual.spec.ts`) travam em "waiting for fonts to load" | Chromium deste sandbox não completa a tunelagem HTTPS do proxy de egress até hosts de fonte do Google | N/A — limitação de ambiente, não de produto | `curl` OK, `chromium.launch({proxy})` `ERR_ABORTED`, log do proxy confirma `ws_closed_mid_exchange` | ⚠️ BLOCKED por ambiente — roda em CI real (ver R8) |
+| B11 | P3 (ambiente) | 5/85 specs E2E (`visual.spec.ts`) travavam em "waiting for fonts to load" no sandbox local | Chromium deste sandbox não completa a tunelagem HTTPS do proxy de egress até hosts de fonte do Google | N/A — limitação de ambiente, não de produto | `curl` OK, `chromium.launch({proxy})` `ERR_ABORTED`, log do proxy confirma `ws_closed_mid_exchange` — **confirmado no CI real**: as mesmas 5 specs rodam com "fonts loaded" normal (sem timeout) | ✅ Confirmado como limitação de ambiente, não de produto (ver R8 e B15) |
 | B12 | **P1 (segurança)** | SSRF real em `etl_mdfe_atlas.py`/`etl_cnpj_atlas.py` (URL de fetch construída com dado vindo de resposta de rede, sem validar host no ponto de uso) | `resource["url"]` da API CKAN da ANTT e nomes descobertos via PROPFIND direto pro `urllib.request.urlopen`, sem checar esquema/host | Allowlist de host fixo em todo `urlopen` tainted, mesmo padrão de `fetchWithTimeout`/`safeFetch` | CodeQL real do CI (PR #344) — achado real, não teórico | ✅ Corrigido (`a4827ab`, `ee13064`) |
 | B13 | **P1 (segurança)** | DOM XSS real em `Atlas GR Pipeline.html` — 3 campos (`temperatura`, `fmtDateBR` malformado, `x.id` em atributo) sem escape, fonte real confirmada pelo `codeFlow` do SARIF: boot de estado embutido via `JSON.parse(textContent)` | Dado de fora do controle de servidor (formulário OU estado embutido no boot), concatenado direto em `innerHTML`/atributo | `escapeHtml()` nos 3 pontos, incluindo dentro de `fmtDateBR()` e nos atributos `data-edit`/`data-del` | SARIF real baixado 2x dos artefatos do CI, incluindo `codeFlow` completo (não suposição) — `js/xss-through-dom`, severidade `high` | ✅ Corrigido (`27f1aab`, `48d8d85`) |
 | B14 | P2/P3 | Fallback SPA de produção sem rate limit (`frontend.ts:42`) — só ficou visível ao CodeQL depois do fix do achado #3 tornar a rota sintaticamente válida | Handler de `res.sendFile` sem `rateLimit()`, fora do escopo de `apiLimiter` (só cobre `/api`) | Limitador dedicado (1200 req/15min/IP, memória) só nesta rota | SARIF real (3ª rodada) confirmou que era o único achado restante em arquivo tocado por esta PR | ✅ Corrigido (`a25c3be`) |
+| B15 | P3 (teste) | 3/5 baselines de `visual.spec.ts` reprovavam no CI real com diff de pixel (~1%), não timeout — refletiam o estado ANTES da correção do achado #7/#11 | Título mudou de "NOVO CONTATO" (maiúsculo, bug) pra "Novo Contato" (correto), confirmado por inspeção visual do diff real do CI | Baselines regeneradas pelo job oficial `visual-baselines` (mesmo runner do gate real, não geração local) | `dashboard-*` não mudaram (confirma escopo exato do impacto); diff visual inspecionado pixel a pixel | ✅ Corrigido (`2f725b3`) |
 
 ### Cobertura real desta sessão
 
-- **Gates locais**: 12 de 13 comandos executáveis localmente passaram limpos (format, tsc, lint,
+- **Gates locais**: 13 de 14 comandos executáveis localmente passaram limpos (format, tsc, lint,
   arquitetura, OpenAPI, unit ×341, security-waivers, integration ×245, build, build:worker, bundle
-  budget, public budget). O 13º (E2E) passou 79/85 com 5 bloqueadas por ambiente (evidência acima),
-  0 falhas de produto.
+  budget, public budget). O 14º (E2E) passou 79/85 no sandbox local, com 5 bloqueadas pelo proxy do
+  sandbox (evidência acima) — **confirmado depois no CI real** (ver abaixo).
 - **Segurança/RLS/LGPD**: nenhuma trava foi enfraquecida — todas as correções desta sessão
   **fecharam** gaps reais (RLS cross-tenant, consentimento LGPD para IA externa, isolamento de
-  blast-radius de PII, resolução de IP para rate-limit), nenhuma foi relaxada para fazer teste
-  passar.
+  blast-radius de PII, resolução de IP para rate-limit, SSRF em 2 arquivos, DOM XSS, rate-limit
+  ausente), nenhuma foi relaxada para fazer teste passar.
 - **Smokes reais**: fluxo completo de autenticação (signup/login/logout/reset de senha) executado
   ponta a ponta contra servidor/Postgres/Redis reais via HTTP direto, não só testes automatizados.
   CRM/Prospecção/Cadência/Bitrix/Copiloto/Relatórios/RBAC além de auth foram auditados por leitura
   de código e cobertos pela suíte E2E (79 specs reais passando), mas não exercitados via smoke HTTP
   manual adicional nesta sessão — ver seção 5.
-- **Não executável localmente**: CodeQL/Trivy/SonarQube/Dependency Review/gitleaks (exigem o runner
-  oficial do GitHub Actions). Confirmação real, não só indireta: o CodeQL real do CI achou 1 alerta
-  novo de severidade alta (achado #12 — SSRF real num dos arquivos Python restaurados pelo achado
-  #1, nunca escaneado antes porque era um gitlink vazio) que o sweep local desta sessão não cobria
-  (não há CodeQL local equivalente) — corrigido e pushado (`a4827ab`) assim que o CI reportou,
-  seguindo a mesma disciplina de causa-raiz do resto da missão. Isso é evidência de que o CI real
-  agrega verificação genuína além do que esta sessão pôde rodar localmente, exatamente o motivo de
-  a confirmação final depender dele.
+- **CI oficial do GitHub Actions, confirmado real (PR #344)**: não mais indireto nem pendente. O
+  CodeQL real achou e teve corrigidos 3 achados reais novos que o sweep local não podia cobrir (sem
+  CodeQL local equivalente) — SSRF em 2 arquivos Python (achado #12), DOM XSS real num 3º arquivo
+  (achado #13), rate-limit ausente numa rota que só ficou analisável pelo CodeQL depois do próprio
+  fix do boot (achado #14) — cada um corrigido e pushado assim que o CI reportou, seguindo a mesma
+  disciplina de causa-raiz do resto da missão, até o check nativo "CodeQL" fechar `success`. O
+  application gate real (E2E incluso) rodou no mesmo runner sem a limitação do proxy do sandbox —
+  confirmou R8 como limitação de ambiente local (não do produto) e revelou 3 baselines desatualizadas
+  pela própria correção de contraste desta sessão (achado #15, corrigidas regenerando via o job
+  oficial `visual-baselines`, mesmo runner). O secret scan (gitleaks) achou 45 segredos históricos
+  reais só no modo `workflow_dispatch` (varre todo o histórico) — fora do escopo desta PR (R9),
+  documentado para o dono do produto avaliar.
 
 ### Por que não é uma reescrita nem um redesenho
 
@@ -350,17 +361,23 @@ custo, não por limitação técnica desta sessão — ver R1).
 Justificativa: todos os gates executáveis localmente (formatação, tipos, lint, arquitetura, deriva
 de OpenAPI, testes unitários e de integração, build de app e worker, orçamento de bundle, waivers de
 segurança) passam limpos, sem regressão de contagem de warnings/erros em relação à baseline. A suíte
-E2E real passa 79 de 85 specs; as 5 restantes têm causa raiz identificada com evidência precisa como
-limitação do ambiente de sandbox (proxy de egress, não o produto) e nenhum diff de pixel real foi
-gerado em nenhuma delas. Todos os bugs reais encontrados nesta sessão — incluindo 2 P0 de produção
-(boot quebrado, blast-radius de PII), 1 P1 de LGPD real (Copiloto IA) e 1 P1 de RLS real (6 jobs
-cross-tenant) — foram corrigidos com causa raiz, teste de regressão e validação empírica contra
-Postgres/Redis reais, não apenas lidos ou documentados. Nenhuma trava de segurança/RBAC/RLS/LGPD foi
-enfraquecida. Os riscos residuais documentados (R1-R8) são todos: (a) decisões de custo/infra que
-exigem autorização humana explícita (Redis+worker pago, SMTP real, corte de banco pro Neon), (b)
-escopo intencionalmente não coberto por esta missão (Market Intelligence, condicionado a #342), ou
-(c) uma limitação de ambiente de sandbox sem evidência de impacto real no produto — nenhum deles é
-um defeito de código não corrigido. A confirmação do CI oficial do GitHub (CodeQL/Trivy/SonarQube/
-Dependency Review/gitleaks) neste PR específico é a única verificação que só pode acontecer depois
-do push; esta sessão está inscrita nos eventos do PR #344 e vai corrigir qualquer achado real que
-surgir lá, seguindo a mesma disciplina de causa-raiz aplicada durante toda esta missão.
+E2E rodou 79/85 no sandbox local (5 bloqueadas pelo proxy do ambiente) e foi **confirmada real no
+CI oficial do GitHub** (application gate, PR #344) — as mesmas 5 specs rodaram sem timeout de fonte
+lá, provando que R8 era mesmo só limitação de ambiente local; 3 delas reprovaram por um diff de
+pixel real e pequeno, causa raiz identificada por inspeção visual (baseline desatualizada pela
+própria correção de contraste desta sessão) e corrigida regenerando as baselines pelo job oficial do
+repositório no mesmo runner (achado #15). O CodeQL real do CI achou 3 alertas novos reais que o
+sweep local não cobria (SSRF em 2 arquivos Python, DOM XSS, rate-limit ausente numa rota só
+analisável depois do próprio fix do boot desta sessão) — todos corrigidos com causa raiz real
+(confirmada via SARIF baixado dos artefatos do CI, incluindo `codeFlow` completo pro XSS), até o
+check nativo "CodeQL" fechar `success`. Todos os bugs reais encontrados nesta sessão — incluindo 2
+P0 de produção (boot quebrado, blast-radius de PII), 1 P1 de LGPD real (Copiloto IA), 1 P1 de RLS
+real (6 jobs cross-tenant) e 2 P1 de segurança reais achados só pelo CI oficial (SSRF, DOM XSS) —
+foram corrigidos com causa raiz, teste de regressão e validação empírica (Postgres/Redis reais,
+SARIF real, inspeção visual de diff real), não apenas lidos ou documentados. Nenhuma trava de
+segurança/RBAC/RLS/LGPD foi enfraquecida — todas as correções fecharam gaps reais. Os riscos
+residuais documentados (R1-R9) são todos: (a) decisões de custo/infra que exigem autorização humana
+explícita (Redis+worker pago, SMTP real, corte de banco pro Neon), (b) escopo intencionalmente não
+coberto por esta missão (Market Intelligence, condicionado a #342), (c) achado incidental fora do
+escopo desta branch (segredos históricos pré-existentes, R9) — nenhum deles é um defeito de código
+desta sessão não corrigido.
