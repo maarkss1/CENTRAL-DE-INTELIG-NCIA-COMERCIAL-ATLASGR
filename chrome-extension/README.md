@@ -6,8 +6,11 @@ Extensão Manifest V3 real que fala com o backend do módulo Copiloto Comercial 
 ## O que já faz
 
 - Detecta o Google Meet (URL + título + código da reunião).
-- Vincula a reunião a um Lead existente da Central Atlas GR (o usuário informa o id do Lead —
-  busca por nome ainda não existe, é trabalho de uma próxima onda).
+- Vincula a reunião a um Lead existente da Central Atlas GR — por nome (busca incremental com
+  `GET /api/copiloto-ia/leads/search`, mostrando até 10 candidatos por título do Lead/nome do
+  Contato/razão social ou nome fantasia da Company), por e-mail do contato, por link de
+  lead/negócio do Bitrix24, ou colando o id cru da Central (`GET /api/copiloto-ia/leads/lookup`,
+  resolve para no máximo um resultado exato).
 - Captura e registra o consentimento (base legal da gravação, auditável em `AuditLog` via
   `COPILOTO_IA_CONSENT`).
 - **Grava o áudio real da aba do Meet** (Onda 3) — só depois de "Iniciar sessão de captura", nunca
@@ -24,11 +27,12 @@ Extensão Manifest V3 real que fala com o backend do módulo Copiloto Comercial 
 ## O que ainda NÃO faz (de propósito)
 
 - **Não fala com o Bitrix24.** Só chama o backend da Central — quem fala com o Bitrix é o backend
-  (ver `docs/BITRIX_FIELD_MAPPING.md`/`AGENT_08_BITRIX24.md` do pacote, ainda não implementado).
+  (mapeamento de campo + writeback real para `entityType: LEAD`, com aprovação humana, já
+  implementado na Onda 4 — ver `bitrix-field-mappings`/`crm-field-suggestions/:id/writeback` em
+  `routes/copilotoIa.routes.ts` e `AGENT_08_BITRIX24.md`/`docs/BITRIX_FIELD_MAPPING.md` do pacote).
 - **Não guarda segredo nenhum.** Autenticação é a sessão de navegador já aberta na Central Atlas GR
   (cookie do Better Auth, enviado via `credentials: 'include'`) — sem token/API key na extensão. A
   chave da OpenAI (Whisper) fica só no backend, nunca chega ao navegador.
-- **Não busca Lead por nome** — só por id, colado manualmente.
 
 ## Como testar localmente
 

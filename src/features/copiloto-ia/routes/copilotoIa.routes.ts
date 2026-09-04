@@ -24,6 +24,7 @@ function resolve(): CopilotoIaController {
 }
 
 router.get('/leads/lookup', (req, res, next) => resolve().lookupLead(req, res, next));
+router.get('/leads/search', (req, res, next) => resolve().searchLeads(req, res, next));
 router.post('/conversations', (req, res, next) => resolve().createConversation(req, res, next));
 router.get('/conversations', (req, res, next) => resolve().listConversations(req, res, next));
 router.get('/conversations/:id', (req, res, next) => resolve().getConversation(req, res, next));

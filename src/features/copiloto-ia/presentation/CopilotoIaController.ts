@@ -63,6 +63,17 @@ export class CopilotoIaController {
     }
   };
 
+  searchLeads = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const query = typeof req.query.q === 'string' ? req.query.q : '';
+      const leads = await this.useCases.searchLeads(organizationId, query);
+      res.json({ success: true, data: leads });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   createConversation = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;

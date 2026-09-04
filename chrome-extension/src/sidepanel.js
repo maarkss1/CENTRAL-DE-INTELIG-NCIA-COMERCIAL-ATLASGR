@@ -5,6 +5,7 @@ const errorBannerEl = document.getElementById('errorBanner');
 const meetTitleEl = document.getElementById('meetTitle');
 const meetUrlEl = document.getElementById('meetUrl');
 const leadIdEl = document.getElementById('leadId');
+const leadSearchResultsEl = document.getElementById('leadSearchResults');
 const linkLeadEl = document.getElementById('linkLead');
 const skipLeadEl = document.getElementById('skipLead');
 const consentCardEl = document.getElementById('consentCard');
@@ -22,6 +23,71 @@ let meetContext = null;
 /** Estado local espelhando `CopilotoConversation` — sempre re-sincronizado a partir da resposta
  * do backend após cada ação, nunca inferido/adivinhado no cliente. */
 let conversation = null;
+/** Lead escolhido na lista de busca por nome (`GET /leads/search`) — distinto do texto livre em
+ * `leadIdEl`, porque o título de um Lead não é um id/e-mail/URL válido para `lookupLead` resolver
+ * sozinho. Zerado sempre que o usuário volta a editar o campo, pra nunca vincular um Lead que não
+ * corresponde mais ao texto digitado. */
+let selectedLead = null;
+let leadSearchRequestId = 0;
+
+function clearLeadSearchResults() {
+  leadSearchResultsEl.hidden = true;
+  leadSearchResultsEl.innerHTML = '';
+}
+
+function renderLeadSearchResults(leads) {
+  leadSearchResultsEl.innerHTML = '';
+  if (!leads.length) {
+    leadSearchResultsEl.hidden = true;
+    return;
+  }
+  for (const lead of leads) {
+    const li = document.createElement('li');
+    const strong = document.createElement('strong');
+    strong.textContent = lead.title || lead.companyName || lead.contactName || lead.id;
+    const span = document.createElement('span');
+    span.textContent = [lead.companyName, lead.contactName].filter(Boolean).join(' · ');
+    li.append(strong, span);
+    li.addEventListener('click', () => {
+      selectedLead = lead;
+      leadIdEl.value = lead.title || lead.companyName || lead.id;
+      clearLeadSearchResults();
+    });
+    leadSearchResultsEl.append(li);
+  }
+  leadSearchResultsEl.hidden = false;
+}
+
+// Heurística de classificação usada só pra decidir SE busca por nome — a classificação real de
+// e-mail/URL do Bitrix/id (que decide COMO resolver) é feita no backend (`parseLeadLookupQuery`);
+// aqui só evita chamar `/leads/search` para algo que claramente não é um nome.
+function looksLikeNameQuery(query) {
+  return query.length >= 2 && !query.includes('@') && !/bitrix24\./i.test(query);
+}
+
+let leadSearchDebounce = null;
+leadIdEl.addEventListener('input', () => {
+  selectedLead = null;
+  clearTimeout(leadSearchDebounce);
+  const query = leadIdEl.value.trim();
+  if (!looksLikeNameQuery(query)) {
+    clearLeadSearchResults();
+    return;
+  }
+  const requestId = ++leadSearchRequestId;
+  leadSearchDebounce = setTimeout(async () => {
+    try {
+      const leads = await copilotoApi.searchLeads(query);
+      // Ignora resposta atrasada de uma busca antiga (usuário já digitou algo mais recente).
+      if (requestId !== leadSearchRequestId) return;
+      renderLeadSearchResults(leads || []);
+    } catch {
+      // Falha de busca-enquanto-digita não deve travar o fluxo — o usuário ainda pode colar
+      // e-mail/URL/id e clicar em "Vincular" normalmente.
+      if (requestId === leadSearchRequestId) clearLeadSearchResults();
+    }
+  }, 350);
+});
 
 function showError(message) {
   errorBannerEl.textContent = message;
@@ -169,13 +235,19 @@ async function startConversation(extra) {
 linkLeadEl.addEventListener('click', () =>
   withErrorHandling(async () => {
     const query = leadIdEl.value.trim();
-    if (!query) throw new Error('Informe o e-mail, o link do Bitrix24 ou o id do Lead antes de vincular.');
+    if (!query) throw new Error('Informe o nome, e-mail, o link do Bitrix24 ou o id do Lead antes de vincular.');
+    // Lead escolhido na lista de busca por nome já traz o id — não faz sentido mandar o título de
+    // volta pro backend tentar (de novo) classificar como e-mail/URL/id cru.
+    if (selectedLead && leadIdEl.value.trim() === (selectedLead.title || selectedLead.companyName || selectedLead.id)) {
+      await startConversation({ leadId: selectedLead.id });
+      return;
+    }
     // O backend aceita as três formas (e-mail do contato, URL de lead/negócio do Bitrix24, ou id
     // cru da Central) e resolve pra um leadId — a extensão nunca precisa saber qual das três é.
     const lead = await copilotoApi.lookupLead(query);
     if (!lead) {
       throw new Error(
-        'Nenhum Lead encontrado para isso na Central Atlas GR. Confira o e-mail/link/id, ou use "Capturar sem vincular a um Lead".',
+        'Nenhum Lead encontrado para isso na Central Atlas GR. Confira o nome/e-mail/link/id, ou use "Capturar sem vincular a um Lead".',
       );
     }
     await startConversation({ leadId: lead.id });

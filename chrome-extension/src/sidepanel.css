@@ -20,6 +20,12 @@ button.secondary:hover:not(:disabled) { background:#141f33; }
 .consent { display:flex; gap:8px; line-height:1.35; align-items:flex-start; }
 .consent input { width:auto; margin:2px 0 0; }
 .hint { font-size:12px; color:#94a3b8; }
+.lead-search-results { list-style:none; margin:-4px 0 10px; padding:0; border:1px solid #2b3a55; border-radius:10px; overflow:hidden; }
+.lead-search-results li { padding:9px 10px; font-size:13px; cursor:pointer; border-bottom:1px solid #1c2941; background:#0b1220; }
+.lead-search-results li:last-child { border-bottom:0; }
+.lead-search-results li:hover { background:#141f33; }
+.lead-search-results li strong { display:block; color:#f5f7fb; }
+.lead-search-results li span { color:#94a3b8; font-size:12px; }
 .error-banner { background:#7f1d1d; color:#fecaca; padding:10px 12px; border-radius:10px; margin-bottom:12px; font-size:13px; }
 .settings { margin-top:8px; }
 .settings summary { cursor:pointer; color:#94a3b8; font-size:13px; margin-bottom:8px; }
