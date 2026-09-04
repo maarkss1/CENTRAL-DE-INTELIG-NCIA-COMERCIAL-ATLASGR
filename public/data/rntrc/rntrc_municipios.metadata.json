@@ -1,0 +1,32 @@
+{
+  "dataset": "ANTT RNTRC",
+  "resource": {
+    "id": "42a9f5fb-494f-4ad8-acc3-e8d836dbf0c3",
+    "name": "Jul26 - RNTRC",
+    "url": "https://dados.antt.gov.br/dataset/b4a055d1-97a2-46f1-9461-cb17fbc6b6b3/resource/42a9f5fb-494f-4ad8-acc3-e8d836dbf0c3/download/transportadores_rntrc_07_2026.csv",
+    "last_modified": "2026-08-10",
+    "size": null,
+    "competence": "2026-07"
+  },
+  "downloadedAt": "2026-08-14T03:20:13.612749+00:00",
+  "rawSha256": "0c23cdf826bb3cd943827a5972b7a2b98cb4b5a3111d1feb80eec5ce382101eb",
+  "rawBytes": 158740046,
+  "ibgeCache": ".cache/market-intelligence/raw/ibge/municipios.json",
+  "output": "public/tools/atlas-market-intelligence/data/rntrc_municipios.json",
+  "outputSha256": "a7e9379fef70cd8bcfb57621defa72dae12bb2b7da4f2b8dc74c1b9218013eca",
+  "stats": {
+    "rows_processed": 1158159,
+    "rows_active": 899249,
+    "municipalities_matched": 5422,
+    "rows_unmatched_geography": 391,
+    "distinct_unmatched_geography": 12
+  },
+  "transformations": [
+    "filtro de situacao RNTRC ativa quando a coluna existe",
+    "normalizacao textual apenas para lookup",
+    "join municipio+UF contra cadastro IBGE",
+    "agregacao municipal por codigo IBGE",
+    "contagem ETC/TAC/CTC e ETC equiparada"
+  ],
+  "sourcePage": "https://dados.antt.gov.br/dataset/rntrc/resource/42a9f5fb-494f-4ad8-acc3-e8d836dbf0c3"
+}
