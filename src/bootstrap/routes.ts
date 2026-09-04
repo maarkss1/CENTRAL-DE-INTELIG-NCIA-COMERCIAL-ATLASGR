@@ -23,7 +23,7 @@ import { eventsRoutes } from '../features/analytics/routes/events.routes.js';
 import { commercialIntelligenceRoutes } from '../features/commercial-intelligence/routes/commercialIntelligence.routes.js';
 import { copilotoIaRoutes } from '../features/copiloto-ia/routes/copilotoIa.routes.js';
 import { whatsappRoutes } from '../features/integrations/whatsapp/whatsapp.routes.js';
-import { birthVoiceRoutes } from '../features/integrations/birth-voice/coldCall.service.js';
+import { birthVoiceRoutes } from '../features/integrations/birth-voice/birthVoice.routes.js';
 import { googleRoutes } from '../features/integrations/google/google.routes.js';
 import { bitrixRoutes } from '../features/integrations/bitrix/bitrix.routes.js';
 import { teamRoutes } from '../features/team/routes/team.routes.js';
