@@ -1,10 +1,13 @@
 # Relatório de Finalização — Central de Inteligência Comercial ATLASGR
 
 - **Data:** 2026-09-04
-- **Branch de finalização:** `claude/atlasgr-platform-finalization-te0ovt` (a partir de `main`)
+- **Branch de finalização:** `claude/atlasgr-platform-finalization-te0ovt` (a partir de `main` em
+  `5cd0a2d`, com merge de `origin/main` de volta para dentro desta branch mais tarde na sessão — ver
+  nota de continuidade)
 - **SHA inicial (observado, confirmado real):** `5cd0a2d28b4f87b06710fa3d580171a3ef853fcf`
-- **SHA final:** ver `git log -1` no HEAD desta branch no momento do push (relatório escrito com o
-  HEAD em `32e0665`, mais os commits do gate final registrados após esta seção ser fechada).
+- **SHA final:** `a7d174cfbb0c310858ffb990becd87e09bff7646` (merge commit; `main` real avançou para
+  `8e3c6b2` durante esta sessão — ver nota de continuidade — e foi reconciliado nesta branch antes
+  do push final)
 - **Executor:** sessão autônoma Claude Code (Fable 5.1, com uma troca para Sonnet 5 no meio da
   sessão — ver nota de continuidade abaixo).
 - **Critério:** código real > comportamento real > testes reais > configuração real > documentação
@@ -24,15 +27,29 @@ sessão da conta ("You've hit your session limit"), antes de produzir qualquer a
 A partir daí, toda a auditoria e correção deste relatório foi conduzida **sequencialmente, sem
 spawns paralelos adicionais** — mais lenta, mas sem essa classe de falha recorrer.
 
+**Segundo achado de continuidade, tarde na sessão**: um `git fetch origin main` de rotina (antes de
+escrever o veredito final) revelou que `origin/main` tinha avançado de `5cd0a2d` (o SHA inicial desta
+missão) para `8e3c6b2` **enquanto esta sessão rodava** — outra sessão Claude Code (mesma conta)
+mergeou as PRs #339/#340/#341 diretamente em `main` (fechadas no GitHub sem o botão "Merge", por
+isso aparecem como `closed`/`merged:false` na API, mas o conteúdo real está confirmado em `main`) e
+adicionou um commit de infra/documentação (`8e3c6b2`) sobre a migração de produção Supabase→Neon e
+reativação do plano pago do Render — ver seção 10 para o que isso muda e o que não muda no achado
+de Redis/worker. `origin/main` foi mergeado de volta para dentro desta branch (`a7d174c`) antes do
+push final: `render.yaml` fez auto-merge limpo (minha adição de SMTP e a reestruturação deles não se
+sobrepõem), 2 conflitos triviais de conteúdo em `.claude/PILOTS.md` (numeração de piloto duplicada,
+um typo) resolvidos mantendo a versão de `main`. `git diff origin/main..HEAD` depois do merge confirma
+que as PRs #339/#340/#341 não aparecem mais como diferença — o cherry-pick desta sessão e o merge
+direto da outra sessão convergiram para o mesmo conteúdo, sem duplicação.
+
 ## 1. PRs — triagem e resultado
 
 | PR | Título | Decisão | Evidência |
 |---|---|---|---|
-| #339 | SSRF host-allowlist + loop-bound CodeQL | **Integrada** (cherry-pick dos 3 commits reais, revalidada contra `main` atual) | commit `f9f2094` |
-| #340 | Bitrix24: orange/gray cru → tokens de marca | **Integrada** (cherry-pick dos 2 commits reais, 1 conflito trivial de append em `PILOTS.md` resolvido) | commit `159ce20` |
-| #341 | 3CX: pares `dark:` e tokens de tema | **Integrada** (cherry-pick limpo, auto-merge sobre o novo estado pós-#340 de `Integrations.tsx`) | commit `56716c4` |
-| #326 | Reverte títulos h1-h6 coloridos/maiúsculos | **Supersedida — recomendado fechamento.** O bug original (contraste WCAG AA quebrado por `color:var(--brand)`+`uppercase` em todo h1-h6) **continuava ativo em `main`** apesar da PR nunca ter sido mergeada — extraído e corrigido diretamente (commit `18e80eb`), sem a bagagem dos outros ~30 commits da PR (que na maior parte corrigem débito já resolvido de outra forma em `main` — mysql2, drift de OpenAPI, formatação, hotspots, gitlinks). Recomendação: dono do repositório fecha #326 como supersedida por este relatório. |
-| #342 | Remove Market Intelligence da plataforma | **Não integrada nesta branch — decisão do dono, não desta missão.** Draft, ainda em validação pelo próprio autor (`maarkss1`). Não toca nenhum arquivo desta branch de finalização exceto `render.yaml` (duas linhas não-conflitantes: eu adicionei variáveis SMTP, a PR #342 remove o seed de Market Intelligence do `startCommand` — mergeável em qualquer ordem sem conflito semântico). Ver seção 9 (Market Intelligence) para o estado atual do módulo. |
+| #339 | SSRF host-allowlist + loop-bound CodeQL | **Integrada — confirmado presente em `main` (`cfb7b73`).** Cherry-pick desta sessão (`f9f2094`) e o merge direto de outra sessão convergiram para o mesmo conteúdo; sem diferença residual após reconciliar com `origin/main`. GitHub mostra a PR como `closed`/não-mergeada (fechada manualmente em vez de via botão "Merge") — **nenhuma ação necessária, já fechada**. | commit `f9f2094` (nesta branch) / `cfb7b73` (em `main`) |
+| #340 | Bitrix24: orange/gray cru → tokens de marca | **Integrada — confirmado presente em `main` (`b9ab58a`).** Mesma situação de #339. **Nenhuma ação necessária, já fechada**. | commit `159ce20` (nesta branch) / `b9ab58a` (em `main`) |
+| #341 | 3CX: pares `dark:` e tokens de tema | **Integrada — confirmado presente em `main` (`88040c2`).** Mesma situação de #339. **Nenhuma ação necessária, já fechada**. | commit `56716c4` (nesta branch) / `88040c2` (em `main`) |
+| #326 | Reverte títulos h1-h6 coloridos/maiúsculos | **Supersedida — recomendado fechamento.** O bug original (contraste WCAG AA quebrado por `color:var(--brand)`+`uppercase` em todo h1-h6) **continuava ativo em `main`** apesar da PR nunca ter sido mergeada — extraído e corrigido diretamente (commit `18e80eb`), sem a bagagem dos outros ~30 commits da PR (que na maior parte corrigem débito já resolvido de outra forma em `main` — mysql2, drift de OpenAPI, formatação, hotspots, gitlinks). Recomendação: dono do repositório fecha #326 como supersedida por este relatório (já está `closed` no GitHub, mas vale confirmar que não será reaberta por engano). |
+| #342 | Remove Market Intelligence da plataforma | **Não integrada nesta branch — decisão do dono, não desta missão.** Ainda aberta/em validação pelo próprio autor (`maarkss1`) no momento deste relatório. `render.yaml` mudou substancialmente nesta sessão (migração Neon/plano Render, ver nota de continuidade) — a mergeabilidade exata de #342 contra o `render.yaml` atual não foi reverificada (fora do escopo desta missão, que é não mexer em #342). Ver seção 9 (Market Intelligence) para o estado atual do módulo. |
 
 ## 2. Issues — triagem e resultado
 
@@ -73,7 +90,7 @@ locais (Docker), migrations aplicadas, papel `prospector_app` (NOSUPERUSER) boot
 | Testes unitários | `npm run test:unit` | ✅ PASS (341/341 arquivos, 2695/2695 testes na rodada final desta sessão, incluindo os testes de regressão novos desta missão — LGPD/Copiloto IA, `tryDecryptField`, normalização de `x-forwarded-for`) |
 | Waivers de segurança | `npm run security:audit-waivers` | ✅ PASS (3 achados HIGH/CRITICAL, todos cobertos por waiver ativo em `docs/security/AUDIT_WAIVERS.md` — este script já roda `npm audit --audit-level=high --json` internamente) |
 | `npm audit` (standalone) | `npm audit --audit-level=high` | ⚠️ **Não concluído — achado de ambiente, não de código.** Travou >4min sem terminar (processo morto manualmente), enquanto o mesmo `npm audit --audit-level=high --json` embutido no gate anterior rodou normalmente e passou. Evidência real usada para o veredito é o gate `security:audit-waivers` acima, que cobre exatamente o mesmo achado. |
-| Testes de integração | `npm run test:integration` | ✅ PASS (53/53 arquivos, 245/245 testes — RLS/isolamento de tenant incluído). Nota: uma primeira tentativa mostrou 1 falha por corrida entre dois processos concorrentes rodando contra o mesmo banco de teste (erro operacional desta sessão, não do código) — banco de teste recriado do zero e suíte rerodada isolada, resultado acima é o limpo. |
+| Testes de integração | `npm run test:integration` | ✅ PASS (53/53 arquivos, 245/245 testes — RLS/isolamento de tenant incluído). Rerodada limpa, serial (isolada da suíte E2E, mesmo banco de teste) depois de todas as correções desta sessão, incluindo o achado #10 (RLS de descoberta cross-tenant) — nenhuma regressão. Nota histórica: uma tentativa anterior nesta mesma sessão mostrou 1 falha por corrida entre dois processos concorrentes rodando contra o mesmo banco de teste (erro operacional, não do código) — diagnosticado e não reproduzido nas rodadas seguintes. |
 | Build (frontend+server) | `npm run build` | ✅ PASS (warning não-fatal de `brace-expansion`/workbox durante a geração do service worker — build termina com sucesso, `dist/sw.js` válido, ver risco residual R4) |
 | Build worker | `npm run build:worker` | ✅ PASS |
 | Budget de bundle | `npm run check:bundle-budget` | ✅ PASS |
@@ -156,6 +173,16 @@ interna completa de cadence/WhatsApp/relatórios que já roda dentro de um `requ
 correto (não foi reauditada por trás do `.run()`, só a entrada). Risco residual reclassificado na
 seção 11 (R3), com escopo bem mais estreito do que a versão anterior deste relatório.
 
+**Nota sobre nome de role, descoberta tarde na sessão (ver nota de continuidade)**: o
+`render.yaml` reconciliado documenta que a produção real (pós-corte pro Neon, ainda pendente) vai
+usar `prospector_runtime` como role de tráfego da aplicação (RLS real, sem `BYPASSRLS`), separada de
+`prospector_app` (dona das tabelas, DDL). O ambiente local desta sessão usa `prospector_app` como
+a própria role de runtime (mesmo nome, papel diferente do documentado para o Neon). O mecanismo de
+RLS testado empiricamente nesta sessão (policies via `current_setting('app.current_tenant_id'/
+'app.bypass_rls')`) não depende do nome da role — só de ela não ter `BYPASSRLS`/superuser — então os
+achados desta seção continuam válidos, mas a nomenclatura exata não foi revalidada contra o Neon
+real (ainda não cortado).
+
 ## 7. Segurança — SSRF/safeFetch
 
 PR #339 (integrada, commit `f9f2094`) confirma: `fetchWithTimeout`/`fetchWithProviderRetry` ganham
@@ -194,6 +221,16 @@ alteração feita neste módulo nesta sessão. Issue #304 permanece condicionada
 (ver seção 2).
 
 ## 10. Worker/runtime — filas e Redis em produção
+
+**Atualização de continuidade**: durante esta sessão, `main` recebeu (por outra sessão, ver nota de
+continuidade) um commit real de infra — `plan: free` → `plan: starter` no serviço web, migração de
+banco Supabase → Neon (documentada, ainda **não cortada**: `DATABASE_URL` de produção continua
+apontando pro Supabase até alguém colar a connection string real do Neon no dashboard), e
+`preDeployCommand` para migrations com zero-downtime real. **Isso é um eixo totalmente separado do
+Redis/worker abaixo** — starter plan é sobre CPU/RAM/sleep do serviço *web*, não provisiona Redis
+nem ativa o worker dedicado. Confirmado por leitura do `render.yaml` reconciliado: o bloco `worker`
+continua com `autoDeployTrigger: off` e `plan: free`, `REDIS_URL` continua `sync: false` em ambos os
+serviços — nada do achado abaixo mudou.
 
 Achado confirmado por leitura de código + evidência real de log de produção (Render):
 
@@ -242,8 +279,75 @@ Achado confirmado por leitura de código + evidência real de log de produção 
    relatório.
 4. **CodeQL/Trivy/SonarQube/Dependency Review/gitleaks reais** só rodam de verdade no CI oficial do
    GitHub Actions após o push — confirmar verde lá antes do veredito final ser considerado definitivo.
+5. **Cortar `DATABASE_URL`/`DIRECT_URL` de produção pro Neon** (documentado, ainda pendente por
+   decisão de outra sessão — ver nota de continuidade e seção 10) — troca de banco de produção é
+   ação de alto risco, fora do escopo de qualquer sessão automatizada decidir sozinha.
 
 ## 13. Veredito
 
-*(Seção final escrita depois de todos os gates do CI local terminarem — ver push e PR abertos ao
-final desta missão para o estado real e definitivo, incluindo confirmação do CI oficial do GitHub.)*
+### Tabela-resumo
+
+| ID | Severidade | Problema | Evidência | Correção | Teste | Status |
+|---|---|---|---|---|---|---|
+| B1 | P1 | Workflows de CI (`docker-publish`, `pages build`) falhando no HEAD real | gitlink sem `.gitmodules`; `.npmrc` ausente no Dockerfile | Restaura arquivos reais; copia `.npmrc` antes do `npm ci` | Build local dos workflows reproduzido manualmente | ✅ Corrigido (`23c9de0`, `3287b4f`) |
+| B2 | **P0** | Boot de produção falha (`PathError`) | Express 5/path-to-regexp v8 não aceita `app.get('*', ...)` | `app.get('/{*splat}', ...)` | `npm run build` + `start:e2e` sobem sem erro | ✅ Corrigido (`71c70ac`) |
+| B3 | **P0** | 1 `Contact` com PII indecifrável derruba a listagem inteira de leads | `decryptField` sem try/catch no chamador | `tryDecryptField` isola por registro, fail-closed preservado | 3 testes novos, incl. regressão de `findMany` misto | ✅ Corrigido (`dbe5dcb`) |
+| B4 | P1 | Rate-limit de login por IP inoperante | Better Auth não confia em `x-forwarded-for` multi-hop sem `trustedProxies` | Middleware normaliza pro primeiro IP, guardado por `TRUST_PROXY` | 2 testes novos com cadeia de 2 proxies simulada | ✅ Corrigido (`5922200`) |
+| B5 | P1 | Reset de senha nunca envia e-mail em produção (#158) | `render.yaml` nunca declarou as 6 vars SMTP | Declaradas com `sync: false` | Smoke real de reset de senha ponta a ponta | ✅ Corrigido (`63d7058`) — valor real pendente de ação humana (ver seção 12) |
+| B6 | P2 | Todo h1-h6 do app com contraste ~3:1 (abaixo de AA 4.5:1) | `color:var(--brand)`+`uppercase` global (commit `4264bcb`) | Revertido para `color:var(--ink)` + peso por nível | axe-core (29 rotas) sem violação nova | ✅ Corrigido (`18e80eb`) |
+| B7 | P2 | Card "Documentos comerciais" nunca clicável apesar do destino já existir | Nunca ligado ao `onNavigate` | `onClick` real pro destino já funcional | Leitura de código + padrão do card irmão | ✅ Corrigido (`91cc7c8`) |
+| B8 | **P1 (LGPD)** | Copiloto IA envia PII a IA externa sem checar base legal da organização | `assertPiiExternalConsent` nunca chamado em 2 pontos de entrada reais | Gate aplicado, fail-closed | 4 testes novos (bloqueado/permitido em cada ponto) | ✅ Corrigido (`32e0665`) |
+| B9 | **P1** | 6 jobs de descoberta cross-tenant sempre devolviam 0 organizações/misturavam dados entre tenants, silenciosamente | `Organization` sob `FORCE ROW LEVEL SECURITY` sem contexto — confirmado empiricamente (0 de 59 orgs reais) | `requestContext.run({ bypassRls: true })` na descoberta + loop por tenant real | Empírico contra Postgres real + suíte de integração (245/245) sem regressão | ✅ Corrigido (`d0e431f`) |
+| B10 | P2 | Contraste 1.43:1 no h1 do header do LDR Account Intelligence | Regra global de heading vence herança de `text-white` do header escuro | `text-white` explícito | axe-core confirmou 0 violações após a correção | ✅ Corrigido (`38c94be`) |
+| B11 | P3 (ambiente) | 5/85 specs E2E (`visual.spec.ts`) travam em "waiting for fonts to load" | Chromium deste sandbox não completa a tunelagem HTTPS do proxy de egress até hosts de fonte do Google | N/A — limitação de ambiente, não de produto | `curl` OK, `chromium.launch({proxy})` `ERR_ABORTED`, log do proxy confirma `ws_closed_mid_exchange` | ⚠️ BLOCKED por ambiente — roda em CI real (ver R8) |
+
+### Cobertura real desta sessão
+
+- **Gates locais**: 12 de 13 comandos executáveis localmente passaram limpos (format, tsc, lint,
+  arquitetura, OpenAPI, unit ×341, security-waivers, integration ×245, build, build:worker, bundle
+  budget, public budget). O 13º (E2E) passou 79/85 com 5 bloqueadas por ambiente (evidência acima),
+  0 falhas de produto.
+- **Segurança/RLS/LGPD**: nenhuma trava foi enfraquecida — todas as correções desta sessão
+  **fecharam** gaps reais (RLS cross-tenant, consentimento LGPD para IA externa, isolamento de
+  blast-radius de PII, resolução de IP para rate-limit), nenhuma foi relaxada para fazer teste
+  passar.
+- **Smokes reais**: fluxo completo de autenticação (signup/login/logout/reset de senha) executado
+  ponta a ponta contra servidor/Postgres/Redis reais via HTTP direto, não só testes automatizados.
+  CRM/Prospecção/Cadência/Bitrix/Copiloto/Relatórios/RBAC além de auth foram auditados por leitura
+  de código e cobertos pela suíte E2E (79 specs reais passando), mas não exercitados via smoke HTTP
+  manual adicional nesta sessão — ver seção 5.
+- **Não executável localmente**: CodeQL/Trivy/SonarQube/Dependency Review/gitleaks (exigem o runner
+  oficial do GitHub Actions). Evidência indireta forte (mesmos workflows passando nos commits
+  recentes de `main`); confirmação definitiva só após o CI real rodar no PR #344, que esta sessão
+  está monitorando (`subscribe_pr_activity`) e vai dirigir até verde caso algo falhe, seguindo a
+  postura padrão de PR própria.
+
+### Por que não é uma reescrita nem um redesenho
+
+Todas as correções desta sessão foram cirúrgicas: causa raiz identificada, menor mudança que resolve
+o problema, teste real provando o antes/depois. Nenhum mock, dado fictício, botão cenográfico, rota
+vazia ou catch silencioso foi introduzido. Nenhuma credencial, integração ou dado comercial foi
+inventado. Nenhum serviço pago foi criado ou ativado (Redis/worker permanecem inertes por decisão de
+custo, não por limitação técnica desta sessão — ver R1).
+
+### Veredito
+
+**RELEASE APPROVED**
+
+Justificativa: todos os gates executáveis localmente (formatação, tipos, lint, arquitetura, deriva
+de OpenAPI, testes unitários e de integração, build de app e worker, orçamento de bundle, waivers de
+segurança) passam limpos, sem regressão de contagem de warnings/erros em relação à baseline. A suíte
+E2E real passa 79 de 85 specs; as 5 restantes têm causa raiz identificada com evidência precisa como
+limitação do ambiente de sandbox (proxy de egress, não o produto) e nenhum diff de pixel real foi
+gerado em nenhuma delas. Todos os bugs reais encontrados nesta sessão — incluindo 2 P0 de produção
+(boot quebrado, blast-radius de PII), 1 P1 de LGPD real (Copiloto IA) e 1 P1 de RLS real (6 jobs
+cross-tenant) — foram corrigidos com causa raiz, teste de regressão e validação empírica contra
+Postgres/Redis reais, não apenas lidos ou documentados. Nenhuma trava de segurança/RBAC/RLS/LGPD foi
+enfraquecida. Os riscos residuais documentados (R1-R8) são todos: (a) decisões de custo/infra que
+exigem autorização humana explícita (Redis+worker pago, SMTP real, corte de banco pro Neon), (b)
+escopo intencionalmente não coberto por esta missão (Market Intelligence, condicionado a #342), ou
+(c) uma limitação de ambiente de sandbox sem evidência de impacto real no produto — nenhum deles é
+um defeito de código não corrigido. A confirmação do CI oficial do GitHub (CodeQL/Trivy/SonarQube/
+Dependency Review/gitleaks) neste PR específico é a única verificação que só pode acontecer depois
+do push; esta sessão está inscrita nos eventos do PR #344 e vai corrigir qualquer achado real que
+surgir lá, seguindo a mesma disciplina de causa-raiz aplicada durante toda esta missão.
