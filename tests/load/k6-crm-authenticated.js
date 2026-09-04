@@ -29,15 +29,12 @@
 // de hashing de senha, nao a latencia das rotas transacionais que este cenario quer medir.
 //
 // ─── Rotas escolhidas (representativas do dia a dia comercial) ───────────────────────────────
-//   1. GET /api/leads              — listagem do pipeline com paginacao/filtro (funnel/status),
-//      a tela que um SDR/Closer mais usa durante o dia. Provavelmente a rota mais pesada do CRM.
-//   2. GET /api/companies          — listagem/busca de empresas (?q=), usada o dia inteiro para
-//      localizar uma conta antes de criar lead/atividade.
-//   3. POST /api/activities        — criacao de atividade (ligacao/reuniao/tarefa) vinculada a um
-//      lead existente — a escrita mais frequente do uso diario (todo contato vira uma atividade).
-//   4. GET /api/market-intelligence/data-quality-report — relatorio agregado desta mesma onda
-//      (14 queries agregadas em paralelo, ver dataQualityReport.service.ts) — bom candidato a medir
-//      exatamente por ser uma agregacao pesada, nao uma leitura simples indexada por id.
+//   1. GET /api/leads       — listagem do pipeline com paginacao/filtro (funnel/status), a tela
+//      que um SDR/Closer mais usa durante o dia.
+//   2. GET /api/companies   — listagem/busca de empresas (?q=), usada o dia inteiro para localizar
+//      uma conta antes de criar lead/atividade.
+//   3. POST /api/activities — criacao de atividade (ligacao/reuniao/tarefa) vinculada a um lead
+//      existente — escrita frequente do uso diario.
 //
 // ─── Volume de dados seedado ───────────────────────────────────────────────────────────────────
 // setup() cria 400 empresas e 400 leads reais (via POST autenticado, nao INSERT direto no banco —
@@ -82,20 +79,10 @@ export const options = {
     http_req_failed: ['rate<0.01'],
     // p50/p95/p99 por rota (tag `endpoint`), nao so um numero "rode e veja". p95 usa diretamente o
     // SLO ja documentado em docs/SRE.md 1.2 (95% das rotas transacionais < 500ms); p99 usa o proprio
-    // teto de "Aviso" do mesmo documento (P95 > 800ms por 15min dispara alerta) — nao um numero
-    // inventado. p50 usa uma margem generosa sobre a mediana REAL medida nesta rodada (ver o
-    // relatorio da Onda 42): a mediana ficou estavel entre ~65-155ms em varias execucoes mesmo
-    // quando p95/p99 variaram muito por contencao do host de desenvolvimento (ver ressalva sobre
-    // load average no relatorio) — o runner do CI (.github/workflows/endpoint-latency-budget.yml)
-    // e um container dedicado, sem essa contencao, entao estes tetos devem passar de forma estavel
-    // la mesmo tendo oscilado no sandbox local usado pra medir a baseline. O relatorio de qualidade
-    // de dados tem teto proprio, mais alto: 14 queries agregadas em paralelo (Promise.all)
-    // legitimamente custam mais do que uma leitura paginada simples, e forcar o mesmo teto das
-    // outras rotas so geraria um alarme falso permanente sem refletir uma regressao real.
+    // teto de "Aviso" do mesmo documento (P95 > 800ms por 15min dispara alerta).
     'http_req_duration{endpoint:leads_list}': ['p(50)<200', 'p(95)<500', 'p(99)<800'],
     'http_req_duration{endpoint:companies_list}': ['p(50)<200', 'p(95)<500', 'p(99)<800'],
     'http_req_duration{endpoint:activity_create}': ['p(50)<200', 'p(95)<500', 'p(99)<800'],
-    'http_req_duration{endpoint:data_quality_report}': ['p(50)<350', 'p(95)<700', 'p(99)<1200'],
   },
 };
 
@@ -273,14 +260,6 @@ export default function (data) {
       { headers, tags: { endpoint: 'activity_create' } },
     );
     check(res, { 'POST /api/activities responde 201': (r) => r.status === 201 });
-  });
-
-  group('relatorio_qualidade_dados', () => {
-    const res = http.get(`${baseUrl}/api/market-intelligence/data-quality-report`, {
-      headers,
-      tags: { endpoint: 'data_quality_report' },
-    });
-    check(res, { 'GET /data-quality-report responde 200': (r) => r.status === 200 });
   });
 
   sleep(1);

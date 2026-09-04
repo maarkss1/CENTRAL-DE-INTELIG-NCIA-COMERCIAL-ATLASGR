@@ -83,7 +83,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
           },
         ]
       : []),
-    { title: 'Captar', items: ['prospect', 'market-intelligence'] },
+    { title: 'Captar', items: ['prospect'] },
     {
       title: 'Qualificar',
       items: [

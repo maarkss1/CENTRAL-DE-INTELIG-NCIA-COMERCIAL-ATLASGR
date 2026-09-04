@@ -12,11 +12,6 @@ const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?.trim(
 
 export default defineConfig({
   testDir: './tests/e2e',
-  // Semeia fixtures globais (não-por-organização) que specs individuais não podem/devem criar
-  // sozinhas — ver comentário em tests/e2e/global-setup.ts sobre o achado real de flakiness que
-  // motivou isto (Deck de aprovação de leads dependendo de um MarketIntelligenceDataset ativo que
-  // nenhum spec/fixture jamais semeava).
-  globalSetup: './tests/e2e/global-setup.ts',
   // Os specs de auth/leads criam usuários/organizações reais no banco de testes de integração —
   // rodar em série evita duas rotinas de signup/CRUD pisando uma na outra na mesma tabela.
   fullyParallel: false,

@@ -29,10 +29,6 @@ import {
   scheduleDeduplicationJob,
 } from '../features/crm/jobs/deduplication.worker.js';
 import {
-  createAccountIntelligenceSchedulerWorker,
-  accountIntelligenceSchedulerQueue,
-} from '../features/market-intelligence/jobs/accountIntelligenceScheduler.worker.js';
-import {
   createWinLossAnalysisWorker,
   scheduleWinLossAnalysisJob,
 } from '../features/intelligence/services/winLossAnalysis.worker.js';
@@ -82,7 +78,6 @@ export interface EmbeddedWorkersHandle {
   autoAnonymizeWorker: CloseableWorker;
   coldLeadsScannerWorker: CloseableWorker;
   stagnationScannerWorker: CloseableWorker;
-  accountIntelligenceSchedulerWorker: CloseableWorker;
   /** Snapshot semanal do Forecast (Comercial Inteligente) — já registrado em worker.ts; aqui para o modo embutido não ficar sem ele. */
   forecastSnapshotWorker: CloseableWorker;
   /** Transcrição de conversa do Copiloto IA (Onda 3) — mesmo raciocínio do forecastSnapshotWorker acima. */
@@ -121,9 +116,6 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
     autoAnonymizeWorker: embeddedWorkersEnabled ? createAutoAnonymizeWorker() : null,
     coldLeadsScannerWorker: embeddedWorkersEnabled ? createColdLeadsScannerWorker() : null,
     stagnationScannerWorker: embeddedWorkersEnabled ? createStagnationScannerWorker() : null,
-    accountIntelligenceSchedulerWorker: embeddedWorkersEnabled
-      ? createAccountIntelligenceSchedulerWorker()
-      : null,
     forecastSnapshotWorker: embeddedWorkersEnabled ? createForecastSnapshotWorker() : null,
     copilotoTranscriptionWorker: embeddedWorkersEnabled
       ? createCopilotoTranscriptionWorker({ meetingSynthesisPort: new MeetingSynthesisService() })
@@ -162,13 +154,6 @@ export function startEmbeddedWorkers(): EmbeddedWorkersHandle {
     scheduleColdLeadsScannerJob().catch((err) =>
       logger.error({ err }, 'Falha ao agendar job do cold leads scanner'),
     );
-    accountIntelligenceSchedulerQueue
-      .upsertJobScheduler(
-        'daily-ldr-scheduler',
-        { pattern: '0 2 * * *' },
-        { name: 'accountIntelligenceScheduler', data: {} },
-      )
-      .catch((err) => logger.error({ err }, 'Falha ao agendar job do LDR scheduler'));
     scheduleStagnationScannerJob().catch((err) =>
       logger.error({ err }, 'Falha ao agendar job do stagnation scanner'),
     );

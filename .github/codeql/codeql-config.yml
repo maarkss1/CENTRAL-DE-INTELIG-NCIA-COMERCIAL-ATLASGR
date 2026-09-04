@@ -20,8 +20,6 @@ paths-ignore:
   - android/**/build
   - "**/*.min.js"
   - identidade-visual/**
-  - public/tools/atlas-market-intelligence/**/*.json
-  - public/tools/atlas-market-intelligence/**/*.csv
 
 # Política de falso positivo (ver scripts/security/check-codeql-sarif.ts e ITEM-10): uma regra
 # específica só pode ser excluída aqui com um comentário acima citando dono, data e motivo — nunca

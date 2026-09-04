@@ -22,10 +22,10 @@ services:
     # sai do startCommand e vai para cá: zero-downtime de verdade, em vez de rodar embutida no
     # startCommand (alternativa usada enquanto o serviço estava em plan: free).
     preDeployCommand: npx prisma migrate deploy
-    # O bootstrap de Market Intelligence roda depois das migrations (agora via preDeployCommand) e
-    # antes do servidor: sem seed versionado ele sai com status no-seed; com seed oficial ele
-    # publica CNPJ_ACTIVE atomicamente.
-    startCommand: node scripts/market-intelligence/load-company-seed.mjs && npm run start
+    # Sem seed de bootstrap aqui: o seed de Market Intelligence (load-company-seed.mjs) foi
+    # removido junto com o módulo (ver refactor(market-intelligence) nesta mesma branch) — não há
+    # mais nenhum bootstrap de dados a rodar antes do servidor subir.
+    startCommand: npm run start
     # Bate no endpoint com checagem real de banco (SELECT 1), não só "processo respondeu" — ver
     # server.ts. Corrigido de /api/health (rota inexistente; cai no 404 genérico de /api/*) para
     # /health/ready.

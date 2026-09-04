@@ -37,7 +37,7 @@ const BRAND_ORDER: Brand[] = ['atlasgr', 'totaltrac'];
 const FEATURES = [
   {
     icon: Building2,
-    text: 'Prospecção com CNPJ oficial, decisores mapeados e Market Intelligence',
+    text: 'Prospecção com CNPJ oficial e decisores mapeados',
   },
   { icon: ListChecks, text: 'Pipeline comercial com automações, propostas e Bitrix24' },
   { icon: Sparkles, text: 'Dojo de Vendas: treino comercial com IA e capacitação contínua' },

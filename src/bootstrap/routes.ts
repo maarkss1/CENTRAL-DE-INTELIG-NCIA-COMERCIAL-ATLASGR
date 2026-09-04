@@ -38,7 +38,6 @@ import {
   publicBookingRouter,
   privateBookingRouter,
 } from '../features/calendar/routes/booking.routes.js';
-import { accountIntelligenceRoutes } from '../features/market-intelligence/server/accountIntelligence.routes.js';
 import { lgpdRouter } from '../features/lgpd/lgpd.routes.js';
 import { featureFlagsRouter } from '../features/feature-flags/routes/featureFlags.routes.js';
 import { bugReportRouter } from '../features/bug-reports/routes/bugReport.routes.js';
@@ -137,9 +136,17 @@ export function mountFeatureRoutes(app: Express): void {
   app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
   app.use('/api/calendar/booking-links', privateBookingRouter);
   app.use('/api/calendar/book', publicBookingRouter);
-  // Rotas de inteligência de conta (LDR, /accounts/...) — checagem de papel própria
-  // (requireRole dentro do router).
-  app.use('/api/market-intelligence', authenticateToken, requireTenant, accountIntelligenceRoutes);
+
+  // Tombstone de compatibilidade do módulo aposentado. Nenhuma regra, dataset, worker ou serviço de
+  // Market Intelligence é carregado aqui. O prefixo permanece temporariamente apenas para que
+  // clientes antigos recebam uma resposta inequívoca (410 Gone), em vez de 404 ambíguo.
+  app.use('/api/market-intelligence', authenticateToken, requireTenant, (_req, res) => {
+    res.status(410).json({
+      success: false,
+      error: 'Market Intelligence foi removido desta plataforma.',
+      code: 'MARKET_INTELLIGENCE_RETIRED',
+    });
+  });
 
   // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
   // cair no fallback do Vite/SPA (mountFrontend, em frontend.ts): em dev, `vite.middlewares`

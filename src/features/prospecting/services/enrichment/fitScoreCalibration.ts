@@ -5,13 +5,13 @@
 // fit converteram Y% das vezes?" — auditoria encontrou que essa pergunta nunca era respondida
 // (fitScore.ts nunca olhava para won/lost real).
 //
-// Referência de padrão: `src/features/market-intelligence/domain/crmEconomicCalibration.ts`
-// (Agente 04/16) já resolve "calibrar com dado real sem inventar confiança" para o simulador
+// Referência de padrão: `crmEconomicCalibration.ts` (Agente 04/16, módulo Market Intelligence,
+// removido do produto) resolvia "calibrar com dado real sem inventar confiança" para o simulador
 // econômico de território — este módulo replica a mesma filosofia (níveis de qualidade amostral
 // explícitos: INSUFICIENTE/BAIXA/MEDIA/ALTA, nunca um número de confiança fabricado) para o Fit
 // Score de prospecção, mas com uma unidade de amostra diferente (fechamento de negócio por faixa
-// de score, não série mensal agregada) — por isso não importa/reusa o arquivo de
-// market-intelligence diretamente, só o padrão.
+// de score, não série mensal agregada) — por isso nunca importou/reusou o arquivo original, só o
+// padrão de design.
 //
 // Como o outcome real é associado a um fit score (schema real, ver prisma/schema.prisma):
 // - `Lead.status` já tem os dois estados terminais do funil Negócio: `Negocios_Ganhos` e
