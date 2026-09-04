@@ -1,9 +1,12 @@
 /**
- * Onda 7 — a extensão Chrome não tem busca de Lead por nome ainda (débito conhecido, ver
- * `chrome-extension/README.md`); em vez de exigir o id cru da Central colado à mão, aceita
- * também um e-mail do contato ou uma URL de lead/negócio do Bitrix24 — as duas formas que um
- * vendedor já tem à mão durante uma ligação/reunião. Função pura e determinística, sem I/O — só
- * classifica o texto digitado; quem resolve de fato é `PrismaCopilotoIaRepository.findLeadByLookup`.
+ * Onda 7 — classifica o texto que o usuário cola em `GET /leads/lookup` (extensão Chrome) para
+ * resolver a UM Lead exato: e-mail do contato, URL de lead/negócio do Bitrix24, ou id cru da
+ * Central — as formas que um vendedor já tem à mão durante uma ligação/reunião quando não quer
+ * (ou não consegue) digitar o nome. Busca por NOME, que pode retornar vários candidatos, é um
+ * fluxo separado (`GET /leads/search` → `searchLeadsByName`), porque um nome não classifica para
+ * um resultado único do jeito que e-mail/URL/id classificam. Função pura e determinística, sem
+ * I/O — só classifica o texto digitado; quem resolve de fato é
+ * `PrismaCopilotoIaRepository.findLeadByLookup`.
  */
 export type LeadLookupQuery =
   | { type: 'bitrix'; id: string }

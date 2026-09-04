@@ -66,8 +66,9 @@ export interface CreateConversationInput {
   contactId?: string;
 }
 
-/** Onda 7 — resultado de `findLeadByLookup`, resolvendo um Lead a partir de e-mail/URL do
- * Bitrix24/id cru digitado na extensão Chrome (que não tem busca por nome ainda). */
+/** Onda 7 — resultado de `findLeadByLookup` (um Lead a partir de e-mail/URL do Bitrix24/id cru)
+ * e de `searchLeadsByName` (candidatos por nome do Lead/Contato/Company), ambos usados pela
+ * extensão Chrome para vincular a reunião a um Lead sem precisar decorar o id. */
 export interface LeadLookupResultDTO {
   id: string;
   title: string | null;
@@ -275,6 +276,18 @@ export interface CopilotoIaRepository {
    * três formas resolve dentro desta organização.
    */
   findLeadByLookup(organizationId: string, query: string): Promise<LeadLookupResultDTO | null>;
+  /**
+   * Busca por nome (título do Lead, nome do Contato ou razão social/nome fantasia da Company),
+   * usada pela extensão Chrome quando o vendedor não tem e-mail/URL/id à mão — retorna múltiplos
+   * candidatos (nome não é único) para o usuário escolher, ao contrário de `findLeadByLookup`
+   * (resolve para no máximo um resultado exato). Limitado a `limit` resultados, mais recentes
+   * primeiro.
+   */
+  searchLeadsByName(
+    organizationId: string,
+    query: string,
+    limit: number,
+  ): Promise<LeadLookupResultDTO[]>;
   createConversation(
     organizationId: string,
     data: CreateConversationInput & { consentStatus: CopilotoConsentStatus; createdBy?: string },

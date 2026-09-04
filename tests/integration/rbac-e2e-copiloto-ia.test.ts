@@ -54,9 +54,14 @@ describe('RBAC ponta-a-ponta — Copiloto Comercial IA', () => {
   const createdUserIds: string[] = [];
   const createdOrgIds: string[] = [];
 
-  async function createLeadFor(user: RealSessionUser): Promise<string> {
+  async function createLeadFor(
+    user: RealSessionUser,
+    overrides?: Record<string, unknown>,
+  ): Promise<string> {
     const lead = await withRlsBypass(() =>
-      prisma.lead.create({ data: LeadFactory.build({ organizationId: user.organizationId }) }),
+      prisma.lead.create({
+        data: LeadFactory.build({ organizationId: user.organizationId, ...overrides }),
+      }),
     );
     return lead.id;
   }
@@ -77,7 +82,9 @@ describe('RBAC ponta-a-ponta — Copiloto Comercial IA', () => {
       createdOrgIds.push(u.organizationId);
     }
 
-    leadOfAdminA = await createLeadFor(adminA);
+    // Título distintivo (não gerado pelo faker) para exercitar GET /leads/search sem colidir com
+    // nomes aleatórios de outros testes rodando em paralelo contra o mesmo banco.
+    leadOfAdminA = await createLeadFor(adminA, { title: 'Frota Onda7 SearchTest LTDA' });
     leadOfGestorA = await createLeadFor(gestorA);
     leadOfCloserA = await createLeadFor(closerA);
     leadOfSdrA = await createLeadFor(sdrA);
@@ -215,6 +222,30 @@ describe('RBAC ponta-a-ponta — Copiloto Comercial IA', () => {
         .set('Cookie', adminA.cookie);
       expect(dealHealthListed.status).toBe(200);
       expect(dealHealthListed.body.data.length).toBeGreaterThanOrEqual(1);
+
+      // GET /leads/search (Onda 7) resolve por nome — ADMIN encontra o próprio Lead pelo título,
+      // e a organização B (mesmo termo de busca) não vê nada dele: RLS escopa a busca por tenant,
+      // não só o filtro explícito em `where`.
+      const searchByAdmin = await request(app)
+        .get('/api/copiloto-ia/leads/search?q=Onda7%20SearchTest')
+        .set('Cookie', adminA.cookie);
+      expect(searchByAdmin.status).toBe(200);
+      expect(
+        (searchByAdmin.body.data as Array<{ id: string }>).some((l) => l.id === leadOfAdminA),
+      ).toBe(true);
+
+      const searchByB = await request(app)
+        .get('/api/copiloto-ia/leads/search?q=Onda7%20SearchTest')
+        .set('Cookie', gestorB.cookie);
+      expect(searchByB.status).toBe(200);
+      expect(searchByB.body.data).toEqual([]);
+
+      // Query com menos de 2 caracteres é rejeitada antes de bater no banco (ver
+      // CopilotoIaUseCases.searchLeads).
+      const searchTooShort = await request(app)
+        .get('/api/copiloto-ia/leads/search?q=a')
+        .set('Cookie', adminA.cookie);
+      expect(searchTooShort.status).toBe(400);
 
       // Isolamento de tenant: organização B não vê conversas/lead/dealhealth de A, e A não
       // consegue criar conversa vinculada a um lead de B. Continua no MESMO `it()` acima de

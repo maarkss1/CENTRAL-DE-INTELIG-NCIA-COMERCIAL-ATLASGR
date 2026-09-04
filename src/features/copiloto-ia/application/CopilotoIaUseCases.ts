@@ -106,12 +106,23 @@ export class CopilotoIaUseCases {
   }
 
   /** Onda 7 — resolve um Lead a partir de e-mail/URL do Bitrix24/id cru, para a extensão Chrome
-   * (que não tem busca por nome ainda). `null` quando nada resolve — nunca lança 404, quem chama
-   * decide o que fazer (ex.: deixar o usuário colar o id manualmente). */
+   * (busca por nome, quando o texto não é nenhuma das três formas, é `searchLeads` abaixo).
+   * `null` quando nada resolve — nunca lança 404, quem chama decide o que fazer (ex.: deixar o
+   * usuário colar o id manualmente). */
   async lookupLead(organizationId: string, query: string): Promise<LeadLookupResultDTO | null> {
     const trimmed = query.trim();
     if (!trimmed) throw new AppError('Informe um e-mail, link do Bitrix24 ou id de Lead.', 400);
     return this.repository.findLeadByLookup(organizationId, trimmed);
+  }
+
+  /** Busca por nome do Lead/Contato/Company para a extensão Chrome (ver `LeadLookupResultDTO`).
+   * Exige ao menos 2 caracteres úteis para não escanear a tabela inteira a cada tecla digitada. */
+  async searchLeads(organizationId: string, query: string): Promise<LeadLookupResultDTO[]> {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      throw new AppError('Digite ao menos 2 caracteres para buscar por nome.', 400);
+    }
+    return this.repository.searchLeadsByName(organizationId, trimmed, 10);
   }
 
   async getConversation(

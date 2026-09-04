@@ -4893,6 +4893,20 @@ paths:
       responses:
         '200': { description: 'OK (data é null se nenhum Lead corresponder à consulta)', content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
 
+  /copiloto-ia/leads/search:
+    get:
+      tags: [Copiloto IA]
+      summary: >-
+        Busca por nome do Lead/Contato/Company (título, nome do contato, razão social ou nome
+        fantasia), retornando até 10 candidatos — ao contrário de /leads/lookup (e-mail/URL do
+        Bitrix24/id), que resolve para no máximo um resultado exato. Usada pela extensão Chrome
+        quando o vendedor busca pelo nome em vez de colar e-mail/link/id.
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string }, description: 'Mínimo de 2 caracteres.' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
   /copiloto-ia/leads/{leadId}/deal-health:
     parameters:
       - name: leadId
