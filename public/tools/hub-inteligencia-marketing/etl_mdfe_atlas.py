@@ -35,6 +35,7 @@ import math
 import re
 import time
 import unicodedata
+import urllib.parse
 import urllib.request
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -46,6 +47,23 @@ DEFAULT_SOURCE_PAGE = "https://www.gov.br/antt/pt-br/assuntos/cargas/dadostrc/mo
 CIOT_CKAN_PACKAGE = "https://dados.antt.gov.br/api/3/action/package_show?id=ciot"
 CIOT_SOURCE_PAGE = "https://dados.antt.gov.br/dataset/ciot"
 USER_AGENT = "AtlasGR-MarketIntelligence/1.0 (+data engineering)"
+# CodeQL (achado real de finalização, PR #344): `discover_latest_ciot` extrai `resource["url"]`
+# direto da resposta JSON da API CKAN da ANTT e usa esse valor num `urllib.request.urlopen`
+# seguinte -- URL vindo inteiro (host incluso) de uma resposta de rede, sem checar
+# esquema/host antes de buscar. O filtro anterior (regex `_ciots\.csv$` em algum lugar da
+# string) não impede um host arbitrário. Mesmo padrão de allowlist já usado em
+# `fetchWithTimeout`/`safeFetch` no app real (`src/shared/security/urlGuard.ts`, PR #339):
+# fixa o host esperado e recusa qualquer outro antes de buscar.
+CIOT_ALLOWED_HOSTS = {"dados.antt.gov.br"}
+
+
+def assert_allowed_source_url(url: str, allowed_hosts: set[str]) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme != "https" or parsed.hostname not in allowed_hosts:
+        raise RuntimeError(
+            f"URL de origem fora do host oficial esperado ({sorted(allowed_hosts)}): {url!r}"
+        )
+    return url
 
 ALIASES = {
     "municipio_origem": ["municipio_origem", "origem_municipio", "municipio_de_origem", "origem"],
@@ -82,7 +100,8 @@ def discover_latest_ciot() -> tuple[str, str]:
     if not candidates:
         raise RuntimeError("Nenhum recurso CSV CIOT encontrado no pacote oficial da ANTT")
     candidates.sort(key=lambda item: item[0], reverse=True)
-    return candidates[0][1], candidates[0][0]
+    best_url = assert_allowed_source_url(candidates[0][1], CIOT_ALLOWED_HOSTS)
+    return best_url, candidates[0][0]
 
 
 def download_with_retry(url: str, target: Path, attempts: int = 4, timeout: int = 300) -> None:
