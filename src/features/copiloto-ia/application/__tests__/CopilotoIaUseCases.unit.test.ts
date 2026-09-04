@@ -14,6 +14,7 @@ import type {
   CopilotoInsightDTO,
   CopilotoCoachingEvaluationDTO,
   CopilotoDealHealthSnapshotDTO,
+  LeadLookupResultDTO,
 } from '../../domain/CopilotoIa';
 import type { WhatsAppMessageTiming } from '../whatsappResponseTime';
 
@@ -69,6 +70,15 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
 
   async contactExists(_organizationId: string, id: string): Promise<boolean> {
     return !this.missingCrmEntityIds.has(id);
+  }
+
+  leadLookupResult: LeadLookupResultDTO | null = null;
+
+  async findLeadByLookup(
+    _organizationId: string,
+    _query: string,
+  ): Promise<LeadLookupResultDTO | null> {
+    return this.leadLookupResult;
   }
 
   async createConversation(
@@ -440,10 +450,14 @@ describe('CopilotoIaUseCases', () => {
   });
 
   describe('createConversation', () => {
-    it('exige ao menos um vínculo de CRM (lead/company/contact)', async () => {
+    it('permite criar sem nenhum vínculo de CRM (captura de propósito geral)', async () => {
+      // FakeCopilotoIaRepository.createConversation preenche leadId com o default de
+      // baseConversation() quando `data` não traz a chave — não é fidelidade ao Prisma real (que
+      // gravaria null), só confirma aqui que criar SEM leadId/companyId/contactId no input não é
+      // mais rejeitado (o que era o comportamento antes desta mudança).
       await expect(
         useCases.createConversation(ORG_ID, { source: 'MEET' }, 'user-1'),
-      ).rejects.toThrow('Informe ao menos um vínculo de CRM');
+      ).resolves.toMatchObject({ source: 'MEET' });
     });
 
     it('MEET/CALL exigem consentimento (consentStatus = PENDING)', async () => {
@@ -843,6 +857,30 @@ describe('CopilotoIaUseCases', () => {
       expect(stats.sampleCount).toBe(0);
       expect(stats.firstResponseMs).toBeNull();
       expect(stats.hasPendingResponse).toBe(false);
+    });
+  });
+
+  describe('lookupLead', () => {
+    it('rejeita query vazia sem chegar a chamar o repositório', async () => {
+      await expect(useCases.lookupLead(ORG_ID, '   ')).rejects.toThrow(
+        'Informe um e-mail, link do Bitrix24 ou id de Lead.',
+      );
+    });
+
+    it('devolve null quando o repositório não resolve nada, sem lançar 404', async () => {
+      repository.leadLookupResult = null;
+      await expect(useCases.lookupLead(ORG_ID, 'ninguem@nada.com')).resolves.toBeNull();
+    });
+
+    it('repassa o resultado do repositório quando resolve', async () => {
+      repository.leadLookupResult = {
+        id: 'lead-9',
+        title: 'Lead Teste',
+        companyName: 'Empresa Teste',
+        contactName: 'Fulano',
+      };
+      const result = await useCases.lookupLead(ORG_ID, 'fulano@empresa.com');
+      expect(result?.id).toBe('lead-9');
     });
   });
 });

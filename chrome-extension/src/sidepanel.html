@@ -26,13 +26,18 @@
 
     <section class="card">
       <h2>CRM (Bitrix24 via backend)</h2>
-      <label for="leadId">Id do Lead na Central Atlas GR</label>
-      <input id="leadId" type="text" placeholder="Cole o id do Lead (ex.: cl9x...)" />
+      <label for="leadId">Lead: e-mail do contato, link do Bitrix24 ou id</label>
+      <input
+        id="leadId"
+        type="text"
+        placeholder="ex.: contato@empresa.com, link do Bitrix ou id da Central"
+      />
       <p class="hint">
         A extensão nunca fala com o Bitrix24 diretamente — só com o backend da Central, que já tem
-        o lead sincronizado. Busca por nome chega numa próxima onda.
+        o lead sincronizado. Busca por nome (digitando o nome da empresa) chega numa próxima onda.
       </p>
       <button id="linkLead">Vincular reunião a este Lead</button>
+      <button id="skipLead" class="secondary">Capturar sem vincular a um Lead</button>
     </section>
 
     <section class="card" id="consentCard" hidden>
