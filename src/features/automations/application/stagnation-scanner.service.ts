@@ -132,11 +132,21 @@ export async function runStagnationScan(): Promise<StagnationScanResult> {
   let failures = 0;
 
   try {
-    // Automation está sob RLS (tenant-scoped) — listar candidatas de TODAS as organizações
-    // exige ir organização por organização com o contexto de tenant setado (Organization em si
-    // não é tenant-scoped, então dá para listar os ids sem RLS, mesmo padrão de
-    // `enabledOrganizations()`/cold-leads-scanner).
-    const organizations = await prisma.organization.findMany({ select: { id: true } });
+    // Achado real de finalização (2026-09-04): `Organization` TAMBÉM está sob
+    // `FORCE ROW LEVEL SECURITY` (mesma migration 20260722020322_enable_rls que cobre Company/
+    // Contact/Lead/Activity) — "não é tenant-scoped" (não tem organizationId, ELA é o tenant) não
+    // significa "sem RLS". Confirmado empiricamente contra o Postgres real deste worktree: sem
+    // nenhum contexto, `prisma.organization.findMany()` devolve 0 linhas mesmo havendo
+    // organizações reais no banco (a policy USING exige `app.current_tenant_id` OU
+    // `app.bypass_rls='on'`, nenhum dos dois setado sem `requestContext.run`) — este scan nunca
+    // processava NENHUMA organização em produção, sempre "completando com sucesso" 0 automações
+    // avaliadas, sem nenhum erro. `Organization` está no allowlist de bypass documentado
+    // (BYPASS_RLS_ALLOWED_MODELS, src/lib/prisma.ts) exatamente para esta descoberta inicial —
+    // mesmo padrão já usado corretamente por `accountIntelligenceInsights.worker.ts`/
+    // `agentMemoryCleanup.worker.ts`/`bitrixExtractionPurge.worker.ts`/`newsMonitor.worker.ts`.
+    const organizations = await requestContext.run({ bypassRls: true }, () =>
+      prisma.organization.findMany({ select: { id: true } }),
+    );
 
     for (const { id: organizationId } of organizations) {
       const now = new Date();
