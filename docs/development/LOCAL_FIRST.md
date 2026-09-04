@@ -1,5 +1,19 @@
 # Central AtlasGR — modo local-first
 
+> **Fase ENCERRADA em 2026-09-02.** O critério de saída definido na seção "Critério para voltar à
+> produção" (fim deste arquivo) foi cumprido e confirmado pelo dono do repositório: frontend,
+> backend, autenticação, permissões, banco, integrações, Market Intelligence, CRM, testes e build
+> final validados. A arquitetura de produção definitiva foi escolhida — monólito único no Render
+> (`plan: starter`) + Postgres no Neon + Storage no Cloudflare R2, conforme
+> `docs/deploy/producao.md`. **Nota**: a escolha inicial do dia foi Supabase (Pro); horas depois,
+> ainda na mesma sessão, foi trocada para Neon (motivo documentado em `docs/deploy/producao.md`) —
+> o corte de produção do Render ainda aponta para o Supabase até esse `DATABASE_URL` ser trocado,
+> ver status real em `docs/deploy/producao.md`. O deploy automático voltou a estar ativo
+> (`render.yaml`, `autoDeployTrigger: commit`). Este documento continua existindo como registro
+> histórico da fase
+> local-first (procedimento de subida local, migração e regra de corte usados na transição) — para
+> o estado atual de produção, use `docs/deploy/producao.md`.
+
 ## Estado desta fase
 
 Durante o desenvolvimento e o redesenho da Central, o repositório GitHub é a fonte de verdade. A aplicação não deve depender de Render, Vercel, Supabase, Neon ou Railway para funcionar no dia a dia de desenvolvimento.
@@ -113,11 +127,26 @@ O Supabase só pode ser pausado depois de todos estes itens estarem comprovados 
 
 ### Render
 
-`render.yaml` está marcado como legado/congelado e usa `autoDeployTrigger: off`. O serviço existente deve permanecer apenas como rollback temporário até o corte final.
+**Reativado em 2026-09-02** (ver banner no topo deste arquivo). `render.yaml` voltou a ter
+`autoDeployTrigger: commit` no serviço web (`prospector-atlas`, `plan: starter`) — deixou de ser
+apenas rollback temporário e passou a ser o ambiente de produção real. O bloco `worker`
+(`prospector-atlas-worker`) continua congelado (`autoDeployTrigger: off`, `plan: free`) — fora do
+escopo desta reativação, ver `docs/deploy/producao.md`.
 
 ### Supabase
 
-Mantido temporariamente como origem de migração. Não adicionar novas dependências.
+**Reativado brevemente em 2026-09-02, depois substituído por Neon na mesma sessão.** Projeto de
+produção real (Supabase `CENTRAL DE INTELIGENCIA COMERCIAL`, ref `wezvrhkvetkzawmxsfjx` — não o
+ref `hzttamzvokacmcnrfkrm` originalmente documentado em `docs/deploy/producao.md`, que não existe
+mais na conta) chegou a ser cotado para o plano Pro, mas a decisão final do dono do repositório foi
+migrar para Neon (ver `docs/deploy/producao.md`) — o Supabase segue como o banco real em produção
+até o `DATABASE_URL` do Render ser trocado para Neon; os dados já foram copiados e validados lá.
+Não pausar nem excluir este projeto Supabase até o corte estar confirmado.
+
+### Neon
+
+Novo destino escolhido em 2026-09-02, no lugar do Supabase — ver `docs/deploy/producao.md` seção 1
+para a justificativa (PITR incluso no plano pago, pay-as-you-go) e o estado da migração de dados.
 
 ### Neon
 
