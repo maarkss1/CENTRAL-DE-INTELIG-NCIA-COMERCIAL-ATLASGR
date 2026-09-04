@@ -33,6 +33,7 @@ import type {
   CreateCoachingEvaluationInput,
   CopilotoCoachingEvaluationDTO,
   HandoffSummaryDTO,
+  LeadLookupResultDTO,
 } from '../domain/CopilotoIa';
 import {
   computeWhatsAppResponseTimeStats,
@@ -66,17 +67,19 @@ function assertTransition(from: CopilotoConversationStatus, to: CopilotoConversa
 export class CopilotoIaUseCases {
   constructor(private repository: CopilotoIaRepository) {}
 
+  /**
+   * Vínculo de CRM (`leadId`/`companyId`/`contactId`) é opcional — capturar uma conversa sem
+   * vincular a nada ainda serve a transcrição/resumo/insights de propósito geral; só os recursos
+   * que dependem de uma oportunidade específica (Deal Health Score, forecast, churn, sugestão de
+   * campo de CRM/writeback) ficam indisponíveis para uma conversa sem `leadId` — o worker de
+   * transcrição já trata isso condicionalmente (`if (state.leadId)`), nada aqui precisa mudar por
+   * causa disso.
+   */
   async createConversation(
     organizationId: string,
     input: CreateConversationInput,
     createdBy?: string,
   ): Promise<CopilotoConversationDTO> {
-    if (!input.leadId && !input.companyId && !input.contactId) {
-      throw new AppError(
-        'Informe ao menos um vínculo de CRM (leadId, companyId ou contactId) para a conversa.',
-        400,
-      );
-    }
     if (input.leadId && !(await this.repository.leadExists(organizationId, input.leadId))) {
       throw new AppError('Lead informado não existe nesta organização.', 404);
     }
@@ -100,6 +103,15 @@ export class CopilotoIaUseCases {
       consentStatus,
       createdBy,
     });
+  }
+
+  /** Onda 7 — resolve um Lead a partir de e-mail/URL do Bitrix24/id cru, para a extensão Chrome
+   * (que não tem busca por nome ainda). `null` quando nada resolve — nunca lança 404, quem chama
+   * decide o que fazer (ex.: deixar o usuário colar o id manualmente). */
+  async lookupLead(organizationId: string, query: string): Promise<LeadLookupResultDTO | null> {
+    const trimmed = query.trim();
+    if (!trimmed) throw new AppError('Informe um e-mail, link do Bitrix24 ou id de Lead.', 400);
+    return this.repository.findLeadByLookup(organizationId, trimmed);
   }
 
   async getConversation(

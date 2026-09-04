@@ -52,6 +52,17 @@ export class CopilotoIaController {
     private writebackUseCases: CopilotoBitrixWritebackUseCases,
   ) {}
 
+  lookupLead = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { organizationId } = (req as AuthRequest).user;
+      const query = typeof req.query.q === 'string' ? req.query.q : '';
+      const lead = await this.useCases.lookupLead(organizationId, query);
+      res.json({ success: true, data: lead });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   createConversation = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { organizationId, id: userId } = (req as AuthRequest).user;

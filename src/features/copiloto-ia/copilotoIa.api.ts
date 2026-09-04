@@ -236,6 +236,14 @@ export interface CoachingRubricOutput {
   qualidadeRegistro: CoachingRubricDimension;
 }
 
+export const SUGGESTION_STATUS_LABEL: Record<CopilotoSuggestionStatus, string> = {
+  PENDING: 'Pendente',
+  APPROVED: 'Aprovada',
+  REJECTED: 'Rejeitada',
+  WRITTEN_BACK: 'Enviada ao Bitrix24',
+  FAILED: 'Falhou',
+};
+
 export const COACHING_DIMENSION_LABELS: Record<keyof CoachingRubricOutput, string> = {
   descoberta: 'Descoberta',
   qualificacao: 'Qualificação',

@@ -66,6 +66,15 @@ export interface CreateConversationInput {
   contactId?: string;
 }
 
+/** Onda 7 — resultado de `findLeadByLookup`, resolvendo um Lead a partir de e-mail/URL do
+ * Bitrix24/id cru digitado na extensão Chrome (que não tem busca por nome ainda). */
+export interface LeadLookupResultDTO {
+  id: string;
+  title: string | null;
+  companyName: string | null;
+  contactName: string | null;
+}
+
 export interface CopilotoTranscriptSegmentDTO {
   id: string;
   conversationId: string;
@@ -259,6 +268,13 @@ export interface CopilotoIaRepository {
   leadExists(organizationId: string, id: string): Promise<boolean>;
   companyExists(organizationId: string, id: string): Promise<boolean>;
   contactExists(organizationId: string, id: string): Promise<boolean>;
+  /**
+   * Resolve um Lead a partir de e-mail do contato, URL de lead/negócio do Bitrix24
+   * (`bitrixLeadId`/`bitrixDealId`), ou id cru do Lead na Central — nessa ordem de tentativa
+   * (ver `parseLeadLookupQuery` em `PrismaCopilotoIaRepository.ts`). `null` quando nenhuma das
+   * três formas resolve dentro desta organização.
+   */
+  findLeadByLookup(organizationId: string, query: string): Promise<LeadLookupResultDTO | null>;
   createConversation(
     organizationId: string,
     data: CreateConversationInput & { consentStatus: CopilotoConsentStatus; createdBy?: string },
