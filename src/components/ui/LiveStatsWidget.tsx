@@ -100,7 +100,7 @@ export function LiveStatsWidget() {
       transition={{ delay: 0.2 }}
       className="w-full"
     >
-      <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card relative overflow-hidden text-ink font-sans">
+      <div className="p-5 rounded-card-lg border border-line bg-surface shadow-card relative overflow-hidden text-ink font-sans">
         <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand to-brand-2" />
 
         {/* Header Row */}
