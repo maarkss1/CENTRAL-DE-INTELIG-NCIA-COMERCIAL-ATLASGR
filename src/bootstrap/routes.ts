@@ -23,7 +23,7 @@ import { eventsRoutes } from '../features/analytics/routes/events.routes.js';
 import { commercialIntelligenceRoutes } from '../features/commercial-intelligence/routes/commercialIntelligence.routes.js';
 import { copilotoIaRoutes } from '../features/copiloto-ia/routes/copilotoIa.routes.js';
 import { whatsappRoutes } from '../features/integrations/whatsapp/whatsapp.routes.js';
-import { birthVoiceRoutes } from '../features/integrations/birth-voice/birthVoice.routes.js';
+import { birthVoiceRoutes } from '../features/integrations/birth-voice/coldCall.service.js';
 import { googleRoutes } from '../features/integrations/google/google.routes.js';
 import { bitrixRoutes } from '../features/integrations/bitrix/bitrix.routes.js';
 import { teamRoutes } from '../features/team/routes/team.routes.js';
@@ -136,6 +136,17 @@ export function mountFeatureRoutes(app: Express): void {
   app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
   app.use('/api/calendar/booking-links', privateBookingRouter);
   app.use('/api/calendar/book', publicBookingRouter);
+
+  // Tombstone de compatibilidade do módulo aposentado. Nenhuma regra, dataset, worker ou serviço de
+  // Market Intelligence é carregado aqui. O prefixo permanece temporariamente apenas para que
+  // clientes antigos recebam uma resposta inequívoca (410 Gone), em vez de 404 ambíguo.
+  app.use('/api/market-intelligence', authenticateToken, requireTenant, (_req, res) => {
+    res.status(410).json({
+      success: false,
+      error: 'Market Intelligence foi removido desta plataforma.',
+      code: 'MARKET_INTELLIGENCE_RETIRED',
+    });
+  });
 
   // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
   // cair no fallback do Vite/SPA (mountFrontend, em frontend.ts): em dev, `vite.middlewares`
