@@ -3,13 +3,13 @@ import { resolve } from 'node:path';
 import { logger } from '../../lib/logger.js';
 
 /**
- * Onda 42 (DEC-15): movido de `src/features/market-intelligence/server/rntrcTerritorial.ts` para
- * `src/shared/` porque três pontos de `src/features/prospecting/` (rota, serviço de enrichment e
- * componente de card) precisavam ler o mesmo indicador territorial RNTRC/ANTT — um import direto de
- * uma feature para outra viola a regra `no-cross-feature-imports` do dependency-cruiser
- * (`.dependency-cruiser.cjs`), cuja resolução documentada é justamente mover o contrato compartilhado
- * para `src/shared/`. `src/features/market-intelligence/server/rntrcTerritorial.ts` continua existindo
- * como reexport, para não obrigar `marketIntelligence.service.ts` a mudar o caminho de import.
+ * Snapshot territorial RNTRC/ANTT compartilhado pela Prospecção.
+ *
+ * Este serviço vive em `src/shared/` porque rota, enriquecimento e componentes de Prospecção
+ * consomem o mesmo indicador territorial. Manter o contrato compartilhado aqui evita importações
+ * cruzadas entre features e preserva a regra `no-cross-feature-imports` do dependency-cruiser.
+ * Os arquivos observados ficam em `public/data/rntrc/`, sem dependência do módulo aposentado de
+ * Market Intelligence.
  */
 
 export type RntrcTerritorialRow = {
@@ -52,20 +52,12 @@ export type RntrcTerritorialSnapshot = {
 let cached: RntrcTerritorialSnapshot | null = null;
 
 /**
- * MI-014 (dossiê CPI, DEC-15 opção A): reaproveita `rntrcTerritorialSnapshot()` — mesma leitura,
- * mesmo cache, mesmos metadados — para dar ao card de empresa individual da Prospecção (que só
- * conhece UF/cidade, não o código IBGE do município) uma leitura territorial por UF do indicador
- * RNTRC/ANTT já publicado em Market Intelligence. Não recalcula nem duplica a lógica de leitura do
- * dataset: soma as linhas municipais já carregadas, por UF.
+ * Agrega o snapshot RNTRC municipal por UF para que a Prospecção possa exibir intensidade do
+ * mercado de transporte rodoviário mesmo quando a empresa só tem UF/cidade e não código IBGE.
  *
- * Importante (para não confundir com o outro "risco" documentado em
- * `public/tools/atlas-market-intelligence/METODOLOGIA_RISCO_TERRITORIO.md`): isto é densidade de
- * transportadoras registradas no RNTRC (ANTT) — um indicador de intensidade do mercado de
- * transporte rodoviário de cargas na UF. NÃO é o índice de risco criminal (roubo/furto Sinesp
- * MJSP) descrito naquele documento — esse pipeline (`domain/coreEvidence.ts`,
- * `domain/MarketIntelligence.ts`) roda hoje só no gerador estático de `public/tools/`, nunca foi
- * ligado a nenhuma rota Express nem componente React da aplicação viva, e não deve ser apresentado
- * como se fosse dado ao vivo.
+ * Este indicador representa densidade de transportadores registrados no RNTRC/ANTT. Não deve ser
+ * apresentado como índice de risco criminal, probabilidade de sinistro ou qualquer outra métrica
+ * não presente no snapshot observado.
  */
 export type RntrcRiskTier = 'ALTA' | 'MEDIA' | 'BAIXA';
 
@@ -197,7 +189,7 @@ export function rntrcRiskByUf(ufRaw: string | null | undefined): RntrcUfRisk {
 
 export function rntrcTerritorialSnapshot(): RntrcTerritorialSnapshot {
   if (cached) return cached;
-  const base = resolve(process.cwd(), 'public', 'tools', 'atlas-market-intelligence', 'data');
+  const base = resolve(process.cwd(), 'public', 'data', 'rntrc');
   try {
     const rows = JSON.parse(
       readFileSync(resolve(base, 'rntrc_municipios.json'), 'utf8'),
