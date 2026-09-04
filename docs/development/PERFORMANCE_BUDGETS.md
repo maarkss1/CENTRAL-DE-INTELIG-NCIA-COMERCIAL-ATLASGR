@@ -93,7 +93,6 @@ item os transforma em algo que falha um comando/CI, em vez de ficar só em prosa
 | `GET /api/leads` (pipeline, paginado/filtrado) | `authenticateToken` → `getSession()` → `requireTenant` → RLS Postgres → listagem paginada | p50<200ms / p95<500ms / p99<800ms | `docs/SRE.md` 1.2 (P95<500ms transacional) + teto de "Aviso" do mesmo documento (P95>800ms) usado como teto de p99. Onda 42, ver relatório abaixo. |
 | `GET /api/companies` (busca) | Mesma cadeia de middleware + busca por `q` | p50<200ms / p95<500ms / p99<800ms | Idem. |
 | `POST /api/activities` (escrita) | Mesma cadeia + `validateRequest` + INSERT | p50<200ms / p95<500ms / p99<800ms | Idem. |
-| `GET /api/market-intelligence/data-quality-report` | Mesma cadeia + 14 queries agregadas em paralelo (`dataQualityReport.service.ts`) | p50<350ms / p95<700ms / p99<1200ms | Teto próprio, mais alto: agregação de 14 queries custa legitimamente mais que uma leitura paginada simples. |
 
 `http_req_failed` tem threshold global de `rate<0.01` (falha se mais de 1% das requisições
 falharem) nos dois scripts.
@@ -113,11 +112,11 @@ falharem) nos dois scripts.
    artefatos de 90 dias.
 
 Dispara em PR que toca `server.ts`, `src/bootstrap/**`, `tests/load/**`, as rotas/middlewares de
-autenticação e RBAC, ou os módulos de CRM/Companies/Activities/Market Intelligence cobertos pelo
-cenário autenticado (lista completa no próprio workflow), mais diariamente (`schedule`, 06:00 UTC)
-para publicar a tendência mesmo sem PR, e sob demanda (`workflow_dispatch`). **Não é o required
-check `build`** do repositório — mesma decisão de `public-assets-budget.yml` do ITEM-05: falha
-visível no PR, sem arriscar quebrar o gate de release por um teste de carga instável.
+autenticação e RBAC, ou os módulos de CRM/Companies/Activities cobertos pelo cenário autenticado
+(lista completa no próprio workflow), mais diariamente (`schedule`, 06:00 UTC) para publicar a
+tendência mesmo sem PR, e sob demanda (`workflow_dispatch`). **Não é o required check `build`** do
+repositório — mesma decisão de `public-assets-budget.yml` do ITEM-05: falha visível no PR, sem
+arriscar quebrar o gate de release por um teste de carga instável.
 
 ### Uso local (fora do CI)
 
