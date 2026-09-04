@@ -2996,7 +2996,8 @@ entrada nova.
   toBeInTheDocument`) fica enterrado dentro do output de timeout do `waitFor` a menos que se busque
   a mensagem de erro exata em vez de confiar no snapshot de DOM impresso; vale conferir esse import
   primeiro sempre que `toBeInTheDocument`/matchers do jest-dom "não funcionam" num teste novo.
-## Pilot 029 — Auditoria de cor crua fora dos tokens: módulo Bitrix24 preso em laranja AtlasGR
+
+## Pilot 030 — Auditoria de cor crua fora dos tokens: módulo Bitrix24 preso em laranja AtlasGR
 
 - **Objetivo**: dando sequência à auditoria de cores Tailwind cruas fora do sistema de tokens
   (mesma categoria de débito do Piloto 005/006), migrar os 4 componentes do módulo de integração
@@ -3056,7 +3057,7 @@ entrada nova.
   duas tentativas simultâneas. Log de uma tentativa anterior revelou uma causa real conjunta:
   `EADDRINUSE` na porta 3009 (duas instâncias tentando subir ao mesmo tempo) e `Redis NOAUTH` — o
   perfil `prospector-dev-uxcheck` do `launch.json` não define `REDIS_URL` com a senha que o
-  container `atlas_redis` exige, then as filas (`agentQueue`/`coldCallQueue`/etc.) ficam
+  container `atlas_redis` exige, então as filas (`agentQueue`/`coldCallQueue`/etc.) ficam
   "offline" (não bloqueante, só um warning, mas registra como débito de configuração separado).
   **Sem servidor real, a verificação ficou restrita a `tsc --noEmit` (0 erros nos 4 arquivos —
   erros pré-existentes de Prisma client desatualizado em `copiloto-ia`/`commercial-intelligence`,
