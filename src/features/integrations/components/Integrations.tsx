@@ -760,7 +760,7 @@ export function Integrations() {
             <Card className="glass-card p-8 border border-gray-100 shadow-sm rounded-2xl">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                  <div className="p-4 bg-sky-50 text-sky-600 rounded-xl border border-sky-100">
+                  <div className="p-4 bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-xl border border-sky-100 dark:border-sky-500/20">
                     <IconWrench className="w-6 h-6" />
                   </div>
                   <div>
@@ -775,7 +775,7 @@ export function Integrations() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg ${threecxConnections.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg ${threecxConnections.length > 0 ? 'bg-success/15 text-success-active dark:text-success' : 'bg-surface-2 text-ink-2'}`}
                   >
                     {threecxConnections.length > 0 ? 'Ativo 24h' : 'Não conectado'}
                   </span>
@@ -814,13 +814,13 @@ export function Integrations() {
                     {threecxConnections.map((conn) => (
                       <div
                         key={conn.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 bg-white shadow-sm"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-line bg-surface shadow-sm"
                       >
                         <div className="flex items-center gap-3">
                           <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0" />
                           <div>
-                            <p className="text-sm font-bold text-gray-900">{conn.label}</p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-sm font-bold text-ink">{conn.label}</p>
+                            <p className="text-xs text-ink-2">
                               {conn.pbxUrl} — Ramal {conn.extension}
                             </p>
                           </div>
@@ -832,7 +832,7 @@ export function Integrations() {
                             title={
                               canManage ? undefined : 'Requer permissão de Gestor ou Administrador'
                             }
-                            className="px-3 py-2 text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg transition-colors border border-sky-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="px-3 py-2 text-xs font-bold bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-500/20 rounded-lg transition-colors border border-sky-100 dark:border-sky-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             Testar PABX
                           </button>
@@ -842,7 +842,7 @@ export function Integrations() {
                             title={
                               canManage ? undefined : 'Requer permissão de Gestor ou Administrador'
                             }
-                            className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="px-3 py-2 text-xs font-bold text-danger-active dark:text-danger hover:bg-danger/10 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             Desconectar
                           </button>
