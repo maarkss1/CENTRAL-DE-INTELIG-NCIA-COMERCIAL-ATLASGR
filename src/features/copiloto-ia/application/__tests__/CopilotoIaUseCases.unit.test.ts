@@ -81,6 +81,16 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
     return this.leadLookupResult;
   }
 
+  leadSearchResults: LeadLookupResultDTO[] = [];
+
+  async searchLeadsByName(
+    _organizationId: string,
+    _query: string,
+    limit: number,
+  ): Promise<LeadLookupResultDTO[]> {
+    return this.leadSearchResults.slice(0, limit);
+  }
+
   async createConversation(
     organizationId: string,
     data: Parameters<CopilotoIaRepository['createConversation']>[1],
@@ -881,6 +891,35 @@ describe('CopilotoIaUseCases', () => {
       };
       const result = await useCases.lookupLead(ORG_ID, 'fulano@empresa.com');
       expect(result?.id).toBe('lead-9');
+    });
+  });
+
+  describe('searchLeads — busca por nome', () => {
+    it('rejeita query com menos de 2 caracteres sem chegar a chamar o repositório', async () => {
+      await expect(useCases.searchLeads(ORG_ID, 'a')).rejects.toThrow(
+        'Digite ao menos 2 caracteres para buscar por nome.',
+      );
+    });
+
+    it('rejeita query vazia (só espaços)', async () => {
+      await expect(useCases.searchLeads(ORG_ID, '   ')).rejects.toThrow(
+        'Digite ao menos 2 caracteres para buscar por nome.',
+      );
+    });
+
+    it('repassa os candidatos encontrados pelo repositório', async () => {
+      repository.leadSearchResults = [
+        { id: 'lead-1', title: 'Frota XPTO', companyName: 'Transportes XPTO', contactName: 'João' },
+        { id: 'lead-2', title: 'Frota XPTO 2', companyName: 'XPTO Log', contactName: 'Maria' },
+      ];
+      const results = await useCases.searchLeads(ORG_ID, 'xpto');
+      expect(results).toHaveLength(2);
+      expect(results[0].id).toBe('lead-1');
+    });
+
+    it('sem nenhum candidato retorna lista vazia, não erro', async () => {
+      const results = await useCases.searchLeads(ORG_ID, 'ninguem encontrado');
+      expect(results).toEqual([]);
     });
   });
 });

@@ -108,6 +108,33 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
     };
   }
 
+  async searchLeadsByName(
+    organizationId: string,
+    query: string,
+    limit: number,
+  ): Promise<LeadLookupResultDTO[]> {
+    const leads = await prisma.lead.findMany({
+      where: {
+        organizationId,
+        OR: [
+          { title: { contains: query, mode: 'insensitive' } },
+          { contact: { name: { contains: query, mode: 'insensitive' } } },
+          { company: { tradeName: { contains: query, mode: 'insensitive' } } },
+          { company: { legalName: { contains: query, mode: 'insensitive' } } },
+        ],
+      },
+      include: { company: true, contact: true },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+    });
+    return leads.map((lead) => ({
+      id: lead.id,
+      title: lead.title,
+      companyName: lead.company?.tradeName ?? lead.company?.legalName ?? null,
+      contactName: lead.contact?.name ?? null,
+    }));
+  }
+
   async createConversation(
     organizationId: string,
     data: CreateConversationInput & { consentStatus: CopilotoConsentStatus; createdBy?: string },

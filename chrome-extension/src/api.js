@@ -78,6 +78,8 @@ async function request(path, options = {}) {
 export const copilotoApi = {
   lookupLead: (query) =>
     request(`/api/copiloto-ia/leads/lookup?q=${encodeURIComponent(query)}`),
+  searchLeads: (query) =>
+    request(`/api/copiloto-ia/leads/search?q=${encodeURIComponent(query)}`),
   createConversation: (payload) =>
     request('/api/copiloto-ia/conversations', { method: 'POST', body: JSON.stringify(payload) }),
   getConversation: (id) => request(`/api/copiloto-ia/conversations/${id}`),
