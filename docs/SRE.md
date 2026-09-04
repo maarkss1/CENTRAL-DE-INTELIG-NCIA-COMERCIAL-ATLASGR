@@ -41,10 +41,22 @@ No painel de observabilidade (Grafana), implemente as seguintes regras:
 
 **Atualizado na Fase Final 3 (SRE, `.agents/runs/final-fase-3.md`)**: até 2026-08-17, esta seção
 descrevia uma meta aspiracional sem lastro real — o banco de produção (Supabase, plano `free` da
-organização) não tem backup gerenciado nem PITR, e nada no repositório rodava
+organização) não tinha backup gerenciado nem PITR, e nada no repositório rodava
 `scripts/backup.sh` (script local, pensado para o Postgres de desenvolvimento/CI) contra produção.
-Isso foi corrigido com um pipeline próprio, não com upgrade de plano (decisão do dono do
-repositório):
+Isso foi corrigido então com um pipeline próprio, não com upgrade de plano (decisão do dono do
+repositório na época).
+
+**Atualização (2026-09-02)**: cotado inicialmente subir o Supabase de produção para o plano Pro
+(que teria backup diário gerenciado incluso, mas PITR só como add-on separado de ~US$100-400/mês
+dependendo da retenção). Decisão final do dono do repositório, na mesma sessão, foi migrar o banco
+para **Neon** em vez de pagar o Supabase Pro — ver `docs/deploy/producao.md` seção 1. No plano
+gratuito atual do Neon, o histórico de PITR é de só 6 horas; o plano pago Launch do Neon inclui até
+7 dias de PITR **sem cobrança separada** (diferente do Supabase, onde isso é sempre add-on à
+parte) — decisão de migrar do free para o Launch fica para o dono do repositório, fora do escopo
+desta rodada. Qualquer backup gerenciado do provedor de banco (Supabase ou Neon) deve ser tratado
+**como camada adicional** ao pipeline `backup-production.yml` abaixo, não como substituto —
+provedor diferente (Cloudflare R2 vs. infraestrutura interna do provedor de banco) continua
+reduzindo correlação de falha entre as duas cópias.
 
 - **Mecanismo**: `.github/workflows/backup-production.yml` — `pg_dump` diário (05:00 UTC) contra o
   Postgres real, via papel dedicado `prospector_backup` (somente leitura, `BYPASSRLS` — necessário
