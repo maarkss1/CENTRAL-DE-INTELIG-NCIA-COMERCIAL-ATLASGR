@@ -1,0 +1,788 @@
+<title>Oportunidade GR</title>
+<meta name="description" content="Ranking nacional de oportunidade para contratação de vendedores externos Atlas GR, com metodologia, pipeline de dados e mapa de contas priorizadas.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,600&display=swap');
+
+  :root {
+    --bg: #fffaf4;
+    --surface: #ffffff;
+    --surface-2: #fff2e4;
+    --surface-3: #ffe9d3;
+    --ink: #2b2118;
+    --ink-muted: #74655a;
+    --ink-faint: #a3927f;
+    --line: #ecdfce;
+    --line-strong: #e0cdb4;
+    --accent: #ff5618;
+    --accent-ink: #ffffff;
+    --accent-soft: #fff0e6;
+    --accent-2: #ffc500;
+    --accent-3: #ff8008;
+    --good: #2f7d5b;
+    --warn: #b5790a;
+    --crit: #c0392b;
+    --shadow: 0 1px 2px rgba(43,33,24,.06), 0 8px 24px -12px rgba(43,33,24,.18);
+    --radius: 14px;
+    --font-display: 'Montserrat', Arial, sans-serif;
+    --font-body: 'Montserrat', Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #191410;
+      --surface: #221b15;
+      --surface-2: #2b2119;
+      --surface-3: #372a1f;
+      --ink: #f6ede2;
+      --ink-muted: #c2b2a1;
+      --ink-faint: #8d7c6b;
+      --line: #3a2e23;
+      --line-strong: #4a3a2b;
+      --accent: #ff6b2a;
+      --accent-ink: #1a1210;
+      --accent-soft: #3a2417;
+      --accent-2: #ffcf33;
+      --accent-3: #ff9433;
+      --good: #4fae82;
+      --warn: #d9a533;
+      --crit: #e0645a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #191410;
+    --surface: #221b15;
+    --surface-2: #2b2119;
+    --surface-3: #372a1f;
+    --ink: #f6ede2;
+    --ink-muted: #c2b2a1;
+    --ink-faint: #8d7c6b;
+    --line: #3a2e23;
+    --line-strong: #4a3a2b;
+    --accent: #ff6b2a;
+    --accent-ink: #1a1210;
+    --accent-soft: #3a2417;
+    --accent-2: #ffcf33;
+    --accent-3: #ff9433;
+    --good: #4fae82;
+    --warn: #d9a533;
+    --crit: #e0645a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent); color: var(--accent-ink); }
+
+  a { color: var(--accent-3); }
+  h1, h2, h3, h4 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+  table { border-collapse: collapse; }
+  .tab { font-variant-numeric: tabular-nums; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---------- header ---------- */
+  header.top {
+    position: sticky; top: 0; z-index: 40;
+    background: color-mix(in oklab, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand svg { height: 22px; width: auto; display: block; }
+  .brand .word { fill: var(--ink); }
+  .brand .mark { fill: var(--accent); }
+  .topnav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .topnav a {
+    font-size: 12.5px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase;
+    color: var(--ink-muted); text-decoration: none; padding: 7px 12px; border-radius: 999px;
+  }
+  .topnav a:hover { background: var(--surface-2); color: var(--ink); }
+
+  /* ---------- hero ---------- */
+  .hero {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-3) 58%, var(--accent-2) 100%);
+    color: #fff8ee;
+    padding: 56px 0 40px;
+  }
+  .hero .eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    opacity: .9; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .hero .eyebrow::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; display: inline-block; }
+  .hero h1 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 800; line-height: 1.08; max-width: 16ch; letter-spacing: -.01em; }
+  .hero p.lede { max-width: 56ch; font-size: 16.5px; margin-top: 16px; opacity: .96; }
+  .hero .answer {
+    margin-top: 26px; display: inline-flex; align-items: baseline; gap: 14px;
+    background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.35);
+    border-radius: 999px; padding: 10px 22px 10px 18px;
+  }
+  .hero .answer .tag { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
+  .hero .answer strong { font-family: var(--font-display); font-size: 22px; font-weight: 800; }
+  .hero .answer .score { font-size: 13.5px; font-weight: 700; background: #fff; color: var(--accent); border-radius: 999px; padding: 3px 10px; }
+
+  /* ---------- kpi row ---------- */
+  .kpis {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: var(--radius);
+    overflow: hidden; margin-top: -30px; position: relative; z-index: 2; box-shadow: var(--shadow);
+  }
+  .kpi { background: var(--surface); padding: 20px 18px; }
+  .kpi .num { font-family: var(--font-display); font-size: 27px; font-weight: 800; letter-spacing: -.01em; }
+  .kpi .num small { font-size: 14px; font-weight: 700; color: var(--ink-faint); }
+  .kpi .lbl { margin-top: 4px; font-size: 12px; color: var(--ink-muted); line-height: 1.35; }
+
+  /* ---------- sections ---------- */
+  main { padding: 56px 0 40px; display: flex; flex-direction: column; gap: 56px; }
+  section .sec-head { margin-bottom: 22px; max-width: 68ch; }
+  .eyebrow-sm { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--accent-3); margin-bottom: 8px; }
+  section h2 { font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+  section .sub { color: var(--ink-muted); margin-top: 8px; font-size: 14.5px; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .card-pad { padding: 26px; }
+
+  /* ---------- pipeline diagram ---------- */
+  .pipeline-figure { margin: 0; }
+  .pipeline-figure svg { width: 100%; height: auto; display: block; }
+  .pipeline-figure figcaption { margin-top: 14px; font-size: 13px; color: var(--ink-muted); text-align: center; }
+  .pipe-box-fill { fill: var(--surface-2); }
+  .pipe-box-fill.hero-box { fill: var(--accent); }
+  .pipe-stroke { stroke: var(--line-strong); }
+  .pipe-text { fill: var(--ink); font-family: var(--font-body); }
+  .pipe-text.on-accent { fill: #fff8ee; }
+  .pipe-text-muted { fill: var(--ink-muted); font-family: var(--font-body); }
+  .pipe-arrow { stroke: var(--ink-faint); fill: none; }
+
+  /* ---------- charts ---------- */
+  .chart-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; align-items: stretch; }
+  @media (max-width: 880px) { .chart-grid { grid-template-columns: 1fr; } }
+
+  .bar-row { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 10px; padding: 7px 0; }
+  .bar-row .rk { font-size: 11px; font-weight: 700; color: var(--ink-faint); text-align: right; font-variant-numeric: tabular-nums; }
+  .bar-row .name { font-size: 13px; }
+  .bar-row .name .uf { color: var(--ink-faint); font-weight: 600; }
+  .bar-track { grid-column: 1 / -1; position: relative; height: 22px; background: var(--surface-2); border-radius: 6px; overflow: hidden; }
+  .bar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: linear-gradient(90deg, var(--accent-3), var(--accent)); display: flex; align-items: center; }
+  .bar-fill.hero { background: linear-gradient(90deg, var(--accent-2), var(--accent-3)); }
+  .bar-fill .val { color: #fff8ee; font-size: 11.5px; font-weight: 700; margin-left: auto; padding-right: 8px; white-space: nowrap; }
+  .bar-list { display: flex; flex-direction: column; }
+  .bar-item + .bar-item { margin-top: 2px; }
+  .bar-item { display: grid; grid-template-columns: 24px 128px 1fr; align-items: center; gap: 10px; padding: 6px 0; }
+  .bar-item .rk { font-size: 11px; font-weight: 700; color: var(--ink-faint); text-align: right; }
+  .bar-item .lbl { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-item .lbl .uf { color: var(--ink-faint); font-weight: 600; }
+  .bar-item .track { position: relative; height: 18px; background: var(--surface-2); border-radius: 5px; }
+  .bar-item .fill { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: var(--accent-3); }
+  .bar-item .fill.hero { background: var(--accent); }
+  .bar-item .fv { position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); font-size: 11.5px; font-weight: 700; color: var(--ink-muted); white-space: nowrap; }
+
+  .tooltip-note { font-size: 12px; color: var(--ink-faint); margin-top: 14px; }
+
+  /* ---------- formula card ---------- */
+  .formula-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .formula-grid { grid-template-columns: 1fr; } }
+  .formula-item { background: var(--surface-2); border-radius: 10px; padding: 16px 16px; }
+  .formula-item .pct { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--accent-3); }
+  .formula-item .ttl { font-weight: 700; font-size: 13.5px; margin-top: 2px; }
+  .formula-item .dsc { font-size: 12.5px; color: var(--ink-muted); margin-top: 6px; line-height: 1.5; }
+  .formula-eq {
+    margin-top: 18px; padding: 16px 18px; border-radius: 10px; background: var(--ink); color: #fff8ee;
+    font-size: 13.5px; font-weight: 600; text-align: center; letter-spacing: .01em;
+  }
+  .formula-eq .op { color: var(--accent-2); font-weight: 800; }
+
+  /* ---------- confidence bars ---------- */
+  .conf-legend { display: flex; gap: 18px; margin-top: 16px; flex-wrap: wrap; }
+  .conf-legend .item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-muted); }
+  .conf-legend .dot { width: 10px; height: 10px; border-radius: 3px; }
+  .stack-bar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; margin-top: 18px; }
+  .stack-seg { display: flex; align-items: center; justify-content: center; color: #fff8ee; font-size: 12px; font-weight: 700; }
+
+  /* ---------- reasoning steps ---------- */
+  .steps { display: flex; flex-direction: column; }
+  .step {
+    display: grid; grid-template-columns: 34px 1fr auto; gap: 16px; align-items: start;
+    padding: 16px 0; border-bottom: 1px solid var(--line);
+  }
+  .step.last { border-bottom: none; padding-bottom: 4px; }
+  .step-n {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-3);
+    display: flex; align-items: center; justify-content: center; font-family: var(--font-display);
+    font-weight: 800; font-size: 13px;
+  }
+  .step.last .step-n { background: var(--accent); color: #fff8ee; }
+  .step-body h4 { font-size: 14.5px; font-weight: 700; }
+  .step-body p { font-size: 13px; color: var(--ink-muted); margin: 4px 0 0; max-width: 62ch; }
+  .step-pts {
+    font-family: var(--font-display); font-weight: 800; font-size: 17px; color: var(--accent-3);
+    white-space: nowrap; padding-top: 2px;
+  }
+  .step-pts small { font-size: 10.5px; font-weight: 700; color: var(--ink-faint); }
+  .step-pts.total { color: var(--accent); font-size: 22px; }
+
+  /* ---------- top 10 cards ---------- */
+  .t10-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  @media (max-width: 880px) { .t10-grid { grid-template-columns: 1fr; } }
+  .t10-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 22px; }
+  .t10-card .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .t10-card .hd .name { font-family: var(--font-display); font-weight: 800; font-size: 16px; }
+  .t10-card .hd .name .uf { color: var(--ink-faint); font-weight: 700; }
+  .t10-card .hd .score { font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--accent-3); }
+  .t10-card .rk { font-size: 11px; font-weight: 700; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em; }
+  .t10-card .block { margin-top: 12px; }
+  .t10-card .block .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; gap: 6px; }
+  .t10-card .block.plus .lbl { color: var(--good); }
+  .t10-card .block.minus .lbl { color: var(--warn); }
+  .t10-card .block p { font-size: 13px; color: var(--ink); margin: 5px 0 0; line-height: 1.55; }
+
+  /* ---------- table ---------- */
+  .table-scroll { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--line); }
+  table.data { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 13px; background: var(--surface); }
+  table.data th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--ink-muted); font-weight: 700; padding: 12px 14px; background: var(--surface-2);
+    border-bottom: 1px solid var(--line); position: sticky; top: 0;
+  }
+  table.data th.num, table.data td.num { text-align: right; }
+  table.data td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.data tr:last-child td { border-bottom: none; }
+  table.data tr:hover td { background: var(--surface-2); }
+  table.data td.rank { font-weight: 800; color: var(--accent-3); font-family: var(--font-display); }
+
+  footer {
+    border-top: 1px solid var(--line); padding: 34px 0 46px; margin-top: 10px;
+  }
+  footer .cols { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 26px; }
+  @media (max-width: 720px) { footer .cols { grid-template-columns: 1fr; } }
+  footer h5 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); margin-bottom: 10px; }
+  footer p, footer li { font-size: 12.5px; color: var(--ink-muted); line-height: 1.7; }
+  footer ul { margin: 0; padding-left: 16px; }
+  footer .fine { margin-top: 26px; font-size: 11.5px; color: var(--ink-faint); }
+
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+
+<header class="top">
+  <div class="topbar">
+    <div class="brand" aria-label="Atlas GR">
+      <svg viewBox="0 0 800 174.78" role="img" aria-label="Atlas">
+        <path class="word" d="M403.66,171.69l-10-28.49h-57l-9.78,28.49H294.09L350.17,21.5h29.14L437.2,171.69ZM365,61.19l-18.66,53.73H383.9Z"/>
+        <path class="word" d="M494.61,145.14h13.58v26.55H487q-18.16,0-28.69-10.53t-10.53-28.89v-47h-21.4V78.88L472.8,32.47h4.35V61.31h31v24H477.65v43q0,8.08,4.39,12.47t12.57,4.39"/>
+        <rect class="word" x="529.49" y="21.5" width="29.84" height="150.2"/>
+        <path class="word" d="M670.83,61.12h22.36V171.49H669.73l-2.59-9.88q-15.07,13.17-35.73,13.17a58.64,58.64,0,0,1-29.64-7.58,54.09,54.09,0,0,1-20.76-21,60.29,60.29,0,0,1-7.48-29.89A59.58,59.58,0,0,1,581,86.61a53.89,53.89,0,0,1,20.76-20.85,58.92,58.92,0,0,1,29.64-7.54q21.06,0,36.23,13.47ZM612.3,137.91q8.54,8.63,21.51,8.63t21.5-8.58q8.54-8.58,8.54-21.66t-8.54-21.65q-8.52-8.58-21.5-8.59T612.3,94.7q-8.53,8.63-8.53,21.6t8.53,21.61"/>
+        <path class="word" d="M753.69,174.78q-20.75,0-33.48-10.82t-12.82-28.6h29q.11,7.09,5.14,10.88T754.89,150A20.3,20.3,0,0,0,766,147.14a9.17,9.17,0,0,0,4.54-8.18,7.43,7.43,0,0,0-1.55-4.69,11.43,11.43,0,0,0-4.84-3.35,43.86,43.86,0,0,0-6.48-2.09q-3.2-.75-8.39-1.65-4.68-.8-7.88-1.45t-7.73-1.94a44.3,44.3,0,0,1-7.64-2.85,43.08,43.08,0,0,1-6.54-4.14,23,23,0,0,1-5.49-5.74,29.62,29.62,0,0,1-3.39-7.63,34.21,34.21,0,0,1-1.35-9.88,31.18,31.18,0,0,1,12.28-25.5q12.27-9.82,32.13-9.83t32,10.13q12.07,10.13,12.17,26.7H769.56q-.09-6.49-4.44-9.78T752.9,82q-6.9,0-10.83,2.9a9.07,9.07,0,0,0-3.94,7.68,7.92,7.92,0,0,0,.64,3.25,5.9,5.9,0,0,0,2.3,2.49q1.65,1,3.09,1.8a22.06,22.06,0,0,0,4.39,1.49c2,.5,3.56.87,4.79,1.1l5.64,1q16.07,2.89,23.16,6,17.86,8,17.86,27.94,0,16.86-12.67,27t-33.64,10.12"/>
+        <polygon class="mark" points="153.4 87.56 167.65 62.87 167.68 62.85 178.13 44.72 178.11 44.68 178.15 44.68 203.95 0 182.97 0 152.31 0 110.4 0 99.17 0 73.37 44.68 73.35 44.72 62.87 62.87 48.62 87.56 48.41 87.94 0 171.76 83.81 171.76 104.78 171.76 125.74 135.49 125.76 135.44 153.19 87.94 153.4 87.56"/>
+        <polygon class="mark" points="203.07 87.94 175.75 87.94 153.9 125.79 153.9 125.83 137.02 155.01 146.7 171.76 209.57 171.76 251.48 171.76 203.07 87.94"/>
+      </svg>
+      <span style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--ink-muted);text-transform:uppercase;border-left:1px solid var(--line);padding-left:10px;">Market&nbsp;Intelligence</span>
+    </div>
+    <nav class="topnav" aria-label="Seções">
+      <a href="#pipeline">Como chegamos aqui</a>
+      <a href="#ranking">Ranking</a>
+      <a href="#metodologia">Fórmula</a>
+      <a href="#top10">Top 10 detalhado</a>
+      <a href="#tabela">Tabela completa</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Ranking de oportunidade GR · competência 2026-08</p>
+    <h1>Onde contratar o próximo vendedor externo — e por quê</h1>
+    <p class="lede">Score de 0 a 100 por demanda estrutural, fluxo de carga e concorrência instalada, calculado para os 5.566 municípios do Brasil com dado de demanda disponível (<code>METODOLOGIA_WHITESPACE.md</code>).</p>
+    <div class="answer">
+      <span class="tag">Resposta</span>
+      <strong>Paranaguá / PR</strong>
+      <span class="score">score 94,1 de 100</span>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="kpis">
+    <div class="kpi">
+      <div class="num tab">5.566</div>
+      <div class="lbl">municípios classificados pela fórmula White Space</div>
+    </div>
+    <div class="kpi">
+      <div class="num tab">100<small>%</small></div>
+      <div class="lbl">cobertura nacional de municípios com dado de demanda</div>
+    </div>
+    <div class="kpi">
+      <div class="num tab">10.067</div>
+      <div class="lbl">concorrentes GR mapeados (empresas únicas, Brasil todo)</div>
+    </div>
+    <div class="kpi">
+      <div class="num tab">2.285</div>
+      <div class="lbl">concorrentes em confiança <strong style="color:var(--accent)">ALTO</strong> — autodeclarados GR ou CNAE núcleo + carga</div>
+    </div>
+    <div class="kpi">
+      <div class="num tab">94,1</div>
+      <div class="lbl">score do território líder — Paranaguá/PR (porto, 2 concorrentes)</div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- ============ PIPELINE ============ -->
+  <section id="pipeline">
+    <div class="sec-head">
+      <p class="eyebrow-sm">Como chegamos até aqui</p>
+      <h2>Seis passos, cada um somando pontos a uma escala de 100</h2>
+      <p class="sub">Nenhum passo é opinião — cada um é uma fonte pública processada e convertida em pontos dentro do score final.</p>
+    </div>
+
+    <div class="card card-pad">
+      <div class="steps">
+        <div class="step">
+          <div class="step-n">1</div>
+          <div class="step-body">
+            <h4>Mapeamos a base ANTT (RNTRC)</h4>
+            <p>899.249 transportadoras ativas em 5.422 municípios (competência jul/2026) — volume real de frota por território.</p>
+          </div>
+          <div class="step-pts">18,9 <small>pts</small></div>
+        </div>
+        <div class="step">
+          <div class="step-n">2</div>
+          <div class="step-body">
+            <h4>Cruzamos com a base de CNPJ da Receita Federal</h4>
+            <p>72,8 milhões de estabelecimentos classificados por tier de aderência ao perfil de cliente Atlas GR (<code>icp_taxonomy.v1.json</code>).</p>
+          </div>
+          <div class="step-pts">26,1 <small>pts</small></div>
+        </div>
+        <div class="step">
+          <div class="step-n">3</div>
+          <div class="step-body">
+            <h4>Medimos fluxo real de carga</h4>
+            <p>690 mil registros de CIOT/ANTT (proxy de movimentação origem-destino) — capta corredores logísticos ativos, não só cadastro.</p>
+          </div>
+          <div class="step-pts">25,0 <small>pts</small></div>
+        </div>
+        <div class="step">
+          <div class="step-n">4</div>
+          <div class="step-body">
+            <h4>Mapeamos a concorrência nacional por CNPJ</h4>
+            <p>Mesma base de 72,8 milhões de estabelecimentos, filtrada por CNAE 80200 + termo de nome ("risco", "gerenciadora", "rastreamento"), classificada em confiança ALTO/MEDIO/BAIXO conforme a força da evidência. 10.067 concorrentes únicos mapeados, mesmo critério em todo o Brasil.</p>
+          </div>
+          <div class="step-pts">30,0 <small>pts</small></div>
+        </div>
+        <div class="step last">
+          <div class="step-n">5</div>
+          <div class="step-body">
+            <h4>Somamos tudo e ordenamos</h4>
+            <p>5.566 municípios com dado de demanda disponível recebem o cálculo completo — cobertura de 100%, mesmo critério automatizado em todos eles.</p>
+          </div>
+          <div class="step-pts total">100 <small>pts</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-pad" style="margin-top:20px;">
+      <figure class="pipeline-figure">
+        <svg viewBox="0 0 1120 460" role="img" aria-label="Fluxo de dados: nove fontes públicas alimentam três índices (Demanda, Fluxo de carga, Pressão Concorrencial) que se combinam na fórmula White Space, gerando o ranking final de municípios.">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- column 1: raw sources -->
+          <text x="18" y="26" class="pipe-text-muted" font-size="11" font-weight="700" letter-spacing=".08em">FONTES OFICIAIS</text>
+
+          <g class="pipe-arrow" style="color:var(--ink-faint)">
+            <line x1="188" y1="52"  x2="248" y2="120" marker-end="url(#arrow)"/>
+            <line x1="188" y1="128" x2="248" y2="128" marker-end="url(#arrow)"/>
+            <line x1="188" y1="204" x2="248" y2="150" marker-end="url(#arrow)"/>
+            <line x1="188" y1="290" x2="248" y2="300" marker-end="url(#arrow)"/>
+            <line x1="188" y1="366" x2="248" y2="330" marker-end="url(#arrow)"/>
+          </g>
+
+          <!-- source boxes -->
+          <g font-size="11.5">
+            <rect x="16" y="36" width="172" height="34" rx="8" class="pipe-box-fill pipe-stroke"/>
+            <text x="28" y="57" class="pipe-text">Receita Federal · CNPJ (ICP)</text>
+
+            <rect x="16" y="112" width="172" height="34" rx="8" class="pipe-box-fill pipe-stroke"/>
+            <text x="28" y="133" class="pipe-text">ANTT · RNTRC</text>
+
+            <rect x="16" y="188" width="172" height="34" rx="8" class="pipe-box-fill pipe-stroke"/>
+            <text x="28" y="209" class="pipe-text">ANTT · CIOT (fluxo)</text>
+
+            <rect x="16" y="274" width="172" height="34" rx="8" class="pipe-box-fill" style="fill:var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text x="28" y="295" class="pipe-text" font-weight="700">Receita Federal · CNPJ (CNAE 80200 + nomes)</text>
+
+            <rect x="16" y="350" width="172" height="34" rx="8" class="pipe-box-fill pipe-stroke"/>
+            <text x="28" y="371" class="pipe-text">IBGE · Municípios</text>
+          </g>
+
+          <!-- column 2: indices -->
+          <text x="268" y="26" class="pipe-text-muted" font-size="11" font-weight="700" letter-spacing=".08em">ÍNDICES (0–100, percentil nacional)</text>
+
+          <rect x="252" y="96"  width="200" height="66" rx="10" class="pipe-box-fill pipe-stroke" stroke-width="1.4"/>
+          <text x="352" y="122" text-anchor="middle" class="pipe-text" font-weight="700">Demanda</text>
+          <text x="352" y="140" text-anchor="middle" class="pipe-text-muted" font-size="10.5">58% ICP + 42% RNTRC</text>
+
+          <rect x="252" y="284" width="200" height="52" rx="10" class="pipe-box-fill pipe-stroke" stroke-width="1.4"/>
+          <text x="352" y="306" text-anchor="middle" class="pipe-text" font-weight="700">Fluxo MDF-e/CIOT</text>
+          <text x="352" y="322" text-anchor="middle" class="pipe-text-muted" font-size="10.5">log-escala, viagens</text>
+
+          <rect x="252" y="352" width="200" height="66" rx="10" class="pipe-box-fill" style="fill:var(--accent-soft)" stroke="var(--accent)" stroke-width="1.6"/>
+          <text x="352" y="378" text-anchor="middle" class="pipe-text" font-weight="700">Pressão Concorrencial</text>
+          <text x="352" y="396" text-anchor="middle" class="pipe-text-muted" font-size="10.5">5.571 municípios cobertos</text>
+
+          <g class="pipe-arrow" style="color:var(--ink-faint)">
+            <line x1="452" y1="129" x2="560" y2="180" marker-end="url(#arrow)"/>
+            <line x1="452" y1="310" x2="560" y2="210" marker-end="url(#arrow)"/>
+            <line x1="452" y1="385" x2="560" y2="240" marker-end="url(#arrow)"/>
+          </g>
+
+          <!-- column 3: formula -->
+          <text x="572" y="26" class="pipe-text-muted" font-size="11" font-weight="700" letter-spacing=".08em">FÓRMULA WHITE SPACE</text>
+          <rect x="560" y="140" width="230" height="150" rx="12" class="pipe-box-fill hero-box"/>
+          <text x="675" y="172" text-anchor="middle" class="pipe-text on-accent" font-weight="800" font-size="14">White Space</text>
+          <text x="675" y="200" text-anchor="middle" class="pipe-text on-accent" font-size="11">45% Demanda</text>
+          <text x="675" y="222" text-anchor="middle" class="pipe-text on-accent" font-size="11">+ 25% Fluxo</text>
+          <text x="675" y="244" text-anchor="middle" class="pipe-text on-accent" font-size="11">+ 30% (100 − Concorrência)</text>
+          <text x="675" y="270" text-anchor="middle" class="pipe-text on-accent" font-size="9.5" opacity=".85">calcular_whitespace.py v0.4</text>
+
+          <g class="pipe-arrow" style="color:var(--ink-faint)">
+            <line x1="790" y1="215" x2="866" y2="215" marker-end="url(#arrow)"/>
+          </g>
+
+          <!-- column 4: output -->
+          <text x="878" y="26" class="pipe-text-muted" font-size="11" font-weight="700" letter-spacing=".08em">SAÍDA</text>
+          <rect x="866" y="164" width="236" height="102" rx="12" class="pipe-box-fill pipe-stroke" stroke-width="1.4"/>
+          <text x="984" y="196" text-anchor="middle" class="pipe-text" font-weight="700" font-size="13">Ranking por município</text>
+          <text x="984" y="218" text-anchor="middle" class="pipe-text-muted" font-size="10.5">5.566 classificados</text>
+          <text x="984" y="238" text-anchor="middle" class="pipe-text-muted" font-size="10.5">líder: Paranaguá/PR — 94,1</text>
+          <text x="984" y="256" text-anchor="middle" class="pipe-text-muted" font-size="10.5">2 concorrentes encontrados</text>
+        </svg>
+        <figcaption>Nove fontes públicas alimentam três índices percentuais que se combinam na fórmula White Space, gerando o score final por município.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ RANKING ============ -->
+  <section id="ranking">
+    <div class="sec-head">
+      <p class="eyebrow-sm">Ranking nacional</p>
+      <h2>Top municípios e estados por oportunidade</h2>
+      <p class="sub">Score = demanda estrutural alta + fluxo de carga alto + concorrência quase inexistente, tudo em percentil nacional. Barra maior = melhor oportunidade.</p>
+    </div>
+    <div class="chart-grid">
+      <div class="card card-pad">
+        <h3 style="font-size:14px;">Top 12 municípios — score White Space</h3>
+        <div id="chart-municipios" class="bar-list" style="margin-top:14px;"></div>
+        <p class="tooltip-note">Passe o mouse sobre uma barra para ver a composição do score.</p>
+      </div>
+      <div class="card card-pad">
+        <h3 style="font-size:14px;">Top 10 estados — score médio</h3>
+        <div id="chart-uf" class="bar-list" style="margin-top:14px;"></div>
+        <p class="tooltip-note">Média entre todos os municípios classificados do estado — um único porto (ex. Paranaguá) pode empurrar o município para o topo mesmo em um estado com média mediana.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FORMULA ============ -->
+  <section id="metodologia">
+    <div class="sec-head">
+      <p class="eyebrow-sm">Como cada posição foi pontuada</p>
+      <h2>A fórmula, peso por peso</h2>
+      <p class="sub">Detalhamento fonte por fonte em <code>METODOLOGIA_RANKING_EXPLICADO.md</code>.</p>
+    </div>
+    <div class="card card-pad">
+      <div class="formula-grid">
+        <div class="formula-item">
+          <div class="pct">45%</div>
+          <div class="ttl">Demanda</div>
+          <div class="dsc">58% aderência ICP (CNPJ/tier A·B·C) + 42% densidade RNTRC (transportadoras ativas). Maior peso — sem massa de cliente potencial não há negócio a proteger.</div>
+        </div>
+        <div class="formula-item">
+          <div class="pct">25%</div>
+          <div class="ttl">Fluxo de carga</div>
+          <div class="dsc">Viagens CIOT/MDF-e por município de origem, em escala logarítmica. Corrige o viés de "só cadastro" — capta corredores ativos mesmo com poucas empresas sediadas ali.</div>
+        </div>
+        <div class="formula-item">
+          <div class="pct">30%</div>
+          <div class="ttl">(100 − Concorrência)</div>
+          <div class="dsc">Pressão concorrencial ponderada: GR direta ×1,00 · monitoramento ×0,70 · rastreamento ×0,55 · pronta resposta ×0,50 · cobertura remota ×0,35.</div>
+        </div>
+      </div>
+      <div class="formula-eq">
+        White Space <span class="op">=</span> 45% × Demanda <span class="op">+</span> 25% × Fluxo <span class="op">+</span> 30% × (100 <span class="op">−</span> Concorrência)
+      </div>
+    </div>
+
+    <div class="card card-pad" style="margin-top:20px;">
+      <h3 style="font-size:14px;">Concorrentes mapeados por confiança do sinal</h3>
+      <p class="sub" style="margin-top:4px;">10.067 empresas únicas, classificadas pela força da evidência que as liga ao setor de Gerenciadora de Risco.</p>
+      <div class="stack-bar" id="conf-stack"></div>
+      <div class="conf-legend">
+        <span class="item"><span class="dot" style="background:var(--accent)"></span>ALTO (2.285) — autodeclarada "gerenciadora/gestão de risco", ou CNAE núcleo + termo de carga</span>
+        <span class="item"><span class="dot" style="background:var(--accent-3)"></span>MEDIO (5.324) — CNAE núcleo de monitoramento OU nome com termo de risco</span>
+        <span class="item"><span class="dot" style="background:var(--accent-2)"></span>BAIXO (2.458) — CNAE de monitoramento só como atividade secundária</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TOP 10 STRENGTHS/WEAKNESSES ============ -->
+  <section id="top10">
+    <div class="sec-head">
+      <p class="eyebrow-sm">Análise por território</p>
+      <h2>Top 10 — pontos fortes e pontos de atenção</h2>
+      <p class="sub">Decisão de investimento alto exige mais que um número. Cada território abaixo tem o que pesa a favor e o que precisa ser validado antes de comprometer a contratação.</p>
+    </div>
+    <div class="t10-grid" id="top10-grid"></div>
+  </section>
+
+  <!-- ============ TABLE ============ -->
+  <section id="tabela">
+    <div class="sec-head">
+      <p class="eyebrow-sm">Dado completo</p>
+      <h2>Top 20 municípios — detalhamento</h2>
+    </div>
+    <div class="table-scroll">
+      <table class="data" id="ranking-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Município</th><th>UF</th>
+            <th class="num">Score</th><th class="num">Demanda</th>
+            <th class="num">ICP pct.</th><th class="num">RNTRC pct.</th>
+            <th class="num">Fluxo pct.</th><th class="num">Concorrência pct.</th>
+            <th class="num">Concorrentes</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h5>Metodologia</h5>
+        <p>Fórmula White Space v0.4, definida em <code>METODOLOGIA_WHITESPACE.md</code> e calculada por <code>calcular_whitespace.py</code>. Explicação item a item, fonte por fonte, em <code>METODOLOGIA_RANKING_EXPLICADO.md</code>.</p>
+      </div>
+      <div>
+        <h5>Fontes de dados</h5>
+        <ul>
+          <li>Receita Federal — CNPJ, competência 2026-08</li>
+          <li>ANTT — RNTRC (jul/2026) e CIOT (jul/2026)</li>
+          <li>IBGE — malha municipal</li>
+        </ul>
+      </div>
+      <div>
+        <h5>Documentos relacionados</h5>
+        <ul>
+          <li><code>RANKING_OPORTUNIDADE_GR_2026_08.md</code></li>
+          <li><code>METODOLOGIA_RANKING_EXPLICADO.md</code></li>
+          <li><code>PLANO_ACAO_BACKOFFICE_NOVO_VENDEDOR.md</code></li>
+          <li><code>data/whitespace_municipios.json</code></li>
+        </ul>
+      </div>
+    </div>
+    <p class="fine">Gerado em 30/08/2026 · identidade visual conforme Manual de Identidade Visual — Atlas, v1.0 (maio/2021). Concorrência é inferência por CNAE/nome, sempre confiança MEDIO — proxy, não certificação formal do setor.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var top12 = [
+    {r:1,m:"Paranaguá",uf:"PR",s:94.13,d:88.56,icp:89.39,rntrc:87.41,mdfe:99.79,comp:2.21,n:2},
+    {r:2,m:"Navegantes",uf:"SC",s:92.73,d:86.06,icp:88.06,rntrc:83.31,mdfe:95.99,comp:0.00,n:0},
+    {r:3,m:"Ribeirão das Neves",uf:"MG",s:91.05,d:90.41,icp:93.20,rntrc:86.56,mdfe:94.30,comp:10.70,n:5},
+    {r:4,m:"Cambé",uf:"PR",s:90.23,d:82.64,icp:85.85,rntrc:78.22,mdfe:92.61,comp:0.37,n:1},
+    {r:5,m:"Lages",uf:"SC",s:89.31,d:88.15,icp:90.22,rntrc:85.29,mdfe:84.79,comp:5.17,n:3},
+    {r:6,m:"Santa Luzia",uf:"MG",s:89.17,d:87.32,icp:90.44,rntrc:83.03,mdfe:92.32,comp:10.70,n:5},
+    {r:7,m:"Araguari",uf:"MG",s:88.99,d:82.42,icp:84.02,rntrc:80.20,mdfe:90.28,comp:2.21,n:3},
+    {r:8,m:"Jataí",uf:"GO",s:88.42,d:83.59,icp:83.58,rntrc:83.59,mdfe:92.96,comp:8.12,n:4},
+    {r:9,m:"Araras",uf:"SP",s:88.15,d:82.53,icp:90.16,rntrc:71.99,mdfe:88.03,comp:3.32,n:2},
+    {r:10,m:"Itapevi",uf:"SP",s:87.79,d:89.65,icp:92.10,rntrc:86.28,mdfe:91.48,comp:18.08,n:6},
+    {r:11,m:"Pouso Alegre",uf:"MG",s:87.32,d:86.12,icp:89.99,rntrc:80.76,mdfe:94.65,comp:16.97,n:6},
+    {r:12,m:"Cachoeiro de Itapemirim",uf:"ES",s:87.16,d:92.56,icp:93.31,rntrc:91.51,mdfe:94.37,comp:26.94,n:8}
+  ];
+  var top20 = top12.concat([
+    {r:13,m:"Viana",uf:"ES",s:86.96,d:81.15,icp:82.97,rntrc:78.64,mdfe:89.30,comp:6.27,n:5},
+    {r:14,m:"Belford Roxo",uf:"RJ",s:86.90,d:91.83,icp:93.81,rntrc:89.11,mdfe:91.97,comp:24.72,n:7},
+    {r:15,m:"Itapecerica da Serra",uf:"SP",s:86.60,d:84.21,icp:87.01,rntrc:80.34,mdfe:85.00,comp:8.49,n:6},
+    {r:16,m:"Cajamar",uf:"SP",s:86.06,d:83.55,icp:87.51,rntrc:78.08,mdfe:99.08,comp:21.03,n:7},
+    {r:17,m:"Cubatão",uf:"SP",s:85.82,d:80.31,icp:79.27,rntrc:81.75,mdfe:97.75,comp:15.87,n:7},
+    {r:18,m:"Formosa",uf:"GO",s:85.81,d:84.67,icp:84.52,rntrc:84.87,mdfe:71.27,comp:0.37,n:1},
+    {r:19,m:"Itumbiara",uf:"GO",s:85.74,d:83.44,icp:84.96,rntrc:81.33,mdfe:87.82,comp:12.55,n:5},
+    {r:20,m:"Lucas do Rio Verde",uf:"MT",s:85.49,d:84.09,icp:87.12,rntrc:79.92,mdfe:94.93,comp:20.30,n:5}
+  ]);
+  // Estados de município único (ex.: DF) ficam fora desta comparação - media de 1
+  // município não é comparável a estados com centenas de municípios classificados.
+  var topUf = [
+    {uf:"SP",score:54.55,n:645,top:"Araras"},
+    {uf:"RJ",score:52.78,n:92,top:"Belford Roxo"},
+    {uf:"MS",score:51.27,n:79,top:"Maracaju"},
+    {uf:"MT",score:50.83,n:141,top:"Lucas do Rio Verde"},
+    {uf:"ES",score:49.01,n:78,top:"Cachoeiro de Itapemirim"},
+    {uf:"SC",score:46.05,n:295,top:"Navegantes"},
+    {uf:"PR",score:45.24,n:399,top:"Paranaguá"},
+    {uf:"GO",score:43.13,n:246,top:"Jataí"},
+    {uf:"RS",score:43.08,n:497,top:"Rio Grande"},
+    {uf:"RO",score:42.6,n:53,top:"Ji-Paraná"}
+  ];
+  var top10Detail = [
+    {r:1,m:"Paranaguá",uf:"PR",s:94.13,n:2,
+     plus:"2º maior fluxo de carga do país (25 de 25 pontos) — principal porto do Paraná, corredor de exportação de granéis e agronegócio. Demanda forte (percentil 89 ICP, 87 RNTRC) e concorrência quase inexistente.",
+     minus:"Receita concentrada no ciclo de commodities/exportação — checar diversificação de carteira.",
+     comps:["Agrolog Transportadora de Cargas em Geral Ltda.","Inviolável Paranaguá Serviço de Monitoramento Ltda"]},
+    {r:2,m:"Navegantes",uf:"SC",s:92.73,n:0,
+     plus:"Concorrência zero confirmada na base nacional — nenhum concorrente mapeado. Fluxo de carga altíssimo (percentil 96), perfil porto (proximidade de Itajaí).",
+     minus:"\"Zero concorrentes\" é o resultado mais forte da lista e o que mais exige checagem — confirmar que não é falso negativo do filtro (concorrente sob razão social sem termo reconhecível).",
+     comps:[]},
+    {r:3,m:"Ribeirão das Neves",uf:"MG",s:91.05,n:5,
+     plus:"Maior score de Demanda do Top 10 (percentil 93 em ICP, o mais alto da lista) — cinturão industrial/logístico da Grande BH.",
+     minus:"Concorrência já presente — nenhuma com evidência de ser GR direta, perfil predominante é rastreamento/monitoramento (sinal mais fraco).",
+     comps:["Achei Soluções e Transportes Ltda","Arthur Pilo Costa Serviços Gerenciados","JR Monitoramento Veicular Ltda","Larimar Locações e Monitoramento Ltda","V&I Soluções e Logística Ltda"]},
+    {r:4,m:"Cambé",uf:"PR",s:90.23,n:1,
+     plus:"Concorrência praticamente nula (só 1 concorrente) — vizinha de Londrina, forte demanda agrícola no norte do Paraná.",
+     minus:"Menor score de Demanda do Top 4 — avaliar se a sede ideal é Londrina (polo vizinho, massa maior) com Cambé como território de atuação.",
+     comps:["Art Serviços Automotivos Ltda"]},
+    {r:5,m:"Lages",uf:"SC",s:89.31,n:3,
+     plus:"Demanda forte combinada com concorrência baixa — polo logístico da região serrana catarinense.",
+     minus:"Menor score de Fluxo do Top 10 — mais polo de origem/demanda que corredor de passagem; ticket esperado por conta pode ser menor que em praças-porto.",
+     comps:["Dados Seguros Tecnologia Ltda","Edson Rodrigo de Morais","Khronos Monitoramento Eletrônico Ltda"]},
+    {r:6,m:"Santa Luzia",uf:"MG",s:89.17,n:5,
+     plus:"Demanda muito forte (percentil 90 ICP) — mesmo cinturão metropolitano de BH que Ribeirão das Neves, sugerindo cluster regional de oportunidade.",
+     minus:"Mesma ressalva de Ribeirão das Neves — checar composição por categoria antes de definir proposta de valor.",
+     comps:["Auto Center Gestão de Frota IoT Ltda","D'Granel Transportes e Comércio Ltda","Domo de Ferro Monitoramento e Portaria Ltda","Instituto Pedagógico Julio Luiz Ltda (checar relevância)","Master Coop Cooperativa de Transportes"]},
+    {r:7,m:"Araguari",uf:"MG",s:88.99,n:3,
+     plus:"Concorrência muito baixa (empatada com Paranaguá) — Triângulo Mineiro, forte trânsito agro entre MG/GO/SP.",
+     minus:"Demanda é a mais baixa do Top 10 em termos absolutos — oportunidade real, mas de porte potencialmente menor que os líderes.",
+     comps:["Buscar Transportes e Conservadora Patrimonial Ltda","Coopdiesel — Cooperativa de Transportes","L R Transportes Locações e Serviços Ltda"]},
+    {r:8,m:"Jataí",uf:"GO",s:88.42,n:4,
+     plus:"Polo de agronegócio de Goiás (corredor de grãos/soja) — demanda e fluxo equilibrados, ambos fortes.",
+     minus:"Concorrência é a mais alta entre as posições 1-9 — ainda um espaço bom, mas não o mais limpo da lista.",
+     comps:["Essencial Vigilância e Segurança Ltda","Graziela A Vizentin Ltda","SIM Soluções Integradas em Monitoramento Ltda","Zuccosat Rastreamento Ltda"]},
+    {r:9,m:"Araras",uf:"SP",s:88.15,n:2,
+     plus:"Demanda ICP muito forte com concorrência baixa — interior paulista, região sucroalcooleira/agroindustrial.",
+     minus:"Percentil RNTRC mais baixo do Top 10 — checar se é concentração em frota cativa das usinas em vez de transporte terceirizado.",
+     comps:["Nova Rastreadores Gestão e Segurança de Frotas Ltda","SmartSeg Monitoramento e Automação Ltda"]},
+    {r:10,m:"Itapevi",uf:"SP",s:87.79,n:6,
+     plus:"Maior score de Demanda do Top 10 (empatado com Paranaguá) — Grande São Paulo, cinturão logístico/industrial denso.",
+     minus:"Maior concorrência do Top 10 — região metropolitana de SP já tem operação GR mais consolidada; diferenciação de proposta será mais decisiva aqui.",
+     comps:["CIM Central de Intel e Monitoramento Ltda","Enzo Transportes e Serviços Gerais Ltda","ERL Instalação de Rastreadores Ltda","Guardian Proteção Veicular Ltda","Sicarseg Serviço de Segurança, Portaria e Monitoramento Ltda.","Transvictor Soluções em Transportes Ltda"]}
+  ];
+  var conf = [
+    {k:"ALTO", n:2285, color:"var(--accent)"},
+    {k:"MEDIO", n:5324, color:"var(--accent-3)"},
+    {k:"BAIXO", n:2458, color:"var(--accent-2)"}
+  ];
+
+  function el(tag, attrs, html) {
+    var e = document.createElement(tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  // --- municipios bar chart ---
+  var maxScore = top12[0].s;
+  var wrapM = document.getElementById("chart-municipios");
+  top12.forEach(function (row) {
+    var pct = (row.s / 100 * 100).toFixed(1);
+    var item = el("div", {class: "bar-item", tabindex: "0",
+      title: "Demanda " + row.d.toFixed(1) + " · Fluxo " + row.mdfe.toFixed(1) + " · Concorrência pct. " + row.comp.toFixed(1) + " (" + row.n + " concorrentes)"});
+    item.appendChild(el("div", {class: "rk"}, "#" + row.r));
+    item.appendChild(el("div", {class: "lbl"}, row.m + " <span class=\"uf\">/" + row.uf + "</span>"));
+    var track = el("div", {class: "track"});
+    var fill = el("div", {class: "fill" + (row.r === 1 ? " hero" : ""), style: "width:" + pct + "%"});
+    var fv = el("div", {class: "fv"}, row.s.toFixed(1));
+    track.appendChild(fill);
+    track.appendChild(fv);
+    item.appendChild(track);
+    wrapM.appendChild(item);
+  });
+
+  // --- UF bar chart ---
+  var maxUf = topUf[0].score;
+  var wrapU = document.getElementById("chart-uf");
+  topUf.forEach(function (row, i) {
+    var pct = (row.score / maxUf * 100).toFixed(1);
+    var item = el("div", {class: "bar-item", tabindex: "0",
+      title: row.n + " municípios classificados · líder: " + row.top});
+    item.appendChild(el("div", {class: "rk"}, "#" + (i + 1)));
+    item.appendChild(el("div", {class: "lbl"}, row.uf));
+    var track = el("div", {class: "track"});
+    var fill = el("div", {class: "fill" + (i === 0 ? " hero" : ""), style: "width:" + pct + "%"});
+    var fv = el("div", {class: "fv"}, row.score.toFixed(1));
+    track.appendChild(fill);
+    track.appendChild(fv);
+    item.appendChild(track);
+    wrapU.appendChild(item);
+  });
+
+  // --- confidence stacked bar ---
+  var total = conf.reduce(function (a, c) { return a + c.n; }, 0);
+  var stack = document.getElementById("conf-stack");
+  conf.forEach(function (c) {
+    var pct = (c.n / total * 100).toFixed(1);
+    var seg = el("div", {class: "stack-seg", style: "width:" + pct + "%;background:" + c.color,
+      title: c.k + ": " + c.n.toLocaleString("pt-BR") + " empresas (" + pct + "%)"}, pct + "%");
+    stack.appendChild(seg);
+  });
+
+  // --- table ---
+  var tbody = document.querySelector("#ranking-table tbody");
+  top20.forEach(function (row) {
+    var tr = el("tr", {});
+    tr.appendChild(el("td", {class: "rank"}, "#" + row.r));
+    tr.appendChild(el("td", {}, row.m));
+    tr.appendChild(el("td", {}, row.uf));
+    tr.appendChild(el("td", {class: "num tab"}, "<strong>" + row.s.toFixed(1) + "</strong>"));
+    tr.appendChild(el("td", {class: "num tab"}, row.d.toFixed(1)));
+    tr.appendChild(el("td", {class: "num tab"}, row.icp.toFixed(1)));
+    tr.appendChild(el("td", {class: "num tab"}, row.rntrc.toFixed(1)));
+    tr.appendChild(el("td", {class: "num tab"}, row.mdfe.toFixed(1)));
+    tr.appendChild(el("td", {class: "num tab"}, row.comp.toFixed(1)));
+    tr.appendChild(el("td", {class: "num tab"}, row.n));
+    tbody.appendChild(tr);
+  });
+
+  // --- top 10 strength/weakness cards ---
+  var t10grid = document.getElementById("top10-grid");
+  top10Detail.forEach(function (c) {
+    var card = el("div", {class: "t10-card"});
+    var hd = el("div", {class: "hd"});
+    hd.appendChild(el("div", {}, "<div class=\"rk\">#" + c.r + "</div><div class=\"name\">" + c.m + " <span class=\"uf\">/" + c.uf + "</span></div>"));
+    hd.appendChild(el("div", {class: "score"}, c.s.toFixed(1)));
+    card.appendChild(hd);
+    var plus = el("div", {class: "block plus"});
+    plus.appendChild(el("div", {class: "lbl"}, "▲ Pontos fortes"));
+    plus.appendChild(el("p", {}, c.plus));
+    card.appendChild(plus);
+    var minus = el("div", {class: "block minus"});
+    minus.appendChild(el("div", {class: "lbl"}, "▼ Pontos de atenção"));
+    minus.appendChild(el("p", {}, c.minus));
+    if (c.comps.length) {
+      var compLabel = c.comps.length === 1 ? "Concorrente mapeado:" : "Concorrentes mapeados:";
+      minus.appendChild(el("p", {style: "margin-top:8px;font-size:12px;color:var(--ink-muted);"},
+        "<strong>" + compLabel + "</strong> " + c.comps.join("; ")));
+    } else {
+      minus.appendChild(el("p", {style: "margin-top:8px;font-size:12px;color:var(--ink-muted);"},
+        "<strong>Nenhum concorrente mapeado</strong> na base nacional."));
+    }
+    card.appendChild(minus);
+    t10grid.appendChild(card);
+  });
+})();
+</script>

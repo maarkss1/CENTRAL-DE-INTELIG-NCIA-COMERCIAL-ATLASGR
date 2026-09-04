@@ -4884,6 +4884,15 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /copiloto-ia/leads/lookup:
+    get:
+      tags: [Copiloto IA]
+      summary: Resolve um Lead a partir de e-mail do contato, URL de lead/negócio do Bitrix24, ou id — usado pela extensão para vincular uma captura sem exigir o id colado à mão
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: 'OK (data é null se nenhum Lead corresponder à consulta)', content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
   /copiloto-ia/leads/{leadId}/deal-health:
     parameters:
       - name: leadId

@@ -1,4 +1,4 @@
-import { encryptField, decryptField } from './secretFields.js';
+import { encryptField, tryDecryptField } from './secretFields.js';
 
 // Criptografia de campos sensíveis (credenciais de integração + PII de contato) em repouso — mesmo mecanismo
 // AES-256-GCM de secretFields.ts, aplicado de forma transparente pela extensão do Prisma Client em
@@ -64,9 +64,12 @@ export function decryptSensitiveRecord<T>(model: string, record: T): T {
   const fields = ENCRYPTED_MODEL_FIELDS[model];
   if (!fields || !record || typeof record !== 'object') return record;
   const out = record as Record<string, unknown>;
+  const id = typeof out.id === 'string' ? out.id : undefined;
   for (const field of fields) {
     if (typeof out[field] === 'string' && out[field]) {
-      out[field] = decryptField(out[field] as string);
+      // tryDecryptField isola a falha a ESTE campo/registro — uma única credencial indecifrável
+      // não deve mais derrubar a query inteira (ver comentário em secretFields.ts).
+      out[field] = tryDecryptField(out[field] as string, { model, field, id });
     }
   }
   return out as T;

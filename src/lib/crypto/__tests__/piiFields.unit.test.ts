@@ -136,10 +136,41 @@ describe('piiFields — cifra em repouso de credenciais de integração', () => 
     expect(decryptSensitiveRecord('Contact', encrypted)).toEqual(plaintext);
   });
 
-  it('ciphertext adulterado falha ao decifrar (fail-closed, mesmo comportamento de secretFields)', () => {
+  // Comportamento mudado nesta rodada (ver secretFields.ts, tryDecryptField): antes,
+  // decryptSensitiveRecord lançava direto em ciphertext adulterado/chave errada — o que, chamado
+  // por decryptSensitiveResult sobre um array (findMany), derrubava a QUERY INTEIRA por causa de
+  // UM registro ruim (incidente real de produção, 01-03/09/2026). Continua fail-closed (nunca
+  // devolve o ciphertext cru nem o texto original), só que agora isolado por registro.
+  it('ciphertext adulterado NÃO lança mais — devolve o marcador de falha, isolado a este campo/registro', () => {
     const encrypted = encryptSensitiveFields('BitrixConnection', { webhookSecret: 'abc' });
-    const tampered = { webhookSecret: `${String(encrypted.webhookSecret).slice(0, -4)}XXXX` };
+    const tamperedCiphertext = `${String(encrypted.webhookSecret).slice(0, -4)}XXXX`;
 
-    expect(() => decryptSensitiveRecord('BitrixConnection', tampered)).toThrow(/Falha ao decifrar/);
+    expect(() =>
+      decryptSensitiveRecord('BitrixConnection', { webhookSecret: tamperedCiphertext }),
+    ).not.toThrow();
+    const result = decryptSensitiveRecord('BitrixConnection', {
+      webhookSecret: tamperedCiphertext,
+    });
+    expect(result.webhookSecret).not.toBe('abc');
+    expect(result.webhookSecret).not.toBe(tamperedCiphertext);
+    expect(String(result.webhookSecret)).toMatch(/descriptografia/i);
+  });
+
+  it('regressão do incidente real: 1 registro com PII indecifrável no meio de um findMany não derruba os demais', () => {
+    const good1 = encryptSensitiveFields('Contact', { id: 'c1', email: 'a@example.com' });
+    const corrupted = encryptSensitiveFields('Contact', { id: 'c2', email: 'b@example.com' });
+    corrupted.email = `${String(corrupted.email).slice(0, -4)}XXXX`; // simula chave rotacionada/dado corrompido
+    const good2 = encryptSensitiveFields('Contact', { id: 'c3', email: 'c@example.com' });
+
+    const rows = [good1, corrupted, good2];
+
+    expect(() => decryptSensitiveResult('Contact', rows)).not.toThrow();
+    const result = decryptSensitiveResult('Contact', rows) as Array<{ id: string; email: string }>;
+
+    expect(result).toHaveLength(3);
+    expect(result[0].email).toBe('a@example.com');
+    expect(result[1].email).not.toBe('b@example.com');
+    expect(String(result[1].email)).toMatch(/descriptografia/i);
+    expect(result[2].email).toBe('c@example.com'); // registro APÓS o corrompido também sobrevive
   });
 });

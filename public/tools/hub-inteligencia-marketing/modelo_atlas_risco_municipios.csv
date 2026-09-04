@@ -1,0 +1,3 @@
+nivel;municipio;uf;roubo_carga;roubo_veiculo;furto_veiculo;periodo_inicio;periodo_fim;meses_observados;fonte;qualidade
+MUNICIPIO;MUNICIPIO EXEMPLO;SP;0;0;0;2025-05;2026-04;12;MJSP / Sinesp VDE;MUNICIPAL
+UF;;SP;0;0;0;2025-05;2026-04;12;MJSP / Sinesp VDE;PROXY_UF

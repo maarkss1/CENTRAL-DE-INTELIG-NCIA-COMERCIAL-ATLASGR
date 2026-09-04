@@ -46,7 +46,21 @@ export async function runWinLossAnalysis(): Promise<WinLossOrgAnalysis[]> {
   // `stagnation-scanner.service.ts`: lista as organizações (não é tenant-scoped em si) e roda
   // uma análise SEPARADA por organização, dentro do contexto de tenant correto
   // (`requestContext.run`), igual ao caminho manual já faz via `req.user.organizationId`.
-  const organizations = await prisma.organization.findMany({ select: { id: true } });
+  //
+  // Segundo achado real, de finalização (2026-09-04): a descoberta de organizações em si
+  // (`prisma.organization.findMany`) ficou sem NENHUM contexto de RLS — `Organization` também
+  // está sob `FORCE ROW LEVEL SECURITY` (migration 20260722020322_enable_rls), então sem
+  // `app.current_tenant_id`/`app.bypass_rls` a policy nega a leitura por completo. Confirmado
+  // empiricamente contra o Postgres real deste worktree: esta chamada devolvia 0 organizações
+  // mesmo havendo organizações reais no banco — o `for` abaixo nunca executava em produção, e o
+  // job "concluía com sucesso" sem processar nenhum lead, sem nenhum erro. `Organization` está no
+  // allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS, src/lib/prisma.ts) exatamente para esta
+  // descoberta inicial — mesmo padrão já usado corretamente por
+  // `accountIntelligenceInsights.worker.ts`/`agentMemoryCleanup.worker.ts`/
+  // `bitrixExtractionPurge.worker.ts`/`newsMonitor.worker.ts`.
+  const organizations = await requestContext.run({ bypassRls: true }, () =>
+    prisma.organization.findMany({ select: { id: true } }),
+  );
   const analyses: WinLossOrgAnalysis[] = [];
 
   for (const { id: organizationId } of organizations) {
