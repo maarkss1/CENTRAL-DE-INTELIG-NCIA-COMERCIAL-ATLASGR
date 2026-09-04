@@ -3,9 +3,7 @@ name: Security - CodeQL
 # ITEM-10 (Onda 2 — CodeQL/Trivy/Dependency Review bloqueantes). Roda análise estática de
 # segurança (SAST) nas linguagens com superfície real de aplicação neste repositório:
 #   - javascript-typescript: frontend React + backend Express (src/, server.ts, worker.ts).
-#   - python: scripts de ETL de inteligência de mercado que processam dado externo
-#     (public/tools/atlas-market-intelligence/, scripts/market-intelligence/,
-#     scripts/market_intelligence/).
+#   - python: scripts auxiliares e ferramentas Python ainda versionados no repositório.
 # `android/` só tem boilerplate de teste do Capacitor (2 arquivos .java de exemplo, sem lógica
 # própria) — não entrou como linguagem própria por não ter superfície de segurança real hoje.
 #
