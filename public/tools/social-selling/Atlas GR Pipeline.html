@@ -226,9 +226,9 @@
   }
   function fmtDateBR(iso){
     if(!iso) return '—';
-    var parts = iso.split('-');
-    if(parts.length !== 3) return iso;
-    return parts[2] + '/' + parts[1];
+    var parts = String(iso).split('-');
+    if(parts.length !== 3) return escapeHtml(iso);
+    return escapeHtml(parts[2]) + '/' + escapeHtml(parts[1]);
   }
   function daysBetween(iso){
     if(!iso) return null;
@@ -359,7 +359,7 @@
       var over = x.proximaData && STATUS_CLOSED.indexOf(x.status) === -1 && daysBetween(x.proximaData) > 0;
       return '<tr>' +
         '<td><b>' + escapeHtml(x.nome) + '</b><br><span class="form-note">' + escapeHtml(x.empresa || '') + '</span></td>' +
-        '<td><span class="seg ' + x.temperatura + '">' + x.temperatura + '</span></td>' +
+        '<td><span class="seg ' + escapeHtml(x.temperatura) + '">' + escapeHtml(x.temperatura) + '</span></td>' +
         '<td>' + escapeHtml(x.status) + '</td>' +
         '<td>' + escapeHtml(x.ultimoToque || '—') + (x.ultimoToqueData ? '<br><span class="form-note">' + fmtDateBR(x.ultimoToqueData) + '</span>' : '') + '</td>' +
         '<td>' + escapeHtml(x.proximoPasso || '—') + '</td>' +
