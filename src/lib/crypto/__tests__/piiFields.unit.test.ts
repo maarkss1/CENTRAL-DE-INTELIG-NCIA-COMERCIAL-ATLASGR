@@ -148,7 +148,9 @@ describe('piiFields — cifra em repouso de credenciais de integração', () => 
     expect(() =>
       decryptSensitiveRecord('BitrixConnection', { webhookSecret: tamperedCiphertext }),
     ).not.toThrow();
-    const result = decryptSensitiveRecord('BitrixConnection', { webhookSecret: tamperedCiphertext });
+    const result = decryptSensitiveRecord('BitrixConnection', {
+      webhookSecret: tamperedCiphertext,
+    });
     expect(result.webhookSecret).not.toBe('abc');
     expect(result.webhookSecret).not.toBe(tamperedCiphertext);
     expect(String(result.webhookSecret)).toMatch(/descriptografia/i);
