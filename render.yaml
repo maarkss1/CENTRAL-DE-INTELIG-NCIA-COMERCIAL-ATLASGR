@@ -23,11 +23,7 @@ services:
     # então o Render continua roteando tráfego para a instância antiga enquanto isso —
     # preserva a garantia real (nunca servir tráfego contra schema desatualizado, nunca subir com
     # migração pendente) mesmo sem a zero-downtime "instância efêmera separada" do plano pago.
-    # O bootstrap de Market Intelligence roda depois das migrations e antes do servidor: sem seed
-    # versionado ele sai com status no-seed; com seed oficial ele publica CNPJ_ACTIVE atomicamente.
-    # Quando o workspace migrar para plano pago (starter, como docs/deploy/producao.md já assume),
-    # mover apenas a migration para preDeployCommand e manter o bootstrap antes do npm run start.
-    startCommand: npx prisma migrate deploy && node scripts/market-intelligence/load-company-seed.mjs && npm run start
+    startCommand: npx prisma migrate deploy && npm run start
     # Bate no endpoint com checagem real de banco (SELECT 1), não só "processo respondeu" — ver
     # server.ts. Corrigido de /api/health (rota inexistente; cai no 404 genérico de /api/*) para
     # /health/ready.
