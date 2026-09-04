@@ -66,14 +66,14 @@ export function ClockCalendarWidget() {
   return (
     <div
       data-testid="clock-calendar-widget"
-      className="p-6 rounded-card-lg border border-line bg-surface shadow-card relative overflow-hidden text-ink font-sans"
+      className="p-5 rounded-card-lg border border-line bg-surface shadow-card relative overflow-hidden text-ink font-sans"
     >
       <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand to-brand-2" />
       <div className="absolute top-0 right-0 w-48 h-48 bg-brand-2/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center gap-3 pb-4 border-b border-line mb-4">
+      <div className="flex items-center gap-3 pb-3 border-b border-line mb-3">
         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-active to-brand-2-active flex items-center justify-center text-white shadow-card">
           <Clock className="w-5 h-5" />
         </div>
@@ -83,7 +83,7 @@ export function ClockCalendarWidget() {
       </div>
 
       {/* Relógio Ao Vivo */}
-      <div className="p-6 rounded-card bg-surface-2 border border-line relative overflow-hidden text-center sm:text-left">
+      <div className="p-5 rounded-card bg-surface-2 border border-line relative overflow-hidden text-center sm:text-left">
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-ink-2 block mb-1 flex items-center justify-center sm:justify-start gap-1">
           <Sparkles className="w-3 h-3 text-brand" /> Fuso Horário Oficial (Horário de Brasília)
         </span>
