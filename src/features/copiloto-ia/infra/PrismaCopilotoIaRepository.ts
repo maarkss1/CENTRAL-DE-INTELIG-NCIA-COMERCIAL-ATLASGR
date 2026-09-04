@@ -1,4 +1,5 @@
 import { prisma } from '../../../lib/prisma.js';
+import { contactSearchIndexClauses } from '../../../lib/crypto/piiIndex.js';
 import type {
   CopilotoIaRepository,
   CreateConversationInput,
@@ -25,8 +26,10 @@ import type {
   UpsertBitrixFieldMappingInput,
   CreateCoachingEvaluationInput,
   CopilotoCoachingEvaluationDTO,
+  LeadLookupResultDTO,
 } from '../domain/CopilotoIa';
 import type { WhatsAppMessageTiming } from '../application/whatsappResponseTime';
+import { parseLeadLookupQuery } from '../application/leadLookup.js';
 
 const CONVERSATION_DETAIL_INCLUDE = {
   transcriptSegments: { orderBy: { startMs: 'asc' as const } },
@@ -49,6 +52,60 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
   async contactExists(organizationId: string, id: string): Promise<boolean> {
     const count = await prisma.contact.count({ where: { id, organizationId } });
     return count > 0;
+  }
+
+  async findLeadByLookup(
+    organizationId: string,
+    query: string,
+  ): Promise<LeadLookupResultDTO | null> {
+    const parsed = parseLeadLookupQuery(query);
+    const include = { company: true, contact: true } as const;
+
+    let lead: {
+      id: string;
+      title: string | null;
+      company: { tradeName: string | null; legalName: string | null } | null;
+      contact: { name: string | null } | null;
+    } | null = null;
+
+    if (parsed.type === 'bitrix') {
+      lead = await prisma.lead.findFirst({
+        where: { organizationId, OR: [{ bitrixLeadId: parsed.id }, { bitrixDealId: parsed.id }] },
+        include,
+        orderBy: { updatedAt: 'desc' },
+      });
+    } else if (parsed.type === 'email') {
+      // `contactSearchIndexClauses` também gera cláusula de telefone quando o texto tem dígitos
+      // suficientes — aqui só o e-mail interessa (o telefone não é uma forma de lookup pedida),
+      // então filtra pela chave certa em vez de aceitar qualquer cláusula que a função devolver.
+      const emailClauses = contactSearchIndexClauses(parsed.value).filter(
+        (clause) => 'emailIndex' in clause,
+      );
+      const contact =
+        emailClauses.length > 0
+          ? await prisma.contact.findFirst({ where: { organizationId, OR: emailClauses } })
+          : null;
+      lead = contact
+        ? await prisma.lead.findFirst({
+            where: { organizationId, contactId: contact.id },
+            include,
+            orderBy: { updatedAt: 'desc' },
+          })
+        : null;
+    } else {
+      lead = await prisma.lead.findFirst({
+        where: { organizationId, id: parsed.value },
+        include,
+      });
+    }
+
+    if (!lead) return null;
+    return {
+      id: lead.id,
+      title: lead.title,
+      companyName: lead.company?.tradeName ?? lead.company?.legalName ?? null,
+      contactName: lead.contact?.name ?? null,
+    };
   }
 
   async createConversation(

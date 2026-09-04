@@ -6,6 +6,7 @@ const meetTitleEl = document.getElementById('meetTitle');
 const meetUrlEl = document.getElementById('meetUrl');
 const leadIdEl = document.getElementById('leadId');
 const linkLeadEl = document.getElementById('linkLead');
+const skipLeadEl = document.getElementById('skipLead');
 const consentCardEl = document.getElementById('consentCard');
 const consentEl = document.getElementById('consent');
 const registerConsentEl = document.getElementById('registerConsent');
@@ -97,6 +98,10 @@ function render() {
   linkLeadEl.disabled = !meetContext || !!conversation;
   linkLeadEl.textContent = conversation ? 'Reunião já vinculada' : 'Vincular reunião a este Lead';
   leadIdEl.disabled = !!conversation;
+  skipLeadEl.disabled = !meetContext || !!conversation;
+  skipLeadEl.textContent = conversation
+    ? 'Sessão já iniciada'
+    : 'Capturar sem vincular a um Lead';
 
   // Consent card
   const hasConversation = !!conversation;
@@ -142,25 +147,46 @@ async function refreshMeetContext() {
   render();
 }
 
+/** Cria a conversa no backend e sincroniza o estado local — usado tanto vinculado a um Lead
+ * quanto sem vínculo nenhum (o backend aceita `leadId` opcional; ver CopilotoIaUseCases). */
+async function startConversation(extra) {
+  if (!meetContext) throw new Error('Nenhuma reunião do Meet detectada nesta aba.');
+  const created = await copilotoApi.createConversation({
+    source: 'MEET',
+    title: meetContext.title,
+    externalMeetingId: meetContext.meetingCode || undefined,
+    ...extra,
+  });
+  conversation = {
+    id: created.id,
+    status: created.status,
+    consentStatus: created.consentStatus,
+  };
+  await saveConversationForTab();
+  render();
+}
+
 linkLeadEl.addEventListener('click', () =>
   withErrorHandling(async () => {
-    const leadId = leadIdEl.value.trim();
-    if (!leadId) throw new Error('Informe o id do Lead antes de vincular.');
-    if (!meetContext) throw new Error('Nenhuma reunião do Meet detectada nesta aba.');
+    const query = leadIdEl.value.trim();
+    if (!query) throw new Error('Informe o e-mail, o link do Bitrix24 ou o id do Lead antes de vincular.');
+    // O backend aceita as três formas (e-mail do contato, URL de lead/negócio do Bitrix24, ou id
+    // cru da Central) e resolve pra um leadId — a extensão nunca precisa saber qual das três é.
+    const lead = await copilotoApi.lookupLead(query);
+    if (!lead) {
+      throw new Error(
+        'Nenhum Lead encontrado para isso na Central Atlas GR. Confira o e-mail/link/id, ou use "Capturar sem vincular a um Lead".',
+      );
+    }
+    await startConversation({ leadId: lead.id });
+  }),
+);
 
-    const created = await copilotoApi.createConversation({
-      source: 'MEET',
-      leadId,
-      title: meetContext.title,
-      externalMeetingId: meetContext.meetingCode || undefined,
-    });
-    conversation = {
-      id: created.id,
-      status: created.status,
-      consentStatus: created.consentStatus,
-    };
-    await saveConversationForTab();
-    render();
+skipLeadEl.addEventListener('click', () =>
+  withErrorHandling(async () => {
+    // Sem leadId: Deal Health Score, forecast e sugestão de campo de CRM não se aplicam (dependem
+    // de uma oportunidade) — a conversa ainda é transcrita e resumida normalmente.
+    await startConversation({});
   }),
 );
 

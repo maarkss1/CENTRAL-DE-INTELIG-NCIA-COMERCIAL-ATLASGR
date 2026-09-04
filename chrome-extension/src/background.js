@@ -8,7 +8,27 @@ const OFFSCREEN_DOCUMENT_PATH = 'src/offscreen.html';
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[Atlas Copiloto] extensão instalada');
+  injectContentScriptIntoOpenMeetTabs();
 });
+
+// `content_scripts` do manifest só roda em abas do Meet que CARREGAM depois da extensão ser
+// instalada/recarregada — uma aba do Meet já aberta antes disso nunca recebe o content.js
+// (comportamento padrão do Chrome, não bug de permissão) e o side panel fica preso em "Nenhuma
+// reunião detectada" até o usuário dar F5 manualmente. Isso mordia toda instalação/reload durante
+// desenvolvimento — injeta programaticamente nas abas do Meet já abertas para não depender disso.
+async function injectContentScriptIntoOpenMeetTabs() {
+  const tabs = await chrome.tabs.query({ url: 'https://meet.google.com/*' });
+  for (const tab of tabs) {
+    if (!tab.id) continue;
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['src/content.js'] });
+    } catch (err) {
+      // Aba pode estar numa página interna do Chrome sem permissão de injeção, ou ter fechado
+      // entre o query e a injeção — não é um erro que o usuário precise ver.
+      console.warn('[Atlas Copiloto] falha ao injetar em aba já aberta', tab.id, err);
+    }
+  }
+}
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
