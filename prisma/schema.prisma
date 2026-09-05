@@ -275,6 +275,15 @@ model Company {
   deletedBy                   String?
   deleteReason                String?
 
+  // Sincronização com o Bitrix24 — só capturado hoje quando a Company nasce da importação de um
+  // Negócio do Bitrix24 (`crm.deal.get` → `COMPANY_ID`, ver
+  // src/features/integrations/bitrix/service/deals.ts). Habilita o writeback do Copiloto
+  // Comercial IA (Onda 4/7) para `entityType: COMPANY`. Sem `@@unique`: hoje cada Negócio
+  // importado cria uma Company nova (sem dedupe entre Negócios do mesmo cliente — problema
+  // pré-existente, não resolvido aqui), então duas linhas locais LEGITIMAMENTE podem apontar para
+  // o mesmo `bitrixCompanyId` — uma constraint única quebraria essa importação.
+  bitrixCompanyId String?
+
   // Permite FKs compostas nas tabelas de Account Intelligence: uma linha tenant-scoped nunca
   // pode apontar para uma Company de outra organizacao, mesmo sob bypass administrativo.
   @@unique([id, organizationId])
@@ -292,6 +301,7 @@ model Company {
   @@index([cnpj])
   @@index([legalName])
   @@index([tradeName])
+  @@index([bitrixCompanyId])
 }
 
 /// Snapshot rastreável e global. Só o importador com bypass de RLS pode gravar/publicar.
@@ -511,12 +521,22 @@ model Contact {
   deletedBy    String?
   deleteReason String?
 
+  // Sincronização com o Bitrix24 — só capturado hoje quando o Contact nasce da importação de um
+  // Negócio do Bitrix24 (`crm.deal.get` → `CONTACT_ID`, ver
+  // src/features/integrations/bitrix/service/deals.ts). Habilita o writeback do Copiloto
+  // Comercial IA (Onda 4/7) para `entityType: CONTACT`. Sem `@@unique`, mesmo motivo de
+  // `Company.bitrixCompanyId`: cada Negócio importado cria um Contact novo (sem dedupe entre
+  // Negócios do mesmo cliente), então duas linhas locais podem legitimamente apontar para o
+  // mesmo `bitrixContactId`.
+  bitrixContactId String?
+
   // DecisionMaker referencia este trio para garantir no banco que contato, conta e tenant sao os
   // mesmos. Os campos pessoais continuam apenas em Contact; o LDR nao cria uma copia global.
   @@unique([id, companyId, organizationId])
   @@index([organizationId])
   @@index([name])
   @@index([role])
+  @@index([bitrixContactId])
   // Substituem os antigos @@index([email])/@@index([phone])/@@index([whatsapp]) — inúteis contra
   // ciphertext (IV aleatório nunca repete), ver comentário nos campos acima. Também substituem
   // phoneHash/whatsappHash/emailHash (DEC-01/onda-42) — ver comentário grande no topo do model.

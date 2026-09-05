@@ -448,6 +448,17 @@ class FakeCopilotoIaRepository implements CopilotoIaRepository {
   async getLeadBitrixId(_organizationId: string, leadId: string): Promise<string | null> {
     return this.leadBitrixIds.get(leadId) ?? null;
   }
+
+  companyBitrixIds = new Map<string, string>();
+  contactBitrixIds = new Map<string, string>();
+
+  async getCompanyBitrixId(_organizationId: string, companyId: string): Promise<string | null> {
+    return this.companyBitrixIds.get(companyId) ?? null;
+  }
+
+  async getContactBitrixId(_organizationId: string, contactId: string): Promise<string | null> {
+    return this.contactBitrixIds.get(contactId) ?? null;
+  }
 }
 
 describe('CopilotoIaUseCases', () => {

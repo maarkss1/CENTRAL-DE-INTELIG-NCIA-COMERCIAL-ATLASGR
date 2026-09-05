@@ -25,4 +25,20 @@ export interface BitrixLeadWritebackPort {
     bitrixLeadId: string,
     fields: Record<string, string>,
   ): Promise<void>;
+  /** Mesmo contrato de `updateLeadFields`, para `entityType: COMPANY` (Onda 7) — `bitrixCompanyId`
+   * só existe para Company importada a partir de um Negócio do Bitrix24 (ver `Company.bitrixCompanyId`
+   * no schema). */
+  updateCompanyFields(
+    organizationId: string,
+    bitrixCompanyId: string,
+    fields: Record<string, string>,
+  ): Promise<void>;
+  /** Mesmo contrato de `updateLeadFields`, para `entityType: CONTACT` (Onda 7) — `bitrixContactId`
+   * só existe para Contact importado a partir de um Negócio do Bitrix24 (ver `Contact.bitrixContactId`
+   * no schema). */
+  updateContactFields(
+    organizationId: string,
+    bitrixContactId: string,
+    fields: Record<string, string>,
+  ): Promise<void>;
 }

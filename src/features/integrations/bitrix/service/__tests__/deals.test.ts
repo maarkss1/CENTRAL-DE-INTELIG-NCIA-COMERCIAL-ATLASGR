@@ -142,3 +142,70 @@ describe('importSelectedBitrixDeals — falha de item não derruba o lote inteir
     });
   });
 });
+
+/**
+ * Onda 7 — habilita o writeback do Copiloto Comercial IA para entityType COMPANY/CONTACT:
+ * Company/Contact.bitrixCompanyId/bitrixContactId só existem quando capturados aqui, na
+ * importação a partir de um Negócio (deal.COMPANY_ID/deal.CONTACT_ID) — sem isso o writeback
+ * nunca teria um id de destino no Bitrix pra escrever.
+ */
+describe('importSelectedBitrixDeals — grava bitrixCompanyId/bitrixContactId (Onda 7)', () => {
+  it('propaga COMPANY_ID/CONTACT_ID do negócio para Company.bitrixCompanyId/Contact.bitrixContactId', async () => {
+    prismaMock.lead.findFirst.mockResolvedValue(null);
+    prismaMock.company.create.mockResolvedValue({ id: 'company-1' });
+    prismaMock.contact.create.mockResolvedValue({ id: 'contact-1' });
+    prismaMock.lead.create.mockResolvedValue({ id: 'lead-1' });
+
+    clientMock.callBitrix.mockImplementation(async (_url: string, method: string) => {
+      if (method === 'crm.deal.get') {
+        return {
+          result: {
+            ID: '200',
+            TITLE: 'Negócio com empresa e contato',
+            CONTACT_ID: '55',
+            COMPANY_ID: '77',
+          },
+        };
+      }
+      if (method === 'crm.contact.get') {
+        return { result: { NAME: 'Fulano', LAST_NAME: 'Silva' } };
+      }
+      if (method === 'crm.company.get') {
+        return { result: { TITLE: 'Empresa Bitrix' } };
+      }
+      throw new Error(`método Bitrix inesperado neste teste: ${method}`);
+    });
+
+    const { importSelectedBitrixDeals } = await import('../deals.js');
+    const result = await importSelectedBitrixDeals('org-1', 'conn-1', ['200']);
+
+    expect(result.imported).toBe(1);
+    expect(prismaMock.company.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ bitrixCompanyId: '77' }) }),
+    );
+    expect(prismaMock.contact.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ bitrixContactId: '55' }) }),
+    );
+  });
+
+  it('negócio sem CONTACT_ID/COMPANY_ID não fabrica um id — grava null', async () => {
+    prismaMock.lead.findFirst.mockResolvedValue(null);
+    prismaMock.company.create.mockResolvedValue({ id: 'company-2' });
+    prismaMock.lead.create.mockResolvedValue({ id: 'lead-2' });
+
+    clientMock.callBitrix.mockImplementation(async (_url: string, method: string) => {
+      if (method === 'crm.deal.get') {
+        return { result: { ID: '201', TITLE: 'Negócio sem empresa/contato vinculados' } };
+      }
+      throw new Error(`método Bitrix inesperado neste teste: ${method}`);
+    });
+
+    const { importSelectedBitrixDeals } = await import('../deals.js');
+    await importSelectedBitrixDeals('org-1', 'conn-1', ['201']);
+
+    expect(prismaMock.company.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ bitrixCompanyId: null }) }),
+    );
+    expect(prismaMock.contact.create).not.toHaveBeenCalled();
+  });
+});
