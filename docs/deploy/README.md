@@ -11,32 +11,39 @@ Render (`render.yaml` → `autoDeployTrigger: off`, comentário `LEGACY/FROZEN`)
 páginas fossem atualizadas. Esta página resolve essa divergência sem apagar o trabalho documentado
 em cada caminho — cada um continua descrito no lugar de sempre, agora com o status real.
 
-## 1. Caminho canônico por ambiente (estado real, 2026-08-25)
+> **Atualização de destino de produção (2026-09-05, ver `docs/ADR/ADR-004-Producao-Oracle-
+> Cloud.md`):** o dono do produto decidiu, de forma definitiva, que o destino de produção passa a
+> ser **Oracle Cloud Infrastructure (self-hosted, `docker-compose.oci.yml`)**, substituindo a
+> escolha anterior (Render + Neon, registrada em 2026-09-02/04). A tabela e a numeração abaixo são
+> atualizadas para refletir isso; nenhum caminho documentado é apagado.
+
+## 1. Caminho canônico por ambiente (estado real, 2026-09-05)
 
 | Ambiente | Caminho canônico hoje | Fonte de verdade | Status |
 | --- | --- | --- | --- |
-| **Desenvolvimento local** | `docker-compose.yml` (Postgres+pgvector, Redis, Meilisearch, MinIO, LiteLLM, Ollama) + `npm run dev` | [`docs/development/LOCAL_FIRST.md`](../development/LOCAL_FIRST.md) | **Ativo** — único ambiente rodando hoje |
+| **Desenvolvimento local** | `docker-compose.yml` (Postgres+pgvector, Redis, Meilisearch, MinIO, LiteLLM, Ollama) + `npm run dev` | [`docs/development/LOCAL_FIRST.md`](../development/LOCAL_FIRST.md) | **Ativo** |
 | **Homologação** | Nenhum ambiente cloud ativo. `cd-homolog.yml` existe (build de imagem Docker + Helm `values.yaml`) mas não há cluster real consumindo o resultado | [`k8s/README.md`](../../k8s/README.md), [`charts/README.md`](../../charts/README.md) | Pipeline existe, alvo (cluster) não existe |
-| **Produção** | Nenhum ambiente cloud ativo. O único deploy de produção real já existiu no Render (`prospector-atlas`, ver histórico em `infrastructure/observability/RUNBOOK.md`) e foi **congelado deliberadamente** durante a migração para local-first | [`docs/development/LOCAL_FIRST.md`](../development/LOCAL_FIRST.md) seção "Situação dos provedores legados" | **Congelado** — preservado só para rollback/migração de dados |
+| **Produção (alvo definitivo)** | **Oracle Cloud Infrastructure, self-hosted** — `docker-compose.oci.yml` (app + postgres + caddy; Redis/worker opt-in), instância Ampere A1, região `sa-saopaulo-1` | [`docs/deploy/oracle-cloud.md`](oracle-cloud.md), [`docs/ADR/ADR-004-Producao-Oracle-Cloud.md`](../ADR/ADR-004-Producao-Oracle-Cloud.md) | **Em preparação** — código/scripts/documentação prontos nesta sessão; provisionamento e validação da instância real, migração de dado de produção e cutover de DNS exigem execução humana com acesso à infraestrutura (fora do alcance desta sessão) |
+| **Produção (ainda ativa, fallback durante a transição)** | Render (`prospector-atlas`, `plan: starter`) + Supabase (banco real hoje) — ver nota de cutover Neon pendente | [`docs/deploy/producao.md`](producao.md) | **Ativo, mas congelado para novo investimento** — não desligar antes do Go-Live Oracle estar validado (backup/restore/smoke = PASS) |
 
-O critério para reabrir a escolha de hospedagem de produção está em
-[`docs/development/LOCAL_FIRST.md`](../development/LOCAL_FIRST.md) ("Critério para voltar à
-produção"): frontend, backend, autenticação, permissões, banco, integrações, Market Intelligence,
-CRM, testes e build final validados localmente primeiro.
+O critério anterior ("voltar à produção" a partir do modo local-first) já foi cumprido em
+2026-09-02 — ver [`docs/development/LOCAL_FIRST.md`](../development/LOCAL_FIRST.md). O critério
+agora é o checklist de cutover em `docs/deploy/oracle-cloud.md` ("Cutover") antes de desligar
+qualquer infraestrutura anterior.
 
 ## 2. Os quatro caminhos documentados — o que cada um é e seu status real
 
 | # | Caminho | Arquivos | Status |
 | --- | --- | --- | --- |
-| 1 | **Local-first (docker-compose)** | `docker-compose.yml`, `docs/development/LOCAL_FIRST.md` | **Ativo** — fase atual do projeto |
-| 2 | **Render + Supabase + Cloudflare** (monólito Express) | `render.yaml`, `docs/deploy/producao.md`, `docs/deploy/render.md` | **Congelado** (`autoDeployTrigger: off`) — arquitetura de produção candidata, preservada para rollback, não recebe deploy automático |
-| 3 | **Self-hosted OCI (Docker Compose + Caddy)** | `docker-compose.oci.yml`, `docs/deploy/oracle-cloud.md`, `scripts/deploy-oci.sh` | Candidato alternativo documentado, não implantado ativamente hoje |
+| 1 | **Local-first (docker-compose)** | `docker-compose.yml`, `docs/development/LOCAL_FIRST.md` | **Ativo** — ambiente de desenvolvimento |
+| 2 | **Self-hosted Oracle Cloud (Docker Compose + Caddy)** | `docker-compose.oci.yml`, `docs/deploy/oracle-cloud.md`, `scripts/deploy-oci.sh`, `scripts/backup-oci.sh`, `scripts/restore-oci.sh` | **Alvo definitivo de produção (ADR-004)** — preparação de repositório concluída nesta sessão; deploy real na instância ainda pendente de execução humana |
+| 3 | **Render + Supabase/Neon + Cloudflare** (monólito Express) | `render.yaml`, `docs/deploy/producao.md`, `docs/deploy/render.md` | **Fallback/rollback durante a transição para Oracle** — continua recebendo tráfego real hoje, não recebe mais investimento de infraestrutura novo, não desligar antes do cutover Oracle validado |
 | 4 | **Kubernetes / Helm / ArgoCD** | `k8s/`, `charts/prospector-atlas/`, `argocd/` | Aspiracional — chart e manifests existem e são mantidos corretos (ver `charts/README.md`), mas nenhum cluster real está registrado consumindo isso. `cd-homolog.yml`/`production.yaml` publicam imagem em `ghcr.io` e atualizam `values.yaml`, sem cluster no outro lado |
 
-Nenhum desses caminhos foi removido por esta consolidação — remover documentação de arquitetura
-real (mesmo congelada) sem decisão de negócio explícita não é escopo deste item. O que mudou é que
-cada um agora aponta para este índice em vez de afirmar, de forma desatualizada, ser "o deploy
-ativo em produção".
+Nenhum desses caminhos foi removido por esta atualização — remover documentação de arquitetura
+real (mesmo congelada) sem decisão de negócio explícita não é escopo desta missão. O que mudou é
+que o caminho 2 (Oracle) passa de "candidato não implantado" para "alvo definitivo", e o caminho 3
+(Render) passa de "ativo" para "fallback durante a transição" — ver ADR-004.
 
 ## 3. Healthcheck e readiness — já padronizado
 
