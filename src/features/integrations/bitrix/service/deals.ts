@@ -444,6 +444,9 @@ export async function importSelectedBitrixDeals(
             observations: deal.COMMENTS || null,
             organizationId,
             tags: ['Bitrix24'],
+            // Habilita o writeback do Copiloto Comercial IA (entityType COMPANY) — ver
+            // Company.bitrixCompanyId no schema.
+            bitrixCompanyId: deal.COMPANY_ID || null,
           },
         });
 
@@ -456,6 +459,9 @@ export async function importSelectedBitrixDeals(
                 role: contactRole || contactRoleFromApi,
                 companyId: company.id,
                 organizationId,
+                // Habilita o writeback do Copiloto Comercial IA (entityType CONTACT) — ver
+                // Contact.bitrixContactId no schema.
+                bitrixContactId: deal.CONTACT_ID || null,
               },
             })
           : null;

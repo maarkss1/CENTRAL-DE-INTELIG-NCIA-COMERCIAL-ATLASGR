@@ -386,6 +386,13 @@ export interface CopilotoIaRepository {
   /** `null` quando o Lead não existe nesta organização OU ainda não tem `bitrixLeadId` (nunca
    * sincronizado com o Bitrix) — o chamador não distingue os dois casos, ambos impedem writeback. */
   getLeadBitrixId(organizationId: string, leadId: string): Promise<string | null>;
+  /** Mesmo raciocínio de `getLeadBitrixId`, para `entityType: COMPANY` (Onda 7) — `null` quando a
+   * Company não existe nesta organização OU nunca teve `bitrixCompanyId` capturado (hoje só
+   * acontece para Company importada a partir de um Negócio do Bitrix24, ver `deals.ts`). */
+  getCompanyBitrixId(organizationId: string, companyId: string): Promise<string | null>;
+  /** Mesmo raciocínio de `getLeadBitrixId`, para `entityType: CONTACT` (Onda 7) — `null` quando o
+   * Contact não existe nesta organização OU nunca teve `bitrixContactId` capturado. */
+  getContactBitrixId(organizationId: string, contactId: string): Promise<string | null>;
   /** `null` quando o Lead não existe OU não tem `probability` preenchida no CRM — a probabilidade
    * OFICIAL nunca é fabricada/assumida, sempre lida direto de `Lead.probability`. */
   getLeadProbability(organizationId: string, leadId: string): Promise<number | null>;
