@@ -1,4 +1,17 @@
-version: '3.8'
+# Stack de produção self-hosted no Oracle Cloud Infrastructure (OCI).
+#
+# Stack mínimo do MVP (sempre sobe com `docker compose up -d`, sem flags extras):
+#   app (monólito Node/Express + frontend Vite) + postgres + caddy (reverse proxy/TLS).
+#
+# `redis` e `worker` são OPT-IN via Compose profile `queues` — decisão de produto registrada em
+# `render.yaml` (ENABLE_QUEUES=false no serviço web) e em `docs/deploy/oracle-cloud.md`: nenhuma
+# jornada essencial do MVP (auth, CRM, Prospecção, dashboard) depende de fila/Redis — ver
+# `src/lib/queue/redis.ts` (REDIS_URL ausente => `queuesEnabled=false`, app sobe normalmente).
+# Para habilitar filas/worker mais tarde, quando alguma jornada realmente depender disso:
+#   ENABLE_QUEUES=true no .env.production + `docker compose -f docker-compose.oci.yml --profile queues up -d`
+#
+# Nunca suba `redis`/`worker` ao lado de outro processo que também consuma as mesmas filas
+# BullMQ — duplicar consumers reprocessa jobs (ver ADR-004 e docs/ADR/ADR-003, seção A).
 
 services:
   app:
@@ -10,15 +23,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     env_file:
       - .env.production
     environment:
       - NODE_ENV=production
       - PORT=3000
       - DATABASE_URL=postgresql://prospector_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set}@postgres:5432/prospectordb
-      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379
+      # Opcionais por padrão (stack mínimo do MVP): só têm efeito quando o profile `queues` está
+      # ativo E o operador define os dois no .env.production (ver cabeçalho deste arquivo e
+      # scripts/deploy-oci.sh). Sem eles, `queuesEnabled=false` e a aplicação sobe normalmente.
+      - ENABLE_QUEUES=${ENABLE_QUEUES:-false}
+      - REDIS_URL=${REDIS_URL:-}
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
@@ -30,7 +45,11 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # Worker dedicado (filas BullMQ + cron de negócio) — só sobe com `--profile queues`. Nunca ativar
+  # sem `ENABLE_QUEUES=true` também no serviço `app` estar deliberadamente mantido em modo produtor
+  # apenas: ver render.yaml (mesmo padrão, mesmo aviso de duplicação de consumo).
   worker:
+    profiles: ["queues"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -46,8 +65,13 @@ services:
       - .env.production
     environment:
       - NODE_ENV=production
+      - ENABLE_QUEUES=true
       - DATABASE_URL=postgresql://prospector_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set}@postgres:5432/prospectordb
-      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379
+      # Sem valor obrigatório (:?) aqui de propósito: profiles do Compose não isentam serviços da
+      # interpolação de variáveis, então um `:?` faria `docker compose config`/`up` falhar mesmo
+      # quando o profile `queues` está inativo. scripts/deploy-oci.sh valida REDIS_PASSWORD
+      # explicitamente antes de subir este profile.
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379
     security_opt:
       - no-new-privileges:true
 
@@ -79,17 +103,21 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # Cache/fila — só sobe com `--profile queues` (ver cabeçalho deste arquivo).
   redis:
+    profiles: ["queues"]
     image: redis:7-alpine
     container_name: atlasgr_redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "--appendonly", "yes"]
+    # Sem `:?` de propósito — ver comentário no serviço `worker` acima sobre interpolação e
+    # profiles. scripts/deploy-oci.sh recusa subir este profile sem REDIS_PASSWORD definido.
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-}", "--appendonly", "yes"]
     volumes:
       - oci_redisdata:/data
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -107,6 +135,7 @@ services:
       - "443:443"
     environment:
       - DOMAIN=${DOMAIN:-localhost}
+      - ACME_EMAIL=${ACME_EMAIL:-admin@atlasgr.com.br}
     volumes:
       - ./Caddyfile.oci:/etc/caddy/Caddyfile:ro
       - oci_caddy_data:/data

@@ -145,21 +145,67 @@ chmod 600 "$ENV_FILE" 2>/dev/null || true
 ensure_hex_secret "BETTER_AUTH_SECRET" 32
 # AES-256-GCM exige exatamente 32 bytes depois de decodificar Base64.
 ensure_base64_secret "CREDENTIALS_ENCRYPTION_KEY" 32
+ensure_base64_secret "PII_BLIND_INDEX_KEY" 32
 ensure_hex_secret "BOOTSTRAP_DB_PASSWORD" 24
 ensure_hex_secret "APP_DB_PASSWORD" 24
-ensure_hex_secret "REDIS_PASSWORD" 24
 ensure_hex_secret "INITIAL_ADMIN_PASSWORD" 24
 
 # Garante que a aplicação de produção use o modo correto.
 set_env_value "NODE_ENV" "production"
 
+current_value() {
+    local key="$1"
+    grep -E "^${key}=" "$ENV_FILE" | tail -n 1 | cut -d= -f2- || true
+}
+
+# 2.1 Domínio, CORS e cookies — só sobrescreve quando o valor atual ainda é o placeholder de
+# desenvolvimento copiado do .env.example (contém "localhost") e um DOMAIN real foi passado no
+# ambiente do shell (ex.: `DOMAIN=app.atlasgr.com.br ./scripts/deploy-oci.sh`). Preserva qualquer
+# valor customizado que o operador já tenha definido manualmente no .env.production.
+if [ -n "${DOMAIN:-}" ] && [ "$DOMAIN" != "localhost" ]; then
+    PUBLIC_ORIGIN="https://${DOMAIN}"
+    for key in ALLOWED_ORIGINS BETTER_AUTH_URL PUBLIC_BASE_URL; do
+        case "$(current_value "$key")" in
+            ""|*localhost*) set_env_value "$key" "$PUBLIC_ORIGIN" ;;
+        esac
+    done
+    case "$(current_value "COOKIE_DOMAIN")" in
+        "") set_env_value "COOKIE_DOMAIN" "$DOMAIN" ;;
+    esac
+    # Caddy sempre fica na frente da aplicação neste stack — cookie `secure` e confiança no
+    # X-Forwarded-* do proxy são obrigatórios com domínio/HTTPS real.
+    set_env_value "SECURE_COOKIES" "true"
+    set_env_value "TRUST_PROXY" "true"
+    echo "🌐 Domínio de produção configurado: ${PUBLIC_ORIGIN} (ALLOWED_ORIGINS/BETTER_AUTH_URL/PUBLIC_BASE_URL/COOKIE_DOMAIN)."
+else
+    echo "⚠️  DOMAIN não informado (ou é 'localhost') — ALLOWED_ORIGINS/BETTER_AUTH_URL/PUBLIC_BASE_URL"
+    echo "    permanecem como estão em ${ENV_FILE}. Isso não é apropriado para produção real: exporte"
+    echo "    DOMAIN=seu-dominio.com.br antes de rodar este script quando o domínio oficial estiver pronto"
+    echo "    (ver 'Domínio' em docs/deploy/oracle-cloud.md)."
+fi
+
+# 2.2 Filas/Redis — OFF por padrão no MVP (mesma decisão já registrada em render.yaml: nenhuma
+# jornada essencial depende disso hoje, ver docs/deploy/oracle-cloud.md). Só gera segredo e sobe o
+# profile "queues" (redis + worker) quando o operador já colocou ENABLE_QUEUES=true no
+# .env.production explicitamente antes de rodar este script.
+COMPOSE_PROFILE_ARGS=()
+if [ "$(current_value "ENABLE_QUEUES")" = "true" ]; then
+    ensure_hex_secret "REDIS_PASSWORD" 24
+    set_env_value "REDIS_URL" "redis://:$(current_value "REDIS_PASSWORD")@redis:6379"
+    COMPOSE_PROFILE_ARGS=(--profile queues)
+    echo "🔁 ENABLE_QUEUES=true — subindo também redis e worker (profile 'queues')."
+else
+    echo "ℹ️  ENABLE_QUEUES=false (padrão do MVP) — redis e worker NÃO serão iniciados. Ver"
+    echo "    docs/deploy/oracle-cloud.md para como habilitar quando uma jornada real depender disso."
+fi
+
 # Valida a interpolação antes de iniciar qualquer container.
 echo "🔎 3. Validando configuração do Docker Compose..."
-$DOCKER_COMPOSE_CMD --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config --quiet
+$DOCKER_COMPOSE_CMD --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "${COMPOSE_PROFILE_ARGS[@]}" config --quiet
 
 # 4. Sobe a infraestrutura no Docker Compose
-echo "🚀 4. Construindo e subindo containers (App, Worker, Postgres, Redis, Caddy)..."
-$DOCKER_COMPOSE_CMD --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
+echo "🚀 4. Construindo e subindo containers..."
+$DOCKER_COMPOSE_CMD --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "${COMPOSE_PROFILE_ARGS[@]}" up -d --build
 
 # 5. Aguarda o banco ficar pronto e executa as migrações Prisma
 echo "⏳ 5. Aguardando banco de dados inicializar..."
