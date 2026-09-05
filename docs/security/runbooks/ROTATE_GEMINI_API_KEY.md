@@ -1,6 +1,11 @@
 # Runbook — Rotação da chave Google Gemini exposta no histórico
 
-## Status: ⚠️ Aberto — depende de ação humana no Google AI Studio / Google Cloud Console
+## Status: ✅ Concluído (confirmado pelo dono do repositório, 2026-09-05)
+
+O dono do repositório confirmou diretamente, na mesma sessão que produziu este runbook, que a
+chave já foi rotacionada — junto com as demais chaves identificadas nesta triagem. Fingerprints dos
+dois achados suprimidos em `.gitleaksignore`. Este runbook permanece como referência para uma
+futura rotação (ex.: se uma chave for comprometida de novo).
 
 Achado durante a triagem dos 45 segredos históricos sinalizados pelo `gitleaks` em modo
 `workflow_dispatch` (ver `docs/security/GITLEAKS_HISTORICAL_FINDINGS_2026-09-05.md` para o
