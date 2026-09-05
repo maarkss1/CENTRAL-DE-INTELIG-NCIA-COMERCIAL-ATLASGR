@@ -6,3 +6,10 @@
 # comentário em .gitleaks.toml. Os dois arquivos não existem mais no repositório.
 46833fd443e28916b2d0908382d7683245be1b86:_tmp_bitrix_only.mjs:generic-api-key:3
 46833fd443e28916b2d0908382d7683245be1b86:_tmp_enrich_and_bitrix.mjs:generic-api-key:3
+
+# Chave real do Google Gemini, JÁ ROTACIONADA — confirmado diretamente pelo dono do repositório em
+# 2026-09-05 (ver docs/security/runbooks/ROTATE_GEMINI_API_KEY.md e
+# docs/security/GITLEAKS_HISTORICAL_FINDINGS_2026-09-05.md). Os dois arquivos não existem mais no
+# repositório.
+40242d7e5463ee48f3daab9bdc1a84501c6dfa58:test-gemini.ts:generic-api-key:2
+db20c1f3e5cd53f3c0be462502548bfafa850587:test-gemini-quota.ts:generic-api-key:2
