@@ -1,5 +1,11 @@
 # Runbook — Decisão sobre reescrever o histórico do git (`backups/prospector-*.dump`)
 
+> **Atualizado em 2026-09-05: o Caminho B foi executado para `main`.** A narrativa abaixo (seções
+> "Estado atual"/"Caminho A"/"Caminho B"/"Decisão humana registrada... 2026-08-16") é o registro
+> histórico de como a decisão evoluiu até 18/08 — mantido intacto para contexto, mas **não reflete
+> mais o estado atual**. Ver a seção "Decisão revista — Caminho B executado (2026-09-05)" mais
+> abaixo para o que de fato aconteceu e o estado real de `main` hoje.
+
 ## Estado atual, verificado nesta onda
 
 `backups/prospector-*.dump` **não está mais no working tree** (removido em commit anterior), mas
@@ -156,3 +162,71 @@ autorização humana explícita para o Caminho B, não uma reinterpretação por
 a decisão) — nenhum fato novo que mude a decisão. Caminho A continua em vigor. Única mudança desta
 sprint: correção dos hashes de commit citados (ver topo deste arquivo) — a decisão em si (manter
 histórico) não foi reaberta nem precisou ser.
+
+## Decisão revista — Caminho B executado (2026-09-05)
+
+O dono do repositório reabriu esta decisão e escolheu explicitamente o **Caminho B** para `main`
+(reescrever, não só mitigar) — pedido feito na mesma sessão que também triou os 45 segredos
+históricos do gitleaks (ver `docs/security/GITLEAKS_HISTORICAL_FINDINGS_2026-09-05.md`) e
+encontrou uma chave real do Google Gemini exposta em `test-gemini.ts`/`test-gemini-quota.ts`. O
+escopo foi ampliado a pedido do dono para incluir também `backups/prospector-20260806-152827.dump`
+— o mesmo achado de PII documentado no restante deste runbook — já que "dado pessoal não se
+rotaciona como uma chave".
+
+**Execução, resumida** (procedimento completo seguiu os Passos 0-2 abaixo, com uma adaptação —
+ver nota de escopo):
+
+1. Clone `--mirror` isolado, `git filter-repo --path test-gemini.ts --path test-gemini-quota.ts
+   --path backups/ --invert-paths --force`.
+2. Verificado antes do push: `git rev-list --objects --all | grep -iE '\.dump$|test-gemini'` vazio
+   no mirror reescrito.
+3. Concorrência real detectada e tratada: 2 commits novos chegaram em `main` (`41082d2c`, `3903d943
+   "Update launch.json"`) enquanto o mirror estava sendo preparado — o mirror foi re-clonado do
+   zero e a filtragem refeita antes do push, em vez de arriscar perder esses commits. O mesmo se
+   repetiu depois do merge do PR #350 (mais uma re-clonagem + refiltragem) — nenhum commit legítimo
+   foi perdido.
+4. `git push --force` para `refs/heads/main` (só essa ref, não `--mirror`/`--all`) — bloqueado
+   duas vezes por proteção de branch do GitHub (`GH006`) até o dono desabilitar temporariamente
+   "Allow force pushes" nas configurações da branch; reabilitada logo em seguida.
+5. **Nota de escopo (diferença do Passo 1 original abaixo):** por ter sido feito via `clone
+   --mirror` (necessário para capturar o dump, que só existia em commits antigos fora do alcance
+   de um clone raso), o `filter-repo` reescreveu tecnicamente as 82 branches remotas do
+   repositório, não só `main`. **Só `main` foi de fato force-pushada** — as outras 81 branches
+   remotas continuaram apontando pros commits originais (não tocadas), por escolha explícita do
+   dono (reduzir o raio de impacto: nenhum PR aberto na época dependia delas). Essas 81 branches
+   foram deletadas do remote numa ação separada, posterior e independente desta reescrita (limpeza
+   normal de branches antigas de "ondas" já finalizadas, não uma segunda rodada de
+   `filter-repo`/force-push).
+
+**Quem executou o quê:** a sessão automatizada preparou e verificou tudo (clone, filtragem,
+validação, mirror pronto) — o `git push --force` final e a alteração temporária de proteção de
+branch foram feitos pelo próprio dono do repositório, seguindo a regra deste runbook ("só o dono
+humano executa o force-push final").
+
+**Verificação pós-reescrita, contra o remote real:**
+```
+git ls-remote https://github.com/maarkss1/CENTRAL-DE-INTELIG-NCIA-COMERCIAL-ATLASGR refs/heads/main
+# b5d47d1f94f500652873fdac21f5f13086723efc — hash novo, confirmado
+```
+`git rev-list --objects main` (sem `--all`) no worktree sincronizado com o `main` pós-reescrita não
+retorna mais nenhum blob de `.dump`/`test-gemini*`.
+
+### Observação técnica registrada (achado do dono do repositório, pós-reescrita)
+
+Depois da reescrita, `git merge-base`/`git branch --merged` contra o `main` novo **não conseguem
+mais confirmar** se as 81 branches antigas (não reescritas) "já estavam mergeadas" — seus commits
+apontam para a linha de histórico **anterior** ao rewrite, que diverge completamente da nova a
+partir do primeiro commit tocado pelo `filter-repo`. Isso não é regressão nem sinal de erro na
+reescrita: é a consequência estrutural inevitável de qualquer `filter-repo`/BFG — hash muda, então
+qualquer comparação de ancestralidade contra a nova linha não localiza mais um commit da linha
+antiga, mergeado ou não. A verificação usada para decidir a limpeza dessas 81 branches (`git
+merge-base --is-ancestor`) já rodou **antes** do force-push da `main`, contra o histórico ainda
+original — não foi afetada por essa limitação, mas o dado deixou de ser reproduzível depois do
+rewrite.
+
+**Consequência prática, caso precise recuperar algo dessas 81 branches deletadas no futuro:** seu
+conteúdo integral só existe hoje (a) na "lixeira" de branches do GitHub, se restaurada dentro da
+janela que a plataforma mantém, ou (b) em qualquer clone local que alguém tenha feito **antes**
+desta limpeza e que ainda preserve essas refs remotas localmente (`git branch -r`/`git reflog`
+locais não afetados pelo `--prune`). Depois de expirada a janela de restauração do GitHub e sem
+nenhum clone local remanescente, esse conteúdo deixa de ser recuperável por qualquer meio.
