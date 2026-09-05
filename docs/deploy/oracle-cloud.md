@@ -61,8 +61,21 @@ Adapte as regras à política de rede da instância. O script `scripts/deploy-oc
 ### 3.1 Clonar o repositório no servidor
 
 ```bash
-git clone https://github.com/MaarksN/CENTRAL-DE-INTELIGENCIA-COMECIAL-ATLASGR.git
-cd CENTRAL-DE-INTELIGENCIA-COMECIAL-ATLASGR
+git clone https://github.com/maarkss1/CENTRAL-DE-INTELIG-NCIA-COMERCIAL-ATLASGR.git
+cd CENTRAL-DE-INTELIG-NCIA-COMERCIAL-ATLASGR
+```
+
+Repositório privado: o clone anônimo acima falha (404/pedido de credencial). Use uma **deploy key
+só leitura** na própria instância (preferível a um token pessoal, que não deve ficar salvo em texto
+plano no servidor):
+
+```bash
+ssh-keygen -t ed25519 -C "oracle-atlasgr-deploy" -f ~/.ssh/atlasgr_deploy -N ""
+cat ~/.ssh/atlasgr_deploy.pub   # cole em GitHub → repositório → Settings → Deploy keys → Add deploy key (sem "Allow write access")
+
+GIT_SSH_COMMAND="ssh -i ~/.ssh/atlasgr_deploy -o IdentitiesOnly=yes" \
+  git clone git@github.com:maarkss1/CENTRAL-DE-INTELIG-NCIA-COMERCIAL-ATLASGR.git
+cd CENTRAL-DE-INTELIG-NCIA-COMERCIAL-ATLASGR
 ```
 
 ### 3.2 Executar o script automatizado
