@@ -35,11 +35,13 @@ function baseSuggestion(
   };
 }
 
-/** Repositório fake — só o subconjunto de `CopilotoIaRepository` que a Onda 4 usa. */
+/** Repositório fake — só o subconjunto de `CopilotoIaRepository` que a Onda 4/7 usa. */
 class FakeRepository implements Partial<CopilotoIaRepository> {
   suggestions = new Map<string, CopilotoCrmFieldSuggestionDTO>();
   fieldMappings = new Map<string, CopilotoBitrixFieldMappingDTO>();
   leadBitrixIds = new Map<string, string>();
+  companyBitrixIds = new Map<string, string>();
+  contactBitrixIds = new Map<string, string>();
 
   async getCrmFieldSuggestionById(_organizationId: string, id: string) {
     return this.suggestions.get(id) ?? null;
@@ -96,20 +98,58 @@ class FakeRepository implements Partial<CopilotoIaRepository> {
   async getLeadBitrixId(_organizationId: string, leadId: string) {
     return this.leadBitrixIds.get(leadId) ?? null;
   }
+
+  async getCompanyBitrixId(_organizationId: string, companyId: string) {
+    return this.companyBitrixIds.get(companyId) ?? null;
+  }
+
+  async getContactBitrixId(_organizationId: string, contactId: string) {
+    return this.contactBitrixIds.get(contactId) ?? null;
+  }
 }
 
 class FakeBitrixPort implements BitrixLeadWritebackPort {
-  calls: { organizationId: string; bitrixLeadId: string; fields: Record<string, string> }[] = [];
+  calls: {
+    entity: 'LEAD' | 'COMPANY' | 'CONTACT';
+    organizationId: string;
+    bitrixId: string;
+    fields: Record<string, string>;
+  }[] = [];
   shouldFail = false;
   failureMessage = 'Bitrix indisponível';
+
+  private record(
+    entity: 'LEAD' | 'COMPANY' | 'CONTACT',
+    organizationId: string,
+    bitrixId: string,
+    fields: Record<string, string>,
+  ) {
+    this.calls.push({ entity, organizationId, bitrixId, fields });
+    if (this.shouldFail) throw new Error(this.failureMessage);
+  }
 
   async updateLeadFields(
     organizationId: string,
     bitrixLeadId: string,
     fields: Record<string, string>,
   ): Promise<void> {
-    this.calls.push({ organizationId, bitrixLeadId, fields });
-    if (this.shouldFail) throw new Error(this.failureMessage);
+    this.record('LEAD', organizationId, bitrixLeadId, fields);
+  }
+
+  async updateCompanyFields(
+    organizationId: string,
+    bitrixCompanyId: string,
+    fields: Record<string, string>,
+  ): Promise<void> {
+    this.record('COMPANY', organizationId, bitrixCompanyId, fields);
+  }
+
+  async updateContactFields(
+    organizationId: string,
+    bitrixContactId: string,
+    fields: Record<string, string>,
+  ): Promise<void> {
+    this.record('CONTACT', organizationId, bitrixContactId, fields);
   }
 }
 
@@ -135,12 +175,77 @@ describe('CopilotoBitrixWritebackUseCases', () => {
       );
     });
 
-    it('marca FAILED com motivo legível quando entityType não é LEAD', async () => {
-      repository.suggestions.set('sugg-1', baseSuggestion({ entityType: 'COMPANY' }));
+    it('marca FAILED quando a Company não tem bitrixCompanyId (nunca sincronizada)', async () => {
+      repository.suggestions.set(
+        'sugg-1',
+        baseSuggestion({ entityType: 'COMPANY', entityId: 'company-1' }),
+      );
+      // companyBitrixIds vazio — company-1 não tem bitrixCompanyId
       const result = await useCases.writebackSuggestion(ORG_ID, 'sugg-1');
       expect(result.status).toBe('FAILED');
-      expect(result.writebackError).toContain('COMPANY');
+      expect(result.writebackError).toContain('Company');
       expect(bitrixPort.calls).toHaveLength(0);
+    });
+
+    it('marca FAILED quando o Contact não tem bitrixContactId (nunca sincronizado)', async () => {
+      repository.suggestions.set(
+        'sugg-1',
+        baseSuggestion({ entityType: 'CONTACT', entityId: 'contact-1' }),
+      );
+      const result = await useCases.writebackSuggestion(ORG_ID, 'sugg-1');
+      expect(result.status).toBe('FAILED');
+      expect(result.writebackError).toContain('Contact');
+      expect(bitrixPort.calls).toHaveLength(0);
+    });
+
+    it('escreve no Bitrix e marca WRITTEN_BACK para uma sugestão de COMPANY', async () => {
+      repository.suggestions.set(
+        'sugg-1',
+        baseSuggestion({ entityType: 'COMPANY', entityId: 'company-1' }),
+      );
+      repository.companyBitrixIds.set('company-1', 'bx-company-9');
+      await repository.upsertBitrixFieldMapping(ORG_ID, {
+        entityType: 'COMPANY',
+        semanticField: 'principal_dor',
+        bitrixFieldCode: 'UF_CRM_1700000000003',
+      });
+
+      const result = await useCases.writebackSuggestion(ORG_ID, 'sugg-1');
+
+      expect(result.status).toBe('WRITTEN_BACK');
+      expect(bitrixPort.calls).toEqual([
+        {
+          entity: 'COMPANY',
+          organizationId: ORG_ID,
+          bitrixId: 'bx-company-9',
+          fields: { UF_CRM_1700000000003: 'Custo de frete acima do orçamento' },
+        },
+      ]);
+    });
+
+    it('escreve no Bitrix e marca WRITTEN_BACK para uma sugestão de CONTACT', async () => {
+      repository.suggestions.set(
+        'sugg-1',
+        baseSuggestion({ entityType: 'CONTACT', entityId: 'contact-1' }),
+      );
+      repository.contactBitrixIds.set('contact-1', 'bx-contact-4');
+      await repository.upsertBitrixFieldMapping(ORG_ID, {
+        entityType: 'CONTACT',
+        semanticField: 'principal_dor',
+        bitrixFieldCode: 'UF_CRM_1700000000004',
+      });
+
+      const result = await useCases.writebackSuggestion(ORG_ID, 'sugg-1');
+
+      expect(result.status).toBe('WRITTEN_BACK');
+      expect(bitrixPort.calls).toEqual([
+        {
+          entity: 'CONTACT',
+          organizationId: ORG_ID,
+          bitrixId: 'bx-contact-4',
+          fields: { UF_CRM_1700000000004: 'Custo de frete acima do orçamento' },
+        },
+      ]);
     });
 
     it('marca FAILED quando o Lead não tem bitrixLeadId (nunca sincronizado)', async () => {
@@ -178,8 +283,9 @@ describe('CopilotoBitrixWritebackUseCases', () => {
       expect(result.writebackError).toBeNull();
       expect(bitrixPort.calls).toEqual([
         {
+          entity: 'LEAD',
           organizationId: ORG_ID,
-          bitrixLeadId: 'bx-123',
+          bitrixId: 'bx-123',
           fields: { UF_CRM_1700000000001: 'Custo de frete acima do orçamento' },
         },
       ]);

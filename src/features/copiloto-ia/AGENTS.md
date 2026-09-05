@@ -10,7 +10,10 @@ especificação original — agentes, prompts e roadmap por onda).
 Módulo do Copiloto Comercial IA (pacote `atlasgr_copiloto_ai_pack`), já cobrindo as Ondas 1-6 do
 roadmap: fundação de dados/RBAC (Onda 1), captura real de áudio via extensão Chrome (Onda 2),
 transcrição via Whisper + resumo executivo (Onda 3), mapeamento configurável de campo + writeback
-real no Bitrix24 para `entityType: LEAD` (Onda 4), extração de objeções/concorrentes/buying
+real no Bitrix24 para `entityType: LEAD`/`COMPANY`/`CONTACT` (Onda 4, estendida na Onda 7 —
+`COMPANY`/`CONTACT` só funcionam para registros importados a partir de um Negócio do Bitrix24,
+que é o único fluxo que hoje captura `Company.bitrixCompanyId`/`Contact.bitrixContactId`, ver
+`CopilotoBitrixWritebackUseCases.ts`), extração de objeções/concorrentes/buying
 signals + Deal Health Score por oportunidade (Onda 5), e ajuste de forecast complementar ao CRM +
 avaliação de coaching por rubrica + risco de churn + handoff agregado (Onda 6), e SLA/tempo de
 resposta no WhatsApp (Onda 7, item 1 — `application/whatsappResponseTime.ts`: função pura e

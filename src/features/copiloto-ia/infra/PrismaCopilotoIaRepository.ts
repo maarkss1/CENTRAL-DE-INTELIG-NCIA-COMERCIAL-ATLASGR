@@ -453,6 +453,22 @@ export class PrismaCopilotoIaRepository implements CopilotoIaRepository {
     return lead?.bitrixLeadId ?? null;
   }
 
+  async getCompanyBitrixId(organizationId: string, companyId: string): Promise<string | null> {
+    const company = await prisma.company.findFirst({
+      where: { id: companyId, organizationId },
+      select: { bitrixCompanyId: true },
+    });
+    return company?.bitrixCompanyId ?? null;
+  }
+
+  async getContactBitrixId(organizationId: string, contactId: string): Promise<string | null> {
+    const contact = await prisma.contact.findFirst({
+      where: { id: contactId, organizationId },
+      select: { bitrixContactId: true },
+    });
+    return contact?.bitrixContactId ?? null;
+  }
+
   async getLeadProbability(organizationId: string, leadId: string): Promise<number | null> {
     const lead = await prisma.lead.findFirst({
       where: { id: leadId, organizationId },

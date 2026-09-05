@@ -13,11 +13,7 @@ import type { BitrixLeadWritebackPort } from '../../../../shared/contracts/bitri
  * problema real, não antecipado aqui.
  */
 export class BitrixLeadWritebackAdapter implements BitrixLeadWritebackPort {
-  async updateLeadFields(
-    organizationId: string,
-    bitrixLeadId: string,
-    fields: Record<string, string>,
-  ): Promise<void> {
+  private async resolveWebhookUrl(organizationId: string): Promise<string> {
     const connection = await prisma.bitrixConnection.findFirst({
       where: { organizationId },
       orderBy: { createdAt: 'asc' },
@@ -28,13 +24,48 @@ export class BitrixLeadWritebackAdapter implements BitrixLeadWritebackPort {
         409,
       );
     }
+    return connection.webhookUrl;
+  }
 
-    const correlationId = randomUUID();
+  async updateLeadFields(
+    organizationId: string,
+    bitrixLeadId: string,
+    fields: Record<string, string>,
+  ): Promise<void> {
+    const webhookUrl = await this.resolveWebhookUrl(organizationId);
     await callBitrix(
-      connection.webhookUrl,
+      webhookUrl,
       'crm.lead.update',
       { id: bitrixLeadId, fields },
-      { correlationId },
+      { correlationId: randomUUID() },
+    );
+  }
+
+  async updateCompanyFields(
+    organizationId: string,
+    bitrixCompanyId: string,
+    fields: Record<string, string>,
+  ): Promise<void> {
+    const webhookUrl = await this.resolveWebhookUrl(organizationId);
+    await callBitrix(
+      webhookUrl,
+      'crm.company.update',
+      { id: bitrixCompanyId, fields },
+      { correlationId: randomUUID() },
+    );
+  }
+
+  async updateContactFields(
+    organizationId: string,
+    bitrixContactId: string,
+    fields: Record<string, string>,
+  ): Promise<void> {
+    const webhookUrl = await this.resolveWebhookUrl(organizationId);
+    await callBitrix(
+      webhookUrl,
+      'crm.contact.update',
+      { id: bitrixContactId, fields },
+      { correlationId: randomUUID() },
     );
   }
 }
