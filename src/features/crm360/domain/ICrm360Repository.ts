@@ -62,11 +62,17 @@ export interface ICrm360Repository {
     organizationId: string,
     documentId: string,
   ): Promise<CrmCommercialDocumentVersionDTO[]>;
-  /** Grava `sentAt` na primeira transição para `Enviado`, além de aplicar o novo status. */
+  /**
+   * Grava `sentAt` na primeira transição para `Enviado`, além de aplicar o novo status.
+   * `actorUserId` obrigatório quando o destino é `Pago` E o documento tem um `leadId` associado
+   * (ACH-17-08 — mesmo gate de fechamento determinístico de `updateLeadStage`, ver
+   * `dealClosureGate.ts`); sem lead associado não há negócio a fechar, então o ator não é exigido.
+   */
   updateDocumentStatus(
     organizationId: string,
     documentId: string,
     status: string,
+    actorUserId?: string,
   ): Promise<CrmCommercialDocument>;
   /** Rota pública (sem tenant conhecido a priori) — resolve o documento pelo `publicToken` opaco e registra a visualização. `null` quando o token não existe ou o documento foi excluído. */
   recordDocumentView(publicToken: string): Promise<CrmPublicDocumentView | null>;

@@ -177,12 +177,13 @@ export class Crm360Controller {
 
   updateDocumentStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const orgId = (req as AuthRequest).user.organizationId;
+      const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
       const { status } = req.body;
       const data = await this.crm360UseCases.updateDocumentStatus(
         orgId,
         routeParam(req.params.id, 'id'),
         status,
+        actorUserId,
       );
       res.json({ success: true, data });
     } catch (error) {

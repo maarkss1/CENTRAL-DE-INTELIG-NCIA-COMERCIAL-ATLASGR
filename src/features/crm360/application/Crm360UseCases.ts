@@ -88,8 +88,18 @@ export class Crm360UseCases {
     return this.crm360Repository.listDocumentVersions(organizationId, documentId);
   }
 
-  async updateDocumentStatus(organizationId: string, documentId: string, status: string) {
-    return this.crm360Repository.updateDocumentStatus(organizationId, documentId, status);
+  async updateDocumentStatus(
+    organizationId: string,
+    documentId: string,
+    status: string,
+    actorUserId?: string,
+  ) {
+    return this.crm360Repository.updateDocumentStatus(
+      organizationId,
+      documentId,
+      status,
+      actorUserId,
+    );
   }
 
   /** Rota pública — sem organizationId conhecido a priori, ver `PrismaCrm360Repository.recordDocumentView`. */

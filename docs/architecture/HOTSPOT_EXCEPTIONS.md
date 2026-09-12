@@ -46,6 +46,21 @@ propósito por estar fora de "## Exceções ativas"):
 
 ## Exceções ativas
 
+### `src/features/crm360/infra/PrismaCrm360Repository.ts`
+
+- **Limite excepcional:** 1100 linhas
+- **Dono:** Agente 17 — Cadência Multicanal e Ciclo de Receita
+- **Motivo:** achado ACH-17-08 (auditoria multiagente) — `updateDocumentStatus` marcava uma
+  proposta como "Pago" sem passar pelo `dealClosureGate`, deixando o fechamento de negócio
+  dependente 100% da mudança manual de estágio no Kanban. A correção (gate de fechamento de
+  negócio + propagação de `actorUserId` pela cadeia de chamada, mesmo padrão já usado pelo
+  ACH-17-01 para o caminho de assinatura) levou o arquivo de ~1000 para 1028 linhas — crescimento
+  de lógica de negócio real, não bloat. Modularizar (extrair os métodos de propostas/documentos
+  para um repositório próprio, separado do resto de `PrismaCrm360Repository`) fica para um item de
+  dívida técnica dedicado.
+- **Registrado em:** 2026-09-12
+- **Reavaliar até:** 2026-11-30 (mesmo checkpoint dos demais itens desta lista)
+
 ### `src/features/cadence/components/CadenceHub.tsx`
 
 - **Limite excepcional:** 1700 linhas

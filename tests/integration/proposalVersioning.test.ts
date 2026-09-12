@@ -183,6 +183,138 @@ describe('CYC-005 — sentAt (updateDocumentStatus)', () => {
   });
 });
 
+describe('ACH-17-08 — Pago fecha negócio (DealClosureEvent)', () => {
+  async function createLead(overrides: Record<string, unknown> = {}) {
+    return withRlsBypass(() =>
+      prisma.lead.create({
+        data: {
+          organizationId: ORG,
+          title: 'Negócio de teste ACH-17-08',
+          status: 'Lead_Recebido',
+          ...overrides,
+        },
+      }),
+    );
+  }
+
+  afterEach(async () => {
+    await withRlsBypass(async () => {
+      await prisma.dealClosureEvent.deleteMany({ where: { organizationId: ORG } });
+      await prisma.lead.deleteMany({ where: { organizationId: ORG } });
+    });
+  });
+
+  it('transição real para Pago com lead associado cria um DealClosureEvent (payment_confirmed) sem mover o Lead automaticamente', async () => {
+    const lead = await createLead();
+    const doc = await asOrg(ORG, () =>
+      repo.createDocument(ORG, {
+        type: 'Proposta',
+        title: 'Proposta paga',
+        currency: 'BRL',
+        discount: 0,
+        lineItems: [LINE_ITEM],
+        status: 'Rascunho',
+        leadId: lead.id,
+      } as never),
+    );
+
+    const updated = await asOrg(ORG, () =>
+      repo.updateDocumentStatus(ORG, doc.id, 'Pago', 'user-42'),
+    );
+    expect(updated.status).toBe('Pago');
+
+    const events = await withRlsBypass(() =>
+      prisma.dealClosureEvent.findMany({ where: { organizationId: ORG, leadId: lead.id } }),
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: 'PaymentConfirmed',
+      evidenceRef: doc.id,
+      triggeredBy: 'user-42',
+    });
+
+    // Escopo desta correção: só o evento de evidência é criado — mover Lead.status para
+    // "Negócios Ganhos" a partir daqui é decisão de produto separada (fora do escopo pedido).
+    const persistedLead = await withRlsBypass(() =>
+      prisma.lead.findUniqueOrThrow({ where: { id: lead.id } }),
+    );
+    expect(persistedLead.status).toBe('Lead_Recebido');
+  });
+
+  it('sem actorUserId: rejeita a transição para Pago (401) e não cria o DealClosureEvent', async () => {
+    const lead = await createLead();
+    const doc = await asOrg(ORG, () =>
+      repo.createDocument(ORG, {
+        type: 'Proposta',
+        title: 'Proposta sem ator',
+        currency: 'BRL',
+        discount: 0,
+        lineItems: [LINE_ITEM],
+        status: 'Rascunho',
+        leadId: lead.id,
+      } as never),
+    );
+
+    await expect(
+      asOrg(ORG, () => repo.updateDocumentStatus(ORG, doc.id, 'Pago')),
+    ).rejects.toMatchObject({ statusCode: 401 });
+
+    const events = await withRlsBypass(() =>
+      prisma.dealClosureEvent.findMany({ where: { organizationId: ORG, leadId: lead.id } }),
+    );
+    expect(events).toHaveLength(0);
+    const persisted = await withRlsBypass(() =>
+      prisma.crmCommercialDocument.findUniqueOrThrow({ where: { id: doc.id } }),
+    );
+    // A transição rejeitada não deve nem aplicar o novo status no documento.
+    expect(persisted.status).toBe('Rascunho');
+  });
+
+  it('duplo clique (duas chamadas sequenciais para Pago) não duplica o DealClosureEvent', async () => {
+    const lead = await createLead();
+    const doc = await asOrg(ORG, () =>
+      repo.createDocument(ORG, {
+        type: 'Proposta',
+        title: 'Proposta com duplo clique',
+        currency: 'BRL',
+        discount: 0,
+        lineItems: [LINE_ITEM],
+        status: 'Rascunho',
+        leadId: lead.id,
+      } as never),
+    );
+
+    await asOrg(ORG, () => repo.updateDocumentStatus(ORG, doc.id, 'Pago', 'user-42'));
+    await asOrg(ORG, () => repo.updateDocumentStatus(ORG, doc.id, 'Pago', 'user-42'));
+
+    const events = await withRlsBypass(() =>
+      prisma.dealClosureEvent.findMany({ where: { organizationId: ORG, leadId: lead.id } }),
+    );
+    expect(events).toHaveLength(1);
+  });
+
+  it('documento sem leadId associado: aplica o status Pago normalmente, sem exigir actorUserId nem criar evento', async () => {
+    const doc = await asOrg(ORG, () =>
+      repo.createDocument(ORG, {
+        type: 'Proposta',
+        title: 'Proposta sem lead',
+        currency: 'BRL',
+        discount: 0,
+        lineItems: [LINE_ITEM],
+        status: 'Rascunho',
+      } as never),
+    );
+
+    const updated = await asOrg(ORG, () => repo.updateDocumentStatus(ORG, doc.id, 'Pago'));
+    expect(updated.status).toBe('Pago');
+
+    const events = await withRlsBypass(() =>
+      prisma.dealClosureEvent.findMany({ where: { organizationId: ORG, evidenceRef: doc.id } }),
+    );
+    expect(events).toHaveLength(0);
+  });
+});
+
 describe('CYC-005 — rastreamento real de visualização (publicToken)', () => {
   it('GET /:token/view transiciona Enviado -> Visualizado e grava viewCount/firstViewedAt/lastViewedAt reais', async () => {
     const doc = await asOrg(ORG, () =>

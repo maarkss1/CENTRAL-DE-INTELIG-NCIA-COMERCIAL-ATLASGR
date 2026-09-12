@@ -34,7 +34,10 @@ import type {
   CrmProduct,
   CrmPublicDocumentView,
 } from '../crm360.types.js';
-import { ensureManualDealClosureAllowed } from '../../crm/application/dealClosureGate.js';
+import {
+  ensureDealClosureAllowed,
+  ensureManualDealClosureAllowed,
+} from '../../crm/application/dealClosureGate.js';
 import { prismaDealClosureGate } from '../../crm/infra/PrismaDealClosureGate.js';
 import {
   draftNextProposalVersion,
@@ -889,12 +892,44 @@ export class PrismaCrm360Repository implements ICrm360Repository {
     organizationId: string,
     documentId: string,
     status: string,
+    actorUserId?: string,
   ): Promise<CrmCommercialDocument> {
     const nextStatus = status as CrmDocumentStatus;
     const current = await prisma.crmCommercialDocument.findFirst({
       where: { id: documentId, organizationId },
-      select: { sentAt: true },
+      select: { sentAt: true, status: true, leadId: true },
     });
+
+    // ACH-17-08: marcar uma proposta como "Pago" era a mesma falha já corrigida em ACH-17-01 para
+    // assinatura — nenhum DealClosureEvent era criado, nenhum ator era exigido, e nada impedia um
+    // CLOSER de confirmar pagamento sem deixar rastro de fechamento. Só dispara numa transição REAL
+    // para Pago (`current?.status !== Pago`); um segundo clique que já está em Pago é tratado como
+    // no-op, o mesmo papel que `isValidSignatureTransition` cumpre para o webhook de assinatura
+    // (estado terminal repetido não gera um segundo evento). Documento sem `leadId` associado não
+    // tem negócio a fechar — nem o gate roda, nem `actorUserId` é exigido nesse caso.
+    if (
+      nextStatus === CrmDocumentStatus.Pago &&
+      current?.status !== CrmDocumentStatus.Pago &&
+      current?.leadId
+    ) {
+      if (!actorUserId) {
+        throw new AppError(
+          'Confirmar pagamento de uma proposta vinculada a um negócio exige um usuário autenticado identificado.',
+          401,
+        );
+      }
+      // Escopo desta correção (ACH-17-08): só registra o `DealClosureEvent` como evidência
+      // determinística — mover `Lead.status` para "Negócios Ganhos" a partir daqui é decisão de
+      // produto separada, fora do escopo pedido para esta rodada.
+      await ensureDealClosureAllowed(prismaDealClosureGate, {
+        organizationId,
+        leadId: current.leadId,
+        type: 'payment_confirmed',
+        evidenceRef: documentId,
+        triggeredBy: actorUserId,
+      });
+    }
+
     const doc = await prisma.crmCommercialDocument.update({
       where: { id: documentId, organizationId },
       data: {

@@ -4,6 +4,7 @@ import {
   evaluateDealClosure,
   isDeterministicCloseEvent,
   type DealClosureEvent,
+  type DealClosureEventType,
 } from '../../../shared/domain/dealClosure.js';
 
 /**
@@ -92,4 +93,55 @@ export async function ensureManualDealClosureAllowed(
   }
 
   await port.saveDealClosureEvent(result.event);
+}
+
+/** Sub-conjunto de `DealClosureEvidencePort` que `ensureDealClosureAllowed` realmente usa — não precisa de `createConfirmationNote` porque a evidência já existe fora deste gate. */
+export interface DealClosureEventPort {
+  saveDealClosureEvent(event: DealClosureEvent): Promise<void>;
+}
+
+/**
+ * ACH-17-08 — variante de `ensureManualDealClosureAllowed` para o caso em que a evidência do
+ * fechamento já é um registro real e verificável controlado pelo chamador (ex.: o próprio
+ * `CrmCommercialDocument` marcado como "Pago", ou — no precedente já mesclado, ACH-17-01 — a
+ * `CrmDocumentSignatureRequest` que recebeu o webhook `signed`). Diferente de
+ * `ensureManualDealClosureAllowed`, este gate não cria nenhuma evidência própria (nenhuma `Note`)
+ * porque `evidenceRef` já aponta para algo real; só decide aceitar ou recusar (mesmas regras de
+ * `isDeterministicCloseEvent`/`evaluateDealClosure` — `triggeredBy` sem cara de humano é rejeitado,
+ * evidência vazia é rejeitada) e, se aceito, persiste o `DealClosureEvent`.
+ *
+ * Lança `AppError` (403) nas mesmas condições de `ensureManualDealClosureAllowed` — o chamador
+ * nunca deve prosseguir com a mudança de status quando esta função lança.
+ */
+export async function ensureDealClosureAllowed(
+  port: DealClosureEventPort,
+  input: {
+    organizationId: string;
+    leadId: string;
+    type: DealClosureEventType;
+    evidenceRef: string;
+    triggeredBy: string;
+  },
+): Promise<DealClosureEvent> {
+  const result = evaluateDealClosure(
+    {
+      organizationId: input.organizationId,
+      leadId: input.leadId,
+      type: input.type,
+      evidenceRef: input.evidenceRef,
+      triggeredBy: input.triggeredBy,
+    },
+    () => randomUUID(),
+    new Date(),
+  );
+
+  if (!result.accepted || !result.event) {
+    throw new AppError(
+      `Fechamento de negócio recusado (${result.rejectedReason ?? 'motivo desconhecido'}) — um lead só é movido para "Negócios Ganhos" com confirmação humana real.`,
+      403,
+    );
+  }
+
+  await port.saveDealClosureEvent(result.event);
+  return result.event;
 }

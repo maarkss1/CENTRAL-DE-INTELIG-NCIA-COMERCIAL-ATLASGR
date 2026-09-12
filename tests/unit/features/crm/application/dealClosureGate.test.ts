@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  ensureDealClosureAllowed,
   ensureManualDealClosureAllowed,
+  type DealClosureEventPort,
   type DealClosureEvidencePort,
 } from '@/features/crm/application/dealClosureGate';
 
@@ -76,5 +78,77 @@ describe('ensureManualDealClosureAllowed', () => {
         actorUserId: 'closer-ia',
       }),
     ).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+/**
+ * ACH-17-08 — mesma garantia de `ensureManualDealClosureAllowed`, mas para evidência que já existe
+ * fora deste gate (ex.: `CrmCommercialDocument` marcado "Pago"): nenhuma Note é criada, e nenhum
+ * evento é persistido quando o gate rejeita.
+ */
+function buildEventPort(overrides: Partial<DealClosureEventPort> = {}): DealClosureEventPort {
+  return {
+    saveDealClosureEvent: vi.fn(async () => {}),
+    ...overrides,
+  };
+}
+
+describe('ensureDealClosureAllowed', () => {
+  it('userId humano real + evidência real: persiste o DealClosureEvent do tipo informado', async () => {
+    const port = buildEventPort();
+
+    const event = await ensureDealClosureAllowed(port, {
+      organizationId: 'org-1',
+      leadId: 'lead-1',
+      type: 'payment_confirmed',
+      evidenceRef: 'doc-1',
+      triggeredBy: 'user-1',
+    });
+
+    expect(port.saveDealClosureEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        leadId: 'lead-1',
+        type: 'payment_confirmed',
+        evidenceRef: 'doc-1',
+        triggeredBy: 'user-1',
+      }),
+    );
+    expect(event).toMatchObject({ type: 'payment_confirmed', evidenceRef: 'doc-1' });
+  });
+
+  it.each(['ai-closer', 'agent:swarm-1', 'bot_generic', 'swarm-bdr'])(
+    'triggeredBy com cara de IA/automação (%s): rejeita com 403 e nunca persiste o evento',
+    async (fakeActor) => {
+      const port = buildEventPort();
+
+      await expect(
+        ensureDealClosureAllowed(port, {
+          organizationId: 'org-1',
+          leadId: 'lead-1',
+          type: 'payment_confirmed',
+          evidenceRef: 'doc-1',
+          triggeredBy: fakeActor,
+        }),
+      ).rejects.toMatchObject({ statusCode: 403 });
+
+      expect(port.saveDealClosureEvent).not.toHaveBeenCalled();
+    },
+  );
+
+  it('evidenceRef vazio: rejeita com 403 e nunca persiste o evento', async () => {
+    const port = buildEventPort();
+
+    await expect(
+      ensureDealClosureAllowed(port, {
+        organizationId: 'org-1',
+        leadId: 'lead-1',
+        type: 'payment_confirmed',
+        evidenceRef: '   ',
+        triggeredBy: 'user-1',
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+
+    expect(port.saveDealClosureEvent).not.toHaveBeenCalled();
   });
 });
