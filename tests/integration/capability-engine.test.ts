@@ -507,15 +507,23 @@ describe('Capability & Permission Engine (PROMPT 3 + hardening PROMPT 3B)', () =
       expect(decision.bindingVerification).toBe('UNVERIFIED');
     });
 
-    it('agent.execute é FUTURE_TOOL até o PROMPT 4 (razão preservada, nunca vira SOURCE_REQUIRED)', async () => {
+    // Correção do achado da auditoria de dívida técnica (AIAGENT-001): `agent.execute` tinha um
+    // binding FUTURE_TOOL cujo próprio comentário ("até o PROMPT 4") já estava obsoleto — o runtime
+    // genérico (agentRuntime.service.ts/toolExecutors.ts) já existia; só faltava registrar um
+    // executor real. Agora é AVAILABLE/VERIFIED (ver tool-bindings.ts) e a autorização PERMITE a
+    // chamada — a decisão de "tem prompt real pra executar?" é responsabilidade do executor
+    // (toolExecutors.ts:agentExecute), não desta etapa 11 de authorizeCapability.
+    it('agent.execute é PERMITTED (VERIFIED/AVAILABLE desde a implementação do ToolExecutor genérico — Quick Win do audit de dívida técnica)', async () => {
       const { user } = await makeUserWithJobRole('LDR', 'SDR');
       const decision = await authorizeCapability({
         actor: actorFor(user),
         agentCode: 'ldr-intelligence',
         capabilityCode: 'agent.execute',
       });
-      expect(decision.allowed).toBe(false);
-      expect(decision.reason).toBe('FUTURE_TOOL');
+      expect(decision.allowed).toBe(true);
+      expect(decision.reason).toBe('PERMITTED');
+      expect(decision.bindingVerification).toBe('VERIFIED');
+      expect(decision.toolAvailable).toBe(true);
     });
 
     it('signature.request é FUTURE_TOOL mesmo com máquina de estados real (transporte externo é stub — PROMPT 3B item 6)', async () => {

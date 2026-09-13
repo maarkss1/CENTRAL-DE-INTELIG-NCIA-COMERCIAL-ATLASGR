@@ -315,7 +315,16 @@ describe('Agent Runtime Genérico (PROMPT 4)', () => {
       }
     });
 
-    it('FUTURE_TOOL: agent.execute permanece bloqueado até o PROMPT 4 implementar runtime real (mesmo estando esta onda em execução)', async () => {
+    // Correção do achado da auditoria de dívida técnica (AIAGENT-001/002): `agent.execute` deixou
+    // de ser FUTURE_TOOL (tool-bindings.ts) e ganhou um executor real
+    // (toolExecutors.ts:agentExecute). `ldr-intelligence` é um dos 3 agentes "comuns" pré-existentes
+    // do PROMPT 1 (EXISTING_COMMON_CODES em scripts/import-agent-catalog.ts) — nunca passou pelo
+    // loop de `agent.hasPrompt`/`upsertAgentVersion` do importador do catálogo Birth Hub, então não
+    // tem nenhuma AgentVersion. A autorização agora PERMITE a chamada (binding VERIFIED/AVAILABLE),
+    // mas o executor falha fechado por falta de prompt real — nunca fabrica uma resposta. Cobertura
+    // completa do caminho SUCCEEDED (agente PROMPT_READY de verdade, com IA mockada) vive em
+    // tests/integration/agent-execute.test.ts.
+    it('agent.execute agora é PERMITTED pela autorização, mas falha fechado (FAILED) para um agente sem AgentVersion/systemPrompt', async () => {
       const { user } = await makeUserWithJobRole('LDR', 'SDR');
       const result = await runAgentExecution({
         actorId: user.id,
@@ -325,8 +334,11 @@ describe('Agent Runtime Genérico (PROMPT 4)', () => {
         requestedCapability: 'agent.execute',
         resource: {},
       });
-      expect(result.status).toBe('DENIED');
-      expect(result.policyDecision.reason).toBe('FUTURE_TOOL');
+      expect(result.policyDecision.allowed).toBe(true);
+      expect(result.policyDecision.reason).toBe('PERMITTED');
+      expect(result.status).toBe('FAILED');
+      const row = await prisma.agentExecution.findUnique({ where: { id: result.executionId } });
+      expect(row?.errorMessage).toContain('não tem conteúdo executável configurado');
     });
 
     it('SOURCE_REQUIRED: billing.read permanece bloqueado (sem fonte real de faturamento)', async () => {

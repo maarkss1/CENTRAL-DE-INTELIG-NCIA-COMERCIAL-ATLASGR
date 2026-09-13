@@ -12,14 +12,32 @@
 // mesmo padrão já usado por `src/features/intelligence/routes/agent.routes.ts` (ver comentário em
 // `src/shared/di/setup.ts` para o racional completo e onde cada um é registrado).
 
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { getAiModel } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
 import { container } from '../../../shared/di/container.js';
+import { assertPiiExternalConsent } from '../../../shared/services/aiPiiConsent.service.js';
 
 export interface ToolExecutionContext {
   organizationId: string;
   actorId: string;
   resource: Record<string, unknown>;
   mission?: string;
+  /** Contexto adicional livre do contrato de `POST /agents/:agentCode/run`
+   *  (`AgentExecutionRequest.context`) — hoje só consumido pelo executor genérico `agent.execute`;
+   *  os demais executores o ignoram (mantido opcional para não forçar todo chamador existente a
+   *  informar um campo que não usa). */
+  context?: Record<string, unknown>;
+  /** `AgentDefinition.code` já resolvido/autorizado por `authorizeCapability` — nunca o valor cru
+   *  do body (mesmo `request.agentCode` que `agentRuntime.service.ts` já usou para autorizar).
+   *  Hoje só consumido por `agent.execute` (rótulo de `agentContext` no gateway de IA). */
+  agentCode: string;
+  /** `AgentVersion` com `status = 'ACTIVE'` do agente em execução — a MESMA linha que
+   *  `agentRuntime.service.ts` já busca para persistir `AgentExecution.agentVersionId` (nunca uma
+   *  segunda consulta duplicada aqui). `null` quando o agente não tem nenhuma versão ativa. Hoje só
+   *  consumido por `agent.execute`: `systemPrompt` não-nulo é a condição PROMPT_READY (ver
+   *  scripts/import-agent-catalog.ts:resolveStatus) que autoriza a chamada real de IA. */
+  agentVersion: { id: string; version: number; systemPrompt: string | null } | null;
 }
 
 export interface ToolFact {
@@ -601,6 +619,79 @@ const agentDiscover: ToolExecutor = async () => ({
   missingData: [],
 });
 
+// Achado real da auditoria de dívida técnica (AIAGENT-001/AIAGENT-002): `agent.execute` estava
+// bloqueado como FUTURE_TOOL por um comentário desatualizado ("até o PROMPT 4") mesmo depois de
+// `agentRuntime.service.ts`/este arquivo já existirem, e mesmo quando desbloqueado não havia
+// NENHUM executor registrado — a pipeline de autorização (13 etapas, capabilityAuthorization.
+// service.ts) já roteava/autorizava corretamente, mas não tinha o que chamar no fim. Este é esse
+// executor: diferente de todo outro nesta seção (wrapper fino sobre um serviço de OUTRA feature),
+// este É o motor genérico em si — lê o `AgentVersion.systemPrompt` já resolvido por
+// `agentRuntime.service.ts` (nunca uma segunda consulta) e invoca o gateway de IA real
+// (`getAiModel`, mesmo caminho de BaseAgent.run()/lib/ai/features.ts) com esse prompt como
+// SystemMessage.
+//
+// Condição PROMPT_READY = `AgentVersion.systemPrompt` não-nulo (27 dos 379 agentes importados do
+// catálogo Birth Hub nesta rodada — ver scripts/import-agent-catalog.ts:resolveStatus). Os outros
+// 352 (systemPrompt null) falham fechado com um erro explícito: nunca fabrica uma resposta (mesmo
+// princípio já em BaseAgent.run() — "nunca fabricar uma resposta falsa").
+//
+// Gate LGPD: `mission`/`resource`/`context` aqui são texto/JSON livres informados por quem chama
+// `POST /agents/:agentCode/run` — a mesma superfície que pode carregar nome/e-mail/telefone de um
+// lead ou empresa real (ex.: um operador colando o perfil de um lead no `mission`, ou `resource`
+// carregando `{leadId, contactName, ...}`). Antes de qualquer chamada ao provedor de IA externo,
+// passa pelo MESMO gate fail-closed que já protege SDR/BDR/Closer/CRM/Ops/Supervisor (BaseAgent),
+// WhatsApp e a transcrição de reunião do Copiloto (`assertPiiExternalConsent`,
+// aiPiiConsent.service.ts) — nunca um caminho novo de PII para IA externa que ignore essa base
+// legal já estabelecida.
+const agentExecute: ToolExecutor = async (ctx) => {
+  if (!ctx.agentVersion?.systemPrompt) {
+    // Fail closed, honesto: sem prompt real configurado, não há nada real para executar — nunca
+    // inventa um resumo/resposta. `runAgentExecution` converte esta exceção em `AgentExecution`
+    // `status = 'FAILED'` com `errorMessage` sanitizado, o mesmo caminho que qualquer outro
+    // executor desta tabela já usa para um pré-requisito ausente (ex.: `requireStr` acima).
+    throw new Error(
+      'Este agente não tem conteúdo executável configurado ainda (nenhuma AgentVersion ativa com systemPrompt real).',
+    );
+  }
+
+  assertPiiExternalConsent(ctx.organizationId);
+
+  const missionText = str(ctx.mission);
+  const resourceJson =
+    ctx.resource && Object.keys(ctx.resource).length > 0 ? JSON.stringify(ctx.resource) : null;
+  const contextJson =
+    ctx.context && Object.keys(ctx.context).length > 0 ? JSON.stringify(ctx.context) : null;
+
+  const humanPromptParts = [
+    missionText ??
+      'Execute a tarefa de acordo com o seu system prompt — nenhuma instrução adicional foi informada nesta chamada.',
+  ];
+  if (resourceJson) humanPromptParts.push(`Dados de recurso (JSON):\n${resourceJson}`);
+  if (contextJson) humanPromptParts.push(`Contexto adicional (JSON):\n${contextJson}`);
+
+  const model = getAiModel('local-llama3', 0.4, `agent.execute:${ctx.agentCode}`);
+  const result = await model.invoke([
+    new SystemMessage(ctx.agentVersion.systemPrompt),
+    new HumanMessage(humanPromptParts.join('\n\n')),
+  ]);
+
+  return {
+    summary: result.content,
+    facts: [],
+    metrics: {
+      promptTokens: result.response_metadata.tokenUsage.promptTokens,
+      completionTokens: result.response_metadata.tokenUsage.completionTokens,
+      totalTokens: result.response_metadata.tokenUsage.totalTokens,
+    },
+    evidence: [
+      `AgentVersion.id=${ctx.agentVersion.id} version=${ctx.agentVersion.version}`,
+      `AiModel.model=${result.response_metadata.model}`,
+    ],
+    missingData: [],
+    raw: { model: result.response_metadata.model },
+  };
+};
+
 // ─── SDR/Closer (agentes reais de LangGraph — já em produção) ──────────────────────────────────
 // Diferente dos demais executores (função pura ou use case síncrono com retorno estruturado),
 // estes dois chamam agentes de IA reais já em produção no Enxame (BaseAgent/LangGraph, tenant lido
@@ -692,6 +783,7 @@ export const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
   'bitrix.write': bitrixWrite,
   'bitrix.configure': bitrixConfigure,
   'agent.discover': agentDiscover,
+  'agent.execute': agentExecute,
 };
 
 export function getToolExecutor(capabilityCode: string): ToolExecutor | undefined {

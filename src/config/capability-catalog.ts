@@ -269,7 +269,7 @@ export const CAPABILITY_CATALOG: CapabilityCatalogEntry[] = [
     code: 'agent.execute',
     name: 'Executar agente',
     description:
-      'Executar um agente via AgentRuntime. Permanece FUTURE_TOOL/bloqueado até o PROMPT 4 implementar o runtime real.',
+      'Executar um agente via AgentRuntime. Para agentes PROMPT_READY (AgentVersion ativa com systemPrompt real — 27 dos 379 agentes do catálogo Birth Hub nesta rodada), chama o gateway de IA com esse system prompt; agentes sem prompt real configurado ainda falham fechado, nunca fabricam uma resposta.',
     domain: 'Governança de Agentes',
     actionType: 'EXECUTE',
     riskLevel: 'MEDIUM',
@@ -278,7 +278,7 @@ export const CAPABILITY_CATALOG: CapabilityCatalogEntry[] = [
     code: 'agent.request_cross_role',
     name: 'Solicitar acesso entre cargos',
     description:
-      'Solicitar autorização temporária para usar um agente/capability fora do próprio cargo. Permanece FUTURE_TOOL até o PROMPT 7 implementar o fluxo de aprovação.',
+      'Solicitar autorização temporária para usar um agente/capability fora do próprio cargo. Fluxo de aprovação (PROMPT 7) já implementado em accessRequest.service.ts — ver tool-bindings.ts.',
     domain: 'Governança de Agentes',
     actionType: 'EXECUTE',
     riskLevel: 'MEDIUM',

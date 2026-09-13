@@ -17,8 +17,10 @@
 // Três motivos distintos de indisponibilidade, nunca colapsados um no outro (PROMPT 3B, item 5):
 //  - SOURCE_REQUIRED: a integração/fonte de dado real não existe (ex.: faturamento de venda real).
 //  - FUTURE_TOOL: a capability/integração ainda será construída numa onda futura já mapeada
-//    (ex.: `agent.execute` antes do PROMPT 4, `agent.request_cross_role` antes do PROMPT 7,
-//    `signature.request` — transporte gov.br ainda é stub, nunca promovido a integração real aqui).
+//    (ex.: `signature.request` — transporte gov.br ainda é stub, nunca promovido a integração real
+//    aqui). `agent.execute`/`agent.request_cross_role` já saíram desta categoria — ver os
+//    respectivos bindings abaixo (o comentário aqui ficou desatualizado numa rodada anterior;
+//    corrigido para não voltar a "descobrir" o mesmo débito).
 //  - TOOL_UNAVAILABLE: existe uma capability plausível, mas nenhum símbolo real e específico foi
 //    encontrado/comprovado nesta auditoria — não é "fonte ausente" nem "onda futura conhecida", é
 //    "não verificado ainda". Registrado como gap explícito, nunca fabricado.
@@ -372,14 +374,14 @@ export const TOOL_BINDINGS: ToolBinding[] = [
   },
   {
     capabilityCode: 'agent.execute',
-    toolCode: 'agent.execute.future',
+    toolCode: 'job-roles.agent-runtime.execute-prompt-ready',
     binding:
-      'AgentRuntime genérico ainda não existe — implementado no PROMPT 4. Bloqueado de propósito nesta onda (regra explícita do prompt).',
-    available: false,
-    reason: 'FUTURE_TOOL',
-    verification: 'UNVERIFIED',
-    evidencePath: null,
-    exportName: null,
+      'agentExecute (toolExecutors.ts) — executor genérico do AgentRuntime: para um agente PROMPT_READY (AgentVersion.systemPrompt real, resolvido por agentRuntime.service.ts antes de chamar o executor), monta um SystemMessage com o prompt armazenado e chama getAiModel/gateway de IA real; agente sem systemPrompt falha fechado com erro explícito, nunca fabrica resposta. Correção do achado da auditoria de dívida técnica (AIAGENT-001/002): o comentário acima que bloqueava isto "até o PROMPT 4" estava desatualizado — o runtime genérico (agentRuntime.service.ts/toolExecutors.ts) já existia, só faltava este executor.',
+    available: true,
+    reason: 'AVAILABLE',
+    verification: 'VERIFIED',
+    evidencePath: 'src/lib/ai/gateway/chat-model.ts',
+    exportName: 'getAiModel',
     methodName: null,
   },
   {

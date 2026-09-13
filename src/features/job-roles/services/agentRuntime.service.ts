@@ -180,7 +180,7 @@ export async function runAgentExecution(
 
   const agentVersion = await prisma.agentVersion.findFirst({
     where: { agentDefinitionId: decision.agent?.id, status: 'ACTIVE' },
-    select: { id: true, version: true },
+    select: { id: true, version: true, systemPrompt: true },
   });
 
   if (agentVersion) {
@@ -217,6 +217,15 @@ export async function runAgentExecution(
       actorId: request.actorId,
       resource: request.resource ?? {},
       mission: request.mission,
+      context: request.context,
+      agentCode: request.agentCode,
+      agentVersion: agentVersion
+        ? {
+            id: agentVersion.id,
+            version: agentVersion.version,
+            systemPrompt: agentVersion.systemPrompt,
+          }
+        : null,
     });
     const finishedAt = new Date();
     const toolCalls: AgentExecutionToolCall[] = [
