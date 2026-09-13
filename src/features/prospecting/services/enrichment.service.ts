@@ -49,6 +49,7 @@ import {
 } from './enrichment/domainGuess.js';
 import { computeFitScore } from './enrichment/fitScore.js';
 import { filterNewContacts } from '../utils/contactDedupe.js';
+import type { PlaybookKey } from '../../../config/playbooks.js';
 
 export {
   fetchCnpjData,
@@ -68,6 +69,14 @@ export interface EnrichCompanyOptions {
   cnpj?: string;
   segmentKeywords?: string[];
   fleetSizeHint?: string;
+  /**
+   * Playbook comercial ativo da organização — repassado para `computeFitScore` (ACH-05-07) para
+   * que os critérios de frota/região/carga de risco/stack logístico só bonifiquem quando o
+   * playbook ativo é o de risco de carga/logística. Opcional: hoje o playbook é uma preferência
+   * resolvida no navegador (ver `useActivePlaybook.ts`), não um dado por organização persistido
+   * no backend — sem este campo, `computeFitScore` cai no padrão (mesmo comportamento de antes).
+   */
+  activePlaybook?: PlaybookKey;
   /** Decisores já buscados na tela de descoberta (Apollo/Hunter) — quando presentes, evitam uma
    * nova chamada às APIs pagas para os mesmos dados que o usuário já viu antes de promover o lead. */
   preFetchedDecisionMakers?: Array<{
@@ -221,6 +230,7 @@ export function buildCachedEnrichmentResult(
     state: company.state,
     fleetSizeHint: options.fleetSizeHint,
     technologies: company.technologies,
+    activePlaybook: options.activePlaybook,
   });
 
   const lookalike: LookalikeScoreResult | null =
@@ -633,6 +643,7 @@ async function runEnrichment(
     state: updateData.state ?? company.state,
     fleetSizeHint: options.fleetSizeHint,
     technologies: updateData.technologies ?? company.technologies,
+    activePlaybook: options.activePlaybook,
   });
 
   // Look-alike scoring (pgvector) — roda depois do fit score determinístico, nunca no lugar dele:

@@ -181,6 +181,70 @@ describe('computeFitScore', () => {
     });
   });
 
+  describe('playbook comercial ativo (ACH-05-07)', () => {
+    it('sem activePlaybook informado, cai no padrão (atlasgr/logística) — comportamento preservado', () => {
+      const result = computeFitScore({ fleetSizeHint: 'Acima de 50 veículos', state: 'SP' });
+      expect(result.score).toBe(50); // 25 base + 15 frota + 10 região
+      expect(result.breakdown.some((i) => i.label.includes('Frota'))).toBe(true);
+    });
+
+    it('com activePlaybook explícito "atlasgr" (logística), os bônus continuam valendo', () => {
+      const result = computeFitScore({
+        fleetSizeHint: 'Acima de 50 veículos',
+        state: 'RJ',
+        cnaeDescription: 'Indústria alimentícia',
+        technologies: ['TOTVS Protheus'],
+        activePlaybook: 'atlasgr',
+      });
+
+      expect(result.breakdown.some((i) => i.label.includes('Frota'))).toBe(true);
+      expect(result.breakdown.some((i) => i.label.includes('Região de risco'))).toBe(true);
+      expect(result.breakdown.some((i) => i.label.includes('Categoria de carga'))).toBe(true);
+      expect(result.breakdown.some((i) => i.label.includes('Stack de ERP/TMS'))).toBe(true);
+    });
+
+    it('playbook não-logístico (totaltrac) não recebe bônus de frota/região/carga/stack de ERP-TMS', () => {
+      const result = computeFitScore({
+        fleetSizeHint: 'Acima de 500 veículos',
+        state: 'RJ',
+        city: 'Rio de Janeiro',
+        cnaeDescription: 'Indústria alimentícia',
+        segment: 'Alimentos',
+        technologies: ['TOTVS Protheus', 'SAP Business One'],
+        activePlaybook: 'totaltrac',
+      });
+
+      // Só os 25 pontos base de participação no funil — nenhum critério logístico se aplica.
+      expect(result.score).toBe(25);
+      expect(result.breakdown).toEqual([]);
+      expect(result.breakdown.some((i) => i.label.includes('Frota'))).toBe(false);
+      expect(result.breakdown.some((i) => i.label.includes('Região de risco'))).toBe(false);
+      expect(result.breakdown.some((i) => i.label.includes('Categoria de carga'))).toBe(false);
+      expect(result.breakdown.some((i) => i.label.includes('Stack de ERP/TMS'))).toBe(false);
+    });
+
+    it('playbook não-logístico ainda soma normalmente os critérios universais (situação cadastral, capital, porte, CNAE-ICP)', () => {
+      const result = computeFitScore({
+        situacaoCadastral: 'ATIVA',
+        capitalSocial: 200_000,
+        employeeCountEstimate: 60,
+        segmentKeywords: ['Telemetria'],
+        cnaeDescription: 'Serviços de telemetria e rastreamento veicular',
+        // Estes campos teriam gerado bônus logístico se o playbook fosse 'atlasgr':
+        fleetSizeHint: 'Acima de 500 veículos',
+        state: 'SP',
+        activePlaybook: 'totaltrac',
+      });
+
+      expect(result.breakdown.some((i) => i.label === 'Situação cadastral')).toBe(true);
+      expect(result.breakdown.some((i) => i.label === 'Capital social')).toBe(true);
+      expect(result.breakdown.some((i) => i.label === 'Porte estimado')).toBe(true);
+      expect(result.breakdown.some((i) => i.label === 'Aderência de CNAE ao ICP')).toBe(true);
+      expect(result.breakdown.some((i) => i.label.includes('Frota'))).toBe(false);
+      expect(result.breakdown.some((i) => i.label.includes('Região de risco'))).toBe(false);
+    });
+  });
+
   describe('clamping e temperatura', () => {
     it('nunca ultrapassa 100 mesmo somando todos os critérios positivos', () => {
       const result = computeFitScore({

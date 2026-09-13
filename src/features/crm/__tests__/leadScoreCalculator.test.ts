@@ -97,6 +97,38 @@ describe('Lead Score Calculator (BANT / SPIN)', () => {
     expect(result.breakdown.needScore).toBe(25);
   });
 
+  describe('playbook comercial ativo (ACH-05-07)', () => {
+    it('sem activePlaybook informado, cai no padrão (atlasgr/logística) — bônus de dor preservado', () => {
+      const result = calculateLeadScore({ need: 'moderada_otimizacao', fuelCostPain: true });
+      expect(result.breakdown.needScore).toBe(20);
+    });
+
+    it('com activePlaybook explícito "atlasgr" (logística), o bônus de dor continua valendo', () => {
+      const result = calculateLeadScore({
+        need: 'moderada_otimizacao',
+        theftRiskPain: true,
+        activePlaybook: 'atlasgr',
+      });
+      expect(result.breakdown.needScore).toBe(20);
+    });
+
+    it('playbook não-logístico (totaltrac) não recebe o bônus de dor de diesel/sinistro', () => {
+      const comFuelPain = calculateLeadScore({
+        need: 'moderada_otimizacao',
+        fuelCostPain: true,
+        activePlaybook: 'totaltrac',
+      });
+      const comTheftPain = calculateLeadScore({
+        need: 'moderada_otimizacao',
+        theftRiskPain: true,
+        activePlaybook: 'totaltrac',
+      });
+
+      expect(comFuelPain.breakdown.needScore).toBe(15);
+      expect(comTheftPain.breakdown.needScore).toBe(15);
+    });
+  });
+
   it('valores desconhecidos de budget/authority/need/timing caem no default (0), não quebram', () => {
     const result = calculateLeadScore({
       budget: 'valor-nunca-visto',

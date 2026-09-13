@@ -106,4 +106,19 @@ describe('computeFitScore — sinais de fit com o ICP (aderência de CNAE, playb
     expect(comFrotaERegiao.breakdown.some((i) => i.label.includes('Frota'))).toBe(true);
     expect(comFrotaERegiao.breakdown.some((i) => i.label.includes('Região de risco'))).toBe(true);
   });
+
+  it('ACH-05-07: playbook não-logístico (totaltrac) não recebe o bônus de frota/região, mesmo com os mesmos dados', () => {
+    const comFrotaERegiao = computeFitScore({ fleetSizeHint: 'Acima de 50 veículos', state: 'RJ' });
+    const mesmosDadosOutroPlaybook = computeFitScore({
+      fleetSizeHint: 'Acima de 50 veículos',
+      state: 'RJ',
+      activePlaybook: 'totaltrac',
+    });
+
+    expect(mesmosDadosOutroPlaybook.score).toBeLessThan(comFrotaERegiao.score);
+    expect(mesmosDadosOutroPlaybook.breakdown.some((i) => i.label.includes('Frota'))).toBe(false);
+    expect(mesmosDadosOutroPlaybook.breakdown.some((i) => i.label.includes('Região de risco'))).toBe(
+      false,
+    );
+  });
 });
